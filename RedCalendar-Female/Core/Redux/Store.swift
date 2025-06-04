@@ -37,3 +37,6 @@ final class Store<State, Action>: ObservableObject {
         }
     }
 }
+
+// Type alias for convenience
+typealias AppStore = Store<AppState, AppAction>

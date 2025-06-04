@@ -34,6 +34,3 @@ enum AuthCheckState {
     case authenticated     // User found, proceed to main app
     case notAuthenticated  // No user found, show login
 }
-
-// Type alias for convenience
-typealias AppStore = Store<AppState, AppAction>
