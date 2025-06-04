@@ -6,6 +6,11 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		AB9FE2572DF00B390083B0D9 /* AppMetricaCore in Frameworks */ = {isa = PBXBuildFile; productRef = AB9FE2562DF00B390083B0D9 /* AppMetricaCore */; };
+		AB9FE2592DF00B390083B0D9 /* AppMetricaCrashes in Frameworks */ = {isa = PBXBuildFile; productRef = AB9FE2582DF00B390083B0D9 /* AppMetricaCrashes */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		AB9FE2372DEFF9110083B0D9 /* RedCalendar-Female.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "RedCalendar-Female.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -23,6 +28,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				AB9FE2592DF00B390083B0D9 /* AppMetricaCrashes in Frameworks */,
+				AB9FE2572DF00B390083B0D9 /* AppMetricaCore in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -65,6 +72,8 @@
 			);
 			name = "RedCalendar-Female";
 			packageProductDependencies = (
+				AB9FE2562DF00B390083B0D9 /* AppMetricaCore */,
+				AB9FE2582DF00B390083B0D9 /* AppMetricaCrashes */,
 			);
 			productName = "RedCalendar-Female";
 			productReference = AB9FE2372DEFF9110083B0D9 /* RedCalendar-Female.app */;
@@ -94,6 +103,9 @@
 			);
 			mainGroup = AB9FE22E2DEFF9110083B0D9;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				AB9FE2552DF00B390083B0D9 /* XCRemoteSwiftPackageReference "appmetrica-sdk-ios" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = AB9FE2382DEFF9110083B0D9 /* Products */;
 			projectDirPath = "";
@@ -261,7 +273,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 15.6;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.4;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -293,7 +305,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 15.6;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.4;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -332,6 +344,30 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		AB9FE2552DF00B390083B0D9 /* XCRemoteSwiftPackageReference "appmetrica-sdk-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/appmetrica/appmetrica-sdk-ios";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 5.11.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		AB9FE2562DF00B390083B0D9 /* AppMetricaCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AB9FE2552DF00B390083B0D9 /* XCRemoteSwiftPackageReference "appmetrica-sdk-ios" */;
+			productName = AppMetricaCore;
+		};
+		AB9FE2582DF00B390083B0D9 /* AppMetricaCrashes */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AB9FE2552DF00B390083B0D9 /* XCRemoteSwiftPackageReference "appmetrica-sdk-ios" */;
+			productName = AppMetricaCrashes;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = AB9FE22F2DEFF9110083B0D9 /* Project object */;
 }

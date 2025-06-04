@@ -15,6 +15,10 @@ struct RedCalendarApp: App {
         middleware: authMiddleware
     )
     
+    init() {
+        Configurator.shared.setup()
+    }
+    
     var body: some Scene {
         WindowGroup {
             RootView()
