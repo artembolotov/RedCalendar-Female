@@ -8,33 +8,53 @@
 import Foundation
 
 typealias Reducer<State, Action> = (State, Action) -> State
-typealias Middleware<State, Action> = (State, Action) async -> Action?
+typealias Middleware<State, Action> = (State, Action) async -> [Action]
 
 @MainActor
 final class Store<State, Action>: ObservableObject {
     @Published private(set) var state: State
     private let reducer: Reducer<State, Action>
-    private let middleware: Middleware<State, Action>?
+    private let middlewares: [Middleware<State, Action>]
     
     init(
         initialState: State,
         reducer: @escaping Reducer<State, Action>,
-        middleware: Middleware<State, Action>? = nil
+        middlewares: [Middleware<State, Action>] = []
     ) {
         self.state = initialState
         self.reducer = reducer
-        self.middleware = middleware
+        self.middlewares = middlewares
     }
     
     func send(_ action: Action) {
         state = reducer(state, action)
         
         Task {
-            if let middleware = middleware,
-               let nextAction = await middleware(state, action) {
-                send(nextAction)
+            await processMiddlewares(for: action)
+        }
+    }
+    
+    private func processMiddlewares(for action: Action) async {
+        for middleware in middlewares {
+            let actions = await middleware(state, action)
+            for action in actions {
+                send(action)
             }
         }
+    }
+}
+
+// MARK: - Middleware Helpers
+func combineMiddleware<State, Action>(
+    _ middlewares: Middleware<State, Action>...
+) -> Middleware<State, Action> {
+    return { state, action in
+        var allActions: [Action] = []
+        for middleware in middlewares {
+            let actions = await middleware(state, action)
+            allActions.append(contentsOf: actions)
+        }
+        return allActions
     }
 }
 

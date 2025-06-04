@@ -31,7 +31,7 @@ struct LoginView: View {
             AppStore(
                 initialState: AppState(isInitialized: true, userId: nil),
                 reducer: appReducer,
-                middleware: authMiddleware
+                middlewares: createAppMiddleware()
             )
         )
 }

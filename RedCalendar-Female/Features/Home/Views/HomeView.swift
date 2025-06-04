@@ -38,7 +38,7 @@ struct HomeView: View {
             AppStore(
                 initialState: AppState(isInitialized: true, userId: "nSJXOCPF3ocA4Znn1sL7KvI1dh13"),
                 reducer: appReducer,
-                middleware: authMiddleware
+                middlewares: createAppMiddleware()
             )
         )
 }

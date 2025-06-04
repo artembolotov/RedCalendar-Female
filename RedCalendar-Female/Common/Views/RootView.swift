@@ -30,7 +30,7 @@ struct RootView: View {
             AppStore(
                 initialState: AppState(),
                 reducer: appReducer,
-                middleware: authMiddleware
+                middlewares: createAppMiddleware()
             )
         )
 }
