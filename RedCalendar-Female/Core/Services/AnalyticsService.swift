@@ -10,6 +10,7 @@ import AppMetricaCore
 protocol AnalyticsServiceProtocol {
     func registerApp()
     func trackEvent(_ name: String)
+    func trackEvent(_ name: String, parameters: [AnyHashable : Any]?)
 }
 
 final class AnalyticsService: AnalyticsServiceProtocol {
@@ -23,5 +24,9 @@ final class AnalyticsService: AnalyticsServiceProtocol {
     
     func trackEvent(_ name: String) {
         AppMetrica.reportEvent(name: name)
+    }
+    
+    func trackEvent(_ name: String, parameters: [AnyHashable : Any]?) {
+        AppMetrica.reportEvent(name: name, parameters: parameters)
     }
 }

@@ -6,6 +6,6 @@
 //
 
 let loggerMiddleware: Middleware<AppState, AppAction> = { state, action in
-    print("🎯 Action: \(action)")
+    AppLogger.action(action)
     return []
 }
