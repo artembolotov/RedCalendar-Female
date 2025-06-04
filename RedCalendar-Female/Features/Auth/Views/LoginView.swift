@@ -29,9 +29,12 @@ struct LoginView: View {
     LoginView()
         .environmentObject(
             AppStore(
-                initialState: AppState(isInitialized: true, userId: nil),
+                initialState: AppState(
+                    isInitialized: true,
+                    userId: nil
+                ),
                 reducer: appReducer,
-                middlewares: createAppMiddleware()
+                middlewares: combineAppMiddlewares()
             )
         )
 }

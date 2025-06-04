@@ -57,6 +57,3 @@ func combineMiddleware<State, Action>(
         return allActions
     }
 }
-
-// Type alias for convenience
-typealias AppStore = Store<AppState, AppAction>

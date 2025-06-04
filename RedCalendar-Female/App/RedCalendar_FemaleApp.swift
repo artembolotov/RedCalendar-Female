@@ -12,7 +12,7 @@ struct RedCalendarApp: App {
     @StateObject private var store = AppStore(
         initialState: AppState(),
         reducer: appReducer,
-        middlewares: createAppMiddleware()
+        middlewares: combineAppMiddlewares()
     )
     
     init() {

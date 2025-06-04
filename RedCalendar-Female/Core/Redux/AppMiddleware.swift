@@ -6,7 +6,7 @@
 //
 
 // MARK: - Create App Middleware
-func createAppMiddleware() -> [Middleware<AppState, AppAction>] {
+func combineAppMiddlewares() -> [Middleware<AppState, AppAction>] {
     return [
         loggerMiddleware,
         authMiddleware,
