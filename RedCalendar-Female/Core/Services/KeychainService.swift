@@ -1,40 +1,23 @@
 //
-//  KeychainHelper.swift
+//  KeychainService.swift
 //  RedCalendar-Female
 //
 //  Created by Артём Болотов on 04.06.2025.
 //
 
-import Foundation
 import Security
+import Foundation
 
-class KeychainHelper {
-    // Key for storing user UID in keychain
-    private static let userUIDKey = "redcalendar_user_uid"
+protocol KeychainServiceProtocol {
+    func getUserUID() -> String?
+    @discardableResult func saveUserUID(_ uid: String) -> Bool
+    @discardableResult func deleteUserUID() -> Bool
+}
+
+final class KeychainService: KeychainServiceProtocol {
+    private let userUIDKey = "redcalendar_user_uid"
     
-    // Save user UID to keychain
-    @discardableResult
-    static func saveUserUID(_ uid: String) -> Bool {
-        guard let data = uid.data(using: .utf8) else {
-            return false
-        }
-        
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrAccount as String: userUIDKey,
-            kSecValueData as String: data
-        ]
-        
-        // Delete existing item first
-        SecItemDelete(query as CFDictionary)
-        
-        // Add new item
-        let status = SecItemAdd(query as CFDictionary, nil)
-        return status == errSecSuccess
-    }
-    
-    // Retrieve user UID from keychain
-    static func getUserUID() -> String? {
+    func getUserUID() -> String? {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrAccount as String: userUIDKey,
@@ -54,9 +37,26 @@ class KeychainHelper {
         return nil
     }
     
-    // Delete user UID from keychain
-    @discardableResult
-    static func deleteUserUID() -> Bool {
+    func saveUserUID(_ uid: String) -> Bool {
+        guard let data = uid.data(using: .utf8) else {
+            return false
+        }
+        
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrAccount as String: userUIDKey,
+            kSecValueData as String: data
+        ]
+        
+        // Delete existing item first
+        SecItemDelete(query as CFDictionary)
+        
+        // Add new item
+        let status = SecItemAdd(query as CFDictionary, nil)
+        return status == errSecSuccess
+    }
+    
+    func deleteUserUID() -> Bool {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrAccount as String: userUIDKey

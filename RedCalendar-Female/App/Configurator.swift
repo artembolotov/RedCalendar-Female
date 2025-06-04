@@ -14,6 +14,7 @@ final class Configurator {
     
     func setup() {
         registerAnalyticsService()
+        registerKeychainService()
     }
     
     private func registerAnalyticsService() {
@@ -21,5 +22,10 @@ final class Configurator {
         ServiceLocator.shared.addService(service: analytics)
         
         analytics.registerApp()
+    }
+    
+    private func registerKeychainService() {
+        let keychain: KeychainServiceProtocol = KeychainService()
+        ServiceLocator.shared.addService(service: keychain)
     }
 }

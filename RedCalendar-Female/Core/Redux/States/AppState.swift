@@ -35,35 +35,5 @@ enum AuthCheckState {
     case notAuthenticated  // No user found, show login
 }
 
-enum AppAction {
-    case checkAuth
-    case authCheckCompleted(userId: String?)
-    case login
-    case logout
-}
-
-func appReducer(state: AppState, action: AppAction) -> AppState {
-    var state = state
-    
-    switch action {
-    case .checkAuth:
-        // Just trigger middleware
-        break
-        
-    case .authCheckCompleted(let userId):
-        state.isInitialized = true
-        state.userId = userId
-        
-    case .login:
-        // Trigger middleware
-        break
-        
-    case .logout:
-        state.userId = nil
-    }
-    
-    return state
-}
-
 // Type alias for convenience
 typealias AppStore = Store<AppState, AppAction>
