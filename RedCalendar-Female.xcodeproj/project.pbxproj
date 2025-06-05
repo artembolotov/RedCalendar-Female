@@ -13,6 +13,8 @@
 
 /* Begin PBXFileReference section */
 		AB9FE2372DEFF9110083B0D9 /* RedCalendar-Female.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "RedCalendar-Female.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		ABFA3A662DF1577D00A264F4 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
+		ABFA3A672DF1579A00A264F4 /* .gitignore */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitignore; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -40,6 +42,8 @@
 			isa = PBXGroup;
 			children = (
 				AB9FE2392DEFF9110083B0D9 /* RedCalendar-Female */,
+				ABFA3A672DF1579A00A264F4 /* .gitignore */,
+				ABFA3A662DF1577D00A264F4 /* README.md */,
 				AB9FE2382DEFF9110083B0D9 /* Products */,
 			);
 			sourceTree = "<group>";
