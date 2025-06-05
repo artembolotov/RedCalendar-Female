@@ -41,6 +41,7 @@ final class Store<State, Action>: ObservableObject {
                     self?.send(asyncAction)
                 }
             }
+            
             for action in actions {
                 await MainActor.run {
                     send(action)

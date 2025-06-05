@@ -7,6 +7,24 @@
 
 import Foundation
 
+// MARK: - Migration Errors
+enum MigrationError: Error, LocalizedError {
+    case noUserIdFound
+    case keychainSaveError
+    case serverError(String)
+    
+    var errorDescription: String? {
+        switch self {
+        case .noUserIdFound:
+            return "No user ID found for migration"
+        case .keychainSaveError:
+            return "Failed to save device ID to keychain"
+        case .serverError(let message):
+            return "Server error: \(message)"
+        }
+    }
+}
+
 let migrationMiddleware: Middleware<AppState, AppAction> = { state, action, dispatch in
     @Injected var keychain: KeychainServiceProtocol
     @Injected var apiService: APIServiceProtocol
@@ -22,8 +40,6 @@ let migrationMiddleware: Middleware<AppState, AppAction> = { state, action, disp
         // Perform async migration
         Task {
             do {
-                AppLogger.action(.startMigration)
-                
                 let response = try await apiService.migrateUser(userId: userId)
                 
                 guard response.success,
@@ -38,8 +54,6 @@ let migrationMiddleware: Middleware<AppState, AppAction> = { state, action, disp
                 
                 // Remove old user_id from keychain
                 keychain.deleteUserUID()
-                
-                AppLogger.action(.migrationCompleted(deviceId: data.deviceId, userId: data.userId))
                 
                 // Dispatch success action
                 dispatch(.migrationCompleted(deviceId: data.deviceId, userId: data.userId))
@@ -56,23 +70,5 @@ let migrationMiddleware: Middleware<AppState, AppAction> = { state, action, disp
         
     default:
         return []
-    }
-}
-
-// MARK: - Migration Errors
-enum MigrationError: Error, LocalizedError {
-    case noUserIdFound
-    case keychainSaveError
-    case serverError(String)
-    
-    var errorDescription: String? {
-        switch self {
-        case .noUserIdFound:
-            return "No user ID found for migration"
-        case .keychainSaveError:
-            return "Failed to save device ID to keychain"
-        case .serverError(let message):
-            return "Server error: \(message)"
-        }
     }
 }

@@ -5,13 +5,6 @@
 //  Created by Артём Болотов on 04.06.2025.
 //
 
-//
-//  AppReducer.swift
-//  RedCalendar-Female
-//
-//  Created by Артём Болотов on 04.06.2025.
-//
-
 func appReducer(state: AppState, action: AppAction) -> AppState {
     var state = state
     
@@ -20,9 +13,9 @@ func appReducer(state: AppState, action: AppAction) -> AppState {
         // Just trigger middleware
         break
         
-    case .authCheckCompleted(let userId):
+    case .authCheckCompleted(let deviceId):
         state.isInitialized = true
-        state.userId = userId
+        state.deviceId = deviceId
         
     case .startMigration:
         state.isMigrating = true

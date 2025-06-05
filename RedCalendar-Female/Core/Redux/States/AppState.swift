@@ -16,21 +16,19 @@ struct AppState {
     
     // Computed property
     var isAuthenticated: Bool {
-        deviceId != nil || userId != nil
+        deviceId != nil
     }
     
     // Auth check state
     var authCheckState: AuthCheckState {
-        switch (isInitialized, isMigrating, deviceId, userId) {
-        case (false, _, _, _):
+        switch (isInitialized, isMigrating, deviceId) {
+        case (false, _, _):
             return .checking
-        case (true, true, _, _):
+        case (true, true, _):
             return .migrating
-        case (true, false, .some, _):
+        case (true, false, .some):
             return .authenticated
-        case (true, false, .none, .some):
-            return .authenticated
-        case (true, false, .none, .none):
+        case (true, false, .none):
             return .notAuthenticated
         }
     }

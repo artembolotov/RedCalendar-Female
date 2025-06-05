@@ -16,10 +16,11 @@ struct HomeView: View {
                 Text("Добро пожаловать!")
                     .font(.largeTitle)
                 
-                if let userId = store.state.userId {
-                    Text("User ID: \(userId)")
+                if let deviceId = store.state.deviceId {
+                    Text("Device ID: \(deviceId)")
                         .font(.caption)
                         .foregroundColor(.secondary)
+                        .textSelection(.enabled)
                 }
                 
                 Button("Выйти") {
@@ -27,6 +28,7 @@ struct HomeView: View {
                 }
                 .foregroundColor(.red)
             }
+            .padding()
             .navigationTitle("RedCalendar")
         }
     }
@@ -38,7 +40,7 @@ struct HomeView: View {
             AppStore(
                 initialState: AppState(
                     isInitialized: true,
-                    userId: "nSJXOCPF3ocA4Znn1sL7KvI1dh13"
+                    deviceId: "B7DDU4pUigTiAhpNDWnQW83tGQ6R"
                 ),
                 reducer: appReducer,
                 middlewares: []

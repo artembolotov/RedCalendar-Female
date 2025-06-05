@@ -7,7 +7,7 @@
 
 enum AppAction {
     case checkAuth
-    case authCheckCompleted(userId: String?)
+    case authCheckCompleted(deviceId: String?)
     case startMigration
     case migrationCompleted(deviceId: String, userId: String)
     case migrationFailed(Error)
