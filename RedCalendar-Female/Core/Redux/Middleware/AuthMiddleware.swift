@@ -1,5 +1,5 @@
 //
-//  AppMiddleware.swift
+//  AuthMiddleware.swift
 //  RedCalendar-Female
 //
 //  Created by Артём Болотов on 04.06.2025.
@@ -7,25 +7,42 @@
 
 import Foundation
 
-let authMiddleware: Middleware<AppState, AppAction> = { state, action in
+let authMiddleware: Middleware<AppState, AppAction> = { state, action, dispatch in
     @Injected var keychain: KeychainServiceProtocol
     
     switch action {
     case .checkAuth:
-        // Check if user UID exists in keychain
-        let userId = keychain.getUserUID()
-        return [.authCheckCompleted(userId: userId)]
+        // Priority 1: Check for device_id (new system)
+        if let deviceId = keychain.getDeviceID() {
+            // TODO: Verify device_id with server
+            AppLogger.action(.authCheckCompleted(userId: deviceId))
+            return [.authCheckCompleted(userId: deviceId)]
+        }
+        
+        // Priority 2: Check for legacy user_id (Firebase)
+        if let userId = keychain.getUserUID() {
+            AppLogger.action(.startMigration)
+            return [.startMigration]
+        }
+        
+        // No credentials found
+        AppLogger.action(.authCheckCompleted(userId: nil))
+        return [.authCheckCompleted(userId: nil)]
+        
+    case .migrationCompleted(let deviceId, let userId):
+        // After successful migration, set the deviceId as the primary auth token
+        return [.authCheckCompleted(userId: deviceId)]
         
     case .login:
-        // For now, create test user
-        let testUserId = UUID().uuidString
-        keychain.saveUserUID(testUserId)
-        return [.authCheckCompleted(userId: testUserId)]
+        // For now, create test user with device_id
+        let testDeviceId = "test_device_\(UUID().uuidString.prefix(20))"
+        keychain.saveDeviceID(testDeviceId)
+        return [.authCheckCompleted(userId: testDeviceId)]
         
     case .logout:
-        // Clear keychain
+        // Clear all keychain data
+        keychain.deleteDeviceID()
         keychain.deleteUserUID()
-        // State already updated in reducer
         return []
         
     default:

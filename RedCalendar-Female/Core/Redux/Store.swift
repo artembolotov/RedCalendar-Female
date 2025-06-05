@@ -8,7 +8,7 @@
 import Foundation
 
 typealias Reducer<State, Action> = (State, Action) -> State
-typealias Middleware<State, Action> = (State, Action) async -> [Action]
+typealias Middleware<State, Action> = (State, Action, @escaping (Action) -> Void) async -> [Action]
 
 @MainActor
 final class Store<State, Action>: ObservableObject {
@@ -36,9 +36,15 @@ final class Store<State, Action>: ObservableObject {
     
     private func processMiddlewares(for action: Action) async {
         for middleware in middlewares {
-            let actions = await middleware(state, action)
+            let actions = await middleware(state, action) { [weak self] asyncAction in
+                Task { @MainActor in
+                    self?.send(asyncAction)
+                }
+            }
             for action in actions {
-                send(action)
+                await MainActor.run {
+                    send(action)
+                }
             }
         }
     }
@@ -48,10 +54,10 @@ final class Store<State, Action>: ObservableObject {
 func combineMiddleware<State, Action>(
     _ middlewares: Middleware<State, Action>...
 ) -> Middleware<State, Action> {
-    return { state, action in
+    return { state, action, dispatch in
         var allActions: [Action] = []
         for middleware in middlewares {
-            let actions = await middleware(state, action)
+            let actions = await middleware(state, action, dispatch)
             allActions.append(contentsOf: actions)
         }
         return allActions
