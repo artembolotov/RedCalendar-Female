@@ -26,7 +26,7 @@ struct LoginView: View {
 }
 
 #Preview {
-    LoginView()
+    RootView()
         .environmentObject(
             AppStore(
                 initialState: AppState(
@@ -34,7 +34,7 @@ struct LoginView: View {
                     userId: nil
                 ),
                 reducer: appReducer,
-                middlewares: combineAppMiddlewares()
+                middlewares: []
             )
         )
 }

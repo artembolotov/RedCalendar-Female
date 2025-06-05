@@ -33,7 +33,7 @@ struct HomeView: View {
 }
 
 #Preview {
-    HomeView()
+    RootView()
         .environmentObject(
             AppStore(
                 initialState: AppState(
@@ -41,7 +41,7 @@ struct HomeView: View {
                     userId: "nSJXOCPF3ocA4Znn1sL7KvI1dh13"
                 ),
                 reducer: appReducer,
-                middlewares: combineAppMiddlewares()
+                middlewares: []
             )
         )
 }
