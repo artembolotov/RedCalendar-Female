@@ -17,7 +17,7 @@ final class ServiceLocator {
         services[key] = service
     }
     
-    func getService<T>() -> T? {
+    func getService<T>() -> T {
         let key = String(describing: T.self)
         guard let service = services[key] as? T else {
             fatalError("Service of type \(T.self) is not registered!")

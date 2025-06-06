@@ -9,23 +9,14 @@ import Foundation
 
 @propertyWrapper
 struct Injected<Service> {
-    private var service: Service?
+    private lazy var service: Service = ServiceLocator.shared.getService()
     
     public var wrappedValue: Service {
-        mutating get {
-            if service == nil {
-                service = ServiceLocator.shared.getService()
-            }
-            return service!
-        }
+        mutating get { service }
     }
     
     public var projectedValue: Injected<Service> {
-        mutating set {
-            self = newValue
-        }
-        get {
-            return self
-        }
+        get { self }
+        set { self = newValue }
     }
 }
