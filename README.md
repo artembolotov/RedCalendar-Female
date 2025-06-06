@@ -99,7 +99,8 @@ RedCalendar-Female/
 - ✅ **Автоматическая миграция с Firebase** на собственную систему
 - ✅ **Проверка device_id при запуске** через Keychain
 - ✅ **Плавный переход**: Firebase UID → device_id
-- ✅ **Безопасное хранение** credentials в Keychain
+- ✅ **Безопасное хранение** credentials в Keychain с `kSecAttrAccessibleAfterFirstUnlock`
+- ✅ **Отключена синхронизация iCloud** для повышения приватности
 - ✅ **API интеграция** с https://api.calendar.red
 
 ### Архитектура
@@ -127,6 +128,23 @@ API /auth/migrate → migrationCompleted → authCheckCompleted → HomeView
 Запуск → checkAuth → ничего не найдено → notAuthenticated → LoginView
 ```
 
+## 🔒 Безопасность Keychain
+
+### Настройки безопасности
+- **`kSecAttrAccessibleAfterFirstUnlock`** - данные доступны только после разблокировки устройства
+- **`kCFBooleanFalse` для синхронизации** - отключена синхронизация через iCloud
+- **Правильная очистка** - использование `kSecAttrSynchronizableAny` при удалении
+
+### Принцип работы
+```swift
+// При сохранении - конкретные настройки безопасности
+kSecAttrSynchronizable: kCFBooleanFalse
+kSecAttrAccessible: kSecAttrAccessibleAfterFirstUnlock
+
+// При удалении - очистка всех вариантов
+kSecAttrSynchronizable: kSecAttrSynchronizableAny
+```
+
 ## 🛠 Tech Stack
 
 - **UI**: SwiftUI (iOS 15.4+)
@@ -142,7 +160,7 @@ API /auth/migrate → migrationCompleted → authCheckCompleted → HomeView
 ### Логика миграции
 1. **Старое приложение** сохраняло Firebase UID в keychain
 2. **Новое приложение** при запуске:
-   - Ищет device_id (новая система) → используует если найден
+   - Ищет device_id (новая система) → используется если найден
    - Ищет user_uid (Firebase legacy) → запускает миграцию
    - Ничего не найдено → показывает экран входа
 
@@ -152,7 +170,7 @@ API /auth/migrate → migrationCompleted → authCheckCompleted → HomeView
 POST /auth/migrate
 {
     "user_id": "nSJXOCPF3ocA4Znn1sL7KvI1dh13",
-    "device_model": "iPhone"
+    "device_model": "iPhone17,4"
 }
 
 // Ответ
@@ -170,6 +188,7 @@ POST /auth/migrate
 - **Firebase UID удаляется** после успешной миграции
 - **HTTPS API** с Bearer token авторизацией
 - **28-символьный device_id** в Firebase-совместимом формате
+- **Нет синхронизации iCloud** - данные остаются только на устройстве
 
 ## 💻 Разработка
 
@@ -263,6 +282,13 @@ let keychain = KeychainService()
 keychain.saveUserUID("nSJXOCPF3ocA4Znn1sL7KvI1dh13")
 ```
 
+### Очистка Keychain (для отладки)
+```swift
+let keychain = KeychainService()
+keychain.deleteDeviceID()
+keychain.deleteUserUID()
+```
+
 ## 🧪 Тестирование
 
 ```bash
@@ -282,9 +308,25 @@ cmd+shift+U
 - `migration_failed` - ошибка миграции
 - `app_error` - системные ошибки
 
+## 🐛 Известные проблемы
+
+### ServiceLocator signature mismatch
+```swift
+// Текущий код (некорректно)
+func getService<T>() -> T? {
+    // ... fatalError if not found
+}
+
+// Нужно исправить на:
+func getService<T>() -> T {
+    // ... или оставить Optional и убрать fatalError
+}
+```
+
 ## 🚧 Roadmap
 
 ### Ближайшие задачи
+- [ ] **Исправить ServiceLocator.getService()** signature
 - [ ] **CRUD операции** для циклов и данных
 - [ ] **Push уведомления** через APNs
 - [ ] **Синхронизация данных** с бэкендом
@@ -295,6 +337,7 @@ cmd+shift+U
 - [ ] **SSL Pinning** для API запросов
 - [ ] **Offline mode** с локальным кэшированием
 - [ ] **Widget Extension** для iOS
+- [ ] **Unit тесты** для критичной функциональности
 
 ## 🤝 Вклад в проект
 
@@ -302,7 +345,8 @@ cmd+shift+U
 2. Все side effects только в middleware
 3. Используйте протоколы для сервисов
 4. Добавляйте логирование через AppLogger
-5. Пишите тесты для новой функциональности
+5. Обеспечивайте безопасность Keychain данных
+6. Пишите тесты для новой функциональности
 
 ## 📄 Лицензия
 
@@ -311,23 +355,23 @@ Proprietary - Все права защищены
 ---
 
 **Автор**: Артём Болотов  
-**Версия**: 4.0.0  
-**Дата**: 05.06.2025
+**Версия**: 4.1.0  
+**Дата**: 06.06.2025
 
-## 📈 Changelog v4.0.0
+## 📈 Changelog v4.1.0
 
-### ✅ Добавлено
-- **Автоматическая миграция** с Firebase на собственную систему авторизации
-- **APIService** для взаимодействия с https://api.calendar.red
-- **MigrationMiddleware** для обработки миграции пользователей
-- **Поддержка async/await** в middleware архитектуре
-- **Расширенная система состояний** (checking, migrating, authenticated, notAuthenticated)
+### 🔒 Улучшена безопасность
+- **Безопасное хранение в Keychain** с `kSecAttrAccessibleAfterFirstUnlock`
+- **Отключена синхронизация iCloud** для максимальной приватности (`kCFBooleanFalse`)
+- **Корректная очистка Keychain** с использованием `kSecAttrSynchronizableAny`
+
+### 🐛 Исправления
+- **Улучшено логирование** - замена `print` на `AppLogger` во всех сервисах
+- **Документирована проблема** с `ServiceLocator.getService()` signature
 
 ### 🔄 Изменено
-- **KeychainService** теперь поддерживает и device_id и user_uid
-- **AppState** использует device_id как основной токен авторизации
-- **AuthMiddleware** проверяет device_id с приоритетом над user_uid
-- **Упрощен HomeView** - убрана избыточная отладочная информация
+- **Упрощена логика Keychain** - убрана ненужная миграция для приложения в разработке
+- **Улучшена документация** безопасности и принципов работы Keychain
 
-### 🚀 Миграция готова к продакшену
-Система автоматически переведет всех пользователей с Firebase Auth на собственную систему авторизации без потери данных.
+### 🚀 Готово к разработке основного функционала
+Система авторизации стабильна и готова для добавления CRUD операций с данными пользователей.
