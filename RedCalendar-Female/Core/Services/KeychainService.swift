@@ -26,6 +26,10 @@ final class KeychainService: KeychainServiceProtocol {
     private let deviceIDKey = "redcalendar_device_id"
     private let userUIDKey = "redcalendar_user_uid"
     
+    // MARK: - Security Configuration
+    private let accessibility = kSecAttrAccessibleAfterFirstUnlock
+    private let synchronizable: CFBoolean = kCFBooleanFalse
+    
     // MARK: - Device ID Methods (New System)
     func getDeviceID() -> String? {
         return getValue(for: deviceIDKey)
@@ -57,6 +61,7 @@ final class KeychainService: KeychainServiceProtocol {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrAccount as String: key,
+            kSecAttrSynchronizable as String: synchronizable,
             kSecReturnData as String: true,
             kSecMatchLimit as String: kSecMatchLimitOne
         ]
@@ -70,35 +75,63 @@ final class KeychainService: KeychainServiceProtocol {
             return value
         }
         
+        if status != errSecItemNotFound && status != errSecSuccess {
+            AppLogger.error("Keychain read error for key: \(key), status: \(status)")
+        }
+        
         return nil
     }
     
     private func setValue(_ value: String, for key: String) -> Bool {
         guard let data = value.data(using: .utf8) else {
+            AppLogger.error("Failed to convert value to data for key: \(key)")
             return false
         }
         
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrAccount as String: key,
-            kSecValueData as String: data
+            kSecAttrSynchronizable as String: synchronizable,
+            kSecValueData as String: data,
+            kSecAttrAccessible as String: accessibility
         ]
         
-        // Delete existing item first
-        SecItemDelete(query as CFDictionary)
+        // Delete existing item first to avoid conflicts
+        let deleteQuery: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrAccount as String: key,
+            kSecAttrSynchronizable as String: kSecAttrSynchronizableAny
+        ]
+        
+        let deleteStatus = SecItemDelete(deleteQuery as CFDictionary)
+        
+        if deleteStatus != errSecSuccess && deleteStatus != errSecItemNotFound {
+            AppLogger.error("Keychain delete warning for key: \(key), status: \(deleteStatus)")
+        }
         
         // Add new item
-        let status = SecItemAdd(query as CFDictionary, nil)
-        return status == errSecSuccess
+        let addStatus = SecItemAdd(query as CFDictionary, nil)
+        
+        if addStatus != errSecSuccess {
+            AppLogger.error("Keychain save error for key: \(key), status: \(addStatus)")
+        }
+        
+        return addStatus == errSecSuccess
     }
     
     private func deleteValue(for key: String) -> Bool {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
-            kSecAttrAccount as String: key
+            kSecAttrAccount as String: key,
+            kSecAttrSynchronizable as String: kSecAttrSynchronizableAny
         ]
         
         let status = SecItemDelete(query as CFDictionary)
+        
+        if status != errSecSuccess && status != errSecItemNotFound {
+            AppLogger.error("Keychain delete error for key: \(key), status: \(status)")
+        }
+        
         return status == errSecSuccess || status == errSecItemNotFound
     }
 }
