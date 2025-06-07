@@ -19,19 +19,39 @@ struct RootView: View {
                 
         case .migrating:
             VStack(spacing: 16) {
-                ProgressView("Обновление системы авторизации...")
-                
-                Text("Переходим на новую систему безопасности")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-                
-                if let error = store.state.migrationError {
-                    Text("Ошибка: \(error)")
+                if store.state.migrationError == nil {
+                    // Normal migration in progress
+                    ProgressView("Обновление системы авторизации...")
+                    
+                    Text("Переходим на новую систему безопасности")
                         .font(.caption)
-                        .foregroundColor(.red)
+                        .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)
-                        .padding(.top)
+                } else {
+                    // Migration failed - show error and retry button
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 40))
+                        .foregroundColor(.orange)
+                        .padding(.bottom, 8)
+                    
+                    Text("Ошибка миграции")
+                        .font(.headline)
+                        .foregroundColor(.primary)
+                    
+                    if let error = store.state.migrationError {
+                        Text(error)
+                            .font(.caption)
+                            .foregroundColor(.red)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal)
+                    }
+                    
+                    Button("Повторить") {
+                        store.send(.startMigration)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                    .padding(.top, 16)
                 }
             }
             .padding()
@@ -52,6 +72,21 @@ struct RootView: View {
         .environmentObject(
             AppStore(
                 initialState: AppState(),
+                reducer: appReducer,
+                middlewares: combineAppMiddlewares()
+            )
+        )
+}
+
+#Preview("Migration Error") {
+    RootView()
+        .environmentObject(
+            AppStore(
+                initialState: AppState(
+                    isInitialized: true,
+                    isMigrating: true,
+                    migrationError: "Сервер недоступен. Проверьте подключение к интернету."
+                ),
                 reducer: appReducer,
                 middlewares: combineAppMiddlewares()
             )

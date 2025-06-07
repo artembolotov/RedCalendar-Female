@@ -1,90 +1,64 @@
 # RedCalendar
 
-Облачный трекер менструального цикла для iOS с собственным API сервером.
+iOS приложение для отслеживания женского цикла.
 
 ## О проекте
 
-RedCalendar - это iOS приложение для отслеживания женского цикла, построенное на современной архитектуре SwiftUI + Redux с собственным backend API.
+RedCalendar - это iOS приложение для отслеживания женского цикла, построенное на современной архитектуре SwiftUI + Redux.
 
 ## Архитектура
 
-### iOS приложение
 - **SwiftUI** - современный UI framework
 - **Redux архитектура** - предсказуемое управление состоянием
 - **Dependency Injection** - ServiceLocator с `@Injected` property wrapper
 - **Keychain** - безопасное хранение авторизационных данных
 - **AppMetrica** - аналитика (Яндекс)
 
-### Backend
-- **Node.js + Express.js** - REST API сервер
-- **PostgreSQL** - база данных
-- **Firebase UID совместимость** - плавная миграция
-
 ## Структура проекта
 
 ```
-RedCalendar/
-├── app/                          # Backend API сервер
-│   ├── hello.js                  # Основной сервер Express.js
-│   ├── package.json              # Зависимости и конфигурация
-│   ├── app.log                   # Логи приложения
-│   ├── services/                 # Сервисы
-│   │   ├── database.js           # PostgreSQL connection pool
-│   │   ├── auth.js               # Сервис авторизации и миграции
-│   │   ├── logger.js             # Система логирования
-│   │   └── firebase-uid.js       # Генератор Firebase-совместимых UID
-│   ├── api/                      # API маршруты
-│   │   └── auth.js               # POST /auth/migrate, GET /auth/verify
-│   ├── .eslintrc.js              # Конфигурация линтера
-│   └── .eslintignore             # Исключения для ESLint
-├── RedCalendar-Female/           # iOS приложение
-│   ├── App/                      # Основные файлы приложения
-│   │   ├── RedCalendar_FemaleApp.swift
-│   │   └── Configurator.swift    # Настройка DI контейнера
-│   ├── Core/                     # Базовая архитектура
-│   │   ├── DI/                   # Dependency Injection
-│   │   │   ├── ServiceLocator.swift
-│   │   │   └── Injected.swift    # @Injected property wrapper
-│   │   ├── Redux/                # Redux архитектура
-│   │   │   ├── Store.swift       # Основной Store
-│   │   │   ├── States/           # State модели
-│   │   │   ├── Actions/          # Action модели
-│   │   │   ├── Reducers/         # Reducers
-│   │   │   └── Middleware/       # Middleware для async операций
-│   │   ├── Services/             # Бизнес-логика
-│   │   │   ├── AnalyticsService.swift
-│   │   │   ├── KeychainService.swift
-│   │   │   └── APIService.swift
-│   │   └── Utils/
-│   │       └── Logger.swift      # Логирование
-│   ├── Features/                 # Функциональные модули
-│   │   ├── Auth/Views/           # Авторизация
-│   │   └── Home/Views/           # Главный экран
-│   └── Common/Views/             # Общие компоненты
-├── .github/workflows/            # CI/CD
-│   └── netangels.yml             # Автодеплой на NetAngels
-└── База данных RedCalendar - Документация.md
+RedCalendar-Female/
+├── App/                          # Основные файлы приложения
+│   ├── RedCalendar_FemaleApp.swift
+│   └── Configurator.swift        # Настройка DI контейнера
+├── Core/                         # Базовая архитектура
+│   ├── DI/                       # Dependency Injection
+│   │   ├── ServiceLocator.swift
+│   │   └── Injected.swift        # @Injected property wrapper
+│   ├── Redux/                    # Redux архитектура
+│   │   ├── Store.swift           # Основной Store
+│   │   ├── AppStore.swift        # Type alias для Store
+│   │   ├── States/
+│   │   │   └── AppState.swift
+│   │   ├── Actions/
+│   │   │   └── AppAction.swift
+│   │   ├── Reducers/
+│   │   │   └── AppReducer.swift
+│   │   ├── Middleware/
+│   │   │   ├── AppMiddleware.swift
+│   │   │   ├── AuthMiddleware.swift
+│   │   │   ├── MigrationMiddleware.swift
+│   │   │   ├── LoggerMiddleware.swift
+│   │   │   └── AnalyticsMiddleware.swift
+│   │   └── AppMiddleware.swift
+│   ├── Services/                 # Бизнес-логика
+│   │   ├── AnalyticsService.swift
+│   │   ├── KeychainService.swift
+│   │   └── APIService.swift
+│   └── Utils/
+│       └── Logger.swift          # Логирование
+├── Features/                     # Функциональные модули
+│   ├── Auth/Views/
+│   │   └── LoginView.swift
+│   └── Home/Views/
+│       └── HomeView.swift
+└── Common/Views/                 # Общие компоненты
+    └── RootView.swift
 ```
 
-## API методы
 
-| Метод | Путь | Описание |
-|-------|------|----------|
-| `GET` | `/health` | Проверка состояния сервера |
-| `POST` | `/auth/migrate` | Миграция с Firebase UID на device_id |
-| `GET` | `/auth/verify` | Проверка валидности device_id |
 
-## Авторизация
-
-Система использует device_id для авторизации пользователей:
-
-```bash
-# Проверка device_id
-curl -X GET https://api.calendar.red/auth/verify \
-  -H "Authorization: Bearer abc123def456ghi789jkl012mno345"
-```
-
-## iOS архитектура
+## Архитектура
 
 ### Dependency Injection
 
@@ -166,14 +140,12 @@ let authMiddleware: Middleware<AppState, AppAction> = { state, action, dispatch 
 
 ## Установка и запуск
 
-### iOS
 1. Открыть `RedCalendar-Female.xcodeproj` в Xcode
 2. Выбрать target `RedCalendar-Female`
 3. Запустить на симуляторе или устройстве
 
 ## Проверка кода
 
-### iOS
 - Встроенный Swift Compiler в Xcode
 - Xcode Analyzer для проверки архитектуры
 - Unit тесты (планируются)
@@ -188,7 +160,6 @@ let authMiddleware: Middleware<AppState, AppAction> = { state, action, dispatch 
 
 ## Логирование
 
-### iOS логи
 ```swift
 // Использование AppLogger
 AppLogger.action(action)  // Логирование Redux actions
@@ -198,19 +169,12 @@ AppLogger.stateChange("deviceId", oldValue: nil, newValue: "abc123")
 
 
 
-
-
 ## Технологии
 
-### iOS
 - **SwiftUI** - декларативный UI framework
 - **Foundation** - базовые API
 - **Security** - Keychain Services
 - **AppMetricaCore** - аналитика от Яндекс
-
-### Backend  
-- **Node.js + Express.js** - REST API
-- **PostgreSQL** - база данных
 
 ## Текущий статус
 
@@ -220,8 +184,6 @@ AppLogger.stateChange("deviceId", oldValue: nil, newValue: "abc123")
 - Keychain сервис для безопасного хранения данных
 - API сервис для взаимодействия с backend
 - Система авторизации через device_id
-- Базовая структура API сервера
-- Подключение к PostgreSQL БД
 
 ### 🔄 В разработке
 - UI компоненты календаря и трекера
