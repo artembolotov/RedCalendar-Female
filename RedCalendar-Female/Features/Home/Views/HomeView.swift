@@ -39,7 +39,7 @@ struct HomeView: View {
         .environmentObject(
             AppStore(
                 initialState: AppState(
-                    isInitialized: true,
+                    isCheckingAuth: false,
                     deviceId: "B7DDU4pUigTiAhpNDWnQW83tGQ6R"
                 ),
                 reducer: appReducer,

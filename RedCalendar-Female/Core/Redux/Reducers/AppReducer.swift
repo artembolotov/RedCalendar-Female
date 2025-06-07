@@ -10,14 +10,14 @@ func appReducer(state: AppState, action: AppAction) -> AppState {
     
     switch action {
     case .checkAuth:
-        // Just trigger middleware
-        break
+        state.isCheckingAuth = true
         
     case .authCheckCompleted(let deviceId):
-        state.isInitialized = true
+        state.isCheckingAuth = false
         state.deviceId = deviceId
         
     case .startMigration:
+        state.isCheckingAuth = false
         state.isMigrating = true
         state.migrationError = nil
         

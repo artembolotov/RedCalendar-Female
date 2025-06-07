@@ -136,21 +136,38 @@ let authMiddleware: Middleware<AppState, AppAction> = { state, action, dispatch 
 }
 ```
 
+### Логика работы
 
+1. **Старое приложение** сохраняет `user_uid` в keychain
+2. **Новое приложение** ищет в keychain:
+   - Если есть `device_id` → использует его
+   - Если есть только `user_uid` → вызывает `/auth/migrate`
+   - Получает `device_id` и сохраняет в keychain
+3. **Все запросы** используют `device_id` в заголовке `Authorization: Bearer {device_id}`
 
-## Установка и запуск
+### Redux архитектура в iOS приложении
 
-1. Открыть `RedCalendar-Female.xcodeproj` в Xcode
-2. Выбрать target `RedCalendar-Female`
-3. Запустить на симуляторе или устройстве
+**Состояние приложения (AppState)**:
+- `isCheckingAuth` - проверка keychain при запуске
+- `isMigrating` - выполнение миграции с Firebase
+- `migrationError` - ошибка миграции (для повторной попытки)
+- `deviceId` - идентификатор устройства (авторизация)
+- `userId` - Firebase UID пользователя
 
-## Проверка кода
+**Flow авторизации**:
+1. При запуске → `checkAuth` action
+2. AuthMiddleware проверяет keychain:
+   - Есть `device_id` → `authCheckCompleted`
+   - Есть только `user_uid` → `startMigration`
+   - Ничего нет → показываем LoginView
+3. MigrationMiddleware выполняет миграцию:
+   - Успех → сохраняет `device_id`, удаляет `user_uid`
+   - Ошибка → показывает экран с кнопкой "Повторить"
 
-- Встроенный Swift Compiler в Xcode
-- Xcode Analyzer для проверки архитектуры
-- Unit тесты (планируются)
-
-
+**Обработка ошибок**:
+- Timeout сети → экран миграции с ошибкой
+- Нет интернета → кнопка "Повторить"
+- Сервер недоступен → сохраняем состояние для повтора
 
 ## Безопасность
 

@@ -8,7 +8,7 @@
 import Foundation
 
 struct AppState {
-    var isInitialized = false
+    var isCheckingAuth = true
     var userId: String?
     var deviceId: String?
     var isMigrating = false
@@ -21,16 +21,15 @@ struct AppState {
     
     // Auth check state
     var authCheckState: AuthCheckState {
-        switch (isInitialized, isMigrating, deviceId) {
-        case (false, _, _):
+        if isCheckingAuth {
             return .checking
-        case (true, true, _):
-            return .migrating
-        case (true, false, .some):
-            return .authenticated
-        case (true, false, .none):
-            return .notAuthenticated
         }
+        
+        if isMigrating || migrationError != nil {
+            return .migrating
+        }
+        
+        return deviceId != nil ? .authenticated : .notAuthenticated
     }
 }
 

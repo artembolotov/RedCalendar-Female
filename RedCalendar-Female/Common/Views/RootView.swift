@@ -83,7 +83,7 @@ struct RootView: View {
         .environmentObject(
             AppStore(
                 initialState: AppState(
-                    isInitialized: true,
+                    isCheckingAuth: false,
                     isMigrating: true,
                     migrationError: "Сервер недоступен. Проверьте подключение к интернету."
                 ),

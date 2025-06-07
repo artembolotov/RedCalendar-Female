@@ -30,7 +30,7 @@ struct LoginView: View {
         .environmentObject(
             AppStore(
                 initialState: AppState(
-                    isInitialized: true,
+                    isCheckingAuth: false,
                     userId: nil
                 ),
                 reducer: appReducer,
