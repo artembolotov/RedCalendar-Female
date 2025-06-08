@@ -55,9 +55,10 @@ func appReducer(state: AppState, action: AppAction) -> AppState {
         
     case .pushTokenUpdated(let success):
         if success {
+            AppLogger.info("Push token updated successfully - setting state to .tokenUpdated")
             state.pushNotificationState = .tokenUpdated
         } else {
-            // Reset to registered state so it can be retried
+            AppLogger.info("Push token update failed - setting state to .registered for retry")
             state.pushNotificationState = .registered
         }
         
