@@ -6,6 +6,7 @@
 //
 
 enum AppAction {
+    // Auth actions
     case checkAuth
     case authCheckCompleted(deviceId: String?)
     case startMigration
@@ -13,4 +14,9 @@ enum AppAction {
     case migrationFailed(Error)
     case login
     case logout
+    
+    // Push notification actions
+    case pushRegistrationCompleted(token: String)
+    case pushRegistrationFailed(Error)
+    case pushTokenUpdated(success: Bool)
 }

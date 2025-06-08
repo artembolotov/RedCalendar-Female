@@ -39,6 +39,24 @@ func appReducer(state: AppState, action: AppAction) -> AppState {
         state.userId = nil
         state.deviceId = nil
         state.migrationError = nil
+        state.apnsToken = nil
+        state.pushNotificationState = .notRequested
+        
+    // Push notification actions
+    case .pushRegistrationCompleted(let token):
+        state.pushNotificationState = .registered
+        state.apnsToken = token
+        
+    case .pushRegistrationFailed:
+        state.pushNotificationState = .failed
+        
+    case .pushTokenUpdated(let success):
+        if success {
+            state.pushNotificationState = .tokenUpdated
+        } else {
+            // Keep current state but could add error handling
+            break
+        }
     }
     
     return state

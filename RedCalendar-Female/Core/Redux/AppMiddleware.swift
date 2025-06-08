@@ -11,6 +11,7 @@ func combineAppMiddlewares() -> [Middleware<AppState, AppAction>] {
         loggerMiddleware,
         authMiddleware,
         migrationMiddleware,
+        pushNotificationMiddleware,
         analyticsMiddleware
     ]
 }

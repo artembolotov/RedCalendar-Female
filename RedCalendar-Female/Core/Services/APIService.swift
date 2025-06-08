@@ -5,7 +5,6 @@
 //  Created by Артём Болотов on 05.06.2025.
 //
 
-
 import Foundation
 import UIKit
 
@@ -59,6 +58,7 @@ struct APIError: Codable {
 
 struct APNSTokenResponse: Codable {
     let success: Bool
+    let message: String?
     let timestamp: String
 }
 
@@ -136,22 +136,7 @@ final class APIService: APIServiceProtocol {
         return verificationResponse
     }
     
-    // MARK: - Helpers
-    @MainActor
-    private func getDeviceModel() -> String {
-        var systemInfo = utsname()
-        uname(&systemInfo)
-        
-        let machineMirror = Mirror(reflecting: systemInfo.machine)
-        let identifier = machineMirror.children.reduce("") { identifier, element in
-            guard let value = element.value as? Int8, value != 0 else { return identifier }
-            return identifier + String(UnicodeScalar(UInt8(value)))
-        }
-        
-        // Return exact device identifier (e.g., "iPhone17,4", "iPad14,5")
-        return identifier
-    }
-    
+    // MARK: - APNS Token Update
     func updateAPNSToken(deviceId: String, apnsToken: String) async throws -> APNSTokenResponse {
         let url = URL(string: "\(baseURL)/auth/apns-token")!
         
@@ -166,10 +151,30 @@ final class APIService: APIServiceProtocol {
         let (data, response) = try await session.data(for: request)
         
         if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode >= 400 {
-            throw APIServiceError.httpError(httpResponse.statusCode)
+            if let errorResponse = try? JSONDecoder().decode(APIError.self, from: data) {
+                throw APIServiceError.serverError(errorResponse.error)
+            } else {
+                throw APIServiceError.httpError(httpResponse.statusCode)
+            }
         }
         
         return try JSONDecoder().decode(APNSTokenResponse.self, from: data)
+    }
+    
+    // MARK: - Helpers
+    @MainActor
+    private func getDeviceModel() -> String {
+        var systemInfo = utsname()
+        uname(&systemInfo)
+        
+        let machineMirror = Mirror(reflecting: systemInfo.machine)
+        let identifier = machineMirror.children.reduce("") { identifier, element in
+            guard let value = element.value as? Int8, value != 0 else { return identifier }
+            return identifier + String(UnicodeScalar(UInt8(value)))
+        }
+        
+        // Return exact device identifier (e.g., "iPhone17,4", "iPad14,5")
+        return identifier
     }
 }
 

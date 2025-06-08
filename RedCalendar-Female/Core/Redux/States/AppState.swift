@@ -14,6 +14,10 @@ struct AppState {
     var isMigrating = false
     var migrationError: String?
     
+    // Push notification state
+    var pushNotificationState: PushNotificationState = .notRequested
+    var apnsToken: String?
+    
     // Computed property
     var isAuthenticated: Bool {
         deviceId != nil
@@ -38,4 +42,12 @@ enum AuthCheckState {
     case migrating         // Migrating user_id to device_id
     case authenticated     // User authenticated with device_id
     case notAuthenticated  // No credentials found, show login
+}
+
+enum PushNotificationState {
+    case notRequested      // Haven't requested yet
+    case registered        // Successfully registered
+    case failed            // Registration failed
+    case tokenUpdating     // Sending token to server
+    case tokenUpdated      // Token sent to server
 }

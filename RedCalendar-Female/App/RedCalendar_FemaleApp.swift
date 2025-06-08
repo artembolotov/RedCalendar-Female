@@ -26,6 +26,8 @@ struct RedCalendarApp: App {
             RootView()
                 .environmentObject(store)
                 .onAppear {
+                    // Pass store reference to AppDelegate
+                    appDelegate.appStore = store
                     store.send(.checkAuth)
                 }
         }
