@@ -17,9 +17,22 @@
 		ABFA3A672DF1579A00A264F4 /* .gitignore */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitignore; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		AB17052D2DF53FB000B5208D /* Exceptions for "RedCalendar-Female" folder in "RedCalendar-Female" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = AB9FE2362DEFF9110083B0D9 /* RedCalendar-Female */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		AB9FE2392DEFF9110083B0D9 /* RedCalendar-Female */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				AB17052D2DF53FB000B5208D /* Exceptions for "RedCalendar-Female" folder in "RedCalendar-Female" target */,
+			);
 			path = "RedCalendar-Female";
 			sourceTree = "<group>";
 		};
@@ -267,11 +280,13 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "RedCalendar-Female/RedCalendar-Female.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 43YQFDZNH8;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "RedCalendar-Female/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = RedCalendar;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -301,11 +316,13 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "RedCalendar-Female/RedCalendar-Female.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 43YQFDZNH8;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "RedCalendar-Female/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = RedCalendar;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;

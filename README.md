@@ -1,216 +1,408 @@
-# RedCalendar
+# RedCalendar iOS App
 
-iOS приложение для отслеживания женского цикла.
+iOS приложение **RedCalendar** - облачный трекер менструального цикла, переписанный с UIKit на SwiftUI.
 
-## О проекте
-
-RedCalendar - это iOS приложение для отслеживания женского цикла, построенное на современной архитектуре SwiftUI + Redux.
-
-## Архитектура
+## Архитектура iOS приложения
 
 - **SwiftUI** - современный UI framework
 - **Redux архитектура** - предсказуемое управление состоянием
-- **Dependency Injection** - ServiceLocator с `@Injected` property wrapper
 - **Keychain** - безопасное хранение авторизационных данных
 - **AppMetrica** - аналитика (Яндекс)
+- **Push Notifications** - получение уведомлений от сервера
 
 ## Структура проекта
 
 ```
-RedCalendar-Female/
-├── App/                          # Основные файлы приложения
-│   ├── RedCalendar_FemaleApp.swift
-│   └── Configurator.swift        # Настройка DI контейнера
-├── Core/                         # Базовая архитектура
-│   ├── DI/                       # Dependency Injection
-│   │   ├── ServiceLocator.swift
-│   │   └── Injected.swift        # @Injected property wrapper
-│   ├── Redux/                    # Redux архитектура
-│   │   ├── Store.swift           # Основной Store
-│   │   ├── AppStore.swift        # Type alias для Store
-│   │   ├── States/
-│   │   │   └── AppState.swift
-│   │   ├── Actions/
-│   │   │   └── AppAction.swift
-│   │   ├── Reducers/
-│   │   │   └── AppReducer.swift
-│   │   ├── Middleware/
-│   │   │   ├── AppMiddleware.swift
-│   │   │   ├── AuthMiddleware.swift
-│   │   │   ├── MigrationMiddleware.swift
-│   │   │   ├── LoggerMiddleware.swift
-│   │   │   └── AnalyticsMiddleware.swift
-│   │   └── AppMiddleware.swift
-│   ├── Services/                 # Бизнес-логика
-│   │   ├── AnalyticsService.swift
-│   │   ├── KeychainService.swift
-│   │   └── APIService.swift
-│   └── Utils/
-│       └── Logger.swift          # Логирование
-├── Features/                     # Функциональные модули
-│   ├── Auth/Views/
-│   │   └── LoginView.swift
-│   └── Home/Views/
-│       └── HomeView.swift
-└── Common/Views/                 # Общие компоненты
-    └── RootView.swift
+RedCalendar-Female/           # iOS приложение SwiftUI
+├── App/                      # Конфигурация приложения
+│   ├── RedCalendar_FemaleApp.swift  # Главный файл SwiftUI App
+│   ├── AppDelegate.swift     # UIKit делегат для push notifications
+│   └── Configurator.swift    # Настройка DI контейнера
+├── Core/                     # Основная логика
+│   ├── Redux/                # Redux архитектура
+│   │   ├── Store.swift       # Redux Store
+│   │   ├── AppAction.swift   # Actions
+│   │   ├── AppState.swift    # State
+│   │   ├── AppReducer.swift  # Reducer
+│   │   └── Middleware/       # Middleware
+│   ├── Services/             # Сервисы
+│   │   ├── AnalyticsService.swift   # Яндекс AppMetrica
+│   │   ├── KeychainService.swift    # Безопасное хранение
+│   │   ├── APIService.swift         # HTTP клиент
+│   │   └── PushService.swift        # Push notifications
+│   ├── DI/                   # Dependency Injection
+│   │   ├── ServiceLocator.swift     # DI контейнер
+│   │   └── Injected.swift          # Property wrapper
+│   └── Utils/                # Утилиты и логгер
+│       └── Logger.swift      # Система логирования
+├── Features/                 # UI экраны
+│   ├── Auth/Views/           # Авторизация
+│   │   └── LoginView.swift   # Экран входа
+│   └── Home/Views/           # Главный экран
+│       └── HomeView.swift    # Домашний экран
+└── Common/Views/             # Общие компоненты
+    └── RootView.swift        # Корневой экран
 ```
 
+## Push Notifications
 
+### Архитектура уведомлений
+- **APNs Auth Key** (.p8) - универсальный ключ для development и production
+- **Silent Push** - фоновые обновления данных без показа пользователю
+- **Device Token** - автоматическая регистрация и отправка на сервер
+- **Background Mode** - обработка уведомлений когда приложение неактивно
 
-## Архитектура
+### Настройки iOS приложения
+- **Push Notifications** capability включена
+- **Background Modes** → Remote notifications включен
+- **Device Token** получается автоматически при запуске
+- **Разрешения пользователя** запрашиваются отдельно (позже)
 
-### Dependency Injection
-
-Система основана на ServiceLocator с элегантным `@Injected` property wrapper:
+### Реализация
 
 ```swift
-// Регистрация сервисов при старте
-func setup() {
-    let analytics: AnalyticsServiceProtocol = AnalyticsService()
-    ServiceLocator.shared.addService(service: analytics)
-    
-    let keychain: KeychainServiceProtocol = KeychainService()
-    ServiceLocator.shared.addService(service: keychain)
-    
-    let apiService: APIServiceProtocol = APIService()
-    ServiceLocator.shared.addService(service: apiService)
+// PushService.swift - основной сервис
+protocol PushServiceProtocol {
+    func registerForRemoteNotifications()
+    func updateAPNSToken(_ token: String) async
 }
 
-// Использование в коде
-class SomeClass {
-    @Injected var analytics: AnalyticsServiceProtocol
-    @Injected var keychain: KeychainServiceProtocol
-    
-    func doSomething() {
-        analytics.trackEvent("action_performed")
-        keychain.saveDeviceID("device123")
+// AppDelegate.swift - получение токена
+func application(
+    _ application: UIApplication,
+    didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
+) {
+    let token = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
+    Task {
+        await pushService.updateAPNSToken(token)
     }
 }
 ```
 
-### Redux State Management
+## Авторизация
+
+### Миграция с Firebase
+
+iOS приложение поддерживает плавную миграцию с Firebase Auth:
 
 ```swift
-// Actions
+// Логика в AuthMiddleware.swift
+case .checkAuth:
+    // Priority 1: Check for device_id (new system)
+    if let deviceId = keychain.getDeviceID() {
+        return [.authCheckCompleted(deviceId: deviceId)]
+    }
+    
+    // Priority 2: Check for legacy user_id (Firebase)
+    if let userId = keychain.getUserUID() {
+        return [.startMigration]
+    }
+    
+    // No credentials found
+    return [.authCheckCompleted(deviceId: nil)]
+```
+
+### Безопасное хранение
+
+```swift
+// KeychainService.swift
+protocol KeychainServiceProtocol {
+    // Device ID methods (new system)
+    func getDeviceID() -> String?
+    func saveDeviceID(_ deviceId: String) -> Bool
+    func deleteDeviceID() -> Bool
+    
+    // User UID methods (Firebase legacy, for migration)
+    func getUserUID() -> String?
+    func saveUserUID(_ uid: String) -> Bool
+    func deleteUserUID() -> Bool
+}
+```
+
+## Redux архитектура
+
+### State управление
+
+```swift
+// AppState.swift
+struct AppState {
+    var isCheckingAuth = true
+    var userId: String?
+    var deviceId: String?
+    var isMigrating = false
+    var migrationError: String?
+    
+    var isAuthenticated: Bool {
+        deviceId != nil
+    }
+    
+    var authCheckState: AuthCheckState {
+        if isCheckingAuth { return .checking }
+        if isMigrating || migrationError != nil { return .migrating }
+        return deviceId != nil ? .authenticated : .notAuthenticated
+    }
+}
+```
+
+### Actions и Middleware
+
+```swift
+// AppAction.swift
 enum AppAction {
     case checkAuth
+    case authCheckCompleted(deviceId: String?)
     case startMigration
     case migrationCompleted(deviceId: String, userId: String)
+    case migrationFailed(Error)
     case login
     case logout
 }
 
-// State
-struct AppState {
-    var isAuthenticated: Bool { deviceId != nil }
-    var authCheckState: AuthCheckState { /* computed */ }
-    var deviceId: String?
-    var userId: String?
+// Middleware обрабатывают async операции
+let authMiddleware: Middleware<AppState, AppAction> = { state, action, dispatch in
+    // Асинхронная логика авторизации
 }
-
-// Usage
-@EnvironmentObject var store: AppStore
-store.send(.checkAuth)
 ```
 
-### Middleware Architecture
+## Dependency Injection
 
-Асинхронная обработка через middleware:
+### Service Locator
 
 ```swift
-let authMiddleware: Middleware<AppState, AppAction> = { state, action, dispatch in
-    @Injected var keychain: KeychainServiceProtocol
+// ServiceLocator.swift
+final class ServiceLocator {
+    public static let shared = ServiceLocator()
     
-    switch action {
-    case .checkAuth:
-        if let deviceId = keychain.getDeviceID() {
-            return [.authCheckCompleted(deviceId: deviceId)]
-        }
-        if let userId = keychain.getUserUID() {
-            return [.startMigration]
-        }
-        return [.authCheckCompleted(deviceId: nil)]
+    func addService<T>(service: T) {
+        let key = String(describing: T.self)
+        services[key] = service
     }
-    return []
+    
+    func getService<T>() -> T {
+        let key = String(describing: T.self)
+        guard let service = services[key] as? T else {
+            fatalError("Service of type \(T.self) is not registered!")
+        }
+        return service
+    }
+}
+
+// Injected.swift - Property wrapper
+@propertyWrapper
+struct Injected<Service> {
+    private lazy var service: Service = ServiceLocator.shared.getService()
+    
+    public var wrappedValue: Service {
+        mutating get { service }
+    }
 }
 ```
 
-### Логика работы
+### Конфигурация
 
-1. **Старое приложение** сохраняет `user_uid` в keychain
-2. **Новое приложение** ищет в keychain:
-   - Если есть `device_id` → использует его
-   - Если есть только `user_uid` → вызывает `/auth/migrate`
-   - Получает `device_id` и сохраняет в keychain
-3. **Все запросы** используют `device_id` в заголовке `Authorization: Bearer {device_id}`
+```swift
+// Configurator.swift
+final class Configurator {
+    static let shared = Configurator()
+    
+    func setup() {
+        registerAnalyticsService()
+        registerKeychainService()
+        registerAPIService()
+        registerPushService()
+    }
+    
+    private func registerPushService() {
+        let pushService: PushServiceProtocol = PushService()
+        ServiceLocator.shared.addService(service: pushService)
+    }
+}
+```
 
-### Redux архитектура в iOS приложении
+## Требования и установка
 
-**Состояние приложения (AppState)**:
-- `isCheckingAuth` - проверка keychain при запуске
-- `isMigrating` - выполнение миграции с Firebase
-- `migrationError` - ошибка миграции (для повторной попытки)
-- `deviceId` - идентификатор устройства (авторизация)
-- `userId` - Firebase UID пользователя
+### Системные требования
+- **Xcode 15.0+**
+- **iOS 17.0+**
+- **Физическое устройство** для push notifications (симулятор не поддерживает)
 
-**Flow авторизации**:
-1. При запуске → `checkAuth` action
-2. AuthMiddleware проверяет keychain:
-   - Есть `device_id` → `authCheckCompleted`
-   - Есть только `user_uid` → `startMigration`
-   - Ничего нет → показываем LoginView
-3. MigrationMiddleware выполняет миграцию:
-   - Успех → сохраняет `device_id`, удаляет `user_uid`
-   - Ошибка → показывает экран с кнопкой "Повторить"
+### Установка
+```bash
+# Открыть в Xcode
+open RedCalendar-Female.xcodeproj
 
-**Обработка ошибок**:
-- Timeout сети → экран миграции с ошибкой
-- Нет интернета → кнопка "Повторить"
-- Сервер недоступен → сохраняем состояние для повтора
+# Настроить Team и Bundle ID
+# Включить Push Notifications в Capabilities
+# Включить Background Modes → Remote notifications
+```
 
-## Безопасность
+### Настройки проекта
 
-- **Keychain** для хранения device_id
-- **SSL/TLS** соединения с API
-- **Type Safety** через Swift и Dependency Injection
+#### Capabilities
+- ✅ **Push Notifications** - включить
+- ✅ **Background Modes** → Remote notifications - включить
+
+#### Info.plist
+```xml
+<key>UIBackgroundModes</key>
+<array>
+    <string>remote-notification</string>
+</array>
+
+<key>NSUserNotificationsUsageDescription</key>
+<string>Приложение использует уведомления для напоминаний о менструальном цикле.</string>
+```
+
+#### Entitlements
+```xml
+<!-- RedCalendar-Female.entitlements -->
+<key>aps-environment</key>
+<string>development</string>
+```
+
+## Аналитика
+
+### AppMetrica интеграция
+
+```swift
+// AnalyticsService.swift
+final class AnalyticsService: AnalyticsServiceProtocol {
+    private let apiKey = "***REMOVED***"
+    
+    func registerApp() {
+        let configuration = AppMetricaConfiguration(apiKey: apiKey)
+        AppMetrica.activate(with: configuration!)
+    }
+    
+    func trackEvent(_ name: String, parameters: [AnyHashable : Any]? = nil) {
+        AppMetrica.reportEvent(name: name, parameters: parameters)
+    }
+}
+```
+
+### Отслеживаемые события
+- `user_login` - вход пользователя
+- `user_logout` - выход пользователя
+- `migration_completed` - успешная миграция
+- `migration_failed` - ошибка миграции
+- `push_registration_failed` - ошибка регистрации push
+- `apns_token_updated` - обновление APNS токена
 
 ## Логирование
 
+### AppLogger
+
 ```swift
-// Использование AppLogger
-AppLogger.action(action)  // Логирование Redux actions
-AppLogger.error("Migration failed", error: error)
-AppLogger.stateChange("deviceId", oldValue: nil, newValue: "abc123")
+// Logger.swift
+struct AppLogger {
+    static func info(_ message: String) {
+        #if DEBUG
+        print("ℹ️ INFO: \(message)")
+        #endif
+    }
+    
+    static func warn(_ message: String) {
+        #if DEBUG
+        print("⚠️ WARN: \(message)")
+        #endif
+        // Отправка в аналитику
+    }
+    
+    static func error(_ message: String, error: Error? = nil) {
+        #if DEBUG
+        print("❌ ERROR: \(message)")
+        if let error = error {
+            print("   Details: \(error.localizedDescription)")
+        }
+        #endif
+        // Отправка в аналитику
+    }
+}
 ```
 
+### Использование
+```swift
+AppLogger.info("Push permissions granted")
+AppLogger.warn("Push permissions denied")
+AppLogger.error("Migration failed", error: error)
+```
 
+## Тестирование
 
-## Технологии
+### Push Notifications
+```bash
+# iOS приложение должно логировать:
+ℹ️ INFO: 🚀 Attempting to register for remote notifications...
+ℹ️ INFO: 📱 Called registerForRemoteNotifications() on main thread
+ℹ️ INFO: ✅ SUCCESS: Got APNS token: abc123def456...
+ℹ️ INFO: APNS token updated successfully
+```
 
-- **SwiftUI** - декларативный UI framework
-- **Foundation** - базовые API
-- **Security** - Keychain Services
-- **AppMetricaCore** - аналитика от Яндекс
+### Проверка состояний Redux
+```swift
+// В RootView.swift автоматически отображается текущее состояние:
+switch store.state.authCheckState {
+case .checking:
+    ProgressView("Проверка авторизации...")
+case .migrating:
+    ProgressView("Обновление системы авторизации...")
+case .authenticated:
+    HomeView()
+case .notAuthenticated:
+    LoginView()
+}
+```
 
-## Текущий статус
+### Диагностика проблем
+- **Push не работают в симуляторе** - используйте реальное устройство
+- **Токен не приходит** - проверьте Capabilities и Provisioning Profile
+- **Ошибки миграции** - смотрите логи в консоли Xcode
 
-### ✅ Реализовано
-- iOS Redux архитектура с полным state management
-- Dependency Injection система с @Injected property wrapper  
-- Keychain сервис для безопасного хранения данных
-- API сервис для взаимодействия с backend
-- Система авторизации через device_id
+## Безопасность
 
-### 🔄 В разработке
-- UI компоненты календаря и трекера
-- CRUD операции для циклов и данных
-- Push notifications через APNs
+### Keychain хранение
+- **Device ID** - основной идентификатор (28 символов, base62)
+- **User UID** - legacy Firebase UID (для миграции)
+- **Accessibility** - `kSecAttrAccessibleAfterFirstUnlock`
+- **Synchronizable** - отключена для безопасности
 
+### Push Notifications
+- **APNS токены** передаются только по HTTPS
+- **Device Token** уникален для каждого устройства
+- **Silent Push** работает независимо от разрешений пользователя
+- **Токены привязаны** к device_id для безопасности
 
+## Архитектурные решения
+
+### Почему Redux?
+- **Предсказуемость** - единое место для состояния
+- **Отладка** - легко отслеживать изменения
+- **Тестируемость** - чистые функции
+- **Асинхронность** - middleware для async операций
+
+### Почему DI?
+- **Тестируемость** - легко подменять зависимости
+- **Слабая связанность** - сервисы не знают о реализации
+- **Единая конфигурация** - все зависимости в одном месте
+
+### Почему SwiftUI?
+- **Современность** - актуальный фреймворк от Apple
+- **Декларативность** - описываем что хотим, а не как
+- **Производительность** - оптимизированный рендеринг
+- **Интеграция** - отлично работает с Redux паттерном
 
 ---
 
 **Автор**: Артём Болотов  
 **Версия**: 2.1.0  
-**Последнее обновление**: 06.06.2025
+**Последнее обновление**: 08.06.2025
+
+## Особенности iOS версии 2.1.0
+
+- ✅ Полная поддержка Push Notifications
+- ✅ Redux архитектура для управления состоянием
+- ✅ Dependency Injection для слабой связанности
+- ✅ Безопасное хранение в Keychain
+- ✅ Автоматическая миграция с Firebase
+- ✅ AppMetrica аналитика
+- ✅ Минималистичная архитектура без избыточности

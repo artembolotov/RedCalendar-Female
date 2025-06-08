@@ -9,6 +9,8 @@ import SwiftUI
 
 @main
 struct RedCalendarApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+    
     @StateObject private var store = AppStore(
         initialState: AppState(),
         reducer: appReducer,

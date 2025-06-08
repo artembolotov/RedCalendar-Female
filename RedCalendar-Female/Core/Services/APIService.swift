@@ -12,6 +12,7 @@ import UIKit
 protocol APIServiceProtocol {
     func migrateUser(userId: String) async throws -> MigrationResponse
     func verifyDevice(deviceId: String) async throws -> VerificationResponse
+    func updateAPNSToken(deviceId: String, apnsToken: String) async throws -> APNSTokenResponse
 }
 
 // MARK: - Response Models
@@ -53,6 +54,11 @@ struct VerificationResponse: Codable {
 struct APIError: Codable {
     let success: Bool
     let error: String
+    let timestamp: String
+}
+
+struct APNSTokenResponse: Codable {
+    let success: Bool
     let timestamp: String
 }
 
@@ -144,6 +150,26 @@ final class APIService: APIServiceProtocol {
         
         // Return exact device identifier (e.g., "iPhone17,4", "iPad14,5")
         return identifier
+    }
+    
+    func updateAPNSToken(deviceId: String, apnsToken: String) async throws -> APNSTokenResponse {
+        let url = URL(string: "\(baseURL)/auth/apns-token")!
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "PUT"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(deviceId)", forHTTPHeaderField: "Authorization")
+        
+        let body = ["apns_token": apnsToken]
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        
+        let (data, response) = try await session.data(for: request)
+        
+        if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode >= 400 {
+            throw APIServiceError.httpError(httpResponse.statusCode)
+        }
+        
+        return try JSONDecoder().decode(APNSTokenResponse.self, from: data)
     }
 }
 

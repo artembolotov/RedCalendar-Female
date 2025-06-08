@@ -12,15 +12,24 @@ struct AppLogger {
         #endif
     }
     
-    static func stateChange<T>(_ keyPath: String, oldValue: T, newValue: T) {
+    static func info(_ message: String) {
         #if DEBUG
-        print("📊 State.\(keyPath): \(oldValue) → \(newValue)")
+        print("ℹ️ INFO: \(message)")
         #endif
+    }
+    
+    static func warn(_ message: String) {
+        #if DEBUG
+        print("⚠️ WARN: \(message)")
+        #endif
+        
+        @Injected var analytics: AnalyticsServiceProtocol
+        analytics.trackEvent("app_warning", parameters: ["message": message])
     }
     
     static func error(_ message: String, error: Error? = nil) {
         #if DEBUG
-        print("❌ Error: \(message)")
+        print("❌ ERROR: \(message)")
         if let error = error {
             print("   Details: \(error.localizedDescription)")
         }
