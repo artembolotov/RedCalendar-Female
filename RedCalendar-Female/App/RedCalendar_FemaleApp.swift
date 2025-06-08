@@ -29,12 +29,17 @@ struct RedCalendarApp: App {
                 .onAppear {
                     // Pass store reference to AppDelegate
                     appDelegate.appStore = store
-                    store.send(.checkAuth)
                 }
                 .onChange(of: scenePhase) { newPhase in
                     if newPhase == .active {
-                        // Retry failed tasks when app becomes active
-                        store.send(.retryFailedTasks)
+                        // App became active - check auth or retry failed tasks
+                        if store.state.isAuthenticated {
+                            // User is already authenticated - retry failed tasks
+                            store.send(.retryFailedTasks)
+                        } else {
+                            // User not authenticated - check auth first
+                            store.send(.checkAuth)
+                        }
                     }
                 }
         }

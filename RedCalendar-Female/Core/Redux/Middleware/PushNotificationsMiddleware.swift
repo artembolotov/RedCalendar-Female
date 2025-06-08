@@ -36,6 +36,43 @@ let pushNotificationMiddleware: Middleware<AppState, AppAction> = { state, actio
         analytics.trackEvent("push_registration_completed")
         return []
         
+    case .retryFailedTasks:
+        // Only retry if there are actually failed tasks
+        // Check if user is authenticated and has failed push token
+        if let deviceId = state.deviceId,
+           let token = state.apnsToken,
+           state.pushNotificationState == .registered {
+            
+            AppLogger.info("Found failed APNS token task, retrying...")
+            AppLogger.info("- deviceId: present")
+            AppLogger.info("- apnsToken: present")
+            AppLogger.info("- pushNotificationState: .registered (failed)")
+            
+            Task {
+                dispatch(.pushTokenUpdating)
+                do {
+                    let _ = try await pushService.updateAPNSToken(token)
+                    dispatch(.pushTokenUpdated(success: true))
+                    analytics.trackEvent("push_token_updated_on_retry")
+                } catch {
+                    AppLogger.error("Failed to update APNS token on retry", error: error)
+                    dispatch(.pushTokenUpdated(success: false))
+                    analytics.trackEvent("push_token_update_failed_on_retry")
+                }
+            }
+        } else {
+            // No failed tasks found - this is normal behavior
+            // Don't spam logs on every app activation
+            if state.deviceId == nil {
+                AppLogger.info("No retry needed: user not authenticated")
+            } else if state.apnsToken == nil {
+                AppLogger.info("No retry needed: no APNS token available")
+            } else if state.pushNotificationState != .registered {
+                AppLogger.info("No retry needed: push token state is \(state.pushNotificationState)")
+            }
+        }
+        return []
+        
     case .authCheckCompleted(let deviceId):
         // Don't send token here - it will be sent either:
         // 1. In pushRegistrationCompleted if user is already authenticated
