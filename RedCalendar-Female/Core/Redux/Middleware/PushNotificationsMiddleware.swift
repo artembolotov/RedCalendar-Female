@@ -16,7 +16,9 @@ let pushNotificationMiddleware: Middleware<AppState, AppAction> = { state, actio
         // Check if user is authenticated - send token to server immediately
         if let deviceId = state.deviceId {
             AppLogger.info("User authenticated, sending APNS token to server")
+            // Start the async task to send token
             Task {
+                dispatch(.pushTokenUpdating)
                 do {
                     let _ = try await pushService.updateAPNSToken(token)
                     dispatch(.pushTokenUpdated(success: true))
@@ -34,6 +36,12 @@ let pushNotificationMiddleware: Middleware<AppState, AppAction> = { state, actio
         analytics.trackEvent("push_registration_completed")
         return []
         
+    case .authCheckCompleted(let deviceId):
+        // Don't send token here - it will be sent either:
+        // 1. In pushRegistrationCompleted if user is already authenticated
+        // 2. In migrationCompleted/login if user just became authenticated
+        return []
+        
     case .pushRegistrationFailed(let error):
         AppLogger.error("Push registration failed", error: error)
         analytics.trackEvent("push_registration_failed", parameters: [
@@ -41,21 +49,21 @@ let pushNotificationMiddleware: Middleware<AppState, AppAction> = { state, actio
         ])
         return []
         
-    case .authCheckCompleted(let deviceId):
-        // User authenticated and we have a pending APNS token - send it to server
-        if deviceId != nil,
-           let token = state.apnsToken,
+    case .login:
+        // After manual login, retry sending APNS token if it failed before
+        if let token = state.apnsToken,
            state.pushNotificationState == .registered {
-            AppLogger.info("User authenticated with pending APNS token, sending to server")
+            AppLogger.info("User logged in, retrying APNS token send")
             Task {
+                dispatch(.pushTokenUpdating)
                 do {
                     let _ = try await pushService.updateAPNSToken(token)
                     dispatch(.pushTokenUpdated(success: true))
-                    analytics.trackEvent("push_token_updated_after_auth")
+                    analytics.trackEvent("push_token_updated_after_login")
                 } catch {
-                    AppLogger.error("Failed to update APNS token after auth", error: error)
+                    AppLogger.error("Failed to update APNS token after login", error: error)
                     dispatch(.pushTokenUpdated(success: false))
-                    analytics.trackEvent("push_token_update_failed_after_auth")
+                    analytics.trackEvent("push_token_update_failed_after_login")
                 }
             }
         }
@@ -67,6 +75,7 @@ let pushNotificationMiddleware: Middleware<AppState, AppAction> = { state, actio
            state.pushNotificationState == .registered {
             AppLogger.info("User migrated with pending APNS token, sending to server")
             Task {
+                dispatch(.pushTokenUpdating)
                 do {
                     let _ = try await pushService.updateAPNSToken(token)
                     dispatch(.pushTokenUpdated(success: true))

@@ -10,6 +10,7 @@ import SwiftUI
 @main
 struct RedCalendarApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+    @Environment(\.scenePhase) private var scenePhase
     
     @StateObject private var store = AppStore(
         initialState: AppState(),
@@ -29,6 +30,12 @@ struct RedCalendarApp: App {
                     // Pass store reference to AppDelegate
                     appDelegate.appStore = store
                     store.send(.checkAuth)
+                }
+                .onChange(of: scenePhase) { newPhase in
+                    if newPhase == .active {
+                        // Retry failed tasks when app becomes active
+                        store.send(.retryFailedTasks)
+                    }
                 }
         }
     }

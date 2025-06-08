@@ -50,13 +50,20 @@ func appReducer(state: AppState, action: AppAction) -> AppState {
     case .pushRegistrationFailed:
         state.pushNotificationState = .failed
         
+    case .pushTokenUpdating:
+        state.pushNotificationState = .tokenUpdating
+        
     case .pushTokenUpdated(let success):
         if success {
             state.pushNotificationState = .tokenUpdated
         } else {
-            // Keep current state but could add error handling
-            break
+            // Reset to registered state so it can be retried
+            state.pushNotificationState = .registered
         }
+        
+    case .retryFailedTasks:
+        // No state changes needed - middleware will handle retry logic
+        break
     }
     
     return state
