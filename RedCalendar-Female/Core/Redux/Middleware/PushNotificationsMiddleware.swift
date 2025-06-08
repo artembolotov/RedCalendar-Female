@@ -8,7 +8,7 @@
 import Foundation
 
 let pushNotificationMiddleware: Middleware<AppState, AppAction> = { state, action, dispatch in
-    @Injected var pushService: PushServiceProtocol
+    @Injected var pushService: PushNotificationsServiceProtocol
     @Injected var analytics: AnalyticsServiceProtocol
     
     switch action {

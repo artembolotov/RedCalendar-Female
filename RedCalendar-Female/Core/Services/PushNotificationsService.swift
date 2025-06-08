@@ -9,12 +9,12 @@ import Foundation
 import UserNotifications
 import UIKit
 
-protocol PushServiceProtocol {
+protocol PushNotificationsServiceProtocol {
     func registerForRemoteNotifications()
     func updateAPNSToken(_ token: String) async throws -> APNSTokenResponse
 }
 
-final class PushService: PushServiceProtocol {
+final class PushNotificationsService: PushNotificationsServiceProtocol {
     
     @Injected private var apiService: APIServiceProtocol
     

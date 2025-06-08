@@ -37,7 +37,7 @@ final class Configurator {
     }
     
     private func registerPushService() {
-        let pushService: PushServiceProtocol = PushService()
+        let pushService: PushNotificationsServiceProtocol = PushNotificationsService()
         ServiceLocator.shared.addService(service: pushService)
         
         pushService.registerForRemoteNotifications()
