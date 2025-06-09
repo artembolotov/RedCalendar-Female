@@ -18,8 +18,8 @@ enum AppAction {
     // Push notification actions
     case pushRegistrationCompleted(token: String)
     case pushRegistrationFailed(Error)
-    case pushTokenUpdating
-    case pushTokenUpdated(success: Bool)
+    case syncPushToken
+    case pushTokenSynced(Bool)
     
     // Retry actions
     case retryFailedTasks

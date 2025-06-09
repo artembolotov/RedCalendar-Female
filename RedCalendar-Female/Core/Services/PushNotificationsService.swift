@@ -11,7 +11,6 @@ import UIKit
 
 protocol PushNotificationsServiceProtocol {
     func registerForRemoteNotifications()
-    func updateAPNSToken(_ token: String) async throws -> APNSTokenResponse
 }
 
 final class PushNotificationsService: PushNotificationsServiceProtocol {
@@ -24,18 +23,5 @@ final class PushNotificationsService: PushNotificationsServiceProtocol {
             UIApplication.shared.registerForRemoteNotifications()
             AppLogger.info("Registered for remote notifications")
         }
-    }
-    
-    func updateAPNSToken(_ token: String) async throws -> APNSTokenResponse {
-        @Injected var keychain: KeychainServiceProtocol
-        
-        guard let deviceId = keychain.getDeviceID() else {
-            AppLogger.error("Cannot update APNS token: no device_id")
-            throw APIServiceError.serverError("No device_id found")
-        }
-        
-        let response = try await apiService.updateAPNSToken(deviceId: deviceId, apnsToken: token)
-        AppLogger.info("APNS token updated successfully")
-        return response
     }
 }

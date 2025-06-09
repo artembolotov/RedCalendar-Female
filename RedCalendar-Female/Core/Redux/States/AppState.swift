@@ -14,9 +14,8 @@ struct AppState {
     var isMigrating = false
     var migrationError: String?
     
-    // Push notification state
-    var pushNotificationState: PushNotificationState = .notRequested
     var apnsToken: String?
+    var isApnsTokenSynced = false
     
     // Computed property
     var isAuthenticated: Bool {

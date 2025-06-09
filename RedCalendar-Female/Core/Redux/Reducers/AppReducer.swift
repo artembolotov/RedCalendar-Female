@@ -39,28 +39,25 @@ func appReducer(state: AppState, action: AppAction) -> AppState {
         state.userId = nil
         state.deviceId = nil
         state.migrationError = nil
+        
         state.apnsToken = nil
-        state.pushNotificationState = .notRequested
+        state.isApnsTokenSynced = false
         
     // Push notification actions
     case .pushRegistrationCompleted(let token):
-        state.pushNotificationState = .registered
         state.apnsToken = token
+        state.isApnsTokenSynced = false
         
     case .pushRegistrationFailed:
-        state.pushNotificationState = .failed
+        // Just log, no state change needed
+        break
         
-    case .pushTokenUpdating:
-        state.pushNotificationState = .tokenUpdating
+    case .pushTokenSynced(let success):
+        state.isApnsTokenSynced = success
         
-    case .pushTokenUpdated(let success):
-        if success {
-            AppLogger.info("Push token updated successfully - setting state to .tokenUpdated")
-            state.pushNotificationState = .tokenUpdated
-        } else {
-            AppLogger.info("Push token update failed - setting state to .registered for retry")
-            state.pushNotificationState = .registered
-        }
+    case .syncPushToken:
+       // No state change, handled by middleware
+       break
         
     case .retryFailedTasks:
         // No state changes needed - middleware will handle retry logic
