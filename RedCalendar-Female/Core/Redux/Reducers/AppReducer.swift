@@ -41,19 +41,20 @@ func appReducer(state: AppState, action: AppAction) -> AppState {
         state.migrationError = nil
         
         state.apnsToken = nil
-        state.isApnsTokenSynced = false
         
     // Push notification actions
     case .pushRegistrationCompleted(let token):
-        state.apnsToken = token
-        state.isApnsTokenSynced = false
+        state.apnsToken = APNSToken(value: token, isSynced: false)
         
     case .pushRegistrationFailed:
         // Just log, no state change needed
         break
         
     case .pushTokenSynced(let success):
-        state.isApnsTokenSynced = success
+        if let token = state.apnsToken {
+            state.apnsToken = APNSToken(value: token.value, isSynced: success)
+        }
+        break
         
     case .syncPushToken:
        // No state change, handled by middleware

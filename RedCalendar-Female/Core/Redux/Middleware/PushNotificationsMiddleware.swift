@@ -24,24 +24,26 @@ let pushNotificationMiddleware: Middleware<AppState, AppAction> = { state, actio
         // If we have unsyced token and now authenticated - sync it
         if deviceId != nil,
            let token = state.apnsToken,
-           !state.isApnsTokenSynced {
+           !token.isSynced {
             return [.syncPushToken]
         }
         return []
         
     case .syncPushToken:
-        Task {
-            do {
-                _ = try await apiService.updateAPNSToken(deviceId: state.deviceId!, apnsToken: state.apnsToken!)
-                dispatch(.pushTokenSynced(true))
-            } catch {
-                dispatch(.pushTokenSynced(false))
+        if let token = state.apnsToken, !token.isSynced, let deviceId = state.deviceId {
+            Task {
+                do {
+                    let _ = try await apiService.updateAPNSToken(deviceId: deviceId, apnsToken: token.value)
+                    dispatch(.pushTokenSynced(true))
+                } catch {
+                    dispatch(.pushTokenSynced(false))
+                }
             }
         }
         return []
         
     case .retryFailedTasks:
-        if state.isAuthenticated && !state.isApnsTokenSynced {
+        if state.isAuthenticated, let token = state.apnsToken, !token.isSynced {
             return [.syncPushToken]
         }
         return []
