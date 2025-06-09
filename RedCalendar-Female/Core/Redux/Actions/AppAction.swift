@@ -16,10 +16,7 @@ enum AppAction {
     case logout
     
     // Push notification actions
-    case pushRegistrationCompleted(token: String)
-    case pushRegistrationFailed(Error)
-    case syncPushToken
-    case pushTokenSynced(Bool)
+    case setAPNSToken(_ token: APNSToken)
     
     // Retry actions
     case retryFailedTasks

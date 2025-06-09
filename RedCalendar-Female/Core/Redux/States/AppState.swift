@@ -16,13 +16,7 @@ struct AppState {
     
     var apnsToken: APNSToken?
     
-    var isAuthenticated: Bool {
-        deviceId != nil
-    }
-    
-    var hasUnsyncedAPNSToken: Bool {
-        apnsToken?.isSynced == false
-    }
+    var isAuthenticated: Bool { deviceId != nil }
     
     var authCheckState: AuthCheckState {
         if isCheckingAuth {

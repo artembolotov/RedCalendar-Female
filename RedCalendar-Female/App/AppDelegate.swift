@@ -21,7 +21,7 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         AppLogger.info("Got APNS token: \(token.prefix(20))...")
         
         // Dispatch Redux action
-        appStore?.send(.pushRegistrationCompleted(token: token))
+        appStore?.send(.setAPNSToken(APNSToken(value: token, isSynced: false)))
     }
     
     // Called when APNs registration fails
@@ -30,8 +30,5 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         didFailToRegisterForRemoteNotificationsWithError error: Error
     ) {
         AppLogger.error("APNS registration failed", error: error)
-        
-        // Dispatch Redux action
-        appStore?.send(.pushRegistrationFailed(error))
     }
 }

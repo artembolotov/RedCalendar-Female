@@ -42,26 +42,10 @@ func appReducer(state: AppState, action: AppAction) -> AppState {
         
         state.apnsToken = nil
         
-    // Push notification actions
-    case .pushRegistrationCompleted(let token):
-        state.apnsToken = APNSToken(value: token, isSynced: false)
-        
-    case .pushRegistrationFailed:
-        // Just log, no state change needed
-        break
-        
-    case .pushTokenSynced(let success):
-        if let token = state.apnsToken {
-            state.apnsToken = APNSToken(value: token.value, isSynced: success)
-        }
-        break
-        
-    case .syncPushToken:
-       // No state change, handled by middleware
-       break
+    case .setAPNSToken(let token):
+        state.apnsToken = token
         
     case .retryFailedTasks:
-        // No state changes needed - middleware will handle retry logic
         break
     }
     
