@@ -10,6 +10,7 @@ import Foundation
 // PushNotificationMiddleware.swift
 let pushNotificationMiddleware: Middleware<AppState, AppAction> = { state, action, dispatch in
     @Injected var apiService: APIServiceProtocol
+    @Injected var pushPermissionService: PushPermissionServiceProtocol
     
     switch action {
     case .setAPNSToken(let token):
@@ -23,6 +24,15 @@ let pushNotificationMiddleware: Middleware<AppState, AppAction> = { state, actio
                 } catch {
                     AppLogger.error(error.localizedDescription)
                 }
+            }
+        }
+        return []
+        
+    case .setPushPermissionState(let state):
+        if state == nil {
+            Task {
+                let status = await pushPermissionService.getState()
+                dispatch(.setPushPermissionState(status))
             }
         }
         return []

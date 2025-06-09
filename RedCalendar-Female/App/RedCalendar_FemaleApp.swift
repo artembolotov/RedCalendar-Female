@@ -31,6 +31,8 @@ struct RedCalendarApp: App {
                     store.send(.checkAuth)
                 }
                 .onChange(of: scenePhase) { newPhase in
+                    store.send(.setPushPermissionState(nil))
+                    
                     if newPhase == .active && store.state.isAuthenticated {
                         store.send(.retryFailedTasks)
                     }

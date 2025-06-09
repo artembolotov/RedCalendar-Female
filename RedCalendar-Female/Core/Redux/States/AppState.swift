@@ -10,6 +10,7 @@ import Foundation
 struct AppState {
     var apnsToken: APNSToken?
     var authState: AuthState?
+    var pushPermissionState: PushPermissionState?
 }
 
 extension AppState {

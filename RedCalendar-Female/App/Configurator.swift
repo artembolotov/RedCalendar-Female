@@ -16,6 +16,7 @@ final class Configurator {
         registerAnalyticsService()
         registerKeychainService()
         registerAPIService()
+        registerPushPermissionsService()
     }
     
     private func registerAnalyticsService() {
@@ -33,5 +34,10 @@ final class Configurator {
     private func registerAPIService() {
         let apiService: APIServiceProtocol = APIService()
         ServiceLocator.shared.addService(service: apiService)
+    }
+    
+    private func registerPushPermissionsService() {
+        let pushPermissionsService: PushPermissionServiceProtocol = PushPermissionService()
+        ServiceLocator.shared.addService(service: pushPermissionsService)
     }
 }

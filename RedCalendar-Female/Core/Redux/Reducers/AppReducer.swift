@@ -23,6 +23,9 @@ func appReducer(state: AppState, action: AppAction) -> AppState {
     case .setAPNSToken(let token):
         state.apnsToken = token
         
+    case .setPushPermissionState(let permissionState):
+        state.pushPermissionState = permissionState
+        
     case .retryFailedTasks:
         break
     }

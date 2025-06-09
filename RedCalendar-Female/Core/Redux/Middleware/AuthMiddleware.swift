@@ -10,6 +10,7 @@ import UIKit
 
 let authMiddleware: Middleware<AppState, AppAction> = { state, action, dispatch in
     @Injected var keychain: KeychainServiceProtocol
+    @Injected var pushPermissionService: PushPermissionServiceProtocol
     
     switch action {
     case .checkAuth:
@@ -31,8 +32,11 @@ let authMiddleware: Middleware<AppState, AppAction> = { state, action, dispatch 
         }
         
         if case .authenticated(let DeviceID, _) = authState {
-            DispatchQueue.main.async {
+            await MainActor.run {
                 UIApplication.shared.registerForRemoteNotifications()
+            }
+            if state.pushPermissionState == .notAsked {
+                await pushPermissionService.requestAuthorization()
             }
         }
         

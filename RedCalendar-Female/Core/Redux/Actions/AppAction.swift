@@ -13,6 +13,7 @@ enum AppAction {
     
     // Push notification actions
     case setAPNSToken(_ token: APNSToken)
+    case setPushPermissionState(_ state: PushPermissionState?)
     
     // Retry actions
     case retryFailedTasks
