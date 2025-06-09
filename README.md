@@ -4,7 +4,7 @@ iOS приложение **RedCalendar** - облачный трекер мен�
 
 ## Архитектура
 
-### Основные компоненты
+### Основные технологии
 - **SwiftUI** - современный UI framework
 - **Redux архитектура** - предсказуемое управление состоянием через Store/Actions/Reducers
 - **Dependency Injection** - слабая связанность компонентов через ServiceLocator
@@ -22,11 +22,21 @@ RedCalendar-Female/
 │   └── Configurator.swift              # Настройка DI контейнера
 ├── Core/                         # Основная логика
 │   ├── Redux/                    # Redux архитектура
-│   │   ├── Store.swift           # Основной Store
+│   │   ├── Store.swift           # Основной Store с Middleware поддержкой
+│   │   ├── AppStore.swift        # Type alias для удобства
+│   │   ├── AppMiddleware.swift   # Комбинирование middleware
 │   │   ├── Actions/              # Actions
+│   │   │   └── AppAction.swift   # Все действия приложения
 │   │   ├── States/               # State модели
+│   │   │   └── AppState.swift    # Главное состояние
 │   │   ├── Reducers/             # Reducers
+│   │   │   └── AppReducer.swift  # Основной reducer
 │   │   └── Middleware/           # Async middleware
+│   │       ├── LoggerMiddleware.swift     # Логирование actions
+│   │       ├── AuthMiddleware.swift       # Авторизация
+│   │       ├── MigrationMiddleware.swift  # Firebase миграция
+│   │       ├── PushNotificationsMiddleware.swift # Push уведомления
+│   │       └── AnalyticsMiddleware.swift  # Аналитика
 │   ├── Services/                 # Сервисы
 │   │   ├── AnalyticsService.swift      # Яндекс AppMetrica
 │   │   ├── KeychainService.swift       # Безопасное хранение
@@ -64,19 +74,33 @@ struct AppState {
 ### AppAction - действия
 ```swift
 enum AppAction {
-    case checkAuth
-    case setAuthState(_ state: AuthState)
+    // Auth actions
+    case setAuthState(_ state: AuthState?)
+    
+    // Push notification actions
     case setAPNSToken(_ token: APNSToken)
     case setPushPermissionState(_ state: PushPermissionState?)
+    
+    // Retry actions
     case retryFailedTasks
 }
 ```
 
 ### Middleware - асинхронная логика
+- **LoggerMiddleware** - логирование всех actions в DEBUG режиме
 - **AuthMiddleware** - проверка авторизации и миграция с Firebase
 - **MigrationMiddleware** - конвертация Firebase UID в device_id
 - **PushNotificationMiddleware** - управление APNS токенами
 - **AnalyticsMiddleware** - отправка событий в AppMetrica
+
+### Store конфигурация
+```swift
+@StateObject private var store = AppStore(
+    initialState: AppState(),
+    reducer: appReducer,
+    middlewares: combineAppMiddlewares()
+)
+```
 
 ## Авторизация
 
@@ -85,7 +109,7 @@ enum AppAction {
 
 ```swift
 // Логика в AuthMiddleware
-case .checkAuth:
+case .setAuthState(nil):
     // Приоритет 1: Ищем device_id (новая система)
     if let deviceId = keychain.getDeviceID() {
         return [.setAuthState(.authenticated(deviceId: deviceId, userDetails: nil))]
@@ -112,12 +136,12 @@ enum AuthState {
 ### Keychain хранение
 ```swift
 protocol KeychainServiceProtocol {
-    // Device ID (новая система)
+    // Device ID methods (new system)
     func getDeviceID() -> String?
     func saveDeviceID(_ deviceId: String) -> Bool
     func deleteDeviceID() -> Bool
     
-    // User UID (Firebase legacy, для миграции)
+    // User UID methods (Firebase legacy, for migration)
     func getUserUID() -> String?
     func saveUserUID(_ uid: String) -> Bool
     func deleteUserUID() -> Bool
@@ -127,10 +151,10 @@ protocol KeychainServiceProtocol {
 ## Push Notifications
 
 ### Архитектура уведомлений
-- **Background Mode** - Remote notifications включен
+- **Background Mode** - Remote notifications включен в Info.plist
 - **Device Token** - автоматическая регистрация при авторизации
 - **APNS токены** - синхронизация с сервером через API
-- **Разрешения** - запрос только после авторизации
+- **Разрешения** - запрос только после авторизации пользователя
 
 ### Реализация
 ```swift
@@ -153,6 +177,16 @@ enum PushPermissionState {
 }
 ```
 
+### Синхронизация токенов
+Токены автоматически отправляются на сервер через PushNotificationMiddleware:
+```swift
+case .setAPNSToken(let token):
+    if case .authenticated(let deviceId, _) = state.authState, token.isSynced == false {
+        // Отправка токена на сервер через APIService
+        // После успешной отправки: token.isSynced = true
+    }
+```
+
 ## Dependency Injection
 
 ### ServiceLocator
@@ -160,8 +194,8 @@ enum PushPermissionState {
 final class ServiceLocator {
     static let shared = ServiceLocator()
     
-    func addService<T>(service: T) { /* ... */ }
-    func getService<T>() -> T { /* ... */ }
+    func addService<T>(service: T)
+    func getService<T>() -> T
 }
 ```
 
@@ -170,7 +204,7 @@ final class ServiceLocator {
 @propertyWrapper
 struct Injected<Service> {
     private lazy var service: Service = ServiceLocator.shared.getService()
-    public var wrappedValue: Service { /* ... */ }
+    public var wrappedValue: Service { service }
 }
 
 // Использование
@@ -205,19 +239,21 @@ protocol APIServiceProtocol {
 }
 ```
 
-### Модели ответов
+### Авторизация через Bearer токен
+Все API запросы используют device_id в заголовке:
 ```swift
-struct MigrationResponse: Codable {
-    let success: Bool
-    let data: MigrationData?
-    let message: String?
-    let timestamp: String
-}
+request.setValue("Bearer \(deviceId)", forHTTPHeaderField: "Authorization")
+```
 
-struct VerificationResponse: Codable {
-    let success: Bool
-    let data: VerificationData?
-    let timestamp: String
+### Обработка ошибок
+```swift
+enum APIServiceError: Error, LocalizedError {
+    case invalidURL
+    case noData
+    case decodingError
+    case httpError(Int)
+    case serverError(String)
+    case networkError(Error)
 }
 ```
 
@@ -242,24 +278,40 @@ final class AnalyticsService: AnalyticsServiceProtocol {
 ### Отслеживаемые события
 - Успешная/неуспешная миграция
 - Ошибки регистрации push уведомлений
-- Предупреждения и ошибки приложения
+- Предупреждения и ошибки приложения через AppLogger
 
 ## Логирование
 
 ### AppLogger
 ```swift
 struct AppLogger {
-    static func info(_ message: String)
-    static func warn(_ message: String)    // + отправка в аналитику
-    static func error(_ message: String, error: Error?)  // + отправка в аналитику
-    static func action(_ action: AppAction)  // Redux actions в DEBUG
+    static func info(_ message: String)              // Только в DEBUG
+    static func warn(_ message: String)              // DEBUG + аналитика
+    static func error(_ message: String, error: Error?) // DEBUG + аналитика
+    static func action(_ action: AppAction)          // Redux actions в DEBUG
 }
+```
+
+### Примеры логов
+```
+🎯 Action: setAuthState(authenticated("abc123def456", nil))
+ℹ️ INFO: Got APNS token: 1234567890abcdef...
+ℹ️ INFO: Apns token synced
+⚠️ WARN: Migration retry attempt
+❌ ERROR: APNS registration failed
 ```
 
 ## Конфигурация проекта
 
+### Основные настройки
+- **Bundle ID**: `ru.artembolotov.RedCalendar-Woman`
+- **Display Name**: RedCalendar
+- **Version**: 3.0
+- **iOS Deployment Target**: 15.4+
+- **Supported Devices**: iPhone только (портретная ориентация)
+
 ### Capabilities
-- ✅ **Push Notifications** 
+- ✅ **Push Notifications** - для уведомлений
 - ✅ **Background Modes** → Remote notifications
 
 ### Info.plist
@@ -276,79 +328,154 @@ struct AppLogger {
 <string>development</string>
 ```
 
-### Требования
-- **iOS 15.4+**
-- **Xcode 15.0+**
-- **Физическое устройство** для тестирования push уведомлений
+### Dependencies (Swift Package Manager)
+- **AppMetrica SDK** v5.11.0 - аналитика Яндекса
+  - AppMetricaCore
+  - AppMetricaCrashes
 
-## Тестирование
+## Workflow приложения
 
-### Проверка авторизации
+### Запуск приложения
+1. **Configurator.setup()** - инициализация DI контейнера
+2. **store.send(.setAuthState(nil))** - проверка авторизации
+3. **AuthMiddleware** определяет текущее состояние:
+   - device_id найден → `.authenticated`
+   - только user_id → `.migrating`
+   - ничего нет → `.notAuthenticated`
+
+### Миграция с Firebase
+1. Найден Firebase UID в keychain
+2. MigrationMiddleware вызывает `APIService.migrateUser()`
+3. Сервер возвращает новый device_id
+4. device_id сохраняется в keychain, user_id удаляется
+5. Переход в состояние `.authenticated`
+
+### Push уведомления
+1. При авторизации автоматически вызывается `registerForRemoteNotifications()`
+2. AppDelegate получает токен и отправляет action `.setAPNSToken`
+3. PushNotificationMiddleware синхронизирует токен с сервером
+4. При успехе токен помечается как `isSynced: true`
+
+### Retry механизм
+При возвращении в активное состояние:
 ```swift
-// В RootView автоматически отображается состояние:
+.onChange(of: scenePhase) { newPhase in
+    if newPhase == .active {
+        store.send(.setPushPermissionState(nil))  // Перепроверить разрешения
+        store.send(.retryFailedTasks)             // Повторить неудачные операции
+    }
+}
+```
+
+## UI Архитектура
+
+### RootView - роутинг
+```swift
 switch store.state.authState {
 case nil:
     ProgressView("Проверка авторизации...")
 case .notAuthenticated:
     LoginView()
-case .migrating(_, let error):
-    // UI для миграции с возможностью повтора при ошибке
+case .migrating(let userId, let error):
+    // UI миграции с обработкой ошибок и повтором
 case .authenticated:
     HomeView()
 }
 ```
 
-### Логи Redux Actions
+### Состояние миграции
+- **Без ошибки**: ProgressView с сообщением о переходе на новую систему
+- **С ошибкой**: Показ ошибки и кнопка "Повторить"
+
+### EnvironmentObject
+Store передается через `@EnvironmentObject` во все дочерние View:
+```swift
+RootView()
+    .environmentObject(store)
 ```
-🎯 Action: checkAuth
-🎯 Action: setAuthState(migrating("nSJXOCPF3ocA4Znn1sL7KvI1dh13", nil))
-🎯 Action: setAuthState(authenticated("abc123def456", nil))
+
+## Тестирование
+
+### Проверка авторизации
+Для тестирования используется тестовый Firebase UID:
+```swift
+Button("Войти (тест)") {
+    store.send(.setAuthState(.migrating(
+        userId: "nSJXOCPF3ocA4Znn1sL7KvI1dh13"))
+    )
+}
 ```
 
 ### Push Notifications
-```
-ℹ️ INFO: Got APNS token: abc123def456...
-ℹ️ INFO: Apns token synced
-```
+- **Симулятор**: APNS не работают, токен не приходит
+- **Реальное устройство**: проверить получение токена в логах
+- **Разрешения**: тестировать все сценарии (разрешить/запретить/настройки)
 
-### Диагностика проблем
-- **Push не работают в симуляторе** - только на реальном устройстве
-- **Токен не приходит** - проверить Capabilities и Provisioning Profile
-- **Ошибки миграции** - смотреть логи в консоли Xcode
+### Диагностика
+```
+// Redux actions
+🎯 Action: setAuthState(migrating("nSJXOCPF3ocA4Znn1sL7KvI1dh13", nil))
+🎯 Action: setAuthState(authenticated("abc123def456", nil))
+
+// Push notifications  
+ℹ️ INFO: Got APNS token: 1234567890abcdef...
+ℹ️ INFO: Apns token synced
+
+// Errors
+❌ ERROR: Migration failed - Server error: User not found
+⚠️ WARN: APNS token sync failed, will retry
+```
 
 ## Безопасность
 
 ### Keychain
-- **Accessibility** - `kSecAttrAccessibleAfterFirstUnlock`
-- **Synchronizable** - отключена для безопасности
-- **Device ID** - 28-символьный Firebase-style UID
+- **Accessibility**: `kSecAttrAccessibleAfterFirstUnlock`
+- **Synchronizable**: `false` (не синхронизируется через iCloud)
+- **Error handling**: подробное логирование ошибок keychain операций
 
-### API
-- **HTTPS** - все запросы только по защищенному соединению
-- **Authorization** - Bearer token в заголовках
-- **Device ID** - уникальный идентификатор устройства
+### API Security
+- **HTTPS only** - все запросы по защищенному соединению
+- **Bearer Authentication** - device_id в заголовке Authorization
+- **Device Model** - отправка модели устройства для аналитики
+- **Error Handling** - безопасная обработка без раскрытия внутренней информации
+
+### Приватность
+- **No Data Collection** без согласия пользователя
+- **Local Storage** - чувствительные данные только в Keychain
+- **Analytics** - только технические события, никаких персональных данных
 
 ## Архитектурные решения
 
 ### Почему Redux?
 - **Предсказуемость** - единое место для состояния приложения
-- **Отладка** - легко отслеживать все изменения состояния
-- **Тестируемость** - чистые функции reducers
-- **Асинхронность** - middleware для side effects
+- **Отладка** - логирование всех изменений состояния
+- **Тестируемость** - чистые функции reducers легко тестировать
+- **Асинхронность** - middleware для side effects и API вызовов
 
 ### Почему DI?
-- **Тестируемость** - легко подменять зависимости в тестах
-- **Слабая связанность** - компоненты не знают о конкретных реализациях
-- **Единая точка конфигурации** - все зависимости настраиваются в одном месте
+- **Тестируемость** - легко подменять зависимости в unit тестах
+- **Слабая связанность** - компоненты не зависят от конкретных реализаций
+- **Единая конфигурация** - все зависимости настраиваются в одном месте
 
 ### Почему SwiftUI?
 - **Современность** - актуальный фреймворк от Apple
-- **Декларативность** - описываем что хотим, не как это сделать
-- **Производительность** - оптимизированный рендеринг
-- **Реактивность** - отличная интеграция с Redux через @EnvironmentObject
+- **Декларативность** - описываем интерфейс через состояние
+- **Производительность** - автоматическая оптимизация рендеринга
+- **Реактивность** - идеальная интеграция с Redux через @EnvironmentObject
 
 ---
 
 **Автор**: Артём Болотов  
 **Версия**: 3.0  
 **Последнее обновление**: 09.06.2025
+
+## Изменения в версии 3.0
+
+- ✅ Переход с UIKit на SwiftUI
+- ✅ Реализация Redux архитектуры с middleware
+- ✅ Автоматическая миграция с Firebase на собственную авторизацию
+- ✅ Интеграция с собственным API сервером
+- ✅ Push уведомления через APNs
+- ✅ Аналитика через Яндекс AppMetrica
+- ✅ Dependency Injection через ServiceLocator
+- ✅ Безопасное хранение в Keychain
