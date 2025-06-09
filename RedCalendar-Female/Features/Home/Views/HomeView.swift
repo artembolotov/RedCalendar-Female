@@ -16,7 +16,7 @@ struct HomeView: View {
                 Text("Добро пожаловать!")
                     .font(.largeTitle)
                 
-                if let deviceId = store.state.deviceId {
+                if case .authenticated(let deviceId, _) = store.state.authState {
                     Text("Device ID: \(deviceId)")
                         .font(.caption)
                         .foregroundColor(.secondary)
@@ -24,7 +24,7 @@ struct HomeView: View {
                 }
                 
                 Button("Выйти") {
-                    store.send(.logout)
+                    store.send(.setAuthState(.notAuthenticated))
                 }
                 .foregroundColor(.red)
             }
@@ -39,8 +39,11 @@ struct HomeView: View {
         .environmentObject(
             AppStore(
                 initialState: AppState(
-                    isCheckingAuth: false,
-                    deviceId: "B7DDU4pUigTiAhpNDWnQW83tGQ6R"
+                    apnsToken: nil,
+                    authState: .authenticated(
+                        deviceId: "B7DDU4pUigTiAhpNDWnQW83tGQ6R",
+                        userDetails: nil
+                    )
                 ),
                 reducer: appReducer,
                 middlewares: []

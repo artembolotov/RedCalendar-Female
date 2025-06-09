@@ -16,7 +16,9 @@ struct LoginView: View {
                     .font(.largeTitle)
                 
                 Button("Войти (тест)") {
-                    store.send(.login)
+                    store.send(.setAuthState(.migrating(
+                        userId: "nSJXOCPF3ocA4Znn1sL7KvI1dh13"))
+                    )
                 }
                 .buttonStyle(.borderedProminent)
             }
@@ -30,8 +32,8 @@ struct LoginView: View {
         .environmentObject(
             AppStore(
                 initialState: AppState(
-                    isCheckingAuth: false,
-                    userId: nil
+                    apnsToken: nil,
+                    authState: .notAuthenticated
                 ),
                 reducer: appReducer,
                 middlewares: []

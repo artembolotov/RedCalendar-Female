@@ -28,8 +28,6 @@ struct RedCalendarApp: App {
                 .environmentObject(store)
                 .onAppear {
                     appDelegate.appStore = store
-                    UIApplication.shared.registerForRemoteNotifications()
-                    
                     store.send(.checkAuth)
                 }
                 .onChange(of: scenePhase) { newPhase in

@@ -11,58 +11,53 @@ struct RootView: View {
     @EnvironmentObject var store: AppStore
     
     var body: some View {
-        switch store.state.authCheckState {
-        case .checking:
-            ProgressView("Проверка авторизации...")
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(Color(.systemBackground))
-                
-        case .migrating:
-            VStack(spacing: 16) {
-                if store.state.migrationError == nil {
-                    // Normal migration in progress
-                    ProgressView("Обновление системы авторизации...")
-                    
-                    Text("Переходим на новую систему безопасности")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
-                } else {
-                    // Migration failed - show error and retry button
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .font(.system(size: 40))
-                        .foregroundColor(.orange)
-                        .padding(.bottom, 8)
-                    
-                    Text("Ошибка миграции")
-                        .font(.headline)
-                        .foregroundColor(.primary)
-                    
-                    if let error = store.state.migrationError {
-                        Text(error)
+        if let authState = store.state.authState {
+            switch authState {
+            case .notAuthenticated:
+                LoginView()
+            case .authenticated:
+                HomeView()
+            case .migrating(let userId, let migrationError):
+                VStack(spacing: 16) {
+                    if let migrationError {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.system(size: 40))
+                            .foregroundColor(.orange)
+                            .padding(.bottom, 8)
+                        
+                        Text("Ошибка миграции")
+                            .font(.headline)
+                            .foregroundColor(.primary)
+                        
+                        Text(migrationError.localizedDescription)
                             .font(.caption)
                             .foregroundColor(.red)
                             .multilineTextAlignment(.center)
                             .padding(.horizontal)
+                        
+                        Button("Повторить") {
+                            store.send(.setAuthState(.migrating(userId: userId, error: nil)))
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.large)
+                        .padding(.top, 16)
+                    } else {
+                        ProgressView("Обновление системы авторизации...")
+                        
+                        Text("Переходим на новую систему безопасности")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
                     }
-                    
-                    Button("Повторить") {
-                        store.send(.startMigration)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
-                    .padding(.top, 16)
                 }
+                .padding()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color(.systemBackground))
             }
-            .padding()
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color(.systemBackground))
-            
-        case .authenticated:
-            HomeView()
-            
-        case .notAuthenticated:
-            LoginView()
+        } else {
+            ProgressView("Проверка авторизации...")
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color(.systemBackground))
         }
     }
 }
@@ -82,11 +77,7 @@ struct RootView: View {
     RootView()
         .environmentObject(
             AppStore(
-                initialState: AppState(
-                    isCheckingAuth: false,
-                    isMigrating: true,
-                    migrationError: "Сервер недоступен. Проверьте подключение к интернету."
-                ),
+                initialState: AppState(),
                 reducer: appReducer,
                 middlewares: combineAppMiddlewares()
             )
