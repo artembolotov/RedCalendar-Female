@@ -11,8 +11,6 @@ func appReducer(state: AppState, action: AppAction) -> AppState {
     var state = state
     
     switch action {
-    case .checkAuth:
-        break
         
     case .setAuthState(let authState):
         state.authState = authState

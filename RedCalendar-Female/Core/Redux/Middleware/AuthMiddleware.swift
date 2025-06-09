@@ -13,35 +13,36 @@ let authMiddleware: Middleware<AppState, AppAction> = { state, action, dispatch 
     @Injected var pushPermissionService: PushPermissionServiceProtocol
     
     switch action {
-    case .checkAuth:
-        // Priority 1: Check for device_id (new system)
-        if let deviceId = keychain.getDeviceID() {
-            return [.setAuthState(AuthState.authenticated(deviceId: deviceId, userDetails: nil))]
-        }
-        
-        // Priority 2: Check for legacy user_id (Firebase)
-        if let userId = keychain.getUserUID() {
-            return [.setAuthState(.migrating(userId: userId, error: nil))]
-        }
-        
-        return [.setAuthState(.notAuthenticated)]
     
     case .setAuthState(let authState):
-        if case .notAuthenticated = authState {
-            keychain.deleteDeviceID()
-        }
-        
-        if case .authenticated(let DeviceID, _) = authState {
-            await MainActor.run {
-                UIApplication.shared.registerForRemoteNotifications()
+        if let authState {
+            if case .notAuthenticated = authState {
+                keychain.deleteDeviceID()
             }
-            if state.pushPermissionState == .notAsked {
-                await pushPermissionService.requestAuthorization()
+            
+            if case .authenticated(let DeviceID, _) = authState {
+                await MainActor.run {
+                    UIApplication.shared.registerForRemoteNotifications()
+                }
+                if state.pushPermissionState == .notAsked {
+                    await pushPermissionService.requestAuthorization()
+                }
             }
+            
+            return []
+        } else {
+            // Priority 1: Check for device_id (new system)
+            if let deviceId = keychain.getDeviceID() {
+                return [.setAuthState(AuthState.authenticated(deviceId: deviceId, userDetails: nil))]
+            }
+            
+            // Priority 2: Check for legacy user_id (Firebase)
+            if let userId = keychain.getUserUID() {
+                return [.setAuthState(.migrating(userId: userId, error: nil))]
+            }
+            
+            return [.setAuthState(.notAuthenticated)]
         }
-        
-        return []
-        
     default:
         return []
     }

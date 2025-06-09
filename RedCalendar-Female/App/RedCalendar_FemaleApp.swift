@@ -28,12 +28,11 @@ struct RedCalendarApp: App {
                 .environmentObject(store)
                 .onAppear {
                     appDelegate.appStore = store
-                    store.send(.checkAuth)
+                    store.send(.setAuthState(nil))
                 }
                 .onChange(of: scenePhase) { newPhase in
-                    store.send(.setPushPermissionState(nil))
-                    
-                    if newPhase == .active && store.state.isAuthenticated {
+                    if newPhase == .active {
+                        store.send(.setPushPermissionState(nil))
                         store.send(.retryFailedTasks)
                     }
                 }
