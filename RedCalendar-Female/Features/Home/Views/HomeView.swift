@@ -24,7 +24,7 @@ struct HomeView: View {
                 }
                 
                 Button("Выйти") {
-                    store.send(.setAuthState(.notAuthenticated))
+                    store.send(.logout)
                 }
                 .foregroundColor(.red)
             }

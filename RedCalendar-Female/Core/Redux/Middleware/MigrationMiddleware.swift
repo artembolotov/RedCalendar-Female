@@ -31,7 +31,7 @@ let migrationMiddleware: Middleware<AppState, AppAction> = { state, action, disp
     
     switch action {
     case .setAuthState(let authState):
-        if let authState = authState, case .migrating(let userId, let error) = authState, error == nil {
+        if case .migrating(let userId, let error) = authState, error == nil {
             Task {
                 do {
                     let response = try await apiService.migrateUser(userId: userId)

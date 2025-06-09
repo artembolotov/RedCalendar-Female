@@ -12,6 +12,9 @@ func appReducer(state: AppState, action: AppAction) -> AppState {
     
     switch action {
         
+    case .checkAuthState:
+        break
+        
     case .setAuthState(let authState):
         state.authState = authState
         if case .notAuthenticated = authState {
@@ -25,6 +28,9 @@ func appReducer(state: AppState, action: AppAction) -> AppState {
         state.pushPermissionState = permissionState
         
     case .retryFailedTasks:
+        break
+        
+    case .logout:
         break
     }
     

@@ -7,7 +7,9 @@
 
 enum AppAction {
     // Auth actions
-    case setAuthState(_ state: AuthState?)
+    case checkAuthState
+    case setAuthState(_ state: AuthState)
+    case logout
     
     // Push notification actions
     case setAPNSToken(_ token: APNSToken)

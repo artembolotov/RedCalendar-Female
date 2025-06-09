@@ -12,6 +12,7 @@ protocol APIServiceProtocol {
     func migrateUser(userId: String) async throws -> MigrationResponse
     func verifyDevice(deviceId: String) async throws -> VerificationResponse
     func updateAPNSToken(deviceId: String, apnsToken: String) async throws -> APNSTokenResponse
+    func logout(deviceId: String) async throws -> LogoutResponse
 }
 
 // MARK: - Response Models
@@ -57,6 +58,12 @@ struct APIError: Codable {
 }
 
 struct APNSTokenResponse: Codable {
+    let success: Bool
+    let message: String?
+    let timestamp: String
+}
+
+struct LogoutResponse: Codable {
     let success: Bool
     let message: String?
     let timestamp: String
@@ -159,6 +166,27 @@ final class APIService: APIServiceProtocol {
         }
         
         return try JSONDecoder().decode(APNSTokenResponse.self, from: data)
+    }
+    
+    // MARK: - Logout
+    func logout(deviceId: String) async throws -> LogoutResponse {
+        let url = URL(string: "\(baseURL)/auth/logout")!
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "DELETE"
+        request.setValue("Bearer \(deviceId)", forHTTPHeaderField: "Authorization")
+        
+        let (data, response) = try await session.data(for: request)
+        
+        if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode >= 400 {
+            if let errorResponse = try? JSONDecoder().decode(APIError.self, from: data) {
+                throw APIServiceError.serverError(errorResponse.error)
+            } else {
+                throw APIServiceError.httpError(httpResponse.statusCode)
+            }
+        }
+        
+        return try JSONDecoder().decode(LogoutResponse.self, from: data)
     }
     
     // MARK: - Helpers

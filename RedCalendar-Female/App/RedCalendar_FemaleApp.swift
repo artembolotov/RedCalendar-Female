@@ -28,7 +28,7 @@ struct RedCalendarApp: App {
                 .environmentObject(store)
                 .onAppear {
                     appDelegate.appStore = store
-                    store.send(.setAuthState(nil))
+                    store.send(.checkAuthState)
                 }
                 .onChange(of: scenePhase) { newPhase in
                     if newPhase == .active {
