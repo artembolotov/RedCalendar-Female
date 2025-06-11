@@ -99,6 +99,7 @@ enum APIServiceError: Error, LocalizedError {
     case httpError(Int)
     case serverError(String)
     case networkError(Error)
+    case unauthorized
     
     var errorDescription: String? {
         switch self {
@@ -114,6 +115,8 @@ enum APIServiceError: Error, LocalizedError {
             return message
         case .networkError(let error):
             return "Network error: \(error.localizedDescription)"
+        case .unauthorized:
+            return "User not authorized"
         }
     }
 }
@@ -240,6 +243,11 @@ final class APIService: APIServiceProtocol {
     private func validateHTTPResponse(_ response: URLResponse, data: Data) throws {
         guard let httpResponse = response as? HTTPURLResponse else {
             return
+        }
+        
+        if httpResponse.statusCode == 401 {
+            AppLogger.warn("API returned 401 Unauthorized - user needs re-authentication")
+            throw APIServiceError.unauthorized
         }
         
         if httpResponse.statusCode >= 400 {
