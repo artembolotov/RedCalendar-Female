@@ -33,7 +33,7 @@ struct LoginView: View {
             AppStore(
                 initialState: AppState(
                     apnsToken: nil,
-                    authState: .notAuthenticated
+                    authState: nil
                 ),
                 reducer: appReducer,
                 middlewares: []

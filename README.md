@@ -43,9 +43,13 @@ RedCalendar-Female/
 │   │   ├── APIService.swift            # HTTP клиент
 │   │   └── PushPermissionService.swift # Push разрешения
 │   ├── Models/                   # Модели данных
-│   │   ├── AuthState.swift       # Состояния авторизации
-│   │   ├── APNSToken.swift       # APNS токен
-│   │   └── UserDetails.swift     # Данные пользователя
+│   │   ├── AuthState.swift           # Состояния авторизации
+│   │   ├── AuthenticationMethod.swift # Методы авторизации (phone/email)
+│   │   ├── PhoneAuthState.swift      # Состояния телефонной авторизации
+│   │   ├── EmailAuthState.swift      # Состояния email авторизации
+│   │   ├── AuthenticationError.swift # Ошибки авторизации
+│   │   ├── APNSToken.swift           # APNS токен
+│   │   └── UserDetails.swift         # Данные пользователя
 │   ├── DI/                       # Dependency Injection
 │   │   ├── ServiceLocator.swift  # DI контейнер
 │   │   └── Injected.swift        # Property wrapper
@@ -53,7 +57,9 @@ RedCalendar-Female/
 │       └── Logger.swift          # Система логирования
 ├── Features/                     # UI экраны
 │   ├── Auth/Views/               # Авторизация
-│   │   └── LoginView.swift       # Экран входа
+│   │   ├── LoginView.swift       # Экран выбора метода входа
+│   │   ├── PhoneAuthView.swift   # Авторизация по телефону
+│   │   └── EmailAuthView.swift   # Авторизация по email
 │   └── Home/Views/               # Главный экран
 │       └── HomeView.swift        # Домашний экран
 └── Common/Views/                 # Общие компоненты
@@ -75,7 +81,9 @@ struct AppState {
 ```swift
 enum AppAction {
     // Auth actions
-    case setAuthState(_ state: AuthState?)
+    case checkAuthState
+    case setAuthState(_ state: AuthState)
+    case logout
     
     // Push notification actions
     case setAPNSToken(_ token: APNSToken)
@@ -102,14 +110,167 @@ enum AppAction {
 )
 ```
 
-## Авторизация
+## Система авторизации
 
-### Миграция с Firebase
+### AuthState - основные состояния
+```swift
+enum AuthState {
+    case authenticating(AuthenticationMethod?)       // nil = not authenticated, show login screen
+    case authenticated(deviceId: String, userDetails: UserDetails?)
+    case migrating(userId: String, error: Error? = nil)
+}
+```
+
+### AuthenticationMethod - методы входа
+```swift
+enum AuthenticationMethod {
+    case phone(PhoneAuthState)
+    case email(EmailAuthState)
+}
+```
+
+### Телефонная авторизация
+```swift
+enum PhoneAuthState {
+    case entry                                        // Enter phone number
+    case requesting(phoneNumber: String)              // Requesting flash call
+    case verification(                               // Waiting for call verification
+        phoneNumber: String,
+        maskedCallerNumber: String,                  // e.g., "+7 XXX XXX XX34"
+        error: AuthenticationError? = nil
+    )
+    case verifying(                                  // Verifying entered digits
+        phoneNumber: String,
+        verificationCode: String
+    )
+}
+```
+
+**Поток телефонной авторизации:**
+1. **Ввод номера** - пользователь вводит номер телефона
+2. **Запрос звонка** - система запрашивает flash call у сервера
+3. **Ожидание звонка** - показ маски номера и инструкций
+4. **Ввод кода** - пользователь вводит последние цифры номера
+5. **Проверка кода** - отправка на сервер для верификации
+6. **Успех** - переход в состояние `authenticated`
+
+### Email авторизация
+```swift
+enum EmailAuthState {
+    case entry                                       // Enter email address
+    case checking(email: String)                     // Checking if email exists
+    case passwordEntry(                             // Enter password for existing user
+        email: String,
+        userName: String,
+        error: AuthenticationError? = nil
+    )
+    case passwordVerifying(                         // Verifying email + password
+        email: String,
+        password: String
+    )
+    case registration(                              // New user registration flow
+        email: String,
+        step: RegistrationStep
+    )
+    case passwordRecovery(                          // Forgot password flow
+        email: String,
+        step: PasswordRecoveryStep
+    )
+}
+```
+
+**Поток email авторизации (существующий пользователь):**
+1. **Ввод email** - пользователь вводит адрес электронной почты
+2. **Проверка email** - система проверяет существование в базе
+3. **Ввод пароля** - если найден, показ формы пароля с именем пользователя
+4. **Проверка пароля** - отправка email+пароль на сервер
+5. **Успех** - переход в состояние `authenticated`
+
+### Регистрация новых пользователей
+```swift
+enum RegistrationStep {
+    case userDataEntry                              // Enter name and create password (combined screen)
+    case creating(                                  // Creating account on server
+        name: String,
+        password: String
+    )
+    case emailVerification(verificationCode: String?) // Verify email with code
+    case verifyingEmail(                           // Verifying email code on server
+        verificationCode: String
+    )
+}
+```
+
+**Поток регистрации:**
+1. **Ввод данных** - имя и пароль на одном экране
+2. **Создание аккаунта** - отправка данных на сервер
+3. **Подтверждение email** - ввод 6-значного кода из письма
+4. **Проверка кода** - верификация кода на сервере
+5. **Успех** - переход в состояние `authenticated`
+
+### Восстановление пароля
+```swift
+enum PasswordRecoveryStep {
+    case codeRequesting                            // Requesting verification code
+    case codeVerification(error: AuthenticationError? = nil) // Enter 6-digit code
+    case verifyingCode(code: String)               // Verifying code on server
+    case passwordReset                             // Enter new password + confirmation
+    case resettingPassword(                        // Resetting password on server
+        newPassword: String,
+        confirmPassword: String
+    )
+}
+```
+
+**Поток восстановления пароля:**
+1. **Запрос кода** - отправка кода восстановления на email
+2. **Ввод кода** - пользователь вводит полученный код
+3. **Проверка кода** - верификация на сервере
+4. **Новый пароль** - ввод нового пароля и подтверждения
+5. **Смена пароля** - обновление пароля на сервере
+6. **Успех** - переход в состояние `authenticated`
+
+### Обработка ошибок
+```swift
+enum AuthenticationError: Error, LocalizedError {
+    // Phone errors
+    case phoneNotRegistered                        // Not a RedCalendar 2.0 user
+    case phoneCallFailed                          // Flash call request failed
+    case phoneVerificationFailed                  // Wrong verification digits
+    case phoneCallTimeout                         // Call didn't arrive
+    
+    // Email errors
+    case emailNotFound                            // Email doesn't exist (new user)
+    case emailAlreadyExists                       // Email taken during registration
+    case invalidPassword                          // Wrong password
+    case weakPassword                             // Password doesn't meet requirements
+    case passwordMismatch                         // Password confirmation doesn't match
+    
+    // Code verification errors
+    case invalidVerificationCode                  // Wrong 6-digit code
+    case verificationCodeExpired                  // Code expired
+    case verificationCodeLimitExceeded            // Too many attempts
+    
+    // Registration errors
+    case registrationFailed                       // Account creation failed
+    case nameRequired                            // Name field is empty
+    case emailVerificationFailed                 // Email verification failed
+    
+    // Network/Server errors
+    case networkError(Error)                      // Network connectivity issues
+    case serverError(String)                      // Server-side errors
+    case unknownError                             // Fallback error
+}
+```
+
+## Миграция с Firebase
+
+### Логика миграции
 Приложение автоматически мигрирует пользователей с Firebase Auth на собственную систему:
 
 ```swift
 // Логика в AuthMiddleware
-case .setAuthState(nil):
+case .checkAuthState:
     // Приоритет 1: Ищем device_id (новая система)
     if let deviceId = keychain.getDeviceID() {
         return [.setAuthState(.authenticated(deviceId: deviceId, userDetails: nil))]
@@ -121,17 +282,20 @@ case .setAuthState(nil):
     }
     
     // Нет учетных данных
-    return [.setAuthState(.notAuthenticated)]
+    return [.setAuthState(.authenticating(nil))]
 ```
 
-### Состояния авторизации
+### Состояния миграции
 ```swift
-enum AuthState {
-    case notAuthenticated
-    case authenticated(deviceId: String, userDetails: UserDetails?)
-    case migrating(userId: String, error: Error?)
-}
+case migrating(userId: String, error: Error? = nil)
 ```
+
+**Поток миграции:**
+1. Найден Firebase UID в keychain
+2. MigrationMiddleware вызывает `APIService.migrateUser()`
+3. Сервер возвращает новый device_id
+4. device_id сохраняется в keychain, user_id удаляется
+5. Переход в состояние `.authenticated`
 
 ### Keychain хранение
 ```swift
@@ -236,6 +400,17 @@ protocol APIServiceProtocol {
     func migrateUser(userId: String) async throws -> MigrationResponse
     func verifyDevice(deviceId: String) async throws -> VerificationResponse
     func updateAPNSToken(deviceId: String, apnsToken: String) async throws -> APNSTokenResponse
+    func logout(deviceId: String) async throws -> LogoutResponse
+    
+    // New authentication methods
+    func checkEmail(email: String) async throws -> EmailCheckResponse
+    func signInWithPassword(email: String, password: String) async throws -> SignInResponse
+    func registerUser(email: String, name: String, password: String) async throws -> RegistrationResponse
+    func requestPhoneCall(phoneNumber: String) async throws -> PhoneCallResponse
+    func verifyPhoneCall(phoneNumber: String, code: String) async throws -> PhoneVerificationResponse
+    func requestPasswordReset(email: String) async throws -> PasswordResetResponse
+    func verifyResetCode(email: String, code: String) async throws -> CodeVerificationResponse
+    func resetPassword(email: String, code: String, newPassword: String) async throws -> PasswordResetResponse
 }
 ```
 
@@ -244,11 +419,6 @@ protocol APIServiceProtocol {
 ```swift
 request.setValue("Bearer \(deviceId)", forHTTPHeaderField: "Authorization")
 ```
-### Если нужно, передаём язык приложения
-```swift
-    addLanguageHeaders(to: &request)
-```
-
 
 ### Обработка ошибок
 ```swift
@@ -259,7 +429,55 @@ enum APIServiceError: Error, LocalizedError {
     case httpError(Int)
     case serverError(String)
     case networkError(Error)
+    case unauthorized
 }
+```
+
+## UI Архитектура
+
+### RootView - роутинг
+```swift
+switch store.state.authState {
+case nil:
+    ProgressView("Проверка авторизации...")
+case .authenticating(nil):
+    LoginView()  // Show login method selection
+case .authenticating(.phone(let phoneState)):
+    PhoneAuthView(state: phoneState)
+case .authenticating(.email(let emailState)):
+    EmailAuthView(state: emailState)
+case .authenticated:
+    HomeView()
+case .migrating(let userId, let migrationError):
+    // Migration UI with error handling and retry
+}
+```
+
+### Экраны авторизации
+
+**LoginView** - выбор метода входа:
+- Поле для ввода email + кнопка "Продолжить"
+- Кнопка "Вход по номеру телефона" (для пользователей RedCalendar 2.0)
+
+**PhoneAuthView** - авторизация по телефону:
+- `.entry` - ввод номера телефона
+- `.requesting` - загрузка (запрос звонка)
+- `.verification` - ожидание звонка, показ маски номера, ввод кода
+- `.verifying` - загрузка (проверка кода)
+
+**EmailAuthView** - авторизация по email:
+- `.entry` - ввод email
+- `.checking` - загрузка (проверка email)
+- `.passwordEntry` - ввод пароля для существующего пользователя
+- `.passwordVerifying` - загрузка (проверка пароля)
+- `.registration` - регистрация нового пользователя
+- `.passwordRecovery` - восстановление пароля
+
+### EnvironmentObject
+Store передается через `@EnvironmentObject` во все дочерние View:
+```swift
+RootView()
+    .environmentObject(store)
 ```
 
 ## Аналитика
@@ -282,6 +500,9 @@ final class AnalyticsService: AnalyticsServiceProtocol {
 
 ### Отслеживаемые события
 - Успешная/неуспешная миграция
+- Выбор метода авторизации (phone/email)
+- Ошибки авторизации и регистрации
+- Успешные авторизации и регистрации
 - Ошибки регистрации push уведомлений
 - Предупреждения и ошибки приложения через AppLogger
 
@@ -299,11 +520,13 @@ struct AppLogger {
 
 ### Примеры логов
 ```
+🎯 Action: setAuthState(authenticating(.email(.entry)))
 🎯 Action: setAuthState(authenticated("abc123def456", nil))
 ℹ️ INFO: Got APNS token: 1234567890abcdef...
 ℹ️ INFO: Apns token synced
 ⚠️ WARN: Migration retry attempt
-❌ ERROR: APNS registration failed
+❌ ERROR: Phone verification failed
+❌ ERROR: Invalid password
 ```
 
 ## Конфигурация проекта
@@ -342,18 +565,17 @@ struct AppLogger {
 
 ### Запуск приложения
 1. **Configurator.setup()** - инициализация DI контейнера
-2. **store.send(.setAuthState(nil))** - проверка авторизации
+2. **store.send(.checkAuthState)** - проверка авторизации
 3. **AuthMiddleware** определяет текущее состояние:
    - device_id найден → `.authenticated`
    - только user_id → `.migrating`
-   - ничего нет → `.notAuthenticated`
+   - ничего нет → `.authenticating(nil)`
 
-### Миграция с Firebase
-1. Найден Firebase UID в keychain
-2. MigrationMiddleware вызывает `APIService.migrateUser()`
-3. Сервер возвращает новый device_id
-4. device_id сохраняется в keychain, user_id удаляется
-5. Переход в состояние `.authenticated`
+### Новая авторизация
+1. Пользователь в состоянии `.authenticating(nil)` видит экран выбора метода
+2. Выбирает email или телефон → переход в `.authenticating(.email/.phone)`
+3. Проходит соответствующий поток авторизации
+4. При успехе → `.authenticated(deviceId, userDetails)`
 
 ### Push уведомления
 1. При авторизации автоматически вызывается `registerForRemoteNotifications()`
@@ -370,33 +592,6 @@ struct AppLogger {
         store.send(.retryFailedTasks)             // Повторить неудачные операции
     }
 }
-```
-
-## UI Архитектура
-
-### RootView - роутинг
-```swift
-switch store.state.authState {
-case nil:
-    ProgressView("Проверка авторизации...")
-case .notAuthenticated:
-    LoginView()
-case .migrating(let userId, let error):
-    // UI миграции с обработкой ошибок и повтором
-case .authenticated:
-    HomeView()
-}
-```
-
-### Состояние миграции
-- **Без ошибки**: ProgressView с сообщением о переходе на новую систему
-- **С ошибкой**: Показ ошибки и кнопка "Повторить"
-
-### EnvironmentObject
-Store передается через `@EnvironmentObject` во все дочерние View:
-```swift
-RootView()
-    .environmentObject(store)
 ```
 
 ## Тестирование
@@ -416,19 +611,27 @@ Button("Войти (тест)") {
 - **Реальное устройство**: проверить получение токена в логах
 - **Разрешения**: тестировать все сценарии (разрешить/запретить/настройки)
 
+### Авторизация
+- **Email flow**: тестировать существующих и новых пользователей
+- **Phone flow**: тестировать с пользователями RedCalendar 2.0
+- **Error handling**: проверить все типы ошибок
+- **Loading states**: убедиться что показываются индикаторы загрузки
+
 ### Диагностика
 ```
 // Redux actions
-🎯 Action: setAuthState(migrating("nSJXOCPF3ocA4Znn1sL7KvI1dh13", nil))
+🎯 Action: setAuthState(authenticating(.email(.checking("user@example.com"))))
+🎯 Action: setAuthState(authenticating(.email(.passwordEntry("user@example.com", "John"))))
 🎯 Action: setAuthState(authenticated("abc123def456", nil))
 
 // Push notifications  
 ℹ️ INFO: Got APNS token: 1234567890abcdef...
 ℹ️ INFO: Apns token synced
 
-// Errors
-❌ ERROR: Migration failed - Server error: User not found
-⚠️ WARN: APNS token sync failed, will retry
+// Authentication errors
+❌ ERROR: Email check failed - Network error
+❌ ERROR: Password verification failed - Invalid password
+⚠️ WARN: Phone verification failed, retrying
 ```
 
 ## Безопасность
@@ -441,6 +644,8 @@ Button("Войти (тест)") {
 ### API Security
 - **HTTPS only** - все запросы по защищенному соединению
 - **Bearer Authentication** - device_id в заголовке Authorization
+- **Password validation** - проверка сложности пароля на клиенте и сервере
+- **Rate limiting** - защита от брутфорса через ограничения API
 - **Device Model** - отправка модели устройства для аналитики
 - **Error Handling** - безопасная обработка без раскрытия внутренней информации
 
@@ -448,6 +653,7 @@ Button("Войти (тест)") {
 - **No Data Collection** без согласия пользователя
 - **Local Storage** - чувствительные данные только в Keychain
 - **Analytics** - только технические события, никаких персональных данных
+- **Password Security** - пароли никогда не сохраняются локально
 
 ## Архитектурные решения
 
@@ -456,6 +662,14 @@ Button("Войти (тест)") {
 - **Отладка** - логирование всех изменений состояния
 - **Тестируемость** - чистые функции reducers легко тестировать
 - **Асинхронность** - middleware для side effects и API вызовов
+- **Сложные состояния** - элегантная обработка многоэтапных процессов авторизации
+
+### Почему вложенные enums для AuthState?
+- **Type Safety** - компилятор проверяет все возможные состояния
+- **Четкая структура** - каждый метод авторизации изолирован
+- **Легкое расширение** - добавление новых методов без изменения существующего кода
+- **Детальные состояния** - точное отражение каждого шага процесса
+- **Обработка ошибок** - ошибки привязаны к конкретным состояниям
 
 ### Почему DI?
 - **Тестируемость** - легко подменять зависимости в unit тестах
@@ -471,16 +685,18 @@ Button("Войти (тест)") {
 ---
 
 **Автор**: Артём Болотов  
-**Версия**: 3.0  
-**Последнее обновление**: 09.06.2025
+**Версия**: 3.1  
+**Последнее обновление**: 12.06.2025
 
-## Изменения в версии 3.0
+## Изменения в версии 3.1
 
-- ✅ Переход с UIKit на SwiftUI
-- ✅ Реализация Redux архитектуры с middleware
-- ✅ Автоматическая миграция с Firebase на собственную авторизацию
-- ✅ Интеграция с собственным API сервером
-- ✅ Push уведомления через APNs
-- ✅ Аналитика через Яндекс AppMetrica
-- ✅ Dependency Injection через ServiceLocator
-- ✅ Безопасное хранение в Keychain
+- ✅ Добавлена полноценная система авторизации с email и телефоном
+- ✅ Реализованы детальные состояния для каждого шага авторизации
+- ✅ Добавлена регистрация новых пользователей через email
+- ✅ Реализовано восстановление пароля через email код
+- ✅ Добавлена авторизация по телефону для пользователей RedCalendar 2.0
+- ✅ Упрощена структура AuthState (убран notAuthenticated)
+- ✅ Добавлены промежуточные состояния для всех API вызовов
+- ✅ Реализована комплексная обработка ошибок авторизации
+- ✅ Подготовлена архитектура для UI экранов авторизации
+- ✅ Расширена аналитика для отслеживания событий авторизации

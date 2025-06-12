@@ -13,7 +13,7 @@ struct RootView: View {
     var body: some View {
         if let authState = store.state.authState {
             switch authState {
-            case .notAuthenticated:
+            case .authenticating(_):
                 LoginView()
             case .authenticated:
                 HomeView()

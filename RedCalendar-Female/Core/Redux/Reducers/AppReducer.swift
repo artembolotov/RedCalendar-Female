@@ -17,7 +17,7 @@ func appReducer(state: AppState, action: AppAction) -> AppState {
         
     case .setAuthState(let authState):
         state.authState = authState
-        if case .notAuthenticated = authState {
+        if case .authenticating(nil) = authState {
             state.apnsToken = nil
         }
         
