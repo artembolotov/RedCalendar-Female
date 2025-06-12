@@ -14,7 +14,7 @@ struct RootView: View {
         if let authState = store.state.authState {
             switch authState {
             case .authenticating(_):
-                LoginView()
+                WelcomeView()
             case .authenticated:
                 HomeView()
             case .migrating(let userId, let migrationError):

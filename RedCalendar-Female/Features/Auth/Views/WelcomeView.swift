@@ -6,7 +6,7 @@
 //
 import SwiftUI
 
-struct LoginView: View {
+struct WelcomeView: View {
     @EnvironmentObject var store: AppStore
     
     var body: some View {
