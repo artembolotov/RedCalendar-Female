@@ -26,11 +26,11 @@ let authMiddleware: Middleware<AppState, AppAction> = { state, action, dispatch 
             return [.setAuthState(.migrating(userId: userId, error: nil))]
         }
         
-        return [.setAuthState(.authenticating(nil))]
+        return [.setAuthState(.notAuthenticated)]
         
     case .setAuthState(let authState):
         
-        if case .authenticating(nil) = authState {
+        if case .notAuthenticated = authState {
             keychain.deleteDeviceID()
         }
         
@@ -51,7 +51,7 @@ let authMiddleware: Middleware<AppState, AppAction> = { state, action, dispatch 
                 let _ = try await apiService.logout(deviceId: deviceId)
                 AppLogger.info("Device successfully logged out from server")
                 
-                dispatch(.setAuthState(.authenticating(nil)))
+                dispatch(.setAuthState(.notAuthenticated))
             }
         }
         return []

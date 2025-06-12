@@ -22,7 +22,7 @@ let pushNotificationMiddleware: Middleware<AppState, AppAction> = { state, actio
                     
                     AppLogger.info("Apns token synced")
                 } catch APIServiceError.unauthorized {
-                    dispatch(.setAuthState(.authenticating(nil)))
+                    dispatch(.setAuthState(.notAuthenticated))
                 } catch {
                     AppLogger.error(error.localizedDescription)
                 }
