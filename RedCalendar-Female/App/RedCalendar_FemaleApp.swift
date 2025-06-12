@@ -24,7 +24,7 @@ struct RedCalendarApp: App {
     
     private func clearNotifications() {
         UIApplication.shared.applicationIconBadgeNumber = 0
-        UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
+        UNUserNotificationCenter.current().removeAllDeliveredNotifications()
     }
     
     var body: some Scene {
