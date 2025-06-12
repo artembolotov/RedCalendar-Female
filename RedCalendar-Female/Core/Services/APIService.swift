@@ -212,7 +212,7 @@ final class APIService: APIServiceProtocol {
         
         var request = URLRequest(url: url)
         request.httpMethod = "DELETE"
-        request.setValue("Bearer \(deviceId)", forHTTPHeaderField: "Authorization")
+        request.setValue("Bearer \(deviceId)", forHTTPHeaderField: "Authorization")    
         
         let (data, response) = try await session.data(for: request)
         
@@ -257,5 +257,15 @@ final class APIService: APIServiceProtocol {
                 throw APIServiceError.httpError(httpResponse.statusCode)
             }
         }
+    }
+    
+    /// Add language-related headers to request
+    private func addLanguageHeaders(to request: inout URLRequest) {
+        let currentLanguage = Locale.current.languageCode ?? "en"
+        // Custom headers for our API
+        request.setValue(
+            currentLanguage,
+            forHTTPHeaderField: "X-App-Language"
+        )
     }
 }

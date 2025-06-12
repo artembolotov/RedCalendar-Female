@@ -22,6 +22,11 @@ struct RedCalendarApp: App {
         Configurator.shared.setup()
     }
     
+    private func clearNotifications() {
+        UIApplication.shared.applicationIconBadgeNumber = 0
+        UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
+    }
+    
     var body: some Scene {
         WindowGroup {
             RootView()
@@ -34,6 +39,8 @@ struct RedCalendarApp: App {
                     if newPhase == .active {
                         store.send(.setPushPermissionState(nil))
                         store.send(.retryFailedTasks)
+                        
+                        clearNotifications()
                     }
                 }
         }

@@ -16,6 +16,8 @@ struct HomeView: View {
                 Text("Добро пожаловать!")
                     .font(.largeTitle)
                 
+                Text("Test.Localizable")
+                
                 if case .authenticated(let deviceId, _) = store.state.authState {
                     Text("Device ID: \(deviceId)")
                         .font(.caption)

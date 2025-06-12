@@ -244,6 +244,11 @@ protocol APIServiceProtocol {
 ```swift
 request.setValue("Bearer \(deviceId)", forHTTPHeaderField: "Authorization")
 ```
+### Если нужно, передаём язык приложения
+```swift
+    addLanguageHeaders(to: &request)
+```
+
 
 ### Обработка ошибок
 ```swift

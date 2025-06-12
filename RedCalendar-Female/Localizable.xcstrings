@@ -1,0 +1,59 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "Device ID: %@" : {
+
+    },
+    "RedCalendar" : {
+
+    },
+    "Test.Localizable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "English string for test"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Русская строка для теста"
+          }
+        }
+      }
+    },
+    "Авторизация" : {
+
+    },
+    "Войдите в аккаунт" : {
+
+    },
+    "Войти (тест)" : {
+
+    },
+    "Выйти" : {
+
+    },
+    "Добро пожаловать!" : {
+
+    },
+    "Обновление системы авторизации..." : {
+
+    },
+    "Ошибка миграции" : {
+
+    },
+    "Переходим на новую систему безопасности" : {
+
+    },
+    "Повторить" : {
+
+    },
+    "Проверка авторизации..." : {
+
+    }
+  },
+  "version" : "1.0"
+}
