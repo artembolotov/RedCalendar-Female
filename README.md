@@ -16,54 +16,79 @@ iOS приложение **RedCalendar** - облачный трекер мен�
 
 ```
 RedCalendar-Female/
-├── App/                          # Конфигурация приложения
-│   ├── RedCalendar_FemaleApp.swift     # Главный файл SwiftUI App
-│   ├── AppDelegate.swift               # UIKit делегат для push
-│   └── Configurator.swift              # Настройка DI контейнера
-├── Core/                         # Основная логика
-│   ├── Redux/                    # Redux архитектура
-│   │   ├── Store.swift           # Основной Store с Middleware поддержкой
-│   │   ├── AppStore.swift        # Type alias для удобства
-│   │   ├── AppMiddleware.swift   # Комбинирование middleware
-│   │   ├── Actions/              # Actions
-│   │   │   └── AppAction.swift   # Все действия приложения
-│   │   ├── States/               # State модели
-│   │   │   └── AppState.swift    # Главное состояние
-│   │   ├── Reducers/             # Reducers
-│   │   │   └── AppReducer.swift  # Основной reducer
-│   │   └── Middleware/           # Async middleware
-│   │       ├── LoggerMiddleware.swift     # Логирование actions
-│   │       ├── AuthMiddleware.swift       # Авторизация
-│   │       ├── MigrationMiddleware.swift  # Firebase миграция
+├── App/                                    # Конфигурация приложения
+│   ├── RedCalendar_FemaleApp.swift         # Главный файл SwiftUI App
+│   ├── AppDelegate.swift                   # UIKit делегат для push уведомлений
+│   └── Configurator.swift                  # Настройка DI контейнера
+├── Core/                                   # Основная логика приложения
+│   ├── Redux/                              # Redux архитектура
+│   │   ├── Store.swift                     # Основной Store с Middleware поддержкой
+│   │   ├── AppStore.swift                  # Type alias для удобства
+│   │   ├── AppMiddleware.swift             # Комбинирование всех middleware
+│   │   ├── Actions/                        # Redux Actions
+│   │   │   └── AppAction.swift             # Все действия приложения
+│   │   ├── States/                         # Redux State модели
+│   │   │   └── AppState.swift              # Главное состояние приложения
+│   │   ├── Reducers/                       # Redux Reducers
+│   │   │   └── AppReducer.swift            # Основной reducer
+│   │   └── Middleware/                     # Async middleware для side effects
+│   │       ├── LoggerMiddleware.swift      # Логирование всех actions
+│   │       ├── AuthMiddleware.swift        # Логика авторизации
+│   │       ├── MigrationMiddleware.swift   # Миграция с Firebase
 │   │       ├── PushNotificationsMiddleware.swift # Push уведомления
-│   │       └── AnalyticsMiddleware.swift  # Аналитика
-│   ├── Services/                 # Сервисы
-│   │   ├── AnalyticsService.swift      # Яндекс AppMetrica
-│   │   ├── KeychainService.swift       # Безопасное хранение
-│   │   ├── APIService.swift            # HTTP клиент
-│   │   └── PushPermissionService.swift # Push разрешения
-│   ├── Models/                   # Модели данных
-│   │   ├── AuthState.swift           # Состояния авторизации
-│   │   ├── AuthenticationMethod.swift # Методы авторизации (phone/email)
-│   │   ├── PhoneAuthState.swift      # Состояния телефонной авторизации
-│   │   ├── EmailAuthState.swift      # Состояния email авторизации
-│   │   ├── AuthenticationError.swift # Ошибки авторизации
-│   │   ├── APNSToken.swift           # APNS токен
-│   │   └── UserDetails.swift         # Данные пользователя
-│   ├── DI/                       # Dependency Injection
-│   │   ├── ServiceLocator.swift  # DI контейнер
-│   │   └── Injected.swift        # Property wrapper
-│   └── Utils/                    # Утилиты
-│       └── Logger.swift          # Система логирования
-├── Features/                     # UI экраны
-│   ├── Auth/Views/               # Авторизация
-│   │   ├── LoginView.swift       # Экран выбора метода входа
-│   │   ├── PhoneAuthView.swift   # Авторизация по телефону
-│   │   └── EmailAuthView.swift   # Авторизация по email
-│   └── Home/Views/               # Главный экран
-│       └── HomeView.swift        # Домашний экран
-└── Common/Views/                 # Общие компоненты
-    └── RootView.swift            # Корневой экран с роутингом
+│   │       └── AnalyticsMiddleware.swift   # Отправка событий в аналитику
+│   ├── Services/                           # Сервисы приложения
+│   │   ├── AnalyticsService.swift          # Яндекс AppMetrica интеграция
+│   │   ├── KeychainService.swift           # Безопасное хранение в Keychain
+│   │   ├── APIService.swift                # HTTP клиент для API запросов
+│   │   └── PushPermissionService.swift     # Управление push разрешениями
+│   ├── Models/                             # Модели данных
+│   │   ├── AuthState.swift                 # Основные состояния авторизации
+│   │   ├── AuthenticationMethod.swift      # Методы авторизации (phone/email)
+│   │   ├── PhoneAuthState.swift            # Детальные состояния телефонной авторизации
+│   │   ├── EmailAuthState.swift            # Детальные состояния email авторизации
+│   │   ├── AuthenticationError.swift       # Типы ошибок авторизации
+│   │   ├── APNSToken.swift                 # Модель APNS токена
+│   │   └── UserDetails.swift               # Модель данных пользователя
+│   ├── DI/                                 # Dependency Injection
+│   │   ├── ServiceLocator.swift            # DI контейнер
+│   │   └── Injected.swift                  # Property wrapper для инъекции
+│   └── Utils/                              # Утилиты
+│       └── Logger.swift                    # Система логирования с аналитикой
+├── Features/                               # UI экраны и функции
+│   ├── Auth/                               # Функции авторизации
+│   │   └── Views/                          # UI экраны авторизации
+│   │       ├── WelcomeView.swift           # Экран приветствия с онбордингом
+│   │       └── LoginView.swift             # Временный экран логина (заглушка)
+│   └── Home/                               # Главный функционал
+│       └── Views/                          # UI главного экрана
+│           └── HomeView.swift              # Домашний экран после авторизации
+├── Common/                                 # Общие компоненты
+│   └── Views/                              # Переиспользуемые UI компоненты
+│       └── RootView.swift                  # Корневой экран с роутингом
+├── RedCalendar-Female.entitlements         # App entitlements (push notifications)
+├── Info.plist                              # Конфигурация приложения
+└── Localizable.xcstrings                   # Локализация (EN/RU) через String Catalog
+
+# Проектные файлы Xcode
+RedCalendar-Female.xcodeproj/
+├── project.pbxproj                         # Основной файл проекта
+├── project.xcworkspace/
+│   ├── contents.xcworkspacedata            # Workspace конфигурация
+│   └── xcshareddata/swiftpm/
+│       └── Package.resolved               # Resolved Swift Package dependencies
+└── xcshareddata/xcschemes/
+    └── RedCalendar-Female.xcscheme        # Схема сборки проекта
+
+# Пользовательские данные Xcode (не в git)
+RedCalendar-Female.xcodeproj/xcuserdata/
+└── artembolotov.xcuserdatad/
+    └── xcschemes/
+        └── xcschememanagement.plist       # Пользовательские настройки схем
+
+# Корневые файлы проекта
+├── README.md                              # Документация iOS проекта
+└── .gitignore                             # Git ignore настройки
 ```
 
 ## Redux архитектура
@@ -115,9 +140,10 @@ enum AppAction {
 ### AuthState - основные состояния
 ```swift
 enum AuthState {
-    case authenticating(AuthenticationMethod?)       // nil = not authenticated, show login screen
+    case notAuthenticated
     case authenticated(deviceId: String, userDetails: UserDetails?)
     case migrating(userId: String, error: Error? = nil)
+    case authenticating(AuthenticationMethod)
 }
 ```
 
@@ -282,7 +308,7 @@ case .checkAuthState:
     }
     
     // Нет учетных данных
-    return [.setAuthState(.authenticating(nil))]
+    return [.setAuthState(.notAuthenticated)]
 ```
 
 ### Состояния миграции
@@ -401,16 +427,6 @@ protocol APIServiceProtocol {
     func verifyDevice(deviceId: String) async throws -> VerificationResponse
     func updateAPNSToken(deviceId: String, apnsToken: String) async throws -> APNSTokenResponse
     func logout(deviceId: String) async throws -> LogoutResponse
-    
-    // New authentication methods
-    func checkEmail(email: String) async throws -> EmailCheckResponse
-    func signInWithPassword(email: String, password: String) async throws -> SignInResponse
-    func registerUser(email: String, name: String, password: String) async throws -> RegistrationResponse
-    func requestPhoneCall(phoneNumber: String) async throws -> PhoneCallResponse
-    func verifyPhoneCall(phoneNumber: String, code: String) async throws -> PhoneVerificationResponse
-    func requestPasswordReset(email: String) async throws -> PasswordResetResponse
-    func verifyResetCode(email: String, code: String) async throws -> CodeVerificationResponse
-    func resetPassword(email: String, code: String, newPassword: String) async throws -> PasswordResetResponse
 }
 ```
 
@@ -440,12 +456,10 @@ enum APIServiceError: Error, LocalizedError {
 switch store.state.authState {
 case nil:
     ProgressView("Проверка авторизации...")
-case .authenticating(nil):
-    LoginView()  // Show login method selection
-case .authenticating(.phone(let phoneState)):
-    PhoneAuthView(state: phoneState)
-case .authenticating(.email(let emailState)):
-    EmailAuthView(state: emailState)
+case .notAuthenticated:
+    WelcomeView()  // Onboarding screen with login button
+case .authenticating(let method):
+    // Present login flow as sheet in WelcomeView
 case .authenticated:
     HomeView()
 case .migrating(let userId, let migrationError):
@@ -453,25 +467,21 @@ case .migrating(let userId, let migrationError):
 }
 ```
 
-### Экраны авторизации
+### Экраны приложения
 
-**LoginView** - выбор метода входа:
-- Поле для ввода email + кнопка "Продолжить"
-- Кнопка "Вход по номеру телефона" (для пользователей RedCalendar 2.0)
+**WelcomeView** - экран приветствия с онбордингом:
+- Слайды с объяснением функций приложения
+- Индикатор страниц
+- Кнопка "Войти" для начала авторизации
+- Показывает LoginView как sheet при состоянии `.authenticating`
 
-**PhoneAuthView** - авторизация по телефону:
-- `.entry` - ввод номера телефона
-- `.requesting` - загрузка (запрос звонка)
-- `.verification` - ожидание звонка, показ маски номера, ввод кода
-- `.verifying` - загрузка (проверка кода)
+**LoginView** - временный экран авторизации:
+- В данный момент содержит тестовую кнопку миграции
+- Планируется полная реализация потоков авторизации
 
-**EmailAuthView** - авторизация по email:
-- `.entry` - ввод email
-- `.checking` - загрузка (проверка email)
-- `.passwordEntry` - ввод пароля для существующего пользователя
-- `.passwordVerifying` - загрузка (проверка пароля)
-- `.registration` - регистрация нового пользователя
-- `.passwordRecovery` - восстановление пароля
+**HomeView** - главный экран приложения:
+- Показывается после успешной авторизации
+- Отображает device_id и кнопку выхода
 
 ### EnvironmentObject
 Store передается через `@EnvironmentObject` во все дочерние View:
@@ -500,9 +510,7 @@ final class AnalyticsService: AnalyticsServiceProtocol {
 
 ### Отслеживаемые события
 - Успешная/неуспешная миграция
-- Выбор метода авторизации (phone/email)
-- Ошибки авторизации и регистрации
-- Успешные авторизации и регистрации
+- Ошибки авторизации
 - Ошибки регистрации push уведомлений
 - Предупреждения и ошибки приложения через AppLogger
 
@@ -520,13 +528,34 @@ struct AppLogger {
 
 ### Примеры логов
 ```
-🎯 Action: setAuthState(authenticating(.email(.entry)))
-🎯 Action: setAuthState(authenticated("abc123def456", nil))
+🎯 Action: setAuthState(.notAuthenticated)
+🎯 Action: setAuthState(.authenticated("abc123def456", nil))
 ℹ️ INFO: Got APNS token: 1234567890abcdef...
 ℹ️ INFO: Apns token synced
 ⚠️ WARN: Migration retry attempt
-❌ ERROR: Phone verification failed
-❌ ERROR: Invalid password
+❌ ERROR: Migration failed
+```
+
+## Локализация
+
+### Поддерживаемые языки
+- **Английский (EN)** - основной язык
+- **Русский (RU)** - полная локализация
+
+### String Catalog
+Проект использует Xcode String Catalog (`Localizable.xcstrings`) для управления переводами:
+```json
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "Test.Localizable": {
+      "localizations": {
+        "en": { "stringUnit": { "value": "English string for test" } },
+        "ru": { "stringUnit": { "value": "Русская строка для теста" } }
+      }
+    }
+  }
+}
 ```
 
 ## Конфигурация проекта
@@ -569,12 +598,12 @@ struct AppLogger {
 3. **AuthMiddleware** определяет текущее состояние:
    - device_id найден → `.authenticated`
    - только user_id → `.migrating`
-   - ничего нет → `.authenticating(nil)`
+   - ничего нет → `.notAuthenticated`
 
 ### Новая авторизация
-1. Пользователь в состоянии `.authenticating(nil)` видит экран выбора метода
-2. Выбирает email или телефон → переход в `.authenticating(.email/.phone)`
-3. Проходит соответствующий поток авторизации
+1. Пользователь в состоянии `.notAuthenticated` видит WelcomeView
+2. Нажимает "Войти" → переход в `.authenticating(.email(.entry))`
+3. WelcomeView показывает LoginView как sheet
 4. При успехе → `.authenticated(deviceId, userDetails)`
 
 ### Push уведомления
@@ -583,26 +612,27 @@ struct AppLogger {
 3. PushNotificationMiddleware синхронизирует токен с сервером
 4. При успехе токен помечается как `isSynced: true`
 
-### Retry механизм
+### Retry механизм  
 При возвращении в активное состояние:
 ```swift
 .onChange(of: scenePhase) { newPhase in
     if newPhase == .active {
         store.send(.setPushPermissionState(nil))  // Перепроверить разрешения
         store.send(.retryFailedTasks)             // Повторить неудачные операции
+        clearNotifications()                      // Очистить badge и уведомления
     }
 }
 ```
 
 ## Тестирование
 
-### Проверка авторизации
-Для тестирования используется тестовый Firebase UID:
+### Проверка миграции
+В LoginView есть тестовая кнопка для проверки миграции:
 ```swift
-Button("Войти (тест)") {
+Button("Тест миграции") {
     store.send(.setAuthState(.migrating(
-        userId: "nSJXOCPF3ocA4Znn1sL7KvI1dh13"))
-    )
+        userId: "nSJXOCPF3ocA4Znn1sL7KvI1dh13"
+    )))
 }
 ```
 
@@ -611,27 +641,20 @@ Button("Войти (тест)") {
 - **Реальное устройство**: проверить получение токена в логах
 - **Разрешения**: тестировать все сценарии (разрешить/запретить/настройки)
 
-### Авторизация
-- **Email flow**: тестировать существующих и новых пользователей
-- **Phone flow**: тестировать с пользователями RedCalendar 2.0
-- **Error handling**: проверить все типы ошибок
-- **Loading states**: убедиться что показываются индикаторы загрузки
-
 ### Диагностика
 ```
 // Redux actions
-🎯 Action: setAuthState(authenticating(.email(.checking("user@example.com"))))
-🎯 Action: setAuthState(authenticating(.email(.passwordEntry("user@example.com", "John"))))
-🎯 Action: setAuthState(authenticated("abc123def456", nil))
+🎯 Action: setAuthState(.notAuthenticated)
+🎯 Action: setAuthState(.migrating("nSJXOCPF3ocA4Znn1sL7KvI1dh13"))
+🎯 Action: setAuthState(.authenticated("abc123def456", nil))
 
 // Push notifications  
 ℹ️ INFO: Got APNS token: 1234567890abcdef...
 ℹ️ INFO: Apns token synced
 
-// Authentication errors
-❌ ERROR: Email check failed - Network error
-❌ ERROR: Password verification failed - Invalid password
-⚠️ WARN: Phone verification failed, retrying
+// Migration errors
+❌ ERROR: Migration failed - Network error
+⚠️ WARN: Migration retry attempt
 ```
 
 ## Безопасность
@@ -644,8 +667,6 @@ Button("Войти (тест)") {
 ### API Security
 - **HTTPS only** - все запросы по защищенному соединению
 - **Bearer Authentication** - device_id в заголовке Authorization
-- **Password validation** - проверка сложности пароля на клиенте и сервере
-- **Rate limiting** - защита от брутфорса через ограничения API
 - **Device Model** - отправка модели устройства для аналитики
 - **Error Handling** - безопасная обработка без раскрытия внутренней информации
 
@@ -653,7 +674,6 @@ Button("Войти (тест)") {
 - **No Data Collection** без согласия пользователя
 - **Local Storage** - чувствительные данные только в Keychain
 - **Analytics** - только технические события, никаких персональных данных
-- **Password Security** - пароли никогда не сохраняются локально
 
 ## Архитектурные решения
 
@@ -682,21 +702,61 @@ Button("Войти (тест)") {
 - **Производительность** - автоматическая оптимизация рендеринга
 - **Реактивность** - идеальная интеграция с Redux через @EnvironmentObject
 
+## Планы развития
+
+### Ближайшие задачи
+- ✅ Базовая Redux архитектура
+- ✅ Миграция с Firebase
+- ✅ Push notifications интеграция
+- ✅ Онбординг экран с приветствием
+- ✅ Детальные состояния авторизации
+- 🔄 **Полная реализация экранов авторизации**
+- 🔄 **API интеграция для новых методов авторизации**
+- 🔄 **CRUD операции для циклов и данных**
+- 🔄 **Календарь и трекинг функции**
+
+### Долгосрочные цели
+- Полная замена старого UIKit приложения
+- Синхронизация данных с сервером
+- Улучшенная аналитика и мониторинг
+- Локализация на дополнительные языки
+- Unit и UI тестирование
+
 ---
 
 **Автор**: Артём Болотов  
-**Версия**: 3.1  
-**Последнее обновление**: 12.06.2025
+**Версия**: 3.2  
+**Последнее обновление**: 13.06.2025
 
-## Изменения в версии 3.1
+## Изменения в версии 3.2
 
-- ✅ Добавлена полноценная система авторизации с email и телефоном
-- ✅ Реализованы детальные состояния для каждого шага авторизации
-- ✅ Добавлена регистрация новых пользователей через email
-- ✅ Реализовано восстановление пароля через email код
-- ✅ Добавлена авторизация по телефону для пользователей RedCalendar 2.0
-- ✅ Упрощена структура AuthState (убран notAuthenticated)
-- ✅ Добавлены промежуточные состояния для всех API вызовов
-- ✅ Реализована комплексная обработка ошибок авторизации
-- ✅ Подготовлена архитектура для UI экранов авторизации
-- ✅ Расширена аналитика для отслеживания событий авторизации
+- ✅ **Добавлен WelcomeView** - полноценный экран приветствия с онбордингом
+- ✅ **Обновлена навигация** - показ LoginView как sheet из WelcomeView
+- ✅ **Улучшен роутинг** - четкое разделение состояний в RootView
+- ✅ **Добавлены детальные модели авторизации** - готовность к полной реализации
+- ✅ **Обновлена локализация** - String Catalog с поддержкой EN/RU
+- ✅ **Исправлены middleware** - правильная обработка состояний авторизации
+- ✅ **Добавлена очистка уведомлений** - автоматическое удаление badge при активации
+- ✅ **Улучшена архитектура UI** - готовность к расширению экранов авторизации
+- ✅ **Упрощен процесс миграции** - тестовая кнопка для разработки
+- ✅ **Обновлена документация** - актуальное состояние проекта
+
+### Ключевые улучшения UI
+
+**WelcomeView:**
+- Красивый онбординг с 4 слайдами
+- Плавные анимации переходов
+- Градиентный фон и современный дизайн
+- Автоматический показ LoginView как sheet
+
+**RootView:**
+- Четкая логика роутинга по состояниям
+- Улучшенный экран миграции с retry функцией
+- Правильная обработка всех состояний AuthState
+
+**Архитектура авторизации:**
+- Детальные состояния для email и phone авторизации
+- Готовые модели для регистрации и восстановления пароля
+- Комплексная система обработки ошибок
+
+Эта версия подготавливает прочную основу для полной реализации системы авторизации и основных функций приложения.
