@@ -22,11 +22,25 @@ struct WelcomeView: View {
                 }
             },
             set: { isPresented in
-                if !isPresented {
+                if !isPresented && shouldSetNotAuthenificated {
                     store.send(.setAuthState(.notAuthenticated))
                 }
             }
         )
+    }
+    
+    private var shouldSetNotAuthenificated: Bool {
+        guard let authState = store.state.authState else {
+            return false
+        }
+        
+        switch authState {
+        case .authenticated(_, _), .notAuthenticated, .migrating(_, _):
+            return false
+       
+        case .authenticating(_):
+            return true
+        }
     }
     
     private let slides = [
