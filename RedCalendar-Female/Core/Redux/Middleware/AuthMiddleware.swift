@@ -48,10 +48,16 @@ let authMiddleware: Middleware<AppState, AppAction> = { state, action, dispatch 
     case .logout:
         if case .authenticated(let deviceId, _) = state.authState {
             Task {
-                let _ = try await apiService.logout(deviceId: deviceId)
-                AppLogger.info("Device successfully logged out from server")
-                
-                dispatch(.setAuthState(.notAuthenticated))
+                do {
+                    let _ = try await apiService.logout(deviceId: deviceId)
+                    AppLogger.info("Device successfully logged out from server")
+                    
+                    dispatch(.setAuthState(.notAuthenticated))
+                } catch APIServiceError.unauthorized {
+                    dispatch(.setAuthState(.notAuthenticated))
+                } catch {
+                    AppLogger.error(error.localizedDescription)
+                }
             }
         }
         return []
