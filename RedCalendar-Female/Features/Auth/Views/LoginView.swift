@@ -13,29 +13,30 @@ struct LoginView: View {
     
     var body: some View {
         NavigationView {
-            VStack {
-                Text("Здесь будет реализован весь поток авторизации")
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding()
-                
-                Spacer()
-                
-                // Temporary migration test button
-                Button("Тест миграции") {
-                    dismiss()
-                    
-                    Task { @MainActor in
-                        store.send(.setAuthState(.migrating(
-                            userId: "nSJXOCPF3ocA4Znn1sL7KvI1dh13"
-                        )))
+            Group {
+                if let authState = store.state.authState,
+                   case .authenticating(let method) = authState {
+                    switch method {
+                    case .email(let emailState):
+                        emailAuthView(for: emailState)
+                    case .phone(let phoneState):
+                        phoneAuthView(for: phoneState)
                     }
-                    
+                } else {
+                    // Fallback content
+                    VStack {
+                        Text("Состояние авторизации не определено")
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding()
+                        
+                        Button("Закрыть") {
+                            store.send(.setAuthState(.notAuthenticated))
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
                 }
-                .buttonStyle(.borderedProminent)
-                .padding()
             }
-            .navigationTitle("Вход")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -45,6 +46,40 @@ struct LoginView: View {
                 }
             }
         }
+    }
+    
+    // MARK: - Email Auth Views
+    @ViewBuilder
+    private func emailAuthView(for state: EmailAuthState) -> some View {
+        switch state {
+        case .entry:
+            EmailEntryView()
+        case .checking:
+            EmailCheckingView()
+        case .passwordEntry:
+            PasswordEntryView()
+        case .passwordVerifying:
+            PasswordVerifyingView()
+        case .registration:
+            RegistrationView()
+        case .passwordRecovery:
+            PasswordRecoveryView()
+        }
+    }
+    
+    // MARK: - Phone Auth Views (placeholder)
+    @ViewBuilder
+    private func phoneAuthView(for state: PhoneAuthState) -> some View {
+        VStack {
+            Text("Phone Auth")
+                .font(.title2)
+                .foregroundColor(.white)
+            
+            Text("State: \(String(describing: state))")
+                .foregroundColor(.white.opacity(0.8))
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.purple)
     }
 }
 
