@@ -6,8 +6,11 @@
 //
 
 enum EmailAuthState {
-    case entry                                       // Enter email address
-    case checking(email: String)                     // Checking if email exists
+    case entry(                                     // Enter email address with optional prefill and error
+        email: String? = nil,
+        error: Error? = nil
+    )
+    case checking(email: String)                    // Checking if email exists
     case passwordEntry(                             // Enter password for existing user
         email: String,
         userName: String,

@@ -94,7 +94,7 @@ struct WelcomeView: View {
             
             // Login button
             Button(action: {
-                store.send(.setAuthState(.authenticating(.email(.entry))))
+                store.send(.setAuthState(.authenticating(.email(.entry()))))
             }) {
                 HStack {
                     Text("Войти")
@@ -192,7 +192,7 @@ private struct SlideView: View {
             AppStore(
                 initialState: AppState(
                     apnsToken: nil,
-                    authState: .authenticating(.email(.entry))
+                    authState: .authenticating(.email(.entry()))
                 ),
                 reducer: appReducer,
                 middlewares: []

@@ -9,7 +9,6 @@ import SwiftUI
 
 struct LoginView: View {
     @EnvironmentObject var store: AppStore
-    @Environment(\.dismiss) var dismiss
     
     var body: some View {
         NavigationView {
@@ -52,8 +51,8 @@ struct LoginView: View {
     @ViewBuilder
     private func emailAuthView(for state: EmailAuthState) -> some View {
         switch state {
-        case .entry:
-            EmailEntryView()
+        case .entry(let email, let error):
+            EmailEntryView(email: email, error: error)
         case .checking:
             EmailCheckingView()
         case .passwordEntry:
@@ -67,19 +66,87 @@ struct LoginView: View {
         }
     }
     
-    // MARK: - Phone Auth Views (placeholder)
+    // MARK: - Phone Auth Views
     @ViewBuilder
     private func phoneAuthView(for state: PhoneAuthState) -> some View {
-        VStack {
-            Text("Phone Auth")
-                .font(.title2)
-                .foregroundColor(.white)
+        switch state {
+        case .entry:
+            PhoneEntryView()
+        case .requesting(let phoneNumber):
+            VStack(spacing: 20) {
+                ProgressView()
+                    .progressViewStyle(CircularProgressViewStyle())
+                    .scaleEffect(1.5)
+                
+                Text("Отправляем флеш-звонок...")
+                    .font(.title2)
+                    .fontWeight(.semibold)
+                
+                Text("На номер: \(phoneNumber)")
+                    .foregroundColor(.secondary)
+            }
+            .frame(maxWidth: 320)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .padding(.horizontal)
+            .navigationTitle("Запрос звонка")
             
-            Text("State: \(String(describing: state))")
-                .foregroundColor(.white.opacity(0.8))
+        case .verification(let phoneNumber, let maskedCallerNumber, let error):
+            VStack(spacing: 20) {
+                Text("Дождитесь звонка")
+                    .font(.title2)
+                    .fontWeight(.semibold)
+                
+                VStack(spacing: 8) {
+                    Text("Мы звоним на номер:")
+                        .foregroundColor(.secondary)
+                    Text(phoneNumber)
+                        .font(.headline)
+                    
+                    Text("Номер звонящего:")
+                        .foregroundColor(.secondary)
+                        .padding(.top)
+                    Text(maskedCallerNumber)
+                        .font(.headline)
+                }
+                
+                if let error = error {
+                    Text(error.localizedDescription)
+                        .foregroundColor(.red)
+                        .font(.caption)
+                        .multilineTextAlignment(.center)
+                }
+                
+                Text("Введите последние 4 цифры номера звонящего")
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                
+                // TODO: Add code input field
+            }
+            .frame(maxWidth: 320)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .padding(.horizontal)
+            .navigationTitle("Проверка")
+            
+        case .verifying(let phoneNumber, let verificationCode):
+            VStack(spacing: 20) {
+                ProgressView()
+                    .progressViewStyle(CircularProgressViewStyle())
+                    .scaleEffect(1.5)
+                
+                Text("Проверяем код...")
+                    .font(.title2)
+                    .fontWeight(.semibold)
+                
+                Text("Номер: \(phoneNumber)")
+                    .foregroundColor(.secondary)
+                Text("Код: \(verificationCode)")
+                    .foregroundColor(.secondary)
+            }
+            .frame(maxWidth: 320)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .padding(.horizontal)
+            .navigationTitle("Проверка")
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.purple)
     }
 }
 
@@ -89,7 +156,21 @@ struct LoginView: View {
             AppStore(
                 initialState: AppState(
                     apnsToken: nil,
-                    authState: .authenticating(.email(.entry))
+                    authState: .authenticating(.email(.entry()))
+                ),
+                reducer: appReducer,
+                middlewares: []
+            )
+        )
+}
+
+#Preview("Login Sheet") {
+    WelcomeView()
+        .environmentObject(
+            AppStore(
+                initialState: AppState(
+                    apnsToken: nil,
+                    authState: .authenticating(.email(.entry()))
                 ),
                 reducer: appReducer,
                 middlewares: []
