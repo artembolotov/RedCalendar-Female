@@ -45,6 +45,12 @@
 - Retry механизм при сбоях
 - Очистка badge при активации
 
+**Haptic Feedback:**
+- TapticFeedbackService для тактильной обратной связи
+- Поддержка success, error, warning событий
+- Интеграция через FeedbackMiddleware
+- Подготовка генераторов для оптимальной производительности
+
 **Техническая часть:**
 - Keychain для безопасного хранения
 - AppMetrica аналитика
@@ -89,6 +95,7 @@
 - **Loading states:** индикаторы прогресса
 - **Focus management:** автоматическая навигация по полям
 - **Error feedback:** визуальные индикаторы ошибок
+- **Haptic feedback:** тактильная обратная связь для ключевых событий
 
 ## 🔐 Безопасность
 
@@ -151,24 +158,32 @@ RedCalendar-Female/
 │   ├── Redux/                              # Redux архитектура
 │   │   ├── AppState.swift                  # Глобальное состояние
 │   │   ├── AppAction.swift                 # Действия приложения
-│   │   ├── AppReducer.swift                # Reducer функции
-│   │   └── AppStore.swift                  # Store конфигурация
+│   │   ├── Store.swift                     # Store реализация
+│   │   ├── AppStore.swift                  # Type alias для Store
+│   │   ├── AppMiddleware.swift             # Комбинация middleware
+│   │   └── Reducers/
+│   │       └── AppReducer.swift            # Reducer функции
 │   ├── Middleware/                         # Асинхронная логика
 │   │   ├── LoggerMiddleware.swift          # Логирование actions
 │   │   ├── AuthMiddleware.swift            # Логика авторизации
 │   │   ├── MigrationMiddleware.swift       # Миграция с Firebase
-│   │   ├── PushNotificationsMiddleware.swift # Push уведомления
-│   │   └── AnalyticsMiddleware.swift       # Отправка событий
+│   │   ├── PushNotificationMiddleware.swift # Push уведомления
+│   │   ├── AnalyticsMiddleware.swift       # Отправка событий
+│   │   └── FeedbackMiddleware.swift        # Haptic feedback
 │   ├── Services/                           # Сервисы приложения
 │   │   ├── AnalyticsService.swift          # AppMetrica интеграция
 │   │   ├── KeychainService.swift           # Безопасное хранение
 │   │   ├── APIService.swift                # HTTP клиент
-│   │   └── PushPermissionService.swift     # Push разрешения
+│   │   ├── PushPermissionService.swift     # Push разрешения
+│   │   └── TapticFeedbackService.swift     # Haptic Engine
 │   ├── Models/                             # Модели данных
 │   │   ├── AuthState.swift                 # Состояния авторизации
 │   │   ├── EmailAuthState.swift            # Email авторизация
 │   │   ├── PhoneAuthState.swift            # Телефонная авторизация
+│   │   ├── AuthenticationMethod.swift      # Методы авторизации
 │   │   └── UserDetails.swift               # Данные пользователя
+│   ├── Utils/                              # Утилиты
+│   │   └── Logger.swift                    # Система логирования
 │   └── DI/                                 # Dependency Injection
 │       ├── ServiceLocator.swift            # DI контейнер
 │       └── Injected.swift                  # Property wrapper
@@ -178,7 +193,12 @@ RedCalendar-Female/
 │   │       ├── WelcomeView.swift           # Экран приветствия
 │   │       ├── LoginView.swift             # Роутинг авторизации
 │   │       ├── EmailAuth/
-│   │       │   └── EmailEntryView.swift    # Ввод email
+│   │       │   ├── EmailEntryView.swift    # Ввод email
+│   │       │   ├── EmailCheckingView.swift # Проверка email
+│   │       │   ├── PasswordEntryView.swift # Ввод пароля
+│   │       │   ├── PasswordVerifyingView.swift # Проверка пароля
+│   │       │   ├── PasswordRecoveryView.swift # Восстановление пароля
+│   │       │   └── RegistrationView.swift  # Регистрация
 │   │       └── PhoneAuth/
 │   │           └── PhoneEntryView.swift    # Ввод телефона
 │   └── Home/                               # Главный функционал
@@ -187,10 +207,12 @@ RedCalendar-Female/
 ├── Common/                                 # Общие компоненты
 │   └── Views/
 │       └── RootView.swift                  # Корневой роутинг
-└── App/                                    # Конфигурация приложения
-    ├── RedCalendarApp.swift                # Main app entry point
-    ├── AppDelegate.swift                   # Push notifications
-    └── Info.plist                          # App configuration
+├── App/                                    # Конфигурация приложения
+│   ├── RedCalendar_FemaleApp.swift         # Main app entry point
+│   ├── AppDelegate.swift                   # Push notifications
+│   └── Configurator.swift                  # Настройка DI сервисов
+├── RedCalendar-Female.entitlements         # Entitlements (push notifications)
+└── Info.plist                             # App configuration
 ```
 
 ## 🚀 Запуск и развертывание
@@ -206,12 +228,18 @@ RedCalendar-Female/
 2. Открыть `RedCalendar-Female.xcodeproj`
 3. Настроить Bundle Identifier и команду разработчика
 4. Настроить push notifications в Apple Developer Portal
-5. Запустить на устройстве или симуляторе
+5. Зарегистрировать TapticFeedbackService в DI контейнере
+6. Запустить на устройстве или симуляторе
 
 ### Конфигурация
 ```swift
 // Configurator.swift - настройка сервисов
 Configurator.shared.setup()
+
+// TapticFeedbackService в ServiceLocator
+register(TapticFeedbackServiceProtocol.self) {
+    TapticFeedbackService()
+}
 
 // AppMetrica
 private let apiKey = "***REMOVED***"
@@ -251,6 +279,13 @@ store.send(.setAuthState(.migrating(
 )))
 ```
 
+### Haptic Feedback Тестирование
+```swift
+// Тестирование обратной связи
+store.send(.setAuthState(.authenticated(deviceId: "test", userDetails: nil))) // Success
+store.send(.logout) // Prepare
+```
+
 ## 🔄 Интеграция с Backend
 
 ### API Endpoints
@@ -286,12 +321,14 @@ enum APIServiceError: Error, LocalizedError {
 - ✅ Push notifications
 - ✅ Миграция с Firebase
 - ✅ Адаптивный UI дизайн
+- ✅ Haptic Feedback система
 
 ### Версия 3.2
 - 🔄 Полные потоки авторизации (пароли, регистрация)
 - 🔄 API интеграция для новых методов авторизации
 - 🔄 Основные экраны календаря и трекинга
 - 🔄 CRUD операции для пользовательских данных
+- 🔄 Расширение Haptic Feedback для UI взаимодействий
 
 ### Версия 3.3
 - 📋 Offline поддержка с синхронизацией
