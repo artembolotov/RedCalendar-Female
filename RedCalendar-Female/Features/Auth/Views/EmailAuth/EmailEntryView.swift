@@ -17,12 +17,16 @@ struct EmailEntryView: View {
     @FocusState private var isEmailFieldFocused: Bool
     
     private var isEmailValid: Bool {
-        emailText.contains("@") && emailText.contains(".") && emailText.count > 5
+        emailText.trimmingCharacters(in: .whitespacesAndNewlines).isValidEmail
     }
     
     private func continueAction() {
-        guard isEmailValid else { return }
-        store.send(.setAuthState(.authenticating(.email(.checking(email: emailText)))))
+        let trimmedEmail = emailText.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        guard trimmedEmail.isValidEmail else { return }
+        
+        isEmailFieldFocused = false
+        store.send(.setAuthState(.authenticating(.email(.checking(email: trimmedEmail)))))
     }
     
     init(email: String? = nil, error: Error? = nil) {
@@ -31,63 +35,61 @@ struct EmailEntryView: View {
     }
     
     var body: some View {
-        // Main content centered vertically
-        VStack(spacing: 20) {
-            Text("Добро пожаловать!")
-                .font(.title2)
-                .fontWeight(.semibold)
-            
-            Text("Данные хранятся на устройстве и в облаке. Email нужен для доступа к вашему профилю")
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-            
-            // Email input field
-            TextField("Email", text: $emailText)
-                .textFieldStyle(RoundedBorderTextFieldStyle())
-                .keyboardType(.emailAddress)
-                .textContentType(.emailAddress)
-                .autocapitalization(.none)
-                .disableAutocorrection(true)
-                .submitLabel(.continue)
-                .focused($isEmailFieldFocused)
-                .onAppear {
-                    if let email = email { emailText = email }
-                    Task { @MainActor in isEmailFieldFocused = true }
-                }
-                .onSubmit {
-                    continueAction()
-                }
-            
-            // Error display
-            if let error = error {
-                Text(error.localizedDescription)
-                    .foregroundColor(.red)
-                    .font(.caption)
-                    .multilineTextAlignment(.center)
-            }
-            
-            // Continue button
-            Button("Продолжить") {
-                continueAction()
-            }
-            .buttonStyle(.borderedProminent)
-            .disabled(!isEmailValid)
-            
-            // Alternative login info
-            Text("Пользователи RedCalendar 2.0\nмогут войти [по номеру телефона](phone)")
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-                .environment(\.openURL, OpenURLAction { url in
-                    if url.absoluteString == "phone" {
-                        store.send(.setAuthState(.authenticating(.phone(.entry))))
+        GeometryReader { geometry in
+            ScrollView {
+                VStack(spacing: 20) {
+                    Text("Добро пожаловать!")
+                        .font(.title2)
+                        .fontWeight(.semibold)
+                    
+                    Text("Данные хранятся на устройстве и в облаке. Email нужен для доступа к вашему профилю")
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                    
+                    CustomTextField(
+                        placeholder: "Email",
+                        text: $emailText,
+                        keyboardType: .emailAddress,
+                        textContentType: .emailAddress,
+                        submitLabel: .continue,
+                        onSubmit: {
+                            continueAction()
+                        }
+                    )
+                    .focused($isEmailFieldFocused)
+                    .onAppear {
+                        if let email = email { emailText = email }
+                        Task { @MainActor in isEmailFieldFocused = true }
                     }
-                    return .handled
-                })
+                    
+                    if let error = error {
+                        Text(error.localizedDescription)
+                            .foregroundColor(.red)
+                            .font(.caption)
+                            .multilineTextAlignment(.center)
+                    }
+                    
+                    PrimaryButton("Продолжить", isEnabled: isEmailValid) {
+                        continueAction()
+                    }
+                    
+                    Text("Пользователи RedCalendar 2.0\nмогут войти [по номеру телефона](phone)")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                        .environment(\.openURL, OpenURLAction { url in
+                            if url.absoluteString == "phone" {
+                                store.send(.setAuthState(.authenticating(.phone(.entry))))
+                            }
+                            return .handled
+                        })
+                }
+                .frame(maxWidth: 320)
+                .frame(maxWidth: .infinity)
+                .frame(minHeight: geometry.size.height)
+                .padding(.horizontal)
+            }
         }
-        .frame(maxWidth: 320) // Ограничение ширины
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(.horizontal)
         .navigationTitle("Вход")
         .navigationBarTitleDisplayMode(.inline)
     }

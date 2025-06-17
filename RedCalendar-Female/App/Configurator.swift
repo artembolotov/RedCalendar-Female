@@ -17,6 +17,7 @@ final class Configurator {
         registerKeychainService()
         registerAPIService()
         registerPushPermissionsService()
+        registerTapticFeedbackService()
     }
     
     private func registerAnalyticsService() {
@@ -39,5 +40,10 @@ final class Configurator {
     private func registerPushPermissionsService() {
         let pushPermissionsService: PushPermissionServiceProtocol = PushPermissionService()
         ServiceLocator.shared.addService(service: pushPermissionsService)
+    }
+    
+    private func registerTapticFeedbackService() {
+        let tapticFeedbackService: TapticFeedbackServiceProtocol = TapticFeedbackService()
+        ServiceLocator.shared.addService(service: tapticFeedbackService)
     }
 }

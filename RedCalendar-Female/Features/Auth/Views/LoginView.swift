@@ -28,11 +28,6 @@ struct LoginView: View {
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
                             .padding()
-                        
-                        Button("Закрыть") {
-                            store.send(.setAuthState(.notAuthenticated))
-                        }
-                        .buttonStyle(.borderedProminent)
                     }
                 }
             }
