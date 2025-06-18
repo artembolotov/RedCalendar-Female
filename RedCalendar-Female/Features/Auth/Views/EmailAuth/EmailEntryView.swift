@@ -46,20 +46,30 @@ struct EmailEntryView: View {
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)
                     
-                    CustomTextField(
-                        placeholder: "Email",
-                        text: $emailText,
-                        keyboardType: .emailAddress,
-                        textContentType: .emailAddress,
-                        submitLabel: .continue,
-                        onSubmit: {
-                            continueAction()
+                    // Email input with inline arrow button
+                    HStack(spacing: 12) {
+                        CustomTextField(
+                            placeholder: "Email",
+                            text: $emailText,
+                            keyboardType: .emailAddress,
+                            textContentType: .emailAddress,
+                            submitLabel: .continue,
+                            onSubmit: {
+                                continueAction()
+                            }
+                        )
+                        .focused($isEmailFieldFocused)
+                        .onAppear {
+                            if let email = email { emailText = email }
+                            Task { @MainActor in isEmailFieldFocused = true }
                         }
-                    )
-                    .focused($isEmailFieldFocused)
-                    .onAppear {
-                        if let email = email { emailText = email }
-                        Task { @MainActor in isEmailFieldFocused = true }
+                        
+                        // Arrow button using custom PrimaryButton
+                        PrimaryButton(isEnabled: isEmailValid, action: continueAction) {
+                            Image(systemName: "arrow.right")
+                                .font(.title3)
+                        }
+                        .frame(width: 56)
                     }
                     
                     if let error = error {
@@ -67,10 +77,6 @@ struct EmailEntryView: View {
                             .foregroundColor(.red)
                             .font(.caption)
                             .multilineTextAlignment(.center)
-                    }
-                    
-                    PrimaryButton("Продолжить", isEnabled: isEmailValid) {
-                        continueAction()
                     }
                     
                     Text("Пользователи RedCalendar 2.0\nмогут войти [по номеру телефона](phone)")

@@ -41,21 +41,6 @@ struct CustomTextField: View {
             .onSubmit {
                 onSubmit()
             }
-            .onChange(of: text) { newValue in
-                // Only check for auto-replacement if field was not empty
-                if previousText.isEmpty {
-                    previousText = newValue
-                    return
-                }
-                
-                // Detect potential auto-replacement (significant length increase)
-                if newValue.count > previousText.count + 5 {
-                    // Likely auto-replacement happened, revert to previous text
-                    text = previousText
-                } else {
-                    previousText = newValue
-                }
-            }
     }
     
     func focus() {
