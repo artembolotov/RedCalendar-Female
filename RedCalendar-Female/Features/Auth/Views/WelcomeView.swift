@@ -93,28 +93,16 @@ struct WelcomeView: View {
             Spacer()
             
             // Login button
-            Button(action: {
+            // Login button
+            PrimaryButton {
                 store.send(.setAuthState(.authenticating(.email(.entry()))))
-            }) {
-                HStack {
-                    Text("Войти")
-                        .font(.headline)
-                        .fontWeight(.semibold)
-                    
-                    Image(systemName: "arrow.right")
-                        .font(.headline)
-                }
-                .foregroundColor(.white)
-                .frame(maxWidth: .infinity)
-                .frame(height: 56)
-                .background(
-                    LinearGradient(
-                        gradient: Gradient(colors: [.red, .pink]),
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                )
-                .cornerRadius(16)
+            } content: {
+                Text("Войти")
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                
+                Image(systemName: "arrow.right")
+                    .font(.headline)
             }
             .padding(.horizontal, 24)
             .padding(.bottom, 40)

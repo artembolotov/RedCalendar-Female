@@ -1,38 +1,45 @@
 import SwiftUI
 
-struct PrimaryButton: View {
-    let title: String
+struct PrimaryButton<Content: View>: View {
     let isEnabled: Bool
     let action: () -> Void
+    let content: Content
     
-    init(_ title: String, isEnabled: Bool = true, action: @escaping () -> Void) {
-        self.title = title
+    init(isEnabled: Bool = true, action: @escaping () -> Void, @ViewBuilder content: () -> Content) {
         self.isEnabled = isEnabled
         self.action = action
+        self.content = content()
     }
     
     var body: some View {
-        Button(action: {
-            if isEnabled {
-                action()
+        Button(action: action) {
+            HStack {
+                content
             }
-        }) {
-            Text(title)
-                .font(.headline)
-                .fontWeight(.semibold)
-                .foregroundColor(.white)
-                .frame(maxWidth: .infinity)
-                .frame(height: 56)
-                .background(
-                    LinearGradient(
-                        gradient: Gradient(colors: [.red, .pink]),
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
+            .foregroundColor(.white)
+            .frame(maxWidth: .infinity)
+            .frame(height: 56)
+            .background(
+                LinearGradient(
+                    gradient: Gradient(colors: [.red, .pink]),
+                    startPoint: .leading,
+                    endPoint: .trailing
                 )
-                .cornerRadius(16)
+            )
+            .cornerRadius(16)
         }
         .disabled(!isEnabled)
         .opacity(isEnabled ? 1.0 : 0.6)
+    }
+}
+
+// Convenience init для простого текста
+extension PrimaryButton where Content == Text {
+    init(_ title: String, isEnabled: Bool = true, action: @escaping () -> Void) {
+        self.isEnabled = isEnabled
+        self.action = action
+        self.content = Text(title)
+            .font(.headline)
+            .fontWeight(.semibold)
     }
 }
