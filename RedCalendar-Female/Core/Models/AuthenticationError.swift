@@ -28,13 +28,13 @@ enum AuthenticationError: Error, LocalizedError {
     
     // Registration errors
     case registrationFailed                       // Account creation failed
-    case nameRequired                            // Name field is empty
-    case emailVerificationFailed                 // Email verification failed
+    case nameRequired                             // Name field is empty
+    case emailVerificationFailed                  // Email verification failed
     
     // Network/Server errors
-    case networkError(Error)                      // Network connectivity issues
+    case networkError(String)                     // Network connectivity issues
     case serverError(String)                      // Server-side errors
-    case unknownError                             // Fallback error
+    case unknownError(String)                     // Fallback error
     
     var errorDescription: String? {
         switch self {
@@ -68,8 +68,8 @@ enum AuthenticationError: Error, LocalizedError {
             return "Please enter your name."
         case .emailVerificationFailed:
             return "Failed to verify email. Please try again."
-        case .networkError(let error):
-            return "Network error: \(error.localizedDescription)"
+        case .networkError(let message):
+            return "Network error: \(message)"
         case .serverError(let message):
             return "Server error: \(message)"
         case .unknownError:

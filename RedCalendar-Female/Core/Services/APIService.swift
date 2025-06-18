@@ -14,6 +14,7 @@ protocol APIServiceProtocol {
     func verifyDevice(deviceId: String) async throws -> VerificationResponse
     func updateAPNSToken(deviceId: String, apnsToken: String) async throws -> APNSTokenResponse
     func logout(deviceId: String) async throws -> LogoutResponse
+    func checkEmail(_ email: String) async throws -> CheckEmailResponse
 }
 
 // MARK: - Request Models
@@ -35,6 +36,10 @@ struct UpdateAPNSTokenRequest: Codable {
         case apnsToken = "apns_token"
         case isDevelopment = "is_development"
     }
+}
+
+struct CheckEmailRequest: Codable {
+    let email: String
 }
 
 // MARK: - Response Models
@@ -83,6 +88,17 @@ struct LogoutResponse: Codable {
     let success: Bool
     let message: String?
     let timestamp: String
+}
+
+struct CheckEmailResponse: Codable {
+    let data: CheckEmailData
+    let timestamp: String
+    
+    struct CheckEmailData: Codable {
+        let exists: Bool
+        let email: String
+        let name: String?
+    }
 }
 
 struct APIError: Codable {
@@ -219,6 +235,27 @@ final class APIService: APIServiceProtocol {
         try validateHTTPResponse(response, data: data)
         
         return try JSONDecoder().decode(LogoutResponse.self, from: data)
+    }
+    
+    /// Checks if email exists and returns user info
+    func checkEmail(_ email: String) async throws -> CheckEmailResponse {
+        let url = URL(string: "\(baseURL)/auth/check-email")!
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        // Add language headers for localized responses
+        addLanguageHeaders(to: &request)
+        
+        let requestBody = CheckEmailRequest(email: email)
+        request.httpBody = try JSONEncoder().encode(requestBody)
+        
+        let (data, response) = try await session.data(for: request)
+        
+        try validateHTTPResponse(response, data: data)
+        
+        return try JSONDecoder().decode(CheckEmailResponse.self, from: data)
     }
     
     // MARK: - Private Methods

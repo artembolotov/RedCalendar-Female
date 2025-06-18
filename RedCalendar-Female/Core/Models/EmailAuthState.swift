@@ -13,7 +13,7 @@ enum EmailAuthState {
     case checking(email: String)                    // Checking if email exists
     case passwordEntry(                             // Enter password for existing user
         email: String,
-        userName: String,
+        userName: String?,
         error: AuthenticationError? = nil
     )
     case passwordVerifying(                         // Verifying email + password

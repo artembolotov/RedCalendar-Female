@@ -28,8 +28,118 @@ let authMiddleware: Middleware<AppState, AppAction> = { state, action, dispatch 
         
         return [.setAuthState(.notAuthenticated)]
         
+    
     case .setAuthState(let authState):
         
+    // Handle authentication method states
+    if case .authenticating(let authMethod) = authState {
+        switch authMethod {
+        
+        // MARK: - Email Authentication
+        case .email(let emailState):
+            switch emailState {
+            
+            case .checking(let email):
+                Task {
+                    do {
+                        let response = try await apiService.checkEmail(email)
+                        
+                        if response.data.exists {
+                            // User exists - show password entry
+                            dispatch(.setAuthState(.authenticating(.email(.passwordEntry(
+                                email: response.data.email,
+                                userName: response.data.name,
+                                error: nil
+                            )))))
+                        } else {
+                            // User doesn't exist - show registration
+                            dispatch(.setAuthState(.authenticating(.email(.registration(
+                                email: response.data.email,
+                                step: .userDataEntry
+                            )))))
+                        }
+                        
+                    } catch APIServiceError.serverError(let message) {
+                        // Server error - show error in entry state
+                        dispatch(.setAuthState(.authenticating(.email(.entry(
+                            email: email,
+                            error: AuthenticationError.serverError(message)
+                        )))))
+                        
+                    } catch APIServiceError.networkError(let error) {
+                        // Network error - show error in entry state
+                        dispatch(.setAuthState(.authenticating(.email(.entry(
+                            email: email,
+                            error: AuthenticationError.networkError(error.localizedDescription)
+                        )))))
+                        
+                    } catch {
+                        // Unknown error - show generic error
+                        dispatch(.setAuthState(.authenticating(.email(.entry(
+                            email: email,
+                            error: AuthenticationError.unknownError(error.localizedDescription)
+                        )))))
+                    }
+                }
+                
+            case .passwordVerifying(let email, let password):
+                // TODO: Handle password verification
+                break
+                
+            case .registration(let email, let step):
+                switch step {
+                case .creating(let name, let password):
+                    // TODO: Handle user registration
+                    break
+                case .verifyingEmail(let code):
+                    // TODO: Handle email verification
+                    break
+                default:
+                    break
+                }
+                
+            case .passwordRecovery(let email, let step):
+                switch step {
+                case .codeRequesting:
+                    // TODO: Handle password recovery code request
+                    break
+                case .verifyingCode(let code):
+                    // TODO: Handle password recovery code verification
+                    break
+                case .resettingPassword(let newPassword, let confirmPassword):
+                    // TODO: Handle password reset
+                    break
+                default:
+                    break
+                }
+                
+            default:
+                // No API calls needed for entry and passwordEntry states
+                break
+            }
+                
+            // MARK: - Phone Authentication
+            case .phone(let phoneState):
+                switch phoneState {
+                
+                case .requesting(let phoneNumber):
+                    // TODO: Handle phone number verification request
+                    break
+                    
+                case .verifying(let phoneNumber, let code):
+                    // TODO: Handle phone verification code
+                    break
+                    
+                default:
+                    // No API calls needed for entry state
+                    break
+                }
+            }
+            
+            return []
+        }
+        
+        // Existing logic for other auth states...
         if case .notAuthenticated = authState {
             keychain.deleteDeviceID()
         }
