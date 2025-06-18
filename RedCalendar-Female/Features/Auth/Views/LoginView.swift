@@ -49,7 +49,7 @@ struct LoginView: View {
         case .entry(let email, let error):
             EmailEntryView(email: email, error: error)
         case .checking:
-            EmailCheckingView()
+            LoadingView("Проверка email")
         case .passwordEntry:
             PasswordEntryView()
         case .passwordVerifying:

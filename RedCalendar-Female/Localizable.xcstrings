@@ -4,15 +4,6 @@
     "→ Code Verification" : {
 
     },
-    "→ Creating Account" : {
-
-    },
-    "→ Email Verification" : {
-
-    },
-    "→ Password Entry" : {
-
-    },
     "→ Password Recovery" : {
 
     },
@@ -22,9 +13,6 @@
     "→ Password Verifying" : {
 
     },
-    "→ Registration" : {
-
-    },
     "→ Success (Authenticated)" : {
 
     },
@@ -32,9 +20,6 @@
 
     },
     "Device ID: %@" : {
-
-    },
-    "Email Checking" : {
 
     },
     "Password Entry" : {
@@ -150,13 +135,7 @@
     "Проверка" : {
 
     },
-    "Проверка авторизации..." : {
-
-    },
     "Проверка пароля" : {
-
-    },
-    "Проверяем email адрес..." : {
 
     },
     "Проверяем код..." : {

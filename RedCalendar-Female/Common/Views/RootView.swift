@@ -55,9 +55,7 @@ struct RootView: View {
                 .background(Color(.systemBackground))
             }
         } else {
-            ProgressView("Проверка авторизации...")
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(Color(.systemBackground))
+            LoadingView("Проверка авторизации")
         }
     }
 }
