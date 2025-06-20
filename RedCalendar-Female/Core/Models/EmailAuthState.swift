@@ -6,49 +6,28 @@
 //
 
 enum EmailAuthState {
-    case entry(                                     // Enter email address with optional prefill and error
+    case entry(
         email: String? = nil,
         error: Error? = nil
     )
-    case checking(email: String)                    // Checking if email exists
-    case passwordEntry(                             // Enter password for existing user
+    case checking(email: String)
+    case codeEntry(
         email: String,
         userName: String?,
-        error: AuthenticationError? = nil
+        error: AuthenticationError?
     )
-    case passwordVerifying(                         // Verifying email + password
+    case verifying(
         email: String,
-        password: String
+        code: String
     )
-    case registration(                              // New user registration flow
+    case registration(
         email: String,
-        step: RegistrationStep
+        code: String?,
+        error: AuthenticationError?
     )
-    case passwordRecovery(                          // Forgot password flow
+    case registering(
         email: String,
-        step: PasswordRecoveryStep
-    )
-}
-
-enum RegistrationStep {
-    case userDataEntry                              // Enter name and create password (combined screen)
-    case creating(                                  // Creating account on server
-        name: String,
-        password: String
-    )
-    case emailVerification(verificationCode: String?) // Verify email with code
-    case verifyingEmail(                           // Verifying email code on server
-        verificationCode: String
-    )
-}
-
-enum PasswordRecoveryStep {
-    case codeRequesting                            // Requesting verification code
-    case codeVerification(error: AuthenticationError? = nil) // Enter 6-digit code
-    case verifyingCode(code: String)               // Verifying code on server
-    case passwordReset                             // Enter new password + confirmation
-    case resettingPassword(                        // Resetting password on server
-        newPassword: String,
-        confirmPassword: String
+        code: String,
+        name: String
     )
 }

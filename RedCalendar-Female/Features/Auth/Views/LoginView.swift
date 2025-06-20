@@ -46,18 +46,19 @@ struct LoginView: View {
     @ViewBuilder
     private func emailAuthView(for state: EmailAuthState) -> some View {
         switch state {
+        
         case .entry(let email, let error):
             EmailEntryView(email: email, error: error)
-        case .checking:
-            WaitingView("Проверка email")
-        case .passwordEntry:
-            PasswordEntryView()
-        case .passwordVerifying:
-            PasswordVerifyingView()
-        case .registration(let email, let step):
-            RegistrationView(email: email, step: step)
-        case .passwordRecovery:
-            PasswordRecoveryView()
+        case .checking(_):
+            WaitingView("Проверяем email")
+        case .codeEntry(let email, let userName, let error):
+            CodeEntryView(email: email, userName: userName, error: error)
+        case .verifying(_, _):
+            WaitingView("Проверяем код")
+        case .registration(let email, let code, let error):
+            RegistrationView(email: email, code: code, error: error)
+        case .registering(_, _, _):
+            WaitingView("Создаём аккаунт")
         }
     }
     

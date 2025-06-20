@@ -46,7 +46,7 @@ let authMiddleware: Middleware<AppState, AppAction> = { state, action, dispatch 
                         
                         if response.data.exists {
                             // User exists - show password entry
-                            dispatch(.setAuthState(.authenticating(.email(.passwordEntry(
+                            dispatch(.setAuthState(.authenticating(.email(.codeEntry(
                                 email: response.data.email,
                                 userName: response.data.name,
                                 error: nil
@@ -55,8 +55,9 @@ let authMiddleware: Middleware<AppState, AppAction> = { state, action, dispatch 
                             // User doesn't exist - show registration
                             dispatch(.setAuthState(.authenticating(.email(.registration(
                                 email: response.data.email,
-                                step: .userDataEntry
-                            )))))
+                                code: nil,
+                                error: nil)
+                            ))))
                         }
                         
                     } catch APIServiceError.serverError(let message) {
@@ -82,39 +83,7 @@ let authMiddleware: Middleware<AppState, AppAction> = { state, action, dispatch 
                     }
                 }
                 
-            case .passwordVerifying(let email, let password):
-                // TODO: Handle password verification
-                break
-                
-            case .registration(let email, let step):
-                switch step {
-                case .creating(let name, let password):
-                    // TODO: Handle user registration
-                    break
-                case .verifyingEmail(let code):
-                    // TODO: Handle email verification
-                    break
-                default:
-                    break
-                }
-                
-            case .passwordRecovery(let email, let step):
-                switch step {
-                case .codeRequesting:
-                    // TODO: Handle password recovery code request
-                    break
-                case .verifyingCode(let code):
-                    // TODO: Handle password recovery code verification
-                    break
-                case .resettingPassword(let newPassword, let confirmPassword):
-                    // TODO: Handle password reset
-                    break
-                default:
-                    break
-                }
-                
             default:
-                // No API calls needed for entry and passwordEntry states
                 break
             }
                 
