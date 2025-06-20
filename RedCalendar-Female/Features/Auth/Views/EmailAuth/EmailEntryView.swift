@@ -10,9 +10,6 @@ import SwiftUI
 struct EmailEntryView: View {
     @EnvironmentObject var store: AppStore
     
-    let email: String?
-    let error: Error?
-    
     @State private var emailText: String = ""
     @FocusState private var isEmailFieldFocused: Bool
     
@@ -26,78 +23,86 @@ struct EmailEntryView: View {
         guard trimmedEmail.isValidEmail else { return }
         
         isEmailFieldFocused = false
-        store.send(.setAuthState(.authenticating(.email(.checking(email: trimmedEmail)))))
-    }
-    
-    init(email: String? = nil, error: Error? = nil) {
-        self.email = email
-        self.error = error
+        store.send(.setAuthState(.authenticating(.email(.checking(email: trimmedEmail, name: nil)))))
     }
     
     var body: some View {
-        GeometryReader { geometry in
-            ScrollView {
-                VStack(spacing: 20) {
-                    Text("Добро пожаловать!")
-                        .font(.title2)
-                        .fontWeight(.semibold)
-                    
-                    Text("Данные хранятся на устройстве и в облаке. Email нужен для доступа к вашему профилю")
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
-                    
-                    // Email input with inline arrow button
-                    HStack(spacing: 12) {
-                        TextField("Email", text: $emailText)
-                            .keyboardType(.emailAddress)
-                            .textContentType(.emailAddress)
-                            .submitLabel(.continue)
-                            .autocapitalization(.none)
-                            .disableAutocorrection(true)
-                            .focused($isEmailFieldFocused)
-                            .onSubmit {
-                                continueAction()
-                            }
-                            .onAppear {
-                                if let email = email { emailText = email }
-                                Task { @MainActor in isEmailFieldFocused = true }
-                            }
-                            .formFieldStyle()
+        // Direct access to store state
+        if let authState = store.state.authState,
+           case .authenticating(.email(.entry(let email, let error))) = authState {
+            
+            GeometryReader { geometry in
+                ScrollView {
+                    VStack(spacing: 20) {
+                        Text("Добро пожаловать!")
+                            .font(.title2)
+                            .fontWeight(.semibold)
                         
-                        // Arrow button using custom PrimaryButton
-                        PrimaryButton(isEnabled: isEmailValid, action: continueAction) {
-                            Image(systemName: "arrow.right")
-                                .font(.title3)
-                        }
-                        .frame(width: 56)
-                    }
-                    
-                    if let error = error {
-                        Text(error.localizedDescription)
-                            .foregroundColor(.red)
-                            .font(.caption)
+                        Text("Данные хранятся на устройстве и в облаке. Email нужен для доступа к вашему профилю")
+                            .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
-                    }
-                    
-                    Text("Пользователи RedCalendar 2.0\nмогут войти [по номеру телефона](phone)")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
-                        .environment(\.openURL, OpenURLAction { url in
-                            if url.absoluteString == "phone" {
-                                store.send(.setAuthState(.authenticating(.phone(.entry))))
+                        
+                        // Email input with inline arrow button
+                        HStack(spacing: 12) {
+                            TextField("Email", text: $emailText)
+                                .keyboardType(.emailAddress)
+                                .textContentType(.emailAddress)
+                                .submitLabel(.continue)
+                                .autocapitalization(.none)
+                                .disableAutocorrection(true)
+                                .focused($isEmailFieldFocused)
+                                .onSubmit {
+                                    continueAction()
+                                }
+                                .formFieldStyle()
+                            
+                            // Arrow button using custom PrimaryButton
+                            PrimaryButton(isEnabled: isEmailValid, action: continueAction) {
+                                Image(systemName: "arrow.right")
+                                    .font(.title3)
                             }
-                            return .handled
-                        })
+                            .frame(width: 56)
+                        }
+                        
+                        if let error = error {
+                            Text(error.localizedDescription)
+                                .foregroundColor(.red)
+                                .font(.caption)
+                                .multilineTextAlignment(.center)
+                        }
+                        
+                        Text("Пользователи RedCalendar 2.0\nмогут войти [по номеру телефона](phone)")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                            .environment(\.openURL, OpenURLAction { url in
+                                if url.absoluteString == "phone" {
+                                    store.send(.setAuthState(.authenticating(.phone(.entry))))
+                                }
+                                return .handled
+                            })
+                    }
+                    .frame(maxWidth: 320)
+                    .frame(maxWidth: .infinity)
+                    .frame(minHeight: geometry.size.height)
+                    .padding(.horizontal)
+                    .onAppear {
+                        setupInitialState(email: email)
+                    }
                 }
-                .frame(maxWidth: 320)
-                .frame(maxWidth: .infinity)
-                .frame(minHeight: geometry.size.height)
-                .padding(.horizontal)
             }
+            .navigationTitle("Вход")
+            .navigationBarTitleDisplayMode(.inline)
         }
-        .navigationTitle("Вход")
-        .navigationBarTitleDisplayMode(.inline)
+    }
+    
+    private func setupInitialState(email: String?) {
+        if let email = email {
+            emailText = email
+        }
+        Task { @MainActor in
+            isEmailFieldFocused = true
+        }
     }
 }
 
@@ -107,7 +112,44 @@ struct EmailEntryView: View {
             AppStore(
                 initialState: AppState(
                     apnsToken: nil,
-                    authState: .authenticating(.email(.entry()))
+                    authState: .authenticating(.email(.entry(
+                        email: nil,
+                        error: nil
+                    )))
+                ),
+                reducer: appReducer,
+                middlewares: []
+            )
+        )
+}
+
+#Preview("With pre-filled email") {
+    EmailEntryView()
+        .environmentObject(
+            AppStore(
+                initialState: AppState(
+                    apnsToken: nil,
+                    authState: .authenticating(.email(.entry(
+                        email: "user@example.com",
+                        error: nil
+                    )))
+                ),
+                reducer: appReducer,
+                middlewares: []
+            )
+        )
+}
+
+#Preview("With error") {
+    EmailEntryView()
+        .environmentObject(
+            AppStore(
+                initialState: AppState(
+                    apnsToken: nil,
+                    authState: .authenticating(.email(.entry(
+                        email: "invalid@email",
+                        error: AuthenticationError.emailAlreadyExists
+                    )))
                 ),
                 reducer: appReducer,
                 middlewares: []

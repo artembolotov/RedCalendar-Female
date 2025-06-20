@@ -17,8 +17,7 @@ enum AuthenticationError: Error, LocalizedError {
     // Email errors
     case emailNotFound                            // Email doesn't exist (new user)
     case emailAlreadyExists                       // Email taken during registration
-    case invalidPassword                          // Wrong password
-    case weakPassword                             // Password doesn't meet requirements
+    
     case passwordMismatch                         // Password confirmation doesn't match
     
     // Code verification errors
@@ -50,10 +49,6 @@ enum AuthenticationError: Error, LocalizedError {
             return "Email not found. Please check or create a new account."
         case .emailAlreadyExists:
             return "This email is already registered. Please sign in instead."
-        case .invalidPassword:
-            return "Incorrect password. Please try again."
-        case .weakPassword:
-            return "Password must be at least 8 characters with numbers and letters."
         case .passwordMismatch:
             return "Passwords don't match. Please try again."
         case .invalidVerificationCode:

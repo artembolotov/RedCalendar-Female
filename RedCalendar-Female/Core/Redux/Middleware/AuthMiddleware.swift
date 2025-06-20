@@ -39,7 +39,7 @@ let authMiddleware: Middleware<AppState, AppAction> = { state, action, dispatch 
         case .email(let emailState):
             switch emailState {
             
-            case .checking(let email):
+            case .checking(let email, let name):
                 Task {
                     do {
                         let response = try await apiService.checkEmail(email)
@@ -48,16 +48,14 @@ let authMiddleware: Middleware<AppState, AppAction> = { state, action, dispatch 
                             // User exists - show password entry
                             dispatch(.setAuthState(.authenticating(.email(.codeEntry(
                                 email: response.data.email,
-                                userName: response.data.name,
-                                error: nil
+                                userName: response.data.name
                             )))))
                         } else {
                             // User doesn't exist - show registration
                             dispatch(.setAuthState(.authenticating(.email(.registration(
                                 email: response.data.email,
-                                code: nil,
-                                error: nil)
-                            ))))
+                                name: name
+                            )))))
                         }
                         
                     } catch APIServiceError.serverError(let message) {

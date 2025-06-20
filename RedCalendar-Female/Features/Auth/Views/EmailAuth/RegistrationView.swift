@@ -10,11 +10,7 @@ import SwiftUI
 struct RegistrationView: View {
     @EnvironmentObject var store: AppStore
     
-    let email: String
-    let code: String?
-    let error: AuthenticationError?
-    
-    @State private var name: String = ""
+    @State private var nameInput: String = ""
     @State private var codeInput: String = ""
     @FocusState private var focusedField: Field?
     
@@ -24,149 +20,198 @@ struct RegistrationView: View {
     }
     
     private var isFormValid: Bool {
-        !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+        !nameInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
         codeInput.count == 6 &&
         codeInput.allSatisfy { $0.isNumber }
     }
     
-    init(email: String, code: String? = nil, error: AuthenticationError? = nil) {
-        self.email = email
-        self.code = code
-        self.error = error
-    }
-    
     var body: some View {
-        GeometryReader { geometry in
-            ScrollView {
-                VStack(spacing: 24) {
-                    
-                    // Header
-                    VStack(spacing: 12) {
-                        Text("Регистрация")
-                            .font(.largeTitle)
-                            .fontWeight(.bold)
-                            .foregroundColor(.primary)
+        // Direct access to store state
+        if let authState = store.state.authState,
+           case .authenticating(.email(.registration(let email, let code, let name, let error))) = authState {
+            
+            GeometryReader { geometry in
+                ScrollView {
+                    VStack(spacing: 20) {
                         
-                        Text("Введите ваше имя и код из письма, отправленного на \(email)")
-                            .font(.body)
+                        Text("Введите ваше имя и код из письма, отправленный на \(email)")
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
-                            .padding(.horizontal)
-                    }
-                    
-                    // Form fields
-                    VStack(spacing: 16) {
                         
-                        // Name field
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack {
-                                Text("Имя")
-                                    .font(.headline)
-                                    .foregroundColor(.primary)
-                                Spacer()
+                        // Name input
+                        TextField("Ваше имя", text: $nameInput)
+                            .textContentType(.name)
+                            .submitLabel(.next)
+                            .autocorrectionDisabled()
+                            .focused($focusedField, equals: .name)
+                            .onSubmit {
+                                focusedField = .code
                             }
-                            
-                            TextField("Введите ваше имя", text: $name)
-                                .textFieldStyle(RoundedBorderTextFieldStyle())
-                                .autocorrectionDisabled()
-                                .textContentType(.name)
-                                .focused($focusedField, equals: .name)
-                                .onSubmit {
-                                    focusedField = .code
-                                }
-                        }
+                            .formFieldStyle()
                         
-                        // Code field
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack {
-                                Text("Код из письма")
-                                    .font(.headline)
-                                    .foregroundColor(.primary)
-                                Spacer()
+                        // Code input
+                        TextField("Код из письма", text: $codeInput)
+                            .keyboardType(.numberPad)
+                            .textContentType(.oneTimeCode)
+                            .submitLabel(.continue)
+                            .focused($focusedField, equals: .code)
+                            .onChange(of: codeInput) { newValue in
+                                // Limit to 6 digits and numbers only
+                                let filtered = String(newValue.prefix(6).filter { $0.isNumber })
+                                if filtered != newValue {
+                                    codeInput = filtered
+                                }
                             }
-                            
-                            TextField("000000", text: $codeInput)
-                                .textFieldStyle(RoundedBorderTextFieldStyle())
-                                .keyboardType(.numberPad)
-                                .textContentType(.oneTimeCode)
-                                .focused($focusedField, equals: .code)
-                                .onChange(of: codeInput) { newValue in
-                                    // Limit to 6 digits and numbers only
-                                    let filtered = String(newValue.prefix(6).filter { $0.isNumber })
-                                    if filtered != newValue {
-                                        codeInput = filtered
-                                    }
+                            .onSubmit {
+                                if isFormValid {
+                                    continueAction(email: email)
                                 }
-                                .onSubmit {
-                                    if isFormValid {
-                                        continueAction()
-                                    }
-                                }
-                        }
+                            }
+                            .formFieldStyle()
                         
                         // Error message
                         if let error = error {
                             Text(error.localizedDescription)
-                                .font(.caption)
                                 .foregroundColor(.red)
-                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .font(.caption)
+                                .multilineTextAlignment(.center)
                         }
+                        
+                        Text("Не получили письмо?\n[Отправить повторно](resend)")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                            .environment(\.openURL, OpenURLAction { url in
+                                if url.absoluteString == "resend" {
+                                    resendCodeAction(email: email)
+                                }
+                                return .handled
+                            })
+                        
+                        // Continue button
+                        PrimaryButton(
+                            "Продолжить",
+                            isEnabled: isFormValid,
+                            action: { continueAction(email: email) }
+                        )
                     }
-                    
-                    // Continue button
-                    PrimaryButton(
-                        "Продолжить",
-                        isEnabled: isFormValid,
-                        action: continueAction
-                    )
-                    
-                    Spacer(minLength: 50)
+                    .frame(maxWidth: 320)
+                    .frame(maxWidth: .infinity)
+                    .frame(minHeight: geometry.size.height)
+                    .padding(.horizontal)
+                    .onAppear {
+                        setupInitialState(code: code, name: name)
+                    }
                 }
-                .frame(maxWidth: 320)
-                .frame(maxWidth: .infinity)
-                .frame(minHeight: geometry.size.height)
-                .padding(.horizontal)
             }
-        }
-        .navigationTitle("Регистрация")
-        .navigationBarTitleDisplayMode(.inline)
-        .onAppear {
-            // Focus on name field when view appears
-            focusedField = .name
-            // Pre-fill code if provided
-            if let code = code {
-                codeInput = code
-            }
+            .navigationTitle("Регистрация")
+            .navigationBarTitleDisplayMode(.inline)
         }
     }
     
-    private func continueAction() {
-        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+    private func setupInitialState(code: String?, name: String?) {
+        // Pre-fill name if provided
+        if let name = name {
+            nameInput = name
+        }
+        // Pre-fill code if provided
+        if let code = code {
+            codeInput = code
+        }
+        // Focus logic: if name is pre-filled, focus on code, otherwise on name
+        if name != nil && !nameInput.isEmpty {
+            focusedField = .code
+        } else {
+            focusedField = .name
+        }
+    }
+    
+    private func continueAction(email: String) {
+        let trimmedName = nameInput.trimmingCharacters(in: .whitespacesAndNewlines)
         store.send(.setAuthState(.authenticating(.email(.registering(
             email: email,
             code: codeInput,
             name: trimmedName
         )))))
     }
+    
+    private func resendCodeAction(email: String) {
+        store.send(.setAuthState(.authenticating(.email(.checking(email: email, name: nameInput)))))
+    }
 }
 
 #Preview {
-    RegistrationView(
-        email: "test@example.com",
-        code: "123456"
-    )
-    .environmentObject(
-        AppStore(
-            initialState: AppState(
-                apnsToken: nil,
-                authState: .authenticating(.email(.registration(
-                    email: "test@example.com",
-                    code: "123456",
-                    error: nil
-                )))
-            ),
-            reducer: appReducer,
-            middlewares: []
+    RegistrationView()
+        .environmentObject(
+            AppStore(
+                initialState: AppState(
+                    apnsToken: nil,
+                    authState: .authenticating(.email(.registration(
+                        email: "test@example.com",
+                        code: "123456",
+                        name: nil,
+                        error: nil
+                    )))
+                ),
+                reducer: appReducer,
+                middlewares: []
+            )
         )
-    )
+}
+
+#Preview("Without pre-filled code") {
+    RegistrationView()
+        .environmentObject(
+            AppStore(
+                initialState: AppState(
+                    apnsToken: nil,
+                    authState: .authenticating(.email(.registration(
+                        email: "user@example.com",
+                        code: nil,
+                        name: nil,
+                        error: nil
+                    )))
+                ),
+                reducer: appReducer,
+                middlewares: []
+            )
+        )
+}
+
+#Preview("With pre-filled name") {
+    RegistrationView()
+        .environmentObject(
+            AppStore(
+                initialState: AppState(
+                    apnsToken: nil,
+                    authState: .authenticating(.email(.registration(
+                        email: "user@example.com",
+                        code: nil,
+                        name: "Анна",
+                        error: nil
+                    )))
+                ),
+                reducer: appReducer,
+                middlewares: []
+            )
+        )
+}
+
+#Preview("With error") {
+    RegistrationView()
+        .environmentObject(
+            AppStore(
+                initialState: AppState(
+                    apnsToken: nil,
+                    authState: .authenticating(.email(.registration(
+                        email: "test@example.com",
+                        code: "123456",
+                        name: "Анна",
+                        error: AuthenticationError.invalidVerificationCode
+                    )))
+                ),
+                reducer: appReducer,
+                middlewares: []
+            )
+        )
 }

@@ -47,16 +47,16 @@ struct LoginView: View {
     private func emailAuthView(for state: EmailAuthState) -> some View {
         switch state {
         
-        case .entry(let email, let error):
-            EmailEntryView(email: email, error: error)
-        case .checking(_):
+        case .entry(_, _):
+            EmailEntryView()
+        case .checking(_, _):
             WaitingView("Проверяем email")
-        case .codeEntry(let email, let userName, let error):
-            CodeEntryView(email: email, userName: userName, error: error)
+        case .codeEntry(_, _, _):
+            CodeEntryView()
         case .verifying(_, _):
             WaitingView("Проверяем код")
-        case .registration(let email, let code, let error):
-            RegistrationView(email: email, code: code, error: error)
+        case .registration(_, _, _, _):
+            RegistrationView()
         case .registering(_, _, _):
             WaitingView("Создаём аккаунт")
         }
@@ -148,20 +148,6 @@ struct LoginView: View {
 
 #Preview {
     LoginView()
-        .environmentObject(
-            AppStore(
-                initialState: AppState(
-                    apnsToken: nil,
-                    authState: .authenticating(.email(.entry()))
-                ),
-                reducer: appReducer,
-                middlewares: []
-            )
-        )
-}
-
-#Preview("Login Sheet") {
-    WelcomeView()
         .environmentObject(
             AppStore(
                 initialState: AppState(
