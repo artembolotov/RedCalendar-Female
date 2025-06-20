@@ -16,8 +16,14 @@ let feedbackMiddleware: Middleware<AppState, AppAction> = { state, action, dispa
     // MARK: - Success Events
     case .setAuthState(.authenticated):
         feedbackService.playSuccess()
+    
+    // MARK: - Error Events
+    case .setAuthState(.authenticating(.email(.entry(_, let error)))) where error != nil:
+        feedbackService.playError()
         
-    case .logout:
+    // MARK: - Prepare Events
+    case .logout,
+        .setAuthState(.authenticating(.email(.checking))):
         feedbackService.prepare()
         
     default:

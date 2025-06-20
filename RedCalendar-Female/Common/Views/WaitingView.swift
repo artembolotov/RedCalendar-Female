@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct LoadingView: View {
+struct WaitingView: View {
     let message: String
     
     init(_ message: String) {
@@ -18,5 +18,5 @@ struct LoadingView: View {
 }
 
 #Preview {
-    LoadingView("Проверка авторизации")
+    WaitingView("Проверка авторизации")
 }

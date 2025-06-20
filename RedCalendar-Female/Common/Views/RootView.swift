@@ -55,7 +55,7 @@ struct RootView: View {
                 .background(Color(.systemBackground))
             }
         } else {
-            LoadingView("Проверка авторизации")
+            WaitingView("Проверка авторизации")
         }
     }
 }

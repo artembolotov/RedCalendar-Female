@@ -49,13 +49,13 @@ struct LoginView: View {
         case .entry(let email, let error):
             EmailEntryView(email: email, error: error)
         case .checking:
-            LoadingView("Проверка email")
+            WaitingView("Проверка email")
         case .passwordEntry:
             PasswordEntryView()
         case .passwordVerifying:
             PasswordVerifyingView()
-        case .registration:
-            RegistrationView()
+        case .registration(let email, let step):
+            RegistrationView(email: email, step: step)
         case .passwordRecovery:
             PasswordRecoveryView()
         }

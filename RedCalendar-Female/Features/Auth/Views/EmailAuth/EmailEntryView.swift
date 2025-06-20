@@ -48,21 +48,21 @@ struct EmailEntryView: View {
                     
                     // Email input with inline arrow button
                     HStack(spacing: 12) {
-                        CustomTextField(
-                            placeholder: "Email",
-                            text: $emailText,
-                            keyboardType: .emailAddress,
-                            textContentType: .emailAddress,
-                            submitLabel: .continue,
-                            onSubmit: {
+                        TextField("Email", text: $emailText)
+                            .keyboardType(.emailAddress)
+                            .textContentType(.emailAddress)
+                            .submitLabel(.continue)
+                            .autocapitalization(.none)
+                            .disableAutocorrection(true)
+                            .focused($isEmailFieldFocused)
+                            .onSubmit {
                                 continueAction()
                             }
-                        )
-                        .focused($isEmailFieldFocused)
-                        .onAppear {
-                            if let email = email { emailText = email }
-                            Task { @MainActor in isEmailFieldFocused = true }
-                        }
+                            .onAppear {
+                                if let email = email { emailText = email }
+                                Task { @MainActor in isEmailFieldFocused = true }
+                            }
+                            .formFieldStyle()
                         
                         // Arrow button using custom PrimaryButton
                         PrimaryButton(isEnabled: isEmailValid, action: continueAction) {
