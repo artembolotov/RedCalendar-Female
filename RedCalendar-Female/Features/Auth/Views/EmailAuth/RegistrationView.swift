@@ -34,7 +34,7 @@ struct RegistrationView: View {
                 ScrollView {
                     VStack(spacing: 20) {
                         
-                        Text("Введите ваше имя и код из письма, отправленный на \(email)")
+                        Text("Введите своё имя и код из письма, отправленный на \(email)")
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
                         
@@ -90,7 +90,7 @@ struct RegistrationView: View {
                         
                         // Continue button
                         PrimaryButton(
-                            "Продолжить",
+                            "Войти",
                             isEnabled: isFormValid,
                             action: { continueAction(email: email) }
                         )
