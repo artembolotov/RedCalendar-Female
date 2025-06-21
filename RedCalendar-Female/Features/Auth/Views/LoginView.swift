@@ -51,12 +51,10 @@ struct LoginView: View {
             EmailEntryView()
         case .checking(_, _):
             WaitingView("Проверяем email")
-        case .codeEntry(_, _, _):
-            CodeEntryView()
+        case .codeEntry(_, _, _), .registration(_, _, _, _):
+            UnifiedCodeEntryView()
         case .verifying(_, _):
             WaitingView("Проверяем код")
-        case .registration(_, _, _, _):
-            RegistrationView()
         case .registering(_, _, _):
             WaitingView("Создаём аккаунт")
         }
