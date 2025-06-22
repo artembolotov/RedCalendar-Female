@@ -49,6 +49,19 @@ struct CodeEntryView: View {
             ScrollView {
                 VStack(spacing: 20) {
                     
+                    // Back button in top-left corner of content
+                    HStack {
+                        Button(action: { goBackToWelcome(email: email) }) {
+                            Image(systemName: "arrow.left")
+                                .font(.system(size: 20, weight: .medium))
+                                .foregroundColor(.accentColor)
+                        }
+                        .offset(x: -10)
+                        
+                        Spacer()
+                    }
+                    .padding(.top, 8)
+                    
                     if !isRegistration {
                         Text(userName?.isEmpty == false ? "Привет, \(userName!)!" : "С возвращением!")
                             .font(.largeTitle)
@@ -127,6 +140,16 @@ struct CodeEntryView: View {
         }
         .navigationTitle(isRegistration ? "Регистрация" : "Вход")
         .navigationBarTitleDisplayMode(.inline)
+    }
+    
+    // MARK: - Actions
+    
+    private func goBackToWelcome(email: String) {
+        // Return to email entry screen with current email preserved
+        store.send(.setAuthState(.authenticating(.email(.entry(
+            email: email,
+            error: nil
+        )))))
     }
     
     private func setupInitialState(code: String?, name: String?, isRegistration: Bool) {
