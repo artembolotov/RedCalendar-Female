@@ -88,12 +88,10 @@ struct WelcomeView: View {
                         .animation(.easeInOut(duration: 0.2), value: currentSlide)
                 }
             }
-            .padding(.vertical, 20)
+            .padding(.vertical)
             
             Spacer()
             
-            // Login button
-            // Login button
             PrimaryButton {
                 store.send(.setAuthState(.authenticating(.email(.entry()))))
             } content: {

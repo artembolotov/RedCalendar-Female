@@ -50,9 +50,9 @@ struct LoginView: View {
         case .entry(_, _):
             EmailEntryView()
         case .checking(_, _):
-            WaitingView("Проверяем email")
+            WaitingView("Отправляем код")
         case .codeEntry(_, _, _), .registration(_, _, _, _):
-            UnifiedCodeEntryView()
+            CodeEntryView()
         case .verifying(_, _):
             WaitingView("Проверяем код")
         case .registering(_, _, _):

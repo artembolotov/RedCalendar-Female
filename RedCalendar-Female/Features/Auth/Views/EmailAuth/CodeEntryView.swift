@@ -1,5 +1,5 @@
 //
-//  CodeEntryView.swift
+//  UnifiedCodeEntryView.swift
 //  RedCalendar-Female
 //
 //  Created by Артём Болотов on 20.06.2025.
@@ -10,154 +10,180 @@ import SwiftUI
 struct CodeEntryView: View {
     @EnvironmentObject var store: AppStore
     
-    @State private var code: String = ""
-    @FocusState private var isCodeFieldFocused: Bool
+    @State private var nameInput: String = ""
+    @State private var codeInput: String = ""
+    @FocusState private var focusedField: Field?
     
-    private var isFormValid: Bool {
-        code.count == 6 && code.allSatisfy { $0.isNumber }
+    private enum Field: Hashable {
+        case name
+        case code
     }
     
     var body: some View {
-        // Direct access to store state
-        if let authState = store.state.authState,
-           case .authenticating(.email(.codeEntry(let email, let userName, let error))) = authState {
+        switch store.state.authState {
+        case .authenticating(.email(.codeEntry(let email, let userName, let error))):
+            buildView(email: email, userName: userName, error: error, isRegistration: false)
             
-            let greetingText = {
-                if let userName = userName, !userName.isEmpty {
-                    return "Привет, \(userName)!"
-                } else {
-                    return "С возвращением!"
-                }
-            }()
+        case .authenticating(.email(.registration(let email, let code, let name, let error))):
+            buildView(email: email, code: code, name: name, error: error, isRegistration: true)
             
-            let instructionText = "Введите код из письма для входа в аккаунт"
-            
-            GeometryReader { geometry in
-                ScrollView {
-                    VStack(spacing: 32) {
-                        
-                        // Header section
-                        VStack(spacing: 16) {
-                            Text(greetingText)
-                                .font(.largeTitle)
-                                .fontWeight(.bold)
-                                .foregroundColor(.primary)
-                            
-                            VStack(spacing: 8) {
-                                Text(instructionText)
-                                    .font(.body)
-                                    .foregroundColor(.secondary)
-                                    .multilineTextAlignment(.center)
-                                
-                                Text("Письмо отправлено на \(email)")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                    .multilineTextAlignment(.center)
-                            }
-                            .padding(.horizontal)
-                        }
-                        
-                        // Code input section
-                        VStack(spacing: 16) {
-                            
-                            // Code field
-                            VStack(alignment: .leading, spacing: 8) {
-                                HStack {
-                                    Text("Код из письма")
-                                        .font(.headline)
-                                        .foregroundColor(.primary)
-                                    Spacer()
-                                }
-                                
-                                TextField("000000", text: $code)
-                                    .textFieldStyle(RoundedBorderTextFieldStyle())
-                                    .keyboardType(.numberPad)
-                                    .textContentType(.oneTimeCode)
-                                    .focused($isCodeFieldFocused)
-                                    .font(.title2)
-                                    .multilineTextAlignment(.center)
-                                    .onChange(of: code) { newValue in
-                                        // Limit to 6 digits and numbers only
-                                        let filtered = String(newValue.prefix(6).filter { $0.isNumber })
-                                        if filtered != newValue {
-                                            code = filtered
-                                        }
-                                    }
-                                    .onSubmit {
-                                        if isFormValid {
-                                            submitAction(email: email)
-                                        }
-                                    }
-                            }
-                            
-                            // Error message
-                            if let error = error {
-                                Text(error.localizedDescription)
-                                    .font(.caption)
-                                    .foregroundColor(.red)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                            }
-                        }
-                        
-                        // Login button
-                        PrimaryButton(
-                            "Войти",
-                            isEnabled: isFormValid,
-                            action: { submitAction(email: email) }
-                        )
-                        
-                        // Resend section
-                        VStack(spacing: 12) {
-                            Text("Не получили код?")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                            
-                            Button("Отправить повторно") {
-                                resendCodeAction(email: email)
-                            }
-                            .font(.caption)
-                            .foregroundColor(.accentColor)
-                        }
-                        
-                        Spacer(minLength: 50)
-                    }
-                    .frame(maxWidth: 320)
-                    .frame(maxWidth: .infinity)
-                    .frame(minHeight: geometry.size.height)
-                    .padding(.horizontal)
-                    .onAppear {
-                        // Auto focus on code field when view appears
-                        isCodeFieldFocused = true
-                    }
-                }
-            }
-            .navigationTitle("Вход")
-            .navigationBarTitleDisplayMode(.inline)
+        default:
+            EmptyView()
         }
     }
     
-    private func submitAction(email: String) {
-        store.send(.setAuthState(.authenticating(.email(.verifying(
-            email: email,
-            code: code
-        )))))
+    @ViewBuilder
+    private func buildView(
+        email: String,
+        userName: String? = nil,
+        code: String? = nil,
+        name: String? = nil,
+        error: AuthenticationError?,
+        isRegistration: Bool
+    ) -> some View {
+        let codeValid = codeInput.count == 6 && codeInput.allSatisfy { $0.isNumber }
+        let nameValid = !nameInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        let isFormValid = isRegistration ? (nameValid && codeValid) : codeValid
+        
+        GeometryReader { geometry in
+            ScrollView {
+                VStack(spacing: 20) {
+                    
+                    if !isRegistration {
+                        Text(userName?.isEmpty == false ? "Привет, \(userName!)!" : "С возвращением!")
+                            .font(.largeTitle)
+                            .fontWeight(.bold)
+                            .foregroundColor(.primary)
+                    }
+                    
+                    Text("Код для входа отправлен на \(email)")
+                        .font(.body)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal)
+                    
+                    if isRegistration {
+                        TextField("Ваше имя", text: $nameInput)
+                            .textContentType(.name)
+                            .submitLabel(.next)
+                            .autocorrectionDisabled()
+                            .focused($focusedField, equals: .name)
+                            .onSubmit {
+                                focusedField = .code
+                            }
+                            .formFieldStyle()
+                    }
+                    
+                    TextField("Код из письма", text: $codeInput)
+                        .keyboardType(.numberPad)
+                        .textContentType(.oneTimeCode)
+                        .submitLabel(.continue)
+                        .focused($focusedField, equals: .code)
+                        .onChange(of: codeInput) { newValue in
+                            let filtered = String(newValue.prefix(6).filter { $0.isNumber })
+                            if filtered != newValue {
+                                codeInput = filtered
+                            }
+                        }
+                        .onSubmit {
+                            if isFormValid {
+                                submitAction(email: email, isRegistration: isRegistration)
+                            }
+                        }
+                        .formFieldStyle()
+                    
+                    if let error = error {
+                        Text(error.localizedDescription)
+                            .font(.caption)
+                            .foregroundColor(.red)
+                            .multilineTextAlignment(.center)
+                    }
+                    
+                    Text("Не получили письмо?\n[Отправить повторно](resend)")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                        .environment(\.openURL, OpenURLAction { url in
+                            if url.absoluteString == "resend" {
+                                resendCodeAction(email: email, isRegistration: isRegistration)
+                            }
+                            return .handled
+                        })
+                    
+                    PrimaryButton(
+                        isRegistration ? "Продолжить" : "Войти",
+                        isEnabled: isFormValid,
+                        action: { submitAction(email: email, isRegistration: isRegistration) }
+                    )
+                }
+                .frame(maxWidth: 320)
+                .frame(maxWidth: .infinity)
+                .frame(minHeight: geometry.size.height)
+                .padding(.horizontal)
+                .onAppear {
+                    setupInitialState(code: code, name: name, isRegistration: isRegistration)
+                }
+            }
+        }
+        .navigationTitle(isRegistration ? "Регистрация" : "Вход")
+        .navigationBarTitleDisplayMode(.inline)
     }
     
-    private func resendCodeAction(email: String) {
-        // Go back to checking state to resend code
-        store.send(.setAuthState(.authenticating(.email(.checking(email: email, name: nil)))))
+    private func setupInitialState(code: String?, name: String?, isRegistration: Bool) {
+        if let name = name {
+            nameInput = name
+        }
+        if let code = code {
+            codeInput = code
+        }
+        
+        if isRegistration {
+            if name != nil && !nameInput.isEmpty {
+                focusedField = .code
+            } else {
+                focusedField = .name
+            }
+        } else {
+            focusedField = .code
+        }
+    }
+    
+    private func submitAction(email: String, isRegistration: Bool) {
+        if isRegistration {
+            let trimmedName = nameInput.trimmingCharacters(in: .whitespacesAndNewlines)
+            store.send(.setAuthState(.authenticating(.email(.registering(
+                email: email,
+                code: codeInput,
+                name: trimmedName
+            )))))
+        } else {
+            store.send(.setAuthState(.authenticating(.email(.verifying(
+                email: email,
+                code: codeInput
+            )))))
+        }
+    }
+    
+    private func resendCodeAction(email: String, isRegistration: Bool) {
+        if isRegistration {
+            let trimmedName = nameInput.trimmingCharacters(in: .whitespacesAndNewlines)
+            let nameToPreserve = trimmedName.isEmpty ? nil : trimmedName
+            store.send(.setAuthState(.authenticating(.email(.checking(email: email, name: nameToPreserve)))))
+        } else {
+            store.send(.setAuthState(.authenticating(.email(.checking(email: email, name: nil)))))
+        }
     }
 }
 
-#Preview("User with name") {
+#Preview("Code Entry - with name") {
     CodeEntryView()
         .environmentObject(
             AppStore(
                 initialState: AppState(
                     apnsToken: nil,
                     authState: .authenticating(.email(.codeEntry(
-                        email: "anna@example.com",
-                        userName: "Анна",
+                        email: "arina@example.com",
+                        userName: "Арина",
                         error: nil
                     )))
                 ),
@@ -167,7 +193,7 @@ struct CodeEntryView: View {
         )
 }
 
-#Preview("User without name") {
+#Preview("Code Entry - without name") {
     CodeEntryView()
         .environmentObject(
             AppStore(
@@ -185,16 +211,36 @@ struct CodeEntryView: View {
         )
 }
 
-#Preview("With error") {
+#Preview("Registration - empty") {
     CodeEntryView()
         .environmentObject(
             AppStore(
                 initialState: AppState(
                     apnsToken: nil,
-                    authState: .authenticating(.email(.codeEntry(
+                    authState: .authenticating(.email(.registration(
+                        email: "test@example.com",
+                        code: nil,
+                        name: nil,
+                        error: nil
+                    )))
+                ),
+                reducer: appReducer,
+                middlewares: []
+            )
+        )
+}
+
+#Preview("Registration - with pre-filled name") {
+    CodeEntryView()
+        .environmentObject(
+            AppStore(
+                initialState: AppState(
+                    apnsToken: nil,
+                    authState: .authenticating(.email(.registration(
                         email: "user@example.com",
-                        userName: "Анна",
-                        error: AuthenticationError.invalidVerificationCode
+                        code: "123456",
+                        name: "Арина",
+                        error: nil
                     )))
                 ),
                 reducer: appReducer,
