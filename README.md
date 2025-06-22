@@ -46,118 +46,42 @@ RedCalendar переходит на собственную систему в с�
 
 **Push уведомления:**
 - Автоматическая регистрация APNS токенов
-- Синхронизация токенов с сервером
-- Retry механизм при сбоях сети
-- Автоматическая очистка badge при активации приложения
+- Синхронизация с сервером через middleware
+- Background refresh для обновления токенов
 
-**Haptic Feedback (НОВОЕ):**
-- **TapticFeedbackService** - сервис для тактильной обратной связи
-- Поддержка событий: success, error, warning
-- Интеграция через **FeedbackMiddleware** в Redux архитектуру
-- Подготовка генераторов для оптимальной производительности
-
-**Техническая часть:**
-- Keychain для безопасного хранения sensitive данных
-- AppMetrica аналитика с уникальным API ключом
-- Система логирования действий и ошибок
-- Graceful обработка сетевых ошибок и offline режима
+**Haptic Feedback система:**
+- TapticFeedbackService для управления тактильной обратной связью
+- FeedbackMiddleware для интеграции в Redux
+- Success/Error/Prepare feedback для ключевых событий
 
 ### 🔄 В разработке
-
-**Email/Phone авторизация:**
-- Проверка существования email в базе данных
-- Экраны ввода пароля и полной регистрации
-- Система восстановления пароля через email
-- Верификация телефонного номера через СМС
-
-**Основной функционал:**
-- CRUD операции для менструальных циклов
-- Трекинг симптомов и настроения
-- Календарь с предсказаниями овуляции
-- Система комментариев и пользовательских тегов
-
-**API интеграция:**
-- Синхронизация данных с сервером
-- Offline поддержка с локальным кэшированием
-- Conflict resolution при расхождении данных
-
-## 🎨 UI/UX Дизайн
-
-### Дизайн-система
-- **Максимальная ширина форм:** 320pt для оптимальной читаемости
-- **Отступы:** стандартные 16pt по краям экрана
-- **Цветовая схема:** красно-розовые градиенты в стиле приложения
-- **Типографика:** системный шрифт SF Pro с семантическими размерами
-
-### Адаптивность
-- **iPhone:** полноэкранный режим с учётом safe areas
-- **iPad:** центрированный контент с ограничением ширины
-- **Альбомная ориентация:** сохранение пропорций и читаемости
-- **Accessibility:** полная поддержка screen readers и VoiceOver
-
-### Анимации и взаимодействие
-- **Page transitions:** плавные переходы между слайдами
-- **Loading states:** индикаторы прогресса с понятным feedback
-- **Focus management:** автоматическая навигация по полям ввода
-- **Error feedback:** визуальные индикаторы ошибок с анимацией
-- **Haptic feedback:** тактильная обратная связь для ключевых событий
-
-## 🔐 Безопасность и приватность
-
-### Данные пользователя
-- **Keychain Storage** - device_id и sensitive данные
-- **No localStorage** - всё в памяти приложения или Keychain
-- **HTTPS only** - все соединения защищены TLS
-- **Bearer tokens** - device_id в заголовках Authorization
-
-### Приватность
-- **Local-first** - данные хранятся локально и синхронизируются
-- **No tracking** - только техническая аналитика AppMetrica
-- **Encrypted transport** - все API запросы зашифрованы
-- **User control** - полный контроль пользователя над своими данными
-
-## 📋 Модели данных
-
-### AuthState - Состояния авторизации
-```swift
-enum AuthState {
-    case notAuthenticated
-    case authenticated(deviceId: String, userDetails: UserDetails?)
-    case migrating(userId: String, error: Error? = nil)
-    case authenticating(AuthenticationMethod)
-}
-```
-
-### EmailAuthState - Email авторизация
-```swift
-enum EmailAuthState {
-    case entry(email: String? = nil, error: Error? = nil)
-    case checking(email: String)
-    case passwordEntry(email: String, userName: String, error: AuthenticationError? = nil)
-    case passwordVerifying(email: String, password: String)
-    case registration(email: String, step: RegistrationStep)
-    case passwordRecovery(email: String, step: PasswordRecoveryStep)
-}
-```
-
-### PhoneAuthState - Телефонная авторизация  
-```swift
-enum PhoneAuthState {
-    case entry
-    case requesting(phoneNumber: String)
-    case verification(phoneNumber: String, maskedCallerNumber: String, error: AuthenticationError? = nil)
-    case verifying(phoneNumber: String, verificationCode: String)
-}
-```
+- Полные потоки авторизации (password entry, verification, recovery)
+- Основные экраны календаря и трекинга
+- CRUD операции для пользовательских данных
+- Расширение Haptic Feedback для всех UI взаимодействий
 
 ## 🏛 Структура проекта
 
 ```
 RedCalendar-Female/
+├── App/                                    # Конфигурация приложения
+│   ├── RedCalendar_FemaleApp.swift         # Main app entry point
+│   ├── AppDelegate.swift                   # Push notifications
+│   └── Configurator.swift                  # Настройка DI сервисов
 ├── Core/                                   # Ядро приложения
+│   ├── DI/                                 # Dependency Injection
+│   │   ├── ServiceLocator.swift            # DI контейнер
+│   │   └── Injected.swift                  # Property wrapper
+│   ├── Models/                             # Модели данных
+│   │   ├── AuthState.swift                 # Состояния авторизации
+│   │   ├── AuthenticationMethod.swift      # Методы авторизации
+│   │   ├── APNSToken.swift                 # APNS токен модель
+│   │   └── UserDetails.swift               # Данные пользователя
 │   ├── Redux/                              # Redux архитектура
-│   │   ├── AppState.swift                  # Глобальное состояние
-│   │   ├── AppAction.swift                 # Действия приложения
+│   │   ├── Actions/
+│   │   │   └── AppAction.swift             # Действия приложения
+│   │   ├── States/
+│   │   │   └── AppState.swift              # Глобальное состояние
 │   │   ├── Store.swift                     # Store реализация
 │   │   ├── AppStore.swift                  # Type alias для Store
 │   │   ├── AppMiddleware.swift             # Комбинация middleware
@@ -165,7 +89,7 @@ RedCalendar-Female/
 │   │   │   ├── LoggerMiddleware.swift      # Логирование actions
 │   │   │   ├── AuthMiddleware.swift        # Логика авторизации
 │   │   │   ├── MigrationMiddleware.swift   # Миграция с Firebase
-│   │   │   ├── PushNotificationMiddleware.swift # Push уведомления
+│   │   │   ├── PushNotificationsMiddleware.swift # Push уведомления
 │   │   │   ├── AnalyticsMiddleware.swift   # Отправка событий
 │   │   │   └── FeedbackMiddleware.swift    # 🆕 Haptic feedback
 │   │   └── Reducers/
@@ -174,19 +98,9 @@ RedCalendar-Female/
 │   │   ├── AnalyticsService.swift          # AppMetrica интеграция
 │   │   ├── KeychainService.swift           # Безопасное хранение
 │   │   ├── APIService.swift                # HTTP клиент
-│   │   ├── PushPermissionService.swift     # Push разрешения
 │   │   └── TapticFeedbackService.swift     # 🆕 Haptic Engine
-│   ├── Models/                             # Модели данных
-│   │   ├── AuthState.swift                 # Состояния авторизации
-│   │   ├── EmailAuthState.swift            # Email авторизация
-│   │   ├── PhoneAuthState.swift            # Телефонная авторизация
-│   │   ├── AuthenticationMethod.swift      # Методы авторизации
-│   │   └── UserDetails.swift               # Данные пользователя
-│   ├── Utils/                              # Утилиты
-│   │   └── Logger.swift                    # Система логирования
-│   └── DI/                                 # Dependency Injection
-│       ├── ServiceLocator.swift            # DI контейнер
-│       └── Injected.swift                  # Property wrapper
+│   └── Utils/                              # Утилиты
+│       └── Logger.swift                    # Система логирования
 ├── Features/                               # UI экраны
 │   ├── Auth/                               # Авторизация
 │   │   └── Views/                          
@@ -194,11 +108,7 @@ RedCalendar-Female/
 │   │       ├── LoginView.swift             # Роутинг авторизации
 │   │       ├── EmailAuth/                  # Email поток
 │   │       │   ├── EmailEntryView.swift    # Ввод email
-│   │       │   ├── EmailCheckingView.swift # Проверка email
-│   │       │   ├── PasswordEntryView.swift # Ввод пароля
-│   │       │   ├── PasswordVerifyingView.swift # Проверка пароля
-│   │       │   ├── PasswordRecoveryView.swift # Восстановление пароля
-│   │       │   └── RegistrationView.swift  # Регистрация
+│   │       │   └── CodeEntryView.swift     # Ввод кода подтверждения
 │   │       └── PhoneAuth/                  # Телефонный поток
 │   │           └── PhoneEntryView.swift    # Ввод телефона
 │   └── Home/                               # Главный функционал
@@ -206,11 +116,12 @@ RedCalendar-Female/
 │           └── HomeView.swift              # Домашний экран
 ├── Common/                                 # Общие компоненты
 │   └── Views/
-│       └── RootView.swift                  # Корневой роутинг
-├── App/                                    # Конфигурация приложения
-│   ├── RedCalendar_FemaleApp.swift         # Main app entry point
-│   ├── AppDelegate.swift                   # Push notifications
-│   └── Configurator.swift                  # 🆕 Настройка DI сервисов
+│       ├── RootView.swift                  # Корневой роутинг
+│       └── WaitingView.swift               # Компонент загрузки
+├── Assets.xcassets/                        # Ресурсы приложения
+│   ├── AccentColor.colorset/               # Акцентный цвет
+│   ├── AppIcon.appiconset/                 # Иконки приложения
+│   └── Contents.json                       # Манифест ресурсов
 ├── RedCalendar-Female.entitlements         # Entitlements (push notifications)
 └── Info.plist                             # App configuration
 ```
@@ -229,77 +140,19 @@ RedCalendar-Female/
 3. Настроить Bundle Identifier и команду разработчика
 4. Настроить push notifications в Apple Developer Portal
 5. Убедиться что TapticFeedbackService зарегистрирован в DI контейнере
-6. Запустить на физическом устройстве или симуляторе
 
-### Конфигурация сервисов
-```swift
-// Configurator.swift - настройка всех сервисов
-Configurator.shared.setup()
+### Зависимости
+Проект использует Swift Package Manager для управления зависимостями:
+- **AppMetrica** - аналитика и мониторинг
+  - AppMetricaCore
+  - AppMetricaCrashes
 
-// TapticFeedbackService в ServiceLocator (новое)
-register(TapticFeedbackServiceProtocol.self) {
-    TapticFeedbackService()
-}
+## 🔄 API интеграция
 
-// AppMetrica API ключ
-private let apiKey = "***REMOVED***"
-
-// Производственные API endpoints
-private let apiBaseURL = "https://api.calendar.red"
-```
-
-## 🧪 Тестирование и отладка
-
-### Xcode Previews Support
-Все View компоненты поддерживают Xcode Previews с mock данными:
-```swift
-#Preview {
-    EmailEntryView()
-        .environmentObject(mockStore)
-}
-
-#Preview("Login Sheet") {
-    WelcomeView()
-        .environmentObject(mockStoreWithAuth)
-}
-```
-
-### Redux отладка
-Логирование всех action'ов в консоль:
-```
-🎯 Action: setAuthState(.notAuthenticated)
-🎯 Action: setAuthState(.authenticating(.email(.entry())))
-🎯 Action: setAuthState(.authenticated("device123", userDetails))
-```
-
-### Тестирование миграции
-Тестовая кнопка для проверки миграции с Firebase UID:
-```swift
-store.send(.setAuthState(.migrating(
-    userId: "nSJXOCPF3ocA4Znn1sL7KvI1dh13"
-)))
-```
-
-### Haptic Feedback тестирование (НОВОЕ)
-```swift
-// Тестирование тактильной обратной связи
-store.send(.setAuthState(.authenticated(deviceId: "test", userDetails: nil))) // Success feedback
-store.send(.logout) // Prepare feedback generators
-```
-
-## 🔄 Интеграция с Backend API
-
-### API Endpoints
-- **POST** `/auth/migrate` - миграция с Firebase на новую систему
-- **GET** `/auth/verify` - проверка действительности device_id
-- **PUT** `/auth/apns-token` - обновление APNS токена устройства
-- **DELETE** `/auth/logout` - выход из системы
-
-### Authentication
-Все API запросы используют Bearer authentication:
-```
-Authorization: Bearer {device_id}
-```
+Приложение взаимодействует с собственным сервером для:
+- Миграции пользователей с Firebase
+- Синхронизации APNS токенов
+- Проверки состояния авторизации
 
 ### Обработка ошибок
 ```swift
@@ -352,26 +205,24 @@ enum APIServiceError: Error, LocalizedError {
 - Prepare feedback generators для оптимальной производительности
 
 **Backend обновления:**
-- Оптимизация индекса `idx_user_devices_apns_token` для быстрого поиска APNS токенов
-- Удаление поля `created_at` из таблицы `user_devices` для упрощения схемы
+- Интеграция с собственным API сервером
+- Миграция пользователей с Firebase системы
 
 ## 🤝 Команда и технологии
 
 **Разработчик:** Артём Болотов  
 **Frontend:** SwiftUI + Redux архитектура  
-**Backend:** Node.js + PostgreSQL + APNs  
-**Инфраструктура:** NetAngels (Россия)  
 **Аналитика:** AppMetrica  
-**CI/CD:** GitHub Actions  
+**Платформа:** iOS 15.4+, Xcode 16.4  
 
 ## 📄 Документация
 
-- **Backend API:** Документация API endpoints и схемы базы данных
-- **Database:** PostgreSQL схема с оптимизациями для производительности
-- **Deployment:** Автоматический деплой через GitHub Actions на NetAngels
+- **Архитектура:** Redux State Management с SwiftUI
+- **Dependency Injection:** ServiceLocator паттерн
+- **API интеграция:** RESTful клиент с async/await
 
 ---
 
 **Версия 3.1** - Январь 2025  
-**Последнее обновление:** 18.06.2025  
+**Последнее обновление:** 22.06.2025  
 **Haptic Feedback интеграция:** 16.06.2025
