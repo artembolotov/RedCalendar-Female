@@ -64,11 +64,24 @@ enum AuthenticationError: Error, LocalizedError {
         case .emailVerificationFailed:
             return "Failed to verify email. Please try again."
         case .networkError(let message):
-            return "Network error: \(message)"
+            return "\(message)"
         case .serverError(let message):
-            return "Server error: \(message)"
+            return "\(message)"
         case .unknownError:
             return "An unknown error occurred. Please try again."
+        }
+    }
+}
+
+extension AuthenticationError {
+    static func from(_ error: Error) -> AuthenticationError {
+        switch error {
+        case APIServiceError.serverError(let message):
+            return .serverError(message)
+        case APIServiceError.networkError(let networkError):
+            return .networkError(networkError.localizedDescription)
+        default:
+            return .unknownError(error.localizedDescription)
         }
     }
 }

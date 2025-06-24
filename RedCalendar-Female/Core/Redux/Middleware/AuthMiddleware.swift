@@ -38,47 +38,21 @@ let authMiddleware: Middleware<AppState, AppAction> = { state, action, dispatch 
         // MARK: - Email Authentication
         case .email(let emailState):
             switch emailState {
-            
+                
             case .checking(let email, let name):
                 Task {
+                    let emailState: EmailAuthState
+                    
                     do {
-                        let response = try await apiService.checkEmail(email)
-                        
-                        if response.data.exists {
-                            // User exists - show password entry
-                            dispatch(.setAuthState(.authenticating(.email(.codeEntry(
-                                email: response.data.email,
-                                userName: response.data.name
-                            )))))
-                        } else {
-                            // User doesn't exist - show registration
-                            dispatch(.setAuthState(.authenticating(.email(.registration(
-                                email: response.data.email,
-                                name: name
-                            )))))
-                        }
-                        
-                    } catch APIServiceError.serverError(let message) {
-                        // Server error - show error in entry state
-                        dispatch(.setAuthState(.authenticating(.email(.entry(
-                            email: email,
-                            error: AuthenticationError.serverError(message)
-                        )))))
-                        
-                    } catch APIServiceError.networkError(let error) {
-                        // Network error - show error in entry state
-                        dispatch(.setAuthState(.authenticating(.email(.entry(
-                            email: email,
-                            error: AuthenticationError.networkError(error.localizedDescription)
-                        )))))
-                        
+                        let data = try await apiService.checkEmail(email).data
+                        emailState = data.exists
+                            ? .codeEntry(email: data.email, userName: data.name)
+                            : .registration(email: data.email, name: name)
                     } catch {
-                        // Unknown error - show generic error
-                        dispatch(.setAuthState(.authenticating(.email(.entry(
-                            email: email,
-                            error: AuthenticationError.unknownError(error.localizedDescription)
-                        )))))
+                        emailState = .entry(email: email, error: AuthenticationError.from(error))
                     }
+                    
+                    dispatch(.setAuthState(.authenticating(.email(emailState))))
                 }
                 
             default:

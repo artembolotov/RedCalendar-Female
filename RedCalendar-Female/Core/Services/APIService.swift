@@ -102,8 +102,8 @@ struct CheckEmailResponse: Codable {
 }
 
 struct APIError: Codable {
-    let success: Bool
-    let error: String
+    let error: String        // Error code (e.g., "CODE_ALREADY_SENT")
+    let message: String?     // Localized error message from server
     let timestamp: String
 }
 
@@ -289,7 +289,9 @@ final class APIService: APIServiceProtocol {
         
         if httpResponse.statusCode >= 400 {
             if let errorResponse = try? JSONDecoder().decode(APIError.self, from: data) {
-                throw APIServiceError.serverError(errorResponse.error)
+                // Use localized message from server if available, otherwise fall back to error code
+                let errorMessage = errorResponse.message ?? errorResponse.error
+                throw APIServiceError.serverError(errorMessage)
             } else {
                 throw APIServiceError.httpError(httpResponse.statusCode)
             }
