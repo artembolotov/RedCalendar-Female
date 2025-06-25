@@ -97,9 +97,9 @@ struct EmailEntryView: View {
     }
     
     private func setupInitialState(email: String?) {
-        if let email = email {
-            emailText = email
-        }
+        
+        emailText = email ?? ""
+        
         Task { @MainActor in
             isEmailFieldFocused = true
         }

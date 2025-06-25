@@ -55,6 +55,68 @@ let authMiddleware: Middleware<AppState, AppAction> = { state, action, dispatch 
                     dispatch(.setAuthState(.authenticating(.email(emailState))))
                 }
                 
+            case .registering(let email, let code, let name):
+                Task {
+                    do {
+                        
+                        let response = try await apiService.verifyCode(
+                            email: email,
+                            code: code,
+                            name: name
+                        )
+                        
+                        guard response.success, let data = response.data else {
+                            throw APIServiceError.serverError(response.message ?? "Registration failed")
+                        }
+                        
+                        keychain.saveDeviceID(data.deviceId)
+                        keychain.deleteUserUID()
+                        
+                        dispatch(.setAuthState(.authenticated(
+                            deviceId: data.deviceId,
+                            userDetails: nil
+                        )))
+                        
+                    } catch {
+                        let authError = AuthenticationError.from(error)
+                        dispatch(.setAuthState(.authenticating(.email(.registration(
+                            email: email,
+                            code: code,
+                            name: name,
+                            error: authError
+                        )))))
+                    }
+                }
+                
+            case .verifying(let email, let code, let name):
+                Task {
+                    do {
+                        let response = try await apiService.verifyCode(
+                            email: email,
+                            code: code,
+                            name: nil
+                        )
+                        
+                        guard response.success, let data = response.data else {
+                            throw APIServiceError.serverError(response.message ?? "Login failed")
+                        }
+                        
+                        keychain.saveDeviceID(data.deviceId)
+                        keychain.deleteUserUID()
+                        
+                        dispatch(.setAuthState(.authenticated(
+                            deviceId: data.deviceId,
+                            userDetails: nil
+                        )))
+                    } catch {
+                        let authError = AuthenticationError.from(error)
+                        dispatch(.setAuthState(.authenticating(.email(.codeEntry(
+                            email: email,
+                            userName: name,
+                            error: authError)
+                        ))))
+                    }
+                }
             default:
                 break
             }

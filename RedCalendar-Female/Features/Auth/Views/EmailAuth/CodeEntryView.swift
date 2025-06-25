@@ -21,11 +21,11 @@ struct CodeEntryView: View {
     
     var body: some View {
         switch store.state.authState {
-        case .authenticating(.email(.codeEntry(let email, let userName, let error))):
-            buildView(email: email, userName: userName, error: error, isRegistration: false)
-            
+        case .authenticating(.email(.codeEntry(let email, let name, let error))):
+            buildView(email: email, name: name, error: error, isRegistration: false)
+
         case .authenticating(.email(.registration(let email, let code, let name, let error))):
-            buildView(email: email, code: code, name: name, error: error, isRegistration: true)
+            buildView(email: email, name: name, code: code, error: error, isRegistration: true)
             
         default:
             EmptyView()
@@ -35,15 +35,14 @@ struct CodeEntryView: View {
     @ViewBuilder
     private func buildView(
         email: String,
-        userName: String? = nil,
-        code: String? = nil,
         name: String? = nil,
+        code: String? = nil,
         error: AuthenticationError?,
         isRegistration: Bool
     ) -> some View {
         let codeValid = codeInput.count == 6 && codeInput.allSatisfy { $0.isNumber }
-        let nameValid = !nameInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        let isFormValid = isRegistration ? (nameValid && codeValid) : codeValid
+
+        let isFormValid = codeValid
         
         GeometryReader { geometry in
             ScrollView {
@@ -63,10 +62,9 @@ struct CodeEntryView: View {
                     .padding(.top, 8)
                     
                     if !isRegistration {
-                        Text(userName?.isEmpty == false ? "Привет, \(userName!)!" : "С возвращением!")
-                            .font(.largeTitle)
-                            .fontWeight(.bold)
-                            .foregroundColor(.primary)
+                        Text(name?.isEmpty == false ? "Привет, \(name!)!" : "С возвращением!")
+                            .font(.title2)
+                            .fontWeight(.semibold)
                     }
                     
                     Text("Код для входа отправлен на \(email)")
@@ -76,7 +74,7 @@ struct CodeEntryView: View {
                         .padding(.horizontal)
                     
                     if isRegistration {
-                        TextField("Ваше имя", text: $nameInput)
+                        TextField("Ваше имя (необязательно)", text: $nameInput)
                             .textContentType(.name)
                             .submitLabel(.next)
                             .autocorrectionDisabled()
@@ -100,7 +98,11 @@ struct CodeEntryView: View {
                         }
                         .onSubmit {
                             if isFormValid {
-                                submitAction(email: email, isRegistration: isRegistration)
+                                submitAction(
+                                    email: email,
+                                    isRegistration: isRegistration,
+                                    name: name
+                                )
                             }
                         }
                         .formFieldStyle()
@@ -112,7 +114,7 @@ struct CodeEntryView: View {
                             .multilineTextAlignment(.center)
                     }
                     
-                    Text("Не получили письмо?\n[Отправить повторно](resend)")
+                    Text("Не получили письмо?\n[Отправить новый код](resend)")
                         .font(.caption)
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)
@@ -124,9 +126,13 @@ struct CodeEntryView: View {
                         })
                     
                     PrimaryButton(
-                        isRegistration ? "Продолжить" : "Войти",
+                        isRegistration ? "Зарегистрироваться" : "Войти",
                         isEnabled: isFormValid,
-                        action: { submitAction(email: email, isRegistration: isRegistration) }
+                        action: { submitAction(
+                            email: email,
+                            isRegistration: isRegistration,
+                            name: name
+                        ) }
                     )
                 }
                 .frame(maxWidth: 320)
@@ -153,36 +159,26 @@ struct CodeEntryView: View {
     }
     
     private func setupInitialState(code: String?, name: String?, isRegistration: Bool) {
-        if let name = name {
-            nameInput = name
-        }
-        if let code = code {
-            codeInput = code
-        }
         
-        if isRegistration {
-            if name != nil && !nameInput.isEmpty {
-                focusedField = .code
-            } else {
-                focusedField = .name
-            }
-        } else {
-            focusedField = .code
-        }
+        nameInput = name ?? ""
+        codeInput = code ?? ""
+        
+        focusedField = (isRegistration && (name == nil || nameInput.isEmpty)) ? .name : .code
     }
     
-    private func submitAction(email: String, isRegistration: Bool) {
+    private func submitAction(email: String, isRegistration: Bool, name: String?) {
         if isRegistration {
             let trimmedName = nameInput.trimmingCharacters(in: .whitespacesAndNewlines)
             store.send(.setAuthState(.authenticating(.email(.registering(
                 email: email,
                 code: codeInput,
-                name: trimmedName
+                name: trimmedName.isEmpty ? nil : trimmedName
             )))))
         } else {
             store.send(.setAuthState(.authenticating(.email(.verifying(
                 email: email,
-                code: codeInput
+                code: codeInput,
+                name: name
             )))))
         }
     }

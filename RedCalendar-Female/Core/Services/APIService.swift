@@ -15,6 +15,7 @@ protocol APIServiceProtocol {
     func updateAPNSToken(deviceId: String, apnsToken: String) async throws -> APNSTokenResponse
     func logout(deviceId: String) async throws -> LogoutResponse
     func checkEmail(_ email: String) async throws -> CheckEmailResponse
+    func verifyCode(email: String, code: String, name: String?) async throws -> VerifyCodeResponse
 }
 
 // MARK: - Request Models
@@ -40,6 +41,20 @@ struct UpdateAPNSTokenRequest: Codable {
 
 struct CheckEmailRequest: Codable {
     let email: String
+}
+
+struct VerifyCodeRequest: Codable {
+    let email: String
+    let code: String
+    let deviceModel: String
+    let name: String?
+    
+    enum CodingKeys: String, CodingKey {
+        case email
+        case code
+        case deviceModel = "device_model"
+        case name
+    }
 }
 
 // MARK: - Response Models
@@ -98,6 +113,33 @@ struct CheckEmailResponse: Codable {
         let exists: Bool
         let email: String
         let name: String?
+    }
+}
+
+struct VerifyCodeResponse: Codable {
+    let success: Bool
+    let data: VerifyCodeData?
+    let message: String?
+    let timestamp: String
+    
+    struct VerifyCodeData: Codable {
+        let deviceId: String
+        let userId: String
+        let isNewUser: Bool
+        let user: UserInfo
+        
+        enum CodingKeys: String, CodingKey {
+            case deviceId = "device_id"
+            case userId = "user_id"
+            case isNewUser = "is_new_user"
+            case user
+        }
+        
+        struct UserInfo: Codable {
+            let id: String
+            let email: String
+            let name: String?
+        }
     }
 }
 
@@ -256,6 +298,33 @@ final class APIService: APIServiceProtocol {
         try validateHTTPResponse(response, data: data)
         
         return try JSONDecoder().decode(CheckEmailResponse.self, from: data)
+    }
+    
+    /// Verifies code and registers/logs in user with device
+    func verifyCode(email: String, code: String, name: String?) async throws -> VerifyCodeResponse {
+        let url = URL(string: "\(baseURL)/auth/verify-code")!
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        // Add language headers for localized responses
+        addLanguageHeaders(to: &request)
+        
+        let requestBody = VerifyCodeRequest(
+            email: email,
+            code: code,
+            deviceModel: await getDeviceModel(),
+            name: name
+        )
+        
+        request.httpBody = try JSONEncoder().encode(requestBody)
+        
+        let (data, response) = try await session.data(for: request)
+        
+        try validateHTTPResponse(response, data: data)
+        
+        return try JSONDecoder().decode(VerifyCodeResponse.self, from: data)
     }
     
     // MARK: - Private Methods

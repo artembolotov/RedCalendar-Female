@@ -21,14 +21,6 @@ struct LoginView: View {
                     case .phone(let phoneState):
                         phoneAuthView(for: phoneState)
                     }
-                } else {
-                    // Fallback content
-                    VStack {
-                        Text("Состояние авторизации не определено")
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
-                            .padding()
-                    }
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
@@ -53,7 +45,7 @@ struct LoginView: View {
             WaitingView("Отправляем код")
         case .codeEntry(_, _, _), .registration(_, _, _, _):
             CodeEntryView()
-        case .verifying(_, _):
+        case .verifying(_, _, _):
             WaitingView("Проверяем код")
         case .registering(_, _, _):
             WaitingView("Создаём аккаунт")

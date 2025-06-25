@@ -21,7 +21,8 @@ enum EmailAuthState {
     )
     case verifying(
         email: String,
-        code: String
+        code: String,
+        name: String? = nil
     )
     case registration(
         email: String,
@@ -32,6 +33,6 @@ enum EmailAuthState {
     case registering(
         email: String,
         code: String,
-        name: String
+        name: String?
     )
 }
