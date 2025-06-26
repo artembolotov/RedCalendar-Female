@@ -55,18 +55,21 @@ let authMiddleware: Middleware<AppState, AppAction> = { state, action, dispatch 
                     dispatch(.setAuthState(.authenticating(.email(emailState))))
                 }
                 
-            case .registering(let email, let code, let name):
+            case .registering(let email, let code, let name),
+                 .verifying(let email, let code, let name):
                 Task {
                     do {
+                        // For registering: pass the name, for verifying: pass nil
+                        let nameToSend: String? = if case .registering = emailState { name } else { nil }
                         
                         let response = try await apiService.verifyCode(
                             email: email,
                             code: code,
-                            name: name
+                            name: nameToSend
                         )
                         
                         guard response.success, let data = response.data else {
-                            throw APIServiceError.serverError(response.message ?? "Registration failed")
+                            throw APIServiceError.serverError(response.message ?? "Authentication failed")
                         }
                         
                         keychain.saveDeviceID(data.deviceId)
@@ -79,42 +82,15 @@ let authMiddleware: Middleware<AppState, AppAction> = { state, action, dispatch 
                         
                     } catch {
                         let authError = AuthenticationError.from(error)
-                        dispatch(.setAuthState(.authenticating(.email(.registration(
-                            email: email,
-                            code: code,
-                            name: name,
-                            error: authError
-                        )))))
-                    }
-                }
-                
-            case .verifying(let email, let code, let name):
-                Task {
-                    do {
-                        let response = try await apiService.verifyCode(
-                            email: email,
-                            code: code,
-                            name: nil
-                        )
                         
-                        guard response.success, let data = response.data else {
-                            throw APIServiceError.serverError(response.message ?? "Login failed")
+                        // Return to appropriate error state based on original case
+                        let errorState: EmailAuthState = if case .registering = emailState {
+                            .registration(email: email, code: code, name: name, error: authError)
+                        } else {
+                            .codeEntry(email: email, userName: name, error: authError)
                         }
                         
-                        keychain.saveDeviceID(data.deviceId)
-                        keychain.deleteUserUID()
-                        
-                        dispatch(.setAuthState(.authenticated(
-                            deviceId: data.deviceId,
-                            userDetails: nil
-                        )))
-                    } catch {
-                        let authError = AuthenticationError.from(error)
-                        dispatch(.setAuthState(.authenticating(.email(.codeEntry(
-                            email: email,
-                            userName: name,
-                            error: authError)
-                        ))))
+                        dispatch(.setAuthState(.authenticating(.email(errorState))))
                     }
                 }
             default:
