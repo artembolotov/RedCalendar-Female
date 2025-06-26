@@ -43,7 +43,7 @@ struct LoginView: View {
             EmailEntryView()
         case .checking(_, _):
             WaitingView("Отправляем код")
-        case .codeEntry(_, _, _), .registration(_, _, _, _):
+        case .codeEntry(_, _, _, _), .registration(_, _, _, _):
             CodeEntryView()
         case .verifying(_, _, _):
             WaitingView("Проверяем код")

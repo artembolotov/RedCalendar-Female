@@ -87,7 +87,7 @@ let authMiddleware: Middleware<AppState, AppAction> = { state, action, dispatch 
                         let errorState: EmailAuthState = if case .registering = emailState {
                             .registration(email: email, code: code, name: name, error: authError)
                         } else {
-                            .codeEntry(email: email, userName: name, error: authError)
+                            .codeEntry(email: email, code: code, userName: name, error: authError)
                         }
                         
                         dispatch(.setAuthState(.authenticating(.email(errorState))))

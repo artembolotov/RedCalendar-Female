@@ -20,9 +20,10 @@ struct CodeEntryView: View {
     }
     
     var body: some View {
+        
         switch store.state.authState {
-        case .authenticating(.email(.codeEntry(let email, let name, let error))):
-            buildView(email: email, name: name, error: error, isRegistration: false)
+        case .authenticating(.email(.codeEntry(let email, let code, let name, let error))):
+            buildView(email: email, name: name, code: code, error: error, isRegistration: false)
 
         case .authenticating(.email(.registration(let email, let code, let name, let error))):
             buildView(email: email, name: name, code: code, error: error, isRegistration: true)

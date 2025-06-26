@@ -16,6 +16,7 @@ enum EmailAuthState {
     )
     case codeEntry(
         email: String,
+        code: String? = nil,
         userName: String? = nil,
         error: AuthenticationError? = nil
     )

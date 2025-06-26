@@ -20,7 +20,7 @@ let feedbackMiddleware: Middleware<AppState, AppAction> = { state, action, dispa
     // MARK: - Error Events
     case .setAuthState(.authenticating(.email(.entry(_, .some(_))))),
          .setAuthState(.authenticating(.email(.registration(_, _, _, .some(_))))),
-         .setAuthState(.authenticating(.email(.codeEntry(_, _, .some(_))))):
+         .setAuthState(.authenticating(.email(.codeEntry(_, _, _, .some(_))))):
         feedbackService.playError()
         
     // MARK: - Prepare Events
