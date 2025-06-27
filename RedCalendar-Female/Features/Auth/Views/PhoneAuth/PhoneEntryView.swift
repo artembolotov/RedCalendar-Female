@@ -22,67 +22,94 @@ struct PhoneEntryView: View {
     // Continue action
     private func continueAction() {
         guard isPhoneValid else { return }
+        isPhoneFieldFocused = false
         store.send(.setAuthState(.authenticating(.phone(.requesting(phoneNumber: phoneText)))))
     }
     
     var body: some View {
-        ZStack {
-            // Main content centered vertically
-            VStack(spacing: 20) {
-                Text("Добро пожаловать!")
-                    .font(.title2)
-                    .fontWeight(.semibold)
-                
-                VStack(spacing: 8) {
-                    Text("Введите номер телефона")
-                        .foregroundColor(.secondary)
+        GeometryReader { geometry in
+            ScrollView {
+                VStack(spacing: 20) {
                     
-                    Text("Только для пользователей RedCalendar 2.0")
-                        .foregroundColor(.secondary)
-                        .font(.caption)
-                        .multilineTextAlignment(.center)
-                }
-                
-                // Phone input field
-                TextField("+7", text: $phoneText)
-                    .textFieldStyle(RoundedBorderTextFieldStyle())
-                    .keyboardType(.phonePad)
-                    .textContentType(.telephoneNumber)
-                    .focused($isPhoneFieldFocused)
-                    .onAppear {
-                        // Set focus when view appears
-                        Task { @MainActor in
-                            isPhoneFieldFocused = true
+                    // Back button in top-left corner of content
+                    HStack {
+                        Button(action: { goBackToEmail() }) {
+                            Image(systemName: "arrow.left")
+                                .font(.system(size: 20, weight: .medium))
+                                .foregroundColor(.accentColor)
                         }
+                        .offset(x: -10)
+                        
+                        Spacer()
                     }
-                
-                // Continue button
-                Button("Продолжить") {
-                    continueAction()
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(!isPhoneValid)
-            }
-            .frame(maxWidth: 320) // Ограничение ширины
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .padding(.horizontal)
-            
-            // Email login button overlay - positioned at top leading
-            VStack {
-                HStack {
-                    Button("Вход по почте") {
-                        store.send(.setAuthState(.authenticating(.email(.entry()))))
+                    .padding(.top, 8)
+                    
+                    Text("Вход по номеру")
+                        .font(.title2)
+                        .fontWeight(.semibold)
+                    
+                    Text("Мы позвоним на указанный номер для подтверждения входа в приложение.")
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                    
+                    // Phone input with inline arrow button
+                    HStack(spacing: 12) {
+                        TextField("+7", text: $phoneText)
+                            .keyboardType(.phonePad)
+                            .textContentType(.telephoneNumber)
+                            .submitLabel(.continue)
+                            .focused($isPhoneFieldFocused)
+                            .onSubmit {
+                                continueAction()
+                            }
+                            .formFieldStyle()
+                        
+                        // Arrow button using custom PrimaryButton
+                        PrimaryButton(isEnabled: isPhoneValid, action: continueAction) {
+                            Image(systemName: "arrow.right")
+                                .font(.title3)
+                        }
+                        .frame(width: 56)
                     }
                     
-                    Spacer()
+                    Text("Нужна помощь?\n [support@calendar.red](email)")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .environment(\.openURL, OpenURLAction { url in
+                        if url.absoluteString == "email" {
+                            UIApplication.shared.open(URL(string: "mailto:support@calendar.red")!)
+                        }
+                        return .handled
+                    })
                 }
+                .frame(maxWidth: 320)
+                .frame(maxWidth: .infinity)
+                .frame(minHeight: geometry.size.height)
                 .padding(.horizontal)
-                
-                Spacer()
+                .onAppear {
+                    setupInitialState()
+                }
             }
         }
         .navigationTitle("Вход")
         .navigationBarTitleDisplayMode(.inline)
+    }
+    
+    // MARK: - Actions
+    
+    private func goBackToEmail() {
+        // Return to email entry screen
+        store.send(.setAuthState(.authenticating(.email(.entry(
+            email: nil,
+            error: nil
+        )))))
+    }
+    
+    private func setupInitialState() {
+        Task { @MainActor in
+            isPhoneFieldFocused = true
+        }
     }
 }
 
