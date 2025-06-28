@@ -108,24 +108,17 @@ let authMiddleware: Middleware<AppState, AppAction> = { state, action, dispatch 
                         do {
                             let response = try await apiService.checkPhone(e164PhoneNumber)
                             
-                            // This shouldn't happen with current implementation
-                            if response.success {
-                                phoneState = .verification(
-                                    prettyPhoneNumber: prettyPhoneNumber,
-                                    e164PhoneNumber: e164PhoneNumber,
-                                    maskedCallerNumber: ""
-                                )
-                            } else {
-                                phoneState = .entry(
-                                    prettyPhoneNumber: prettyPhoneNumber,
-                                    error: AuthenticationError.from(APIServiceError.serverError(
-                                        response.message ?? "Phone authentication not available"
-                                    ))
-                                )
+                            guard response.success else {
+                                throw APIServiceError.serverError(response.message ?? "Phone authentication failed")
                             }
                             
-                        } catch {
+                            phoneState = .verification(
+                                prettyPhoneNumber: prettyPhoneNumber,
+                                e164PhoneNumber: e164PhoneNumber,
+                                maskedCallerNumber: ""
+                            )
                             
+                        } catch {
                             phoneState = .entry(
                                 prettyPhoneNumber: prettyPhoneNumber,
                                 error: AuthenticationError.from(error)
