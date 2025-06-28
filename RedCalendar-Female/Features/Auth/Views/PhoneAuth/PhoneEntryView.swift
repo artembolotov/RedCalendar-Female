@@ -6,23 +6,17 @@
 //
 
 import SwiftUI
+import PhoneNumberKit
 
 struct PhoneEntryView: View {
     @EnvironmentObject var store: AppStore
     
     @State private var phoneText: String = ""
-    @FocusState private var isPhoneFieldFocused: Bool
-    
-    // Phone validation computed property
-    private var isPhoneValid: Bool {
-        let phoneRegex = #"^\+7\d{10}$"#
-        return NSPredicate(format: "SELF MATCHES %@", phoneRegex).evaluate(with: phoneText)
-    }
+    @State private var isPhoneValid: Bool = false
     
     // Continue action
     private func continueAction() {
         guard isPhoneValid else { return }
-        isPhoneFieldFocused = false
         store.send(.setAuthState(.authenticating(.phone(.requesting(phoneNumber: phoneText)))))
     }
     
@@ -31,7 +25,6 @@ struct PhoneEntryView: View {
             ScrollView {
                 VStack(spacing: 20) {
                     
-                    // Back button in top-left corner of content
                     HStack {
                         Button(action: { goBackToEmail() }) {
                             Image(systemName: "arrow.left")
@@ -54,42 +47,25 @@ struct PhoneEntryView: View {
                     
                     // Phone input with inline arrow button
                     HStack(spacing: 12) {
-                        TextField("+7", text: $phoneText)
-                            .keyboardType(.phonePad)
-                            .textContentType(.telephoneNumber)
-                            .submitLabel(.continue)
-                            .focused($isPhoneFieldFocused)
-                            .onSubmit {
-                                continueAction()
-                            }
-                            .formFieldStyle()
+                        PhoneNumberKitField(
+                            phoneNumber: $phoneText,
+                            isValid: $isPhoneValid,
+                            onSubmit: continueAction
+                        )
+                        .frame(height: 56)
+                        .frame(maxWidth: .infinity)
                         
-                        // Arrow button using custom PrimaryButton
                         PrimaryButton(isEnabled: isPhoneValid, action: continueAction) {
                             Image(systemName: "arrow.right")
                                 .font(.title3)
                         }
-                        .frame(width: 56)
+                        .frame(width: 56, height: 56)
                     }
-                    
-                    Text("Нужна помощь?\n [support@calendar.red](email)")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-                    .environment(\.openURL, OpenURLAction { url in
-                        if url.absoluteString == "email" {
-                            UIApplication.shared.open(URL(string: "mailto:support@calendar.red")!)
-                        }
-                        return .handled
-                    })
                 }
                 .frame(maxWidth: 320)
                 .frame(maxWidth: .infinity)
                 .frame(minHeight: geometry.size.height)
                 .padding(.horizontal)
-                .onAppear {
-                    setupInitialState()
-                }
             }
         }
         .navigationTitle("Вход")
@@ -104,12 +80,6 @@ struct PhoneEntryView: View {
             email: nil,
             error: nil
         )))))
-    }
-    
-    private func setupInitialState() {
-        Task { @MainActor in
-            isPhoneFieldFocused = true
-        }
     }
 }
 

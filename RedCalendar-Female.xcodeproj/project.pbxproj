@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		AB17058A2E0F372700B5208D /* PhoneNumberKit-Static in Frameworks */ = {isa = PBXBuildFile; productRef = AB1705892E0F372700B5208D /* PhoneNumberKit-Static */; };
 		AB9FE2572DF00B390083B0D9 /* AppMetricaCore in Frameworks */ = {isa = PBXBuildFile; productRef = AB9FE2562DF00B390083B0D9 /* AppMetricaCore */; };
 		AB9FE2592DF00B390083B0D9 /* AppMetricaCrashes in Frameworks */ = {isa = PBXBuildFile; productRef = AB9FE2582DF00B390083B0D9 /* AppMetricaCrashes */; };
 /* End PBXBuildFile section */
@@ -45,6 +46,7 @@
 			files = (
 				AB9FE2592DF00B390083B0D9 /* AppMetricaCrashes in Frameworks */,
 				AB9FE2572DF00B390083B0D9 /* AppMetricaCore in Frameworks */,
+				AB17058A2E0F372700B5208D /* PhoneNumberKit-Static in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -91,6 +93,7 @@
 			packageProductDependencies = (
 				AB9FE2562DF00B390083B0D9 /* AppMetricaCore */,
 				AB9FE2582DF00B390083B0D9 /* AppMetricaCrashes */,
+				AB1705892E0F372700B5208D /* PhoneNumberKit-Static */,
 			);
 			productName = "RedCalendar-Female";
 			productReference = AB9FE2372DEFF9110083B0D9 /* RedCalendar-Female.app */;
@@ -122,6 +125,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				AB9FE2552DF00B390083B0D9 /* XCRemoteSwiftPackageReference "appmetrica-sdk-ios" */,
+				AB1705882E0F372700B5208D /* XCRemoteSwiftPackageReference "PhoneNumberKit" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = AB9FE2382DEFF9110083B0D9 /* Products */;
@@ -373,6 +377,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		AB1705882E0F372700B5208D /* XCRemoteSwiftPackageReference "PhoneNumberKit" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/marmelroy/PhoneNumberKit.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 4.1.1;
+			};
+		};
 		AB9FE2552DF00B390083B0D9 /* XCRemoteSwiftPackageReference "appmetrica-sdk-ios" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/appmetrica/appmetrica-sdk-ios";
@@ -384,6 +396,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		AB1705892E0F372700B5208D /* PhoneNumberKit-Static */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AB1705882E0F372700B5208D /* XCRemoteSwiftPackageReference "PhoneNumberKit" */;
+			productName = "PhoneNumberKit-Static";
+		};
 		AB9FE2562DF00B390083B0D9 /* AppMetricaCore */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = AB9FE2552DF00B390083B0D9 /* XCRemoteSwiftPackageReference "appmetrica-sdk-ios" */;
