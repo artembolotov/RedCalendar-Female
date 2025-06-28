@@ -6,7 +6,7 @@
 //
 
 enum PhoneAuthState {
-    case entry                                        // Enter phone number
+    case entry(phoneNumber: String? = nil, error: AuthenticationError? = nil)                                        // Enter phone number
     case requesting(phoneNumber: String)              // Requesting flash call
     case verification(                               // Waiting for call verification
         phoneNumber: String,

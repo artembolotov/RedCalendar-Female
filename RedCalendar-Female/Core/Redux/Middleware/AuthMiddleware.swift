@@ -102,11 +102,38 @@ let authMiddleware: Middleware<AppState, AppAction> = { state, action, dispatch 
                 switch phoneState {
                 
                 case .requesting(let phoneNumber):
-                    // TODO: Handle phone number verification request
-                    break
+                    Task {
+                        let phoneState: PhoneAuthState
+                        
+                        do {
+                            let response = try await apiService.checkPhone(phoneNumber)
+                            
+                            // This shouldn't happen with current implementation
+                            if response.success {
+                                phoneState = .verification(phoneNumber: phoneNumber, maskedCallerNumber: "")
+                            } else {
+                                phoneState = .entry(
+                                    phoneNumber: phoneNumber,
+                                    error: AuthenticationError.from(APIServiceError.serverError(
+                                        response.message ?? "Phone authentication not available"
+                                    ))
+                                )
+                            }
+                            
+                        } catch {
+                            // Handle all errors the same way
+                            phoneState = .entry(
+                                phoneNumber: phoneNumber,
+                                error: AuthenticationError.from(error)
+                            )
+                        }
+                        
+                        dispatch(.setAuthState(.authenticating(.phone(phoneState))))
+                    }
                     
                 case .verifying(let phoneNumber, let code):
                     // TODO: Handle phone verification code
+                    // This will be implemented when phone verification is fully supported
                     break
                     
                 default:

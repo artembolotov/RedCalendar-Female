@@ -15,6 +15,7 @@ protocol APIServiceProtocol {
     func updateAPNSToken(deviceId: String, apnsToken: String) async throws -> APNSTokenResponse
     func logout(deviceId: String) async throws -> LogoutResponse
     func checkEmail(_ email: String) async throws -> CheckEmailResponse
+    func checkPhone(_ phone: String) async throws -> CheckPhoneResponse
     func verifyCode(email: String, code: String, name: String?) async throws -> VerifyCodeResponse
 }
 
@@ -41,6 +42,10 @@ struct UpdateAPNSTokenRequest: Codable {
 
 struct CheckEmailRequest: Codable {
     let email: String
+}
+
+struct CheckPhoneRequest: Codable {
+    let phone: String
 }
 
 struct VerifyCodeRequest: Codable {
@@ -116,6 +121,20 @@ struct CheckEmailResponse: Codable {
     }
 }
 
+struct CheckPhoneResponse: Codable {
+    let success: Bool
+    let error: String?
+    let message: String?
+    let data: CheckPhoneData?
+    let timestamp: String
+    
+    struct CheckPhoneData: Codable {
+        let phone: String
+        let isAllowed: Bool
+        let reason: String?
+    }
+}
+
 struct VerifyCodeResponse: Codable {
     let success: Bool
     let data: VerifyCodeData?
@@ -158,6 +177,7 @@ enum APIServiceError: Error, LocalizedError {
     case serverError(String)
     case networkError(Error)
     case unauthorized
+    case phoneNotAllowed(String) // New error type for phone authentication
     
     var errorDescription: String? {
         switch self {
@@ -175,6 +195,8 @@ enum APIServiceError: Error, LocalizedError {
             return "Network error: \(error.localizedDescription)"
         case .unauthorized:
             return "User not authorized"
+        case .phoneNotAllowed(let message):
+            return message
         }
     }
 }
@@ -270,7 +292,7 @@ final class APIService: APIServiceProtocol {
         
         var request = URLRequest(url: url)
         request.httpMethod = "DELETE"
-        request.setValue("Bearer \(deviceId)", forHTTPHeaderField: "Authorization")    
+        request.setValue("Bearer \(deviceId)", forHTTPHeaderField: "Authorization")
         
         let (data, response) = try await session.data(for: request)
         
@@ -298,6 +320,40 @@ final class APIService: APIServiceProtocol {
         try validateHTTPResponse(response, data: data)
         
         return try JSONDecoder().decode(CheckEmailResponse.self, from: data)
+    }
+    
+    /// Checks if phone exists in old database and initiates robot call
+    /// Currently returns error for all phones as phone auth is RedCalendar 2.0 only
+    func checkPhone(_ phone: String) async throws -> CheckPhoneResponse {
+        let url = URL(string: "\(baseURL)/auth/check-phone")!
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        // Add language headers for localized responses
+        addLanguageHeaders(to: &request)
+        
+        let requestBody = CheckPhoneRequest(phone: phone)
+        request.httpBody = try JSONEncoder().encode(requestBody)
+        
+        let (data, response) = try await session.data(for: request)
+        
+        // Special handling for 403 status (phone not allowed)
+        if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 403 {
+            let checkPhoneResponse = try JSONDecoder().decode(CheckPhoneResponse.self, from: data)
+            
+            // Throw specific error for phone not allowed
+            if let message = checkPhoneResponse.message {
+                throw APIServiceError.phoneNotAllowed(message)
+            }
+            
+            throw APIServiceError.phoneNotAllowed("Phone authentication not available")
+        }
+        
+        try validateHTTPResponse(response, data: data)
+        
+        return try JSONDecoder().decode(CheckPhoneResponse.self, from: data)
     }
     
     /// Verifies code and registers/logs in user with device

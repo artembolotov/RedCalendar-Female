@@ -93,7 +93,7 @@ struct PhoneEntryView: View {
             AppStore(
                 initialState: AppState(
                     apnsToken: nil,
-                    authState: .authenticating(.phone(.entry))
+                    authState: .authenticating(.phone(.entry()))
                 ),
                 reducer: appReducer,
                 middlewares: []
