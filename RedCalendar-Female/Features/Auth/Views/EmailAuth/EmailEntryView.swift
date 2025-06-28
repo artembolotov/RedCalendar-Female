@@ -27,6 +27,7 @@ struct EmailEntryView: View {
     }
     
     var body: some View {
+        
         if let authState = store.state.authState,
            case .authenticating(.email(.entry(let email, let error))) = authState {
             
@@ -71,9 +72,11 @@ struct EmailEntryView: View {
                         }
                         
                        Group {
-                            Text("Пользователи RedCalendar 2.0\nмогут войти [по номеру телефона](phone)")
+                           Text("Пользователи RedCalendar 2.0\nмогут войти [по номеру телефона](phone)")
                                      
-                            Text("Нужна помощь?\n [support@calendar.red](email)")
+                           if error != nil {
+                               Text("Нужна помощь?\n [support@calendar.red](email)")
+                           }
                        }
                        .font(.caption)
                        .foregroundColor(.secondary)

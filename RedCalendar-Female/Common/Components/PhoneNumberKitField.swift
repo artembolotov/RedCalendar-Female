@@ -85,8 +85,6 @@ struct PhoneNumberKitField: UIViewRepresentable {
         if uiView.text != phoneNumber {
             uiView.text = phoneNumber
             
-            // ВАЖНО: Запускаем валидацию при программном изменении текста
-            // Это необходимо когда номер устанавливается извне (например, при возврате на экран)
             context.coordinator.validatePhoneNumber(phoneNumber)
         }
     }
