@@ -10,18 +10,18 @@ import PhoneNumberKit
 
 struct PhoneNumberKitField: UIViewRepresentable {
     @Binding var phoneNumber: String
-    @Binding var isValid: Bool
+    @Binding var e164PhoneNumber: String?
     let onSubmit: () -> Void
     
     private let phoneUtil = PhoneNumberUtility()
     
     init(
         phoneNumber: Binding<String>,
-        isValid: Binding<Bool>,
+        e164PhoneNumber: Binding<String?>,
         onSubmit: @escaping () -> Void = {}
     ) {
         self._phoneNumber = phoneNumber
-        self._isValid = isValid
+        self._e164PhoneNumber = e164PhoneNumber
         self.onSubmit = onSubmit
     }
     
@@ -111,15 +111,15 @@ struct PhoneNumberKitField: UIViewRepresentable {
         
         private func validatePhoneNumber(_ text: String) {
             guard !text.isEmpty else {
-                parent.isValid = false
+                parent.e164PhoneNumber = nil
                 return
             }
             
             do {
-                _ = try parent.phoneUtil.parse(text)
-                parent.isValid = true
+                let phoneNumber = try parent.phoneUtil.parse(text)
+                parent.e164PhoneNumber = parent.phoneUtil.format(phoneNumber, toType: .e164)
             } catch {
-                parent.isValid = false
+                parent.e164PhoneNumber = nil
             }
         }
     }

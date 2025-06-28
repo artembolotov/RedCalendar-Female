@@ -12,12 +12,16 @@ struct PhoneEntryView: View {
     @EnvironmentObject var store: AppStore
     
     @State private var phoneText: String = ""
-    @State private var isPhoneValid: Bool = false
+    @State private var e164PhoneNumber: String? = nil
+
+    private var isPhoneValid: Bool {
+        e164PhoneNumber != nil
+    }
     
-    // Continue action
     private func continueAction() {
-        guard isPhoneValid else { return }
-        store.send(.setAuthState(.authenticating(.phone(.requesting(phoneNumber: phoneText)))))
+        guard let validE164Number = e164PhoneNumber else { return }
+        
+        store.send(.setAuthState(.authenticating(.phone(.requesting(phoneNumber: validE164Number)))))
     }
     
     var body: some View {
@@ -49,7 +53,7 @@ struct PhoneEntryView: View {
                     HStack(spacing: 12) {
                         PhoneNumberKitField(
                             phoneNumber: $phoneText,
-                            isValid: $isPhoneValid,
+                            e164PhoneNumber: $e164PhoneNumber,
                             onSubmit: continueAction
                         )
                         .frame(height: 56)
