@@ -31,7 +31,7 @@ struct PhoneNumberKitField: UIViewRepresentable {
         // Configure PhoneNumberKit features
         textField.withFlag = false
         textField.withPrefix = true
-        textField.withExamplePlaceholder = true
+        textField.withExamplePlaceholder = false
         textField.placeholder = "Номер телефона"
         
         // Basic styling
@@ -118,6 +118,7 @@ struct PhoneNumberKitField: UIViewRepresentable {
             do {
                 let phoneNumber = try parent.phoneUtil.parse(text)
                 parent.e164PhoneNumber = parent.phoneUtil.format(phoneNumber, toType: .e164)
+                parent.phoneNumber = parent.phoneUtil.format(phoneNumber, toType: .international, withPrefix: true)
             } catch {
                 parent.e164PhoneNumber = nil
             }
