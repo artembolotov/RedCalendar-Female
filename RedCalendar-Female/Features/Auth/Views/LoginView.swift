@@ -58,24 +58,8 @@ struct LoginView: View {
         switch state {
         case .entry:
             PhoneEntryView()
-        case .requesting(let phoneNumber):
-            VStack(spacing: 20) {
-                ProgressView()
-                    .progressViewStyle(CircularProgressViewStyle())
-                    .scaleEffect(1.5)
-                
-                Text("Отправляем флеш-звонок...")
-                    .font(.title2)
-                    .fontWeight(.semibold)
-                
-                Text("На номер: \(phoneNumber)")
-                    .foregroundColor(.secondary)
-            }
-            .frame(maxWidth: 320)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .padding(.horizontal)
-            .navigationTitle("Запрос звонка")
-            
+        case .requesting(_):
+            WaitingView("Проверяем номер")
         case .verification(let phoneNumber, let maskedCallerNumber, let error):
             VStack(spacing: 20) {
                 Text("Дождитесь звонка")
@@ -113,25 +97,8 @@ struct LoginView: View {
             .padding(.horizontal)
             .navigationTitle("Проверка")
             
-        case .verifying(let phoneNumber, let verificationCode):
-            VStack(spacing: 20) {
-                ProgressView()
-                    .progressViewStyle(CircularProgressViewStyle())
-                    .scaleEffect(1.5)
-                
-                Text("Проверяем код...")
-                    .font(.title2)
-                    .fontWeight(.semibold)
-                
-                Text("Номер: \(phoneNumber)")
-                    .foregroundColor(.secondary)
-                Text("Код: \(verificationCode)")
-                    .foregroundColor(.secondary)
-            }
-            .frame(maxWidth: 320)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .padding(.horizontal)
-            .navigationTitle("Проверка")
+        case .verifying(_, _):
+            WaitingView("Проверяем код")
         }
     }
 }
