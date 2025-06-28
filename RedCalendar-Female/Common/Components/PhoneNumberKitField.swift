@@ -31,7 +31,7 @@ struct PhoneNumberKitField: UIViewRepresentable {
         // Configure PhoneNumberKit features
         textField.withFlag = false
         textField.withPrefix = true
-        textField.withExamplePlaceholder = false
+        textField.withExamplePlaceholder = true
         textField.placeholder = "Номер телефона"
         
         // Basic styling
@@ -78,13 +78,17 @@ struct PhoneNumberKitField: UIViewRepresentable {
     }
     
     func updateUIView(_ uiView: PhoneNumberTextField, context: Context) {
-        // Sync text
+        // Update coordinator first
+        context.coordinator.parent = self
+        
+        // Sync text and validate if needed
         if uiView.text != phoneNumber {
             uiView.text = phoneNumber
+            
+            // ВАЖНО: Запускаем валидацию при программном изменении текста
+            // Это необходимо когда номер устанавливается извне (например, при возврате на экран)
+            context.coordinator.validatePhoneNumber(phoneNumber)
         }
-        
-        // Update coordinator
-        context.coordinator.parent = self
     }
     
     func makeCoordinator() -> Coordinator {
@@ -109,7 +113,8 @@ struct PhoneNumberKitField: UIViewRepresentable {
             return true
         }
         
-        private func validatePhoneNumber(_ text: String) {
+        // Сделали метод внутренним для использования из updateUIView
+        func validatePhoneNumber(_ text: String) {
             guard !text.isEmpty else {
                 parent.e164PhoneNumber = nil
                 return
@@ -118,7 +123,7 @@ struct PhoneNumberKitField: UIViewRepresentable {
             do {
                 let phoneNumber = try parent.phoneUtil.parse(text)
                 parent.e164PhoneNumber = parent.phoneUtil.format(phoneNumber, toType: .e164)
-                parent.phoneNumber = parent.phoneUtil.format(phoneNumber, toType: .international, withPrefix: true)
+                parent.phoneNumber = parent.phoneUtil.format(phoneNumber, toType: .international)
             } catch {
                 parent.e164PhoneNumber = nil
             }
