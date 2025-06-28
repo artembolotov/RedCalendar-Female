@@ -27,7 +27,6 @@ struct EmailEntryView: View {
     }
     
     var body: some View {
-        // Direct access to store state
         if let authState = store.state.authState,
            case .authenticating(.email(.entry(let email, let error))) = authState {
             

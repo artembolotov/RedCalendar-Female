@@ -6,15 +6,23 @@
 //
 
 enum PhoneAuthState {
-    case entry(phoneNumber: String? = nil, error: AuthenticationError? = nil)                                        // Enter phone number
-    case requesting(phoneNumber: String)              // Requesting flash call
-    case verification(                               // Waiting for call verification
-        phoneNumber: String,
-        maskedCallerNumber: String,                  // e.g., "+7 XXX XXX XX34"
+    case entry(
+        prettyPhoneNumber: String? = nil,
         error: AuthenticationError? = nil
     )
-    case verifying(                                  // Verifying entered digits
-        phoneNumber: String,
+    case requesting(
+        prettyPhoneNumber: String,
+        e164PhoneNumber: String,
+    )
+    case verification(
+        prettyPhoneNumber: String,
+        e164PhoneNumber: String,
+        maskedCallerNumber: String,
+        error: AuthenticationError? = nil
+    )
+    case verifying(
+        prettyPhoneNumber: String,
+        e164PhoneNumber: String,
         verificationCode: String
     )
 }

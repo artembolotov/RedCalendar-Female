@@ -101,19 +101,23 @@ let authMiddleware: Middleware<AppState, AppAction> = { state, action, dispatch 
             case .phone(let phoneState):
                 switch phoneState {
                 
-                case .requesting(let phoneNumber):
+                case .requesting(let prettyPhoneNumber, let e164PhoneNumber):
                     Task {
                         let phoneState: PhoneAuthState
                         
                         do {
-                            let response = try await apiService.checkPhone(phoneNumber)
+                            let response = try await apiService.checkPhone(e164PhoneNumber)
                             
                             // This shouldn't happen with current implementation
                             if response.success {
-                                phoneState = .verification(phoneNumber: phoneNumber, maskedCallerNumber: "")
+                                phoneState = .verification(
+                                    prettyPhoneNumber: prettyPhoneNumber,
+                                    e164PhoneNumber: e164PhoneNumber,
+                                    maskedCallerNumber: ""
+                                )
                             } else {
                                 phoneState = .entry(
-                                    phoneNumber: phoneNumber,
+                                    prettyPhoneNumber: prettyPhoneNumber,
                                     error: AuthenticationError.from(APIServiceError.serverError(
                                         response.message ?? "Phone authentication not available"
                                     ))
@@ -121,9 +125,9 @@ let authMiddleware: Middleware<AppState, AppAction> = { state, action, dispatch 
                             }
                             
                         } catch {
-                            // Handle all errors the same way
+                            
                             phoneState = .entry(
-                                phoneNumber: phoneNumber,
+                                prettyPhoneNumber: prettyPhoneNumber,
                                 error: AuthenticationError.from(error)
                             )
                         }
@@ -131,7 +135,7 @@ let authMiddleware: Middleware<AppState, AppAction> = { state, action, dispatch 
                         dispatch(.setAuthState(.authenticating(.phone(phoneState))))
                     }
                     
-                case .verifying(let phoneNumber, let code):
+                case .verifying(let prettyPhoneNumber, let e164PhoneNumber, let verificationCode):
                     // TODO: Handle phone verification code
                     // This will be implemented when phone verification is fully supported
                     break

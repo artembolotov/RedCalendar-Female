@@ -56,11 +56,12 @@ struct LoginView: View {
     @ViewBuilder
     private func phoneAuthView(for state: PhoneAuthState) -> some View {
         switch state {
-        case .entry:
+        case .entry(_, _):
             PhoneEntryView()
-        case .requesting(_):
+        case .requesting(_, _):
             WaitingView("Проверяем номер")
-        case .verification(let phoneNumber, let maskedCallerNumber, let error):
+        case .verification(let prettyPhoneNumber, _, let maskedCallerNumber, let error):
+        
             VStack(spacing: 20) {
                 Text("Дождитесь звонка")
                     .font(.title2)
@@ -69,7 +70,7 @@ struct LoginView: View {
                 VStack(spacing: 8) {
                     Text("Мы звоним на номер:")
                         .foregroundColor(.secondary)
-                    Text(phoneNumber)
+                    Text(prettyPhoneNumber)
                         .font(.headline)
                     
                     Text("Номер звонящего:")
@@ -97,7 +98,7 @@ struct LoginView: View {
             .padding(.horizontal)
             .navigationTitle("Проверка")
             
-        case .verifying(_, _):
+        case .verifying(_, _, _):
             WaitingView("Проверяем код")
         }
     }
