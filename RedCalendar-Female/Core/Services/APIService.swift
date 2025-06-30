@@ -129,10 +129,24 @@ struct CheckPhoneResponse: Codable {
     let timestamp: String
     
     struct CheckPhoneData: Codable {
-        let phone: String
-        let isAllowed: Bool
-        let reason: String?
-    }
+            // New success response fields
+            let phone: String
+            let exists: Bool
+            let userId: String?        // NEW: user_id from Firebase
+            let firebasePhone: String? // NEW: firebase_phone
+            
+            let isAllowed: Bool?       // OLD: for compatibility
+            let reason: String?        // OLD: for compatibility
+            
+            enum CodingKeys: String, CodingKey {
+                case phone
+                case exists
+                case userId = "user_id"
+                case firebasePhone = "firebase_phone"
+                case isAllowed
+                case reason
+            }
+        }
 }
 
 struct VerifyCodeResponse: Codable {
@@ -338,18 +352,6 @@ final class APIService: APIServiceProtocol {
         request.httpBody = try JSONEncoder().encode(requestBody)
         
         let (data, response) = try await session.data(for: request)
-        
-        // Special handling for 403 status (phone not allowed)
-        if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 403 {
-            let checkPhoneResponse = try JSONDecoder().decode(CheckPhoneResponse.self, from: data)
-            
-            // Throw specific error for phone not allowed
-            if let message = checkPhoneResponse.message {
-                throw APIServiceError.phoneNotAllowed(message)
-            }
-            
-            throw APIServiceError.phoneNotAllowed("Phone authentication not available")
-        }
         
         try validateHTTPResponse(response, data: data)
         
