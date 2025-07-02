@@ -1,0 +1,13 @@
+//
+//  Release.xcconfig
+//  RedCalendar-Female
+//
+//  Created by Артём Болотов on 02.07.2025.
+//
+
+// Configuration settings file format documentation can be found at:
+// https://developer.apple.com/documentation/xcode/adding-a-build-configuration-file-to-your-project
+
+// Production configuration
+API_BASE_URL = https:/$()/api.calendar.red
+ENVIRONMENT_NAME = Production

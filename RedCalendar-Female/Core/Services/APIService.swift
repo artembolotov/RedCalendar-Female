@@ -219,7 +219,7 @@ enum APIServiceError: Error, LocalizedError {
 final class APIService: APIServiceProtocol {
     
     // MARK: - Properties
-    private let baseURL = "https://api.calendar.red"
+    private let baseURL = AppEnvironment.shared.apiBaseURL
     private let session: URLSession
     
     // MARK: - Initialization
