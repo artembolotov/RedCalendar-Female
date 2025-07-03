@@ -21,7 +21,7 @@ struct FlashCallCodeEntryView: View {
                     
                     // Back button in top-left corner of content
                     HStack {
-                        Button(action: {  }) {
+                        Button(action: goBackToEmail) {
                             Image(systemName: "arrow.left")
                                 .font(.system(size: 20, weight: .medium))
                                 .foregroundColor(.accentColor)
@@ -98,6 +98,10 @@ struct FlashCallCodeEntryView: View {
         .navigationTitle("Flash Call")
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarHidden(true)
+    }
+    
+    private func goBackToEmail() {
+        
     }
     
     private func submitCode() {
