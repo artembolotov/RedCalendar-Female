@@ -108,17 +108,45 @@ let authMiddleware: Middleware<AppState, AppAction> = { state, action, dispatch 
                         do {
                             let response = try await apiService.checkPhone(e164PhoneNumber)
                             
-                            guard response.success else {
-                                throw APIServiceError.serverError(response.message ?? "Phone authentication failed")
+                            // Check if phone exists and Flash Call was successful
+                            guard let data = response.data else {
+                                throw APIServiceError.serverError(response.message ?? "No data received")
                             }
                             
-                            phoneState = .verification(
-                                prettyPhoneNumber: prettyPhoneNumber,
-                                e164PhoneNumber: e164PhoneNumber,
-                                maskedCallerNumber: ""
-                            )
+                            if response.success && data.exists {
+                                // Phone found, Flash Call initiated successfully
+                                guard let flashCall = data.flashCall else {
+                                    throw APIServiceError.serverError("Flash Call data missing")
+                                }
+                                
+                                phoneState = .verification(
+                                    prettyPhoneNumber: prettyPhoneNumber,
+                                    e164PhoneNumber: e164PhoneNumber,
+                                    maskedCallerNumber: flashCall.from,
+                                    requestId: flashCall.requestId,
+                                    error: nil
+                                )
+                                
+                            } else {
+                                // Phone not found or Flash Call failed
+                                let errorMessage = response.message ?? "Phone authentication failed"
+                                let authError: AuthenticationError
+                                
+                                if !data.exists {
+                                    authError = .phoneNotRegistered
+                                } else {
+                                    // Phone exists but Flash Call failed
+                                    authError = .phoneCallFailed
+                                }
+                                
+                                phoneState = .entry(
+                                    prettyPhoneNumber: prettyPhoneNumber,
+                                    error: authError
+                                )
+                            }
                             
                         } catch {
+                            // Network or other errors
                             phoneState = .entry(
                                 prettyPhoneNumber: prettyPhoneNumber,
                                 error: AuthenticationError.from(error)
@@ -128,13 +156,42 @@ let authMiddleware: Middleware<AppState, AppAction> = { state, action, dispatch 
                         dispatch(.setAuthState(.authenticating(.phone(phoneState))))
                     }
                     
-                case .verifying(let prettyPhoneNumber, let e164PhoneNumber, let verificationCode):
-                    // TODO: Handle phone verification code
-                    // This will be implemented when phone verification is fully supported
-                    break
+                case .verifying(let prettyPhoneNumber, let e164PhoneNumber, let requestId, let verificationCode):
+                    Task {
+                        let phoneState: PhoneAuthState
+                        
+                        do {
+                            // Call API to verify Flash Call code
+                            let response = try await apiService.verifyFlashCall(requestId: requestId, code: verificationCode)
+                            
+                            guard response.success, let data = response.data else {
+                                throw APIServiceError.serverError(response.message ?? "Flash Call verification failed")
+                            }
+                            
+                            // Save device ID and clean up old Firebase user ID
+                            keychain.saveDeviceID(data.deviceId)
+                            keychain.deleteUserUID()
+                            
+                            // Move to authenticated state
+                            dispatch(.setAuthState(.authenticated(
+                                deviceId: data.deviceId,
+                                userDetails: nil
+                            )))
+                            
+                        } catch {
+                            // Verification failed - return to entry with error
+                            let authError = AuthenticationError.from(error)
+                            phoneState = .entry(
+                                prettyPhoneNumber: prettyPhoneNumber,
+                                error: authError
+                            )
+                            
+                            dispatch(.setAuthState(.authenticating(.phone(phoneState))))
+                        }
+                    }
                     
                 default:
-                    // No API calls needed for entry state
+                    // No API calls needed for entry and verification states
                     break
                 }
             }

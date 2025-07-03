@@ -60,45 +60,9 @@ struct LoginView: View {
             PhoneEntryView()
         case .requesting(_, _):
             WaitingView("Проверяем номер")
-        case .verification(let prettyPhoneNumber, _, let maskedCallerNumber, let error):
-        
-            VStack(spacing: 20) {
-                Text("Дождитесь звонка")
-                    .font(.title2)
-                    .fontWeight(.semibold)
-                
-                VStack(spacing: 8) {
-                    Text("Мы звоним на номер:")
-                        .foregroundColor(.secondary)
-                    Text(prettyPhoneNumber)
-                        .font(.headline)
-                    
-                    Text("Номер звонящего:")
-                        .foregroundColor(.secondary)
-                        .padding(.top)
-                    Text(maskedCallerNumber)
-                        .font(.headline)
-                }
-                
-                if let error = error {
-                    Text(error.localizedDescription)
-                        .foregroundColor(.red)
-                        .font(.caption)
-                        .multilineTextAlignment(.center)
-                }
-                
-                Text("Введите последние 4 цифры номера звонящего")
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-                
-                // TODO: Add code input field
-            }
-            .frame(maxWidth: 320)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .padding(.horizontal)
-            .navigationTitle("Проверка")
-            
-        case .verifying(_, _, _):
+        case .verification(_, _, _, _, _):
+            FlashCallCodeEntryView()
+        case .verifying(_, _, _, _):
             WaitingView("Проверяем код")
         }
     }

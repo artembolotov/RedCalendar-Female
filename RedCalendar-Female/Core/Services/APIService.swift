@@ -17,6 +17,7 @@ protocol APIServiceProtocol {
     func checkEmail(_ email: String) async throws -> CheckEmailResponse
     func checkPhone(_ phone: String) async throws -> CheckPhoneResponse
     func verifyCode(email: String, code: String, name: String?) async throws -> VerifyCodeResponse
+    func verifyFlashCall(requestId: String, code: String) async throws -> VerifyFlashCallResponse
 }
 
 // MARK: - Request Models
@@ -59,6 +60,18 @@ struct VerifyCodeRequest: Codable {
         case code
         case deviceModel = "device_model"
         case name
+    }
+}
+
+struct VerifyFlashCallRequest: Codable {
+    let requestId: String
+    let code: String
+    let deviceModel: String
+    
+    enum CodingKeys: String, CodingKey {
+        case requestId
+        case code
+        case deviceModel = "device_model"
     }
 }
 
@@ -121,6 +134,7 @@ struct CheckEmailResponse: Codable {
     }
 }
 
+
 struct CheckPhoneResponse: Codable {
     let success: Bool
     let error: String?
@@ -129,24 +143,26 @@ struct CheckPhoneResponse: Codable {
     let timestamp: String
     
     struct CheckPhoneData: Codable {
-            // New success response fields
-            let phone: String
-            let exists: Bool
-            let userId: String?        // NEW: user_id from Firebase
-            let firebasePhone: String? // NEW: firebase_phone
-            
-            let isAllowed: Bool?       // OLD: for compatibility
-            let reason: String?        // OLD: for compatibility
-            
-            enum CodingKeys: String, CodingKey {
-                case phone
-                case exists
-                case userId = "user_id"
-                case firebasePhone = "firebase_phone"
-                case isAllowed
-                case reason
-            }
+        let phone: String
+        let exists: Bool
+        let flashCall: FlashCallData?
+        
+        enum CodingKeys: String, CodingKey {
+            case phone
+            case exists
+            case flashCall = "flash_call"
         }
+    }
+    
+    struct FlashCallData: Codable {
+        let requestId: String
+        let from: String           // Masked caller number
+        
+        enum CodingKeys: String, CodingKey {
+            case requestId
+            case from
+        }
+    }
 }
 
 struct VerifyCodeResponse: Codable {
@@ -175,6 +191,47 @@ struct VerifyCodeResponse: Codable {
         }
     }
 }
+
+struct VerifyFlashCallResponse: Codable {
+    let success: Bool
+    let error: String?
+    let message: String?
+    let data: VerifyFlashCallData?
+    let timestamp: String
+    
+    struct VerifyFlashCallData: Codable {
+        let deviceId: String
+        let user: UserInfo
+        
+        enum CodingKeys: String, CodingKey {
+            case deviceId = "device_id"
+            case user
+        }
+        
+        struct UserInfo: Codable {
+            let id: String
+            let name: String?
+            let phoneNumber: String?
+            let email: String?
+            let settings: UserSettings?
+            let createdAt: String
+            
+            enum CodingKeys: String, CodingKey {
+                case id
+                case name
+                case phoneNumber = "phone_number"
+                case email
+                case settings
+                case createdAt = "created_at"
+            }
+        }
+        
+        struct UserSettings: Codable {
+            // Add user settings fields as needed
+        }
+    }
+}
+
 
 struct APIError: Codable {
     let error: String        // Error code (e.g., "CODE_ALREADY_SENT")
@@ -383,6 +440,32 @@ final class APIService: APIServiceProtocol {
         try validateHTTPResponse(response, data: data)
         
         return try JSONDecoder().decode(VerifyCodeResponse.self, from: data)
+    }
+
+    /// Verifies Flash Call code and authenticates user
+    func verifyFlashCall(requestId: String, code: String) async throws -> VerifyFlashCallResponse {
+        let url = URL(string: "\(baseURL)/auth/verify-flash-call")!
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        // Add language headers for localized responses
+        addLanguageHeaders(to: &request)
+        
+        let deviceModel = await getDeviceModel()
+        let requestBody = VerifyFlashCallRequest(
+            requestId: requestId,
+            code: code,
+            deviceModel: deviceModel
+        )
+        request.httpBody = try JSONEncoder().encode(requestBody)
+        
+        let (data, response) = try await session.data(for: request)
+        
+        try validateHTTPResponse(response, data: data)
+        
+        return try JSONDecoder().decode(VerifyFlashCallResponse.self, from: data)
     }
     
     // MARK: - Private Methods

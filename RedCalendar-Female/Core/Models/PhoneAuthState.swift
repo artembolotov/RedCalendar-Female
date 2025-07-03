@@ -18,11 +18,13 @@ enum PhoneAuthState {
         prettyPhoneNumber: String,
         e164PhoneNumber: String,
         maskedCallerNumber: String,
+        requestId: String,
         error: AuthenticationError? = nil
     )
     case verifying(
         prettyPhoneNumber: String,
         e164PhoneNumber: String,
+        requestId: String,
         verificationCode: String
     )
 }
