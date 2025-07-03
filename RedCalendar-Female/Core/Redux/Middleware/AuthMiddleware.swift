@@ -77,7 +77,7 @@ let authMiddleware: Middleware<AppState, AppAction> = { state, action, dispatch 
                         
                         dispatch(.setAuthState(.authenticated(
                             deviceId: data.deviceId,
-                            userDetails: nil
+                            userDetails: data.user  // ← Now passes UserDetails instead of nil
                         )))
                         
                     } catch {
@@ -175,7 +175,7 @@ let authMiddleware: Middleware<AppState, AppAction> = { state, action, dispatch 
                             // Move to authenticated state
                             dispatch(.setAuthState(.authenticated(
                                 deviceId: data.deviceId,
-                                userDetails: nil
+                                userDetails: data.user  // ← Now passes UserDetails instead of nil
                             )))
                             
                         } catch {

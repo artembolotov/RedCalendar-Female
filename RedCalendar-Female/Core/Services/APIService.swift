@@ -134,7 +134,6 @@ struct CheckEmailResponse: Codable {
     }
 }
 
-
 struct CheckPhoneResponse: Codable {
     let success: Bool
     let error: String?
@@ -156,7 +155,7 @@ struct CheckPhoneResponse: Codable {
     
     struct FlashCallData: Codable {
         let requestId: String
-        let from: String           // Masked caller number
+        let from: String
         
         enum CodingKeys: String, CodingKey {
             case requestId
@@ -173,21 +172,11 @@ struct VerifyCodeResponse: Codable {
     
     struct VerifyCodeData: Codable {
         let deviceId: String
-        let userId: String
-        let isNewUser: Bool
-        let user: UserInfo
+        let user: UserDetails  // ← Simplified - removed userId and isNewUser
         
         enum CodingKeys: String, CodingKey {
             case deviceId = "device_id"
-            case userId = "user_id"
-            case isNewUser = "is_new_user"
             case user
-        }
-        
-        struct UserInfo: Codable {
-            let id: String
-            let email: String
-            let name: String?
         }
     }
 }
@@ -201,37 +190,14 @@ struct VerifyFlashCallResponse: Codable {
     
     struct VerifyFlashCallData: Codable {
         let deviceId: String
-        let user: UserInfo
+        let user: UserDetails  // ← Now uses shared UserDetails
         
         enum CodingKeys: String, CodingKey {
             case deviceId = "device_id"
             case user
         }
-        
-        struct UserInfo: Codable {
-            let id: String
-            let name: String?
-            let phoneNumber: String?
-            let email: String?
-            let settings: UserSettings?
-            let createdAt: String
-            
-            enum CodingKeys: String, CodingKey {
-                case id
-                case name
-                case phoneNumber = "phone_number"
-                case email
-                case settings
-                case createdAt = "created_at"
-            }
-        }
-        
-        struct UserSettings: Codable {
-            // Add user settings fields as needed
-        }
     }
 }
-
 
 struct APIError: Codable {
     let error: String        // Error code (e.g., "CODE_ALREADY_SENT")
@@ -393,8 +359,7 @@ final class APIService: APIServiceProtocol {
         return try JSONDecoder().decode(CheckEmailResponse.self, from: data)
     }
     
-    /// Checks if phone exists in old database and initiates robot call
-    /// Currently returns error for all phones as phone auth is RedCalendar 2.0 only
+    /// Checks if phone exists in old database and initiates Flash Call
     func checkPhone(_ phone: String) async throws -> CheckPhoneResponse {
         let url = URL(string: "\(baseURL)/auth/check-phone")!
         
@@ -441,7 +406,7 @@ final class APIService: APIServiceProtocol {
         
         return try JSONDecoder().decode(VerifyCodeResponse.self, from: data)
     }
-
+    
     /// Verifies Flash Call code and authenticates user
     func verifyFlashCall(requestId: String, code: String) async throws -> VerifyFlashCallResponse {
         let url = URL(string: "\(baseURL)/auth/verify-flash-call")!
