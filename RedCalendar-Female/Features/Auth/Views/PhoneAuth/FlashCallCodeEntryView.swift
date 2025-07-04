@@ -13,6 +13,22 @@ struct FlashCallCodeEntryView: View {
     @State private var codeInput: String = ""
     @FocusState private var isCodeFieldFocused: Bool
     
+    // Format phone number with spaces every 3 digits from the end
+    private func formatPhoneNumber(_ number: String) -> String {
+        let cleanNumber = number.replacingOccurrences(of: " ", with: "")
+        var formatted = ""
+        var count = 0
+        
+        for char in cleanNumber.reversed() {
+            if count > 0 && count % 3 == 0 {
+                formatted = " " + formatted
+            }
+            formatted = String(char) + formatted
+            count += 1
+        }
+        return formatted
+    }
+    
     var body: some View {
         switch store.state.authState {
         case .authenticating(.phone(.verification(let prettyPhoneNumber, let e164PhoneNumber, let maskedCallerNumber, let requestId, let error))):
@@ -55,51 +71,49 @@ struct FlashCallCodeEntryView: View {
                     }
                     .padding(.top, 8)
                     
-                    Text("Дождитесь звонка")
-                        .font(.title2)
-                        .fontWeight(.semibold)
-                    
                     VStack(spacing: 8) {
-                        Text("Мы звоним на номер:")
+                        Text("Звоним на номер")
                             .font(.body)
                             .foregroundColor(.secondary)
                         Text(prettyPhoneNumber)
-                            .font(.headline)
-                        
-                        Text("Номер звонящего:")
-                            .font(.body)
-                            .foregroundColor(.secondary)
-                            .padding(.top)
-                        Text(maskedCallerNumber)
                             .font(.headline)
                     }
                     .multilineTextAlignment(.center)
                     .padding(.horizontal)
                     
                     VStack(spacing: 12) {
-                        Text("Введите последние 4 цифры номера звонящего:")
+                        Text("Отклоните вызов и введите последние 4 цифры номера")
                             .font(.body)
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
                         
-                        TextField("Последние 4 цифры", text: $codeInput)
-                            .keyboardType(.numberPad)
-                            .textContentType(.oneTimeCode)
-                            .submitLabel(.continue)
-                            .focused($isCodeFieldFocused)
-                            .onChange(of: codeInput) { newValue in
-                                // Limit to 4 digits only
-                                let filtered = String(newValue.prefix(4).filter { $0.isNumber })
-                                if filtered != newValue {
-                                    codeInput = filtered
+                        let baseNumber = String(maskedCallerNumber.dropLast(4))
+                        
+                        HStack(spacing: 2) {
+                            Text(formatPhoneNumber(baseNumber))
+                                .font(.headline)
+                            
+                            TextField("XXXX", text: $codeInput)
+                                .keyboardType(.numberPad)
+                                .textContentType(.oneTimeCode)
+                                .submitLabel(.continue)
+                                .focused($isCodeFieldFocused)
+                                .onChange(of: codeInput) { newValue in
+                                    // Limit to 4 digits only
+                                    let filtered = String(newValue.prefix(4).filter { $0.isNumber })
+                                    if filtered != newValue {
+                                        codeInput = filtered
+                                    }
                                 }
-                            }
-                            .onSubmit {
-                                if isCodeValid {
-                                    submitCode(prettyPhoneNumber: prettyPhoneNumber, e164PhoneNumber: e164PhoneNumber, requestId: requestId)
+                                .onSubmit {
+                                    if isCodeValid {
+                                        submitCode(prettyPhoneNumber: prettyPhoneNumber, e164PhoneNumber: e164PhoneNumber, requestId: requestId)
+                                    }
                                 }
-                            }
-                            .formFieldStyle()
+                                .fixedSize()
+                                .formFieldStyle()
+                                .font(.headline)
+                        }
                     }
                     .padding(.horizontal)
                     
@@ -112,7 +126,7 @@ struct FlashCallCodeEntryView: View {
                     }
                     
                     Group {
-                        Text("Не получили звонок?\n[Запросить новый звонок](retry)")
+                        Text("Не получили звонок?\n[Запросить новый](retry)")
                     }
                     .font(.caption)
                     .foregroundColor(.secondary)
@@ -139,9 +153,8 @@ struct FlashCallCodeEntryView: View {
                 }
             }
         }
-        .navigationTitle("Подтверждение Flash Call")
+        .navigationTitle("Проверка")
         .navigationBarTitleDisplayMode(.inline)
-        .navigationBarHidden(true)
     }
     
     private func goBackToPhoneEntry(prettyPhoneNumber: String) {

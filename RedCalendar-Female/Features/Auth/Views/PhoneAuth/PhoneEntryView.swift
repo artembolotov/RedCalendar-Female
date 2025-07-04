@@ -54,7 +54,7 @@ struct PhoneEntryView: View {
                             .font(.title2)
                             .fontWeight(.semibold)
                         
-                        Text("Мы позвоним на указанный номер для подтверждения входа в приложение")
+                        Text("Мы позвоним для подтверждения входа в приложение")
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
                         
