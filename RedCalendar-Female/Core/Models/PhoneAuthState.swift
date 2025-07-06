@@ -24,6 +24,7 @@ enum PhoneAuthState {
     case verifying(
         prettyPhoneNumber: String,
         e164PhoneNumber: String,
+        maskedCallerNumber: String,
         requestId: String,
         verificationCode: String
     )

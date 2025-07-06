@@ -62,7 +62,7 @@ struct LoginView: View {
             WaitingView("Проверяем номер")
         case .verification(_, _, _, _, _):
             FlashCallCodeEntryView()
-        case .verifying(_, _, _, _):
+        case .verifying(_, _, _, _, _):
             WaitingView("Проверяем код")
         }
     }

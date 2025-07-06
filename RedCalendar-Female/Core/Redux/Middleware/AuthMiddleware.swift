@@ -110,11 +110,11 @@ let authMiddleware: Middleware<AppState, AppAction> = { state, action, dispatch 
                             
                             // Check if phone exists and Flash Call was successful
                             guard let data = response.data else {
-                                throw APIServiceError.serverError(response.message ?? "No data received")
+                                throw APIServiceError.serverError(response.message ?? "Phone check failed")
                             }
                             
                             if response.success && data.exists {
-                                // Phone found, Flash Call initiated successfully
+                                // Flash Call successfully initiated
                                 guard let flashCall = data.flashCall else {
                                     throw APIServiceError.serverError("Flash Call data missing")
                                 }
@@ -126,19 +126,12 @@ let authMiddleware: Middleware<AppState, AppAction> = { state, action, dispatch 
                                     requestId: flashCall.requestId,
                                     error: nil
                                 )
-                                
                             } else {
-                                // Phone not found or Flash Call failed
-                                let errorMessage = response.message ?? "Phone authentication failed"
-                                let authError: AuthenticationError
-                                
-                                if !data.exists {
-                                    authError = .phoneNotRegistered
-                                } else {
-                                    // Phone exists but Flash Call failed
-                                    authError = .phoneCallFailed
-                                }
-                                
+                                // Error - phone not found or Flash Call failed
+                                let authError: AuthenticationError = !data.exists
+                                    ? .phoneNotRegistered
+                                    : .phoneCallFailed
+                                    
                                 phoneState = .entry(
                                     prettyPhoneNumber: prettyPhoneNumber,
                                     error: authError
@@ -156,7 +149,7 @@ let authMiddleware: Middleware<AppState, AppAction> = { state, action, dispatch 
                         dispatch(.setAuthState(.authenticating(.phone(phoneState))))
                     }
                     
-                case .verifying(let prettyPhoneNumber, let e164PhoneNumber, let requestId, let verificationCode):
+                case .verifying(let prettyPhoneNumber, let e164PhoneNumber, let maskedCallerNumber, let requestId, let verificationCode):
                     Task {
                         let phoneState: PhoneAuthState
                         
@@ -179,10 +172,13 @@ let authMiddleware: Middleware<AppState, AppAction> = { state, action, dispatch 
                             )))
                             
                         } catch {
-                            // Verification failed - return to entry with error
+                            // Verification failed - return to verification screen with error (not entry)
                             let authError = AuthenticationError.from(error)
-                            phoneState = .entry(
+                            phoneState = .verification(
                                 prettyPhoneNumber: prettyPhoneNumber,
+                                e164PhoneNumber: e164PhoneNumber,
+                                maskedCallerNumber: maskedCallerNumber,
+                                requestId: requestId,
                                 error: authError
                             )
                             

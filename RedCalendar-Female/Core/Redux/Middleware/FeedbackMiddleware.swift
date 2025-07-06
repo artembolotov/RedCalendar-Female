@@ -22,7 +22,8 @@ let feedbackMiddleware: Middleware<AppState, AppAction> = { state, action, dispa
     case .setAuthState(.authenticating(.email(.entry(_, .some(_))))),
          .setAuthState(.authenticating(.email(.registration(_, _, _, .some(_))))),
          .setAuthState(.authenticating(.email(.codeEntry(_, _, _, .some(_))))),
-         .setAuthState(.authenticating(.phone(.entry(_, .some(_))))):
+         .setAuthState(.authenticating(.phone(.entry(_, .some(_))))),
+         .setAuthState(.authenticating(.phone(.verification(_, _, _, _, .some(_))))):
         
         feedbackService.playError()
         
@@ -31,7 +32,8 @@ let feedbackMiddleware: Middleware<AppState, AppAction> = { state, action, dispa
         .setAuthState(.authenticating(.email(.checking))),
         .setAuthState(.authenticating(.email(.registering(_, _, _)))),
         .setAuthState(.authenticating(.email(.verifying(_, _, _)))),
-        .setAuthState(.authenticating(.phone(.requesting(_, _)))):
+        .setAuthState(.authenticating(.phone(.requesting(_, _)))),
+        .setAuthState(.authenticating(.phone(.verifying(_, _, _, _, _)))):
         
         feedbackService.prepare()
         
