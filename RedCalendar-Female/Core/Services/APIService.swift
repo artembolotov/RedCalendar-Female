@@ -242,7 +242,7 @@ enum APIServiceError: Error, LocalizedError {
 final class APIService: APIServiceProtocol {
     
     // MARK: - Properties
-    private let baseURL = AppEnvironment.shared.apiBaseURL
+    private let baseURL = Constants.URLs.api
     private let session: URLSession
     
     // MARK: - Initialization

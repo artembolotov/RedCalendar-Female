@@ -6,8 +6,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/appmetrica/appmetrica-sdk-ios",
       "state" : {
-        "revision" : "a0af656792f5c89e0809696419584a6a41e13790",
-        "version" : "5.11.0"
+        "revision" : "e61ae9c4f331ae346fc12bad014e32259f239675",
+        "version" : "5.11.1"
       }
     },
     {
