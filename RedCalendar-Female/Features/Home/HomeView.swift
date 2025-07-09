@@ -12,26 +12,9 @@ struct HomeView: View {
     
     var body: some View {
         NavigationView {
-            VStack(spacing: 20) {
-                Text("Добро пожаловать!")
-                    .font(.largeTitle)
+            VStack {
                 
-                Text("Test.Localizable")
-                
-                if case .authenticated(let deviceId, _) = store.state.authState {
-                    Text("Device ID: \(deviceId)")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .textSelection(.enabled)
-                }
-                
-                Button("Выйти") {
-                    store.send(.logout)
-                }
-                .foregroundColor(.red)
             }
-            .padding()
-            .navigationTitle("") // Hide title text
             .navigationBarTitleDisplayMode(.inline) // Compact mode
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
