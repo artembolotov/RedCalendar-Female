@@ -13,7 +13,9 @@ struct HomeView: View {
     var body: some View {
         NavigationView {
             VStack {
-                
+                if store.state.isAuthenticated {
+                    
+                }
             }
             .navigationBarTitleDisplayMode(.inline) // Compact mode
             .toolbar {
