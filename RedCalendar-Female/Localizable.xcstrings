@@ -1,13 +1,7 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
-    "" : {
-
-    },
     "Device ID" : {
-
-    },
-    "Device ID: %@" : {
 
     },
     "Email" : {

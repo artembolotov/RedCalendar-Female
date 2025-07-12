@@ -14,7 +14,7 @@ struct HomeView: View {
         NavigationView {
             VStack {
                 if store.state.isAuthenticated {
-                    
+                    CalendarView()
                 }
             }
             .navigationBarTitleDisplayMode(.inline) // Compact mode
