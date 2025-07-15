@@ -10,7 +10,7 @@
 //  📐 Прямые математические вычисления позиций
 //  🚫 Мгновенное прерывание анимаций
 //  ✅ Полный контроль над рендерингом
-//  ⚡ Стабильная прокрутка
+//  ⚡ Spring momentum как в iOS
 //
 
 import SwiftUI
@@ -160,35 +160,68 @@ final class MonthCalculator: ObservableObject {
     }
 }
 
-// MARK: - Fixed Viewport Calculator
+// MARK: - Dynamic Viewport Calculator
 class ViewportCalculator {
-    static func calculateFixedViewport(
+    static func calculateDynamicViewport(
+        scrollOffset: CGFloat,
         screenHeight: CGFloat,
         screenWidth: CGFloat,
         calculator: MonthCalculator
     ) -> ViewportData {
         
-        // Create a large fixed viewport covering many months
-        let bufferMonths = 50 // ±50 months from current
-        var visibleMonths: [VisibleMonth] = []
+        // Calculate which months should be visible based on current scroll position
+        let bufferHeight = screenHeight * 3  // 3 screen heights buffer in each direction
+        let viewportTop = -scrollOffset - bufferHeight
+        let viewportBottom = -scrollOffset + screenHeight + bufferHeight
         
-        for monthOffset in -bufferMonths...bufferMonths {
+        // Estimate starting month based on scroll position
+        let averageMonthHeight: CGFloat = 320  // Rough estimate
+        let estimatedStartMonth = Int(scrollOffset / averageMonthHeight) - 10
+        
+        var visibleMonths: [VisibleMonth] = []
+        var currentY: CGFloat = 0
+        var monthOffset = estimatedStartMonth
+        
+        // Find the actual starting position
+        currentY = calculator.getYPosition(for: monthOffset)
+        
+        // Go backwards if we started too far forward (increased range for infinite scroll)
+        while currentY > viewportTop && monthOffset > -500 {  // Increased from -200 to -500
+            monthOffset -= 1
+            currentY = calculator.getYPosition(for: monthOffset)
+        }
+        
+        // Now collect all months that intersect with the viewport (increased range)
+        while currentY < viewportBottom && monthOffset < 500 {  // Increased from 200 to 500
             let monthHeight = calculator.getMonthHeight(for: monthOffset)
-            let monthY = calculator.getYPosition(for: monthOffset)
+            let monthBottom = currentY + monthHeight
             
-            let visibleMonth = createVisibleMonth(
-                monthOffset: monthOffset,
-                yPosition: monthY,
-                height: monthHeight,
-                screenWidth: screenWidth,
-                calculator: calculator
-            )
-            visibleMonths.append(visibleMonth)
+            // Include month if it intersects with viewport
+            if monthBottom > viewportTop && currentY < viewportBottom {
+                let visibleMonth = createVisibleMonth(
+                    monthOffset: monthOffset,
+                    yPosition: currentY,
+                    height: monthHeight,
+                    screenWidth: screenWidth,
+                    calculator: calculator
+                )
+                visibleMonths.append(visibleMonth)
+            }
+            
+            currentY += monthHeight
+            monthOffset += 1
+        }
+        
+        // Debug info
+        if visibleMonths.count > 0 {
+            let firstMonth = visibleMonths.first!.monthOffset
+            let lastMonth = visibleMonths.last!.monthOffset
+            print("DEBUG: 🔄 Rendered months \(firstMonth) to \(lastMonth) (total: \(visibleMonths.count)) at scroll: \(Int(scrollOffset))")
         }
         
         return ViewportData(
             visibleMonths: visibleMonths,
-            totalContentHeight: abs(calculator.getYPosition(for: bufferMonths)) + abs(calculator.getYPosition(for: -bufferMonths))
+            totalContentHeight: CGFloat.greatestFiniteMagnitude  // Infinite content
         )
     }
     
@@ -245,7 +278,6 @@ class ViewportCalculator {
 // MARK: - Main Calendar View
 struct CalendarView: View {
     @State private var calculator: MonthCalculator?
-    @State private var viewportData: ViewportData?
     
     private let currentDate = Date()
     
@@ -257,6 +289,9 @@ struct CalendarView: View {
     @State private var momentumTimer: Timer?
     @State private var screenHeight: CGFloat = 0
     @State private var screenWidth: CGFloat = 0
+    
+    // Momentum configuration
+    private let useSpringMomentum = false  // Spring disabled - too jerky at the end
     
     // Computed property for current scroll offset
     private var currentScrollOffset: CGFloat {
@@ -275,9 +310,9 @@ struct CalendarView: View {
                     // Fixed header
                     headerView
                     
-                    // Fixed viewport renderer
-                    if let viewport = viewportData {
-                        fixedViewportRenderer(viewport: viewport, screenWidth: availableWidth, screenHeight: availableHeight)
+                    // Dynamic viewport renderer (no need for pre-calculated viewport)
+                    if let calc = calculator {
+                        dynamicViewportRenderer(calculator: calc, screenWidth: availableWidth, screenHeight: availableHeight)
                     }
                 }
             }
@@ -297,56 +332,55 @@ struct CalendarView: View {
         }
     }
     
-    // MARK: - Fixed Viewport Renderer
+    // MARK: - Dynamic Viewport Renderer
     
-    private func fixedViewportRenderer(viewport: ViewportData, screenWidth: CGFloat, screenHeight: CGFloat) -> some View {
+    private func dynamicViewportRenderer(calculator: MonthCalculator, screenWidth: CGFloat, screenHeight: CGFloat) -> some View {
+        // Recalculate viewport dynamically based on current scroll position
+        let dynamicViewport = ViewportCalculator.calculateDynamicViewport(
+            scrollOffset: currentScrollOffset,
+            screenHeight: screenHeight,
+            screenWidth: screenWidth,
+            calculator: calculator
+        )
+        
         return ZStack(alignment: .topLeading) {
-            // Render months near visible area for performance
-            ForEach(viewport.visibleMonths.indices, id: \.self) { monthIndex in
-                let month = viewport.visibleMonths[monthIndex]
-                let adjustedY = month.yPosition + currentScrollOffset
+            // Render months from dynamic viewport
+            ForEach(dynamicViewport.visibleMonths.indices, id: \.self) { monthIndex in
+                let month = dynamicViewport.visibleMonths[monthIndex]
                 
-                // Fixed visibility check: consider month height and add proper buffer
-                let monthBottom = adjustedY + month.height
-                let screenTop: CGFloat = -100  // Buffer above screen
-                let screenBottom = screenHeight + 100  // Buffer below screen
+                // Month header - FIXED position (never recalculated)
+                Text(calculator.getMonthName(for: month.monthOffset))
+                    .font(.title2)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.primary)
+                    .frame(width: screenWidth, height: 60)
+                    .position(x: screenWidth / 2, y: month.yPosition + 30)
                 
-                // Only render months that actually intersect with extended visible area
-                if monthBottom > screenTop && adjustedY < screenBottom {
-                    // Month header - FIXED position (never recalculated)
-                    Text(calculator?.getMonthName(for: month.monthOffset) ?? "")
-                        .font(.title2)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.primary)
-                        .frame(width: screenWidth, height: 60)
-                        .position(x: screenWidth / 2, y: month.yPosition + 30)
+                // Days - FIXED positions (never recalculated)
+                ForEach(month.visibleDays.indices, id: \.self) { dayIndex in
+                    let day = month.visibleDays[dayIndex]
                     
-                    // Days - FIXED positions (never recalculated)
-                    ForEach(month.visibleDays.indices, id: \.self) { dayIndex in
-                        let day = month.visibleDays[dayIndex]
-                        
-                        ZStack {
-                            // Today highlight
-                            if day.isToday {
-                                Circle()
-                                    .fill(Color.red)
-                                    .frame(width: 32, height: 32)
-                            }
-                            
-                            Text(day.dayNumber)
-                                .font(.system(size: 16, weight: .medium))
-                                .foregroundColor(day.isToday ? .white : .primary)
+                    ZStack {
+                        // Today highlight
+                        if day.isToday {
+                            Circle()
+                                .fill(Color.red)
+                                .frame(width: 32, height: 32)
                         }
-                        .position(
-                            x: day.xPosition + (screenWidth - 24) / 14,
-                            y: day.yPosition + (calculator?.weekHeight ?? 50) / 2
-                        )
+                        
+                        Text(day.dayNumber)
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundColor(day.isToday ? .white : .primary)
                     }
+                    .position(
+                        x: day.xPosition + (screenWidth - 24) / 14,
+                        y: day.yPosition + calculator.weekHeight / 2
+                    )
                 }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .offset(y: currentScrollOffset) // Use computed property
+        .offset(y: currentScrollOffset)
         .clipped()
         .contentShape(Rectangle())
         .gesture(
@@ -385,22 +419,28 @@ struct CalendarView: View {
         animatedScrollOffset = baseScrollOffset
         
         // Only start momentum if there's significant velocity
-        if abs(velocity) > 50 {
-            let momentumMultiplier: CGFloat = 0.3
-            let maxMomentum: CGFloat = screenHeight * 1.5
+        if abs(velocity) > 80 {  // Slightly lower threshold
+            // More conservative momentum calculation - no jerky movements
+            let momentumMultiplier: CGFloat = 0.6  // Reduced for smoother feel
+            let maxMomentum: CGFloat = screenHeight * 2.5  // Slightly reduced max distance
             let momentumDistance = min(max(velocity * momentumMultiplier, -maxMomentum), maxMomentum)
             
             let targetOffset = baseScrollOffset + momentumDistance
             
-            print("DEBUG: 💨 Starting MANUAL momentum from \(Int(baseScrollOffset)) to \(Int(targetOffset))")
+            // Shorter, smoother duration
+            let baseDuration: TimeInterval = 0.4
+            let maxDuration: TimeInterval = 0.8  // Reduced max duration
+            let distanceFactor = min(abs(momentumDistance) / (screenHeight * 2), 1.0)
+            let duration = baseDuration + (maxDuration - baseDuration) * distanceFactor
             
-            startManualMomentum(from: baseScrollOffset, to: targetOffset, duration: 0.4)
+            print("DEBUG: 💨 Starting SMOOTH momentum from \(Int(baseScrollOffset)) to \(Int(targetOffset)), duration: \(String(format: "%.1f", duration))s")
+            startSmoothMomentum(from: baseScrollOffset, to: targetOffset, duration: duration)
         } else {
-            print("DEBUG: 🚫 Skipping momentum (low velocity)")
+            print("DEBUG: 🚫 Skipping momentum (low velocity: \(Int(velocity)))")
         }
     }
     
-    private func startManualMomentum(from startOffset: CGFloat, to targetOffset: CGFloat, duration: TimeInterval) {
+    private func startSmoothMomentum(from startOffset: CGFloat, to targetOffset: CGFloat, duration: TimeInterval) {
         // Stop any existing momentum
         momentumTimer?.invalidate()
         
@@ -411,8 +451,8 @@ struct CalendarView: View {
             let elapsed = Date().timeIntervalSince(startTime)
             let progress = min(elapsed / duration, 1.0)
             
-            // Ease-out animation curve
-            let easedProgress = 1.0 - pow(1.0 - progress, 3.0)
+            // Simple, smooth ease-out curve - no jerky movements
+            let easedProgress = 1.0 - pow(1.0 - progress, 3.5)  // Smooth deceleration
             
             animatedScrollOffset = startOffset + (totalDistance * easedProgress)
             
@@ -420,7 +460,7 @@ struct CalendarView: View {
                 timer.invalidate()
                 momentumTimer = nil
                 baseScrollOffset = animatedScrollOffset
-                print("DEBUG: ✅ Manual momentum finished at: \(Int(animatedScrollOffset))")
+                print("DEBUG: ✅ Smooth momentum finished at: \(Int(animatedScrollOffset))")
             }
         }
     }
@@ -464,26 +504,16 @@ struct CalendarView: View {
         
         calculator = MonthCalculator(currentDate: currentDate, screenHeight: screenHeight)
         
-        // Calculate fixed viewport ONCE
-        if let calc = calculator {
-            viewportData = ViewportCalculator.calculateFixedViewport(
-                screenHeight: screenHeight,
-                screenWidth: screenWidth,
-                calculator: calc
-            )
-            
-            // Only reset offsets on very first setup
-            if abs(baseScrollOffset) < 0.1 && abs(animatedScrollOffset) < 0.1 {
-                baseScrollOffset = 0
-                animatedScrollOffset = 0
-                print("DEBUG: ✅ Initial setup - setting offsets to 0")
-            } else {
-                print("DEBUG: ⚠️ Screen size change - keeping existing offsets")
-            }
+        // Only reset offsets on very first setup
+        if abs(baseScrollOffset) < 0.1 && abs(animatedScrollOffset) < 0.1 {
+            baseScrollOffset = 0
+            animatedScrollOffset = 0
+            print("DEBUG: ✅ Initial setup - setting offsets to 0")
+        } else {
+            print("DEBUG: ⚠️ Screen size change - keeping existing offsets")
         }
         
-        print("DEBUG: Manual momentum календарь настроен для \(screenWidth)x\(screenHeight)")
-        print("DEBUG: Months in viewport: \(viewportData?.visibleMonths.count ?? 0)")
+        print("DEBUG: Infinite scroll календарь настроен для \(screenWidth)x\(screenHeight)")
     }
 }
 
