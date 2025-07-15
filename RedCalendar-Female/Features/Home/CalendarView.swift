@@ -37,19 +37,19 @@ struct VisibleDay {
     let dayNumber: String
 }
 
-// MARK: - Native Physics Constants
+// MARK: - Smooth and Responsive Calendar Physics
 struct MomentumPhysics {
-    // Friction coefficient - lower = longer momentum
-    static let friction: CGFloat = 0.992  // Very low friction for long scrolling
+    // Friction coefficient - smooth and flowing like native iOS
+    static let friction: CGFloat = 0.991  // Light friction for smooth momentum
     
-    // Minimum velocity threshold - lower = longer scrolling
-    static let minVelocity: CGFloat = 0.1  // Very low threshold for long deceleration
+    // Minimum velocity threshold - natural stop without abrupt ending
+    static let minVelocity: CGFloat = 0.4  // Let momentum flow naturally
     
-    // Maximum initial velocity for powerful swipes
-    static let maxVelocity: CGFloat = 15000  // Higher max for fast swipes
+    // Maximum initial velocity - allow energetic navigation
+    static let maxVelocity: CGFloat = 12000  // Support fast navigation
     
-    // Velocity multiplier - higher = more initial momentum
-    static let velocityMultiplier: CGFloat = 1.2  // Strong initial momentum
+    // Velocity multiplier - responsive and lively
+    static let velocityMultiplier: CGFloat = 1.1  // Amplify gestures for responsiveness
     
     // Target FPS for smooth animation
     static let targetFPS: Double = 120.0
