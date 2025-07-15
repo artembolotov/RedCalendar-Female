@@ -5,12 +5,12 @@
 //  Created by Артём Болотов on 11.07.2025.
 //
 //  🎯 VIEWPORT RENDERING APPROACH:
-//  🖼️ Зафиксированный viewport с большим буфером
+//  🖼️ Бесконечный viewport в обе стороны
 //  🎨 НЕ пересчитываем элементы во время прокрутки
-//  📐 Прямые математические вычисления позиций
+//  📐 Кэширование кумулятивных позиций (без ограничений)
 //  🚫 Мгновенное прерывание анимаций
 //  ✅ Полный контроль над рендерингом
-//  ⚡ Spring momentum как в iOS
+//  ⚡ НАТИВНЫЙ momentum с физикой UIScrollView
 //
 
 import SwiftUI
@@ -37,7 +37,26 @@ struct VisibleDay {
     let dayNumber: String
 }
 
-// MARK: - Simplified MonthCalculator
+// MARK: - Native Physics Constants
+struct MomentumPhysics {
+    // Friction coefficient - lower = longer momentum
+    static let friction: CGFloat = 0.992  // Very low friction for long scrolling
+    
+    // Minimum velocity threshold - lower = longer scrolling
+    static let minVelocity: CGFloat = 0.1  // Very low threshold for long deceleration
+    
+    // Maximum initial velocity for powerful swipes
+    static let maxVelocity: CGFloat = 15000  // Higher max for fast swipes
+    
+    // Velocity multiplier - higher = more initial momentum
+    static let velocityMultiplier: CGFloat = 1.2  // Strong initial momentum
+    
+    // Target FPS for smooth animation
+    static let targetFPS: Double = 120.0
+    static let frameInterval: TimeInterval = 1.0 / targetFPS
+}
+
+// MARK: - Optimized MonthCalculator with Cumulative Position Caching
 final class MonthCalculator: ObservableObject {
     let currentDate: Date
     let screenHeight: CGFloat
@@ -46,9 +65,21 @@ final class MonthCalculator: ObservableObject {
     private var monthHeightCache: [Int: CGFloat] = [:]
     private var monthDaysCache: [Int: [Date?]] = [:]
     
+    // NEW: Cumulative position cache for smooth scrolling
+    private var cumulativePositionCache: [Int: CGFloat] = [:]
+    private var lastAccessedMonth: Int = 0  // Track movement direction for cache cleanup
+    private var lastCacheCleanupTime: Date = Date()  // Prevent excessive cleanup
+    
+    private let maxCacheSize = 500  // Larger cache for infinite scrolling
+    private let cacheCleanupDistance = 1000  // Very large distance before cleanup
+    private let cacheCleanupCooldown: TimeInterval = 5.0  // Wait 5 seconds between cleanups
+    
     init(currentDate: Date, screenHeight: CGFloat) {
         self.currentDate = currentDate
         self.screenHeight = screenHeight
+        // Initialize position 0 for current month
+        cumulativePositionCache[0] = 0
+        lastCacheCleanupTime = Date()  // Initialize cleanup time
     }
     
     var weekHeight: CGFloat {
@@ -72,6 +103,8 @@ final class MonthCalculator: ObservableObject {
         let weeksCount = Int(ceil(Double(totalCells) / 7.0))
         
         weekCountCache[monthOffset] = weeksCount
+        cleanupCacheIfNeeded()
+        
         return weeksCount
     }
     
@@ -133,34 +166,125 @@ final class MonthCalculator: ObservableObject {
         return formatter.string(from: monthDate).capitalized
     }
     
-    // Clear position calculation
+    // OPTIMIZED: Cumulative position caching for smooth scrolling
     func getYPosition(for monthOffset: Int) -> CGFloat {
-        var totalHeight: CGFloat = 0
+        // Check if already cached
+        if let cached = cumulativePositionCache[monthOffset] {
+            updateLastAccessed(monthOffset)
+            return cached
+        }
+        
+        // Find the nearest cached position to build from
+        var nearestCachedOffset: Int
+        var nearestCachedPosition: CGFloat
         
         if monthOffset > 0 {
-            // Positive offsets: months AFTER current (below Y=0)
-            for offset in 0..<monthOffset {
-                totalHeight += getMonthHeight(for: offset)
+            // For positive offsets, find highest cached offset below target
+            nearestCachedOffset = 0
+            nearestCachedPosition = 0
+            
+            for offset in stride(from: monthOffset - 1, through: 0, by: -1) {
+                if let cachedPos = cumulativePositionCache[offset] {
+                    nearestCachedOffset = offset
+                    nearestCachedPosition = cachedPos
+                    break
+                }
             }
+            
+            // Build forward from nearest cached position
+            var currentPosition = nearestCachedPosition
+            for offset in (nearestCachedOffset + 1)...monthOffset {
+                let monthHeight = getMonthHeight(for: offset - 1)
+                currentPosition += monthHeight
+                
+                // Cache intermediate positions
+                cumulativePositionCache[offset] = currentPosition
+            }
+            
         } else if monthOffset < 0 {
-            // Negative offsets: months BEFORE current (above Y=0)
-            for offset in stride(from: -1, through: monthOffset, by: -1) {
-                totalHeight -= getMonthHeight(for: offset)
+            // For negative offsets, find lowest cached offset above target
+            nearestCachedOffset = 0
+            nearestCachedPosition = 0
+            
+            for offset in stride(from: monthOffset + 1, to: 1, by: 1) {
+                if let cachedPos = cumulativePositionCache[offset] {
+                    nearestCachedOffset = offset
+                    nearestCachedPosition = cachedPos
+                    break
+                }
+            }
+            
+            // Build backward from nearest cached position
+            var currentPosition = nearestCachedPosition
+            for offset in stride(from: nearestCachedOffset - 1, through: monthOffset, by: -1) {
+                let monthHeight = getMonthHeight(for: offset)
+                currentPosition -= monthHeight
+                
+                // Cache intermediate positions
+                cumulativePositionCache[offset] = currentPosition
             }
         }
-        // monthOffset == 0: return 0 (current month at Y=0)
         
-        return totalHeight
+        updateLastAccessed(monthOffset)
+        return cumulativePositionCache[monthOffset] ?? 0
+    }
+    
+    private func updateLastAccessed(_ monthOffset: Int) {
+        let previousAccess = lastAccessedMonth
+        lastAccessedMonth = monthOffset
+        
+        // Clean up distant cache if we've moved far away AND enough time has passed
+        let distanceMoved = abs(monthOffset - previousAccess)
+        let timeSinceLastCleanup = Date().timeIntervalSince(lastCacheCleanupTime)
+        
+        if distanceMoved > cacheCleanupDistance && timeSinceLastCleanup > cacheCleanupCooldown {
+            cleanupDistantCache(around: monthOffset)
+            lastCacheCleanupTime = Date()
+        }
+    }
+    
+    private func cleanupDistantCache(around centerMonth: Int) {
+        // For truly infinite calendar, keep a larger range and clean less aggressively
+        let keepRange = centerMonth - 500...centerMonth + 500  // Keep ±500 months (~41 years each direction)
+        
+        let keysToRemove = cumulativePositionCache.keys.filter { !keepRange.contains($0) }
+        
+        // Only clean if we have too many entries outside the range
+        if keysToRemove.count > 200 {
+            for key in keysToRemove {
+                cumulativePositionCache.removeValue(forKey: key)
+            }
+            print("DEBUG: 🧹 Cache cleanup: removed \(keysToRemove.count) entries, kept ±500 around month \(centerMonth)")
+        }
+    }
+    
+    private func cleanupCacheIfNeeded() {
+        if weekCountCache.count > maxCacheSize {
+            let sortedKeys = weekCountCache.keys.sorted { abs($0) > abs($1) }
+            let keysToRemove = Array(sortedKeys.prefix(20))
+            
+            for key in keysToRemove {
+                weekCountCache.removeValue(forKey: key)
+                monthHeightCache.removeValue(forKey: key)
+                monthDaysCache.removeValue(forKey: key)
+                // Note: Don't remove from cumulativePositionCache here - it has its own cleanup
+            }
+        }
     }
     
     func clearCache() {
         weekCountCache.removeAll()
         monthHeightCache.removeAll()
         monthDaysCache.removeAll()
+        cumulativePositionCache.removeAll()
+        // Restore initial position
+        cumulativePositionCache[0] = 0
+        lastAccessedMonth = 0
+        lastCacheCleanupTime = Date()  // Reset cleanup time
     }
 }
 
-// MARK: - Dynamic Viewport Calculator
+// MARK: - Simple Viewport Calculator (ORIGINAL LOGIC)
 class ViewportCalculator {
     static func calculateDynamicViewport(
         scrollOffset: CGFloat,
@@ -169,14 +293,13 @@ class ViewportCalculator {
         calculator: MonthCalculator
     ) -> ViewportData {
         
-        // Calculate which months should be visible based on current scroll position
-        let bufferHeight = screenHeight * 3  // 3 screen heights buffer in each direction
+        let bufferHeight = screenHeight * 1.5
         let viewportTop = -scrollOffset - bufferHeight
         let viewportBottom = -scrollOffset + screenHeight + bufferHeight
         
-        // Estimate starting month based on scroll position
-        let averageMonthHeight: CGFloat = 320  // Rough estimate
-        let estimatedStartMonth = Int(scrollOffset / averageMonthHeight) - 10
+        // Simple estimation based on average height
+        let averageMonthHeight: CGFloat = 290
+        let estimatedStartMonth = Int(scrollOffset / averageMonthHeight) - 5
         
         var visibleMonths: [VisibleMonth] = []
         var currentY: CGFloat = 0
@@ -185,14 +308,14 @@ class ViewportCalculator {
         // Find the actual starting position
         currentY = calculator.getYPosition(for: monthOffset)
         
-        // Go backwards if we started too far forward (increased range for infinite scroll)
-        while currentY > viewportTop && monthOffset > -500 {  // Increased from -200 to -500
+        // INFINITE backward search - no limits!
+        while currentY > viewportTop {
             monthOffset -= 1
             currentY = calculator.getYPosition(for: monthOffset)
         }
         
-        // Now collect all months that intersect with the viewport (increased range)
-        while currentY < viewportBottom && monthOffset < 500 {  // Increased from 200 to 500
+        // INFINITE forward search to build visible months - no limits!
+        while currentY < viewportBottom {
             let monthHeight = calculator.getMonthHeight(for: monthOffset)
             let monthBottom = currentY + monthHeight
             
@@ -210,18 +333,16 @@ class ViewportCalculator {
             
             currentY += monthHeight
             monthOffset += 1
-        }
-        
-        // Debug info
-        if visibleMonths.count > 0 {
-            let firstMonth = visibleMonths.first!.monthOffset
-            let lastMonth = visibleMonths.last!.monthOffset
-            print("DEBUG: 🔄 Rendered months \(firstMonth) to \(lastMonth) (total: \(visibleMonths.count)) at scroll: \(Int(scrollOffset))")
+            
+            // Safety: limit number of visible months to prevent memory issues
+            if visibleMonths.count >= 30 {
+                break
+            }
         }
         
         return ViewportData(
             visibleMonths: visibleMonths,
-            totalContentHeight: CGFloat.greatestFiniteMagnitude  // Infinite content
+            totalContentHeight: CGFloat.greatestFiniteMagnitude
         )
     }
     
@@ -242,7 +363,7 @@ class ViewportCalculator {
         // Calculate day positions
         let headerHeight: CGFloat = 60
         let gridStartY = yPosition + headerHeight
-        let dayWidth = (screenWidth - 24) / 7 // 12px padding on each side
+        let dayWidth = (screenWidth - 24) / 7
         
         for weekIndex in 0..<weeksCount {
             let weekY = gridStartY + CGFloat(weekIndex) * (weekHeight + 4)
@@ -281,17 +402,21 @@ struct CalendarView: View {
     
     private let currentDate = Date()
     
-    // Separate scroll states for immediate interruption
-    @State private var baseScrollOffset: CGFloat = 0      // Real position (no animation)
-    @State private var animatedScrollOffset: CGFloat = 0  // Manual momentum position
+    // Separate scroll states for native momentum
+    @State private var baseScrollOffset: CGFloat = 0
+    @State private var animatedScrollOffset: CGFloat = 0
     @State private var dragStartOffset: CGFloat = 0
     @State private var isDragging: Bool = false
-    @State private var momentumTimer: Timer?
     @State private var screenHeight: CGFloat = 0
     @State private var screenWidth: CGFloat = 0
     
-    // Momentum configuration
-    private let useSpringMomentum = false  // Spring disabled - too jerky at the end
+    // Native momentum physics state
+    @State private var momentumVelocity: CGFloat = 0
+    @State private var momentumTimer: Timer?
+    
+    // Simple optimization: throttle viewport recalculation
+    @State private var lastViewportUpdateScroll: CGFloat = 0
+    private let viewportUpdateThreshold: CGFloat = 20
     
     // Computed property for current scroll offset
     private var currentScrollOffset: CGFloat {
@@ -310,7 +435,7 @@ struct CalendarView: View {
                     // Fixed header
                     headerView
                     
-                    // Dynamic viewport renderer (no need for pre-calculated viewport)
+                    // Dynamic viewport renderer
                     if let calc = calculator {
                         dynamicViewportRenderer(calculator: calc, screenWidth: availableWidth, screenHeight: availableHeight)
                     }
@@ -320,9 +445,7 @@ struct CalendarView: View {
                 setupCalculator(screenHeight: availableHeight, screenWidth: availableWidth)
             }
             .onDisappear {
-                // Clean up momentum timer
-                momentumTimer?.invalidate()
-                momentumTimer = nil
+                stopMomentumAnimation()
             }
             .onChange(of: geometry.size) { newSize in
                 if abs(newSize.height - screenHeight) > 1 || abs(newSize.width - screenWidth) > 1 {
@@ -332,12 +455,17 @@ struct CalendarView: View {
         }
     }
     
-    // MARK: - Dynamic Viewport Renderer
+    // MARK: - Stable Dynamic Viewport Renderer
     
     private func dynamicViewportRenderer(calculator: MonthCalculator, screenWidth: CGFloat, screenHeight: CGFloat) -> some View {
-        // Recalculate viewport dynamically based on current scroll position
+        // Simple optimization: only recalculate viewport when scroll changes significantly
+        let shouldUpdateViewport = abs(currentScrollOffset - lastViewportUpdateScroll) > viewportUpdateThreshold || isDragging
+        
+        // Use the scroll position for calculation (either current for smooth updates, or cached for performance)
+        let scrollForCalculation = shouldUpdateViewport ? currentScrollOffset : lastViewportUpdateScroll
+        
         let dynamicViewport = ViewportCalculator.calculateDynamicViewport(
-            scrollOffset: currentScrollOffset,
+            scrollOffset: scrollForCalculation,
             screenHeight: screenHeight,
             screenWidth: screenWidth,
             calculator: calculator
@@ -348,7 +476,7 @@ struct CalendarView: View {
             ForEach(dynamicViewport.visibleMonths.indices, id: \.self) { monthIndex in
                 let month = dynamicViewport.visibleMonths[monthIndex]
                 
-                // Month header - FIXED position (never recalculated)
+                // Month header - FIXED position
                 Text(calculator.getMonthName(for: month.monthOffset))
                     .font(.title2)
                     .fontWeight(.semibold)
@@ -356,26 +484,30 @@ struct CalendarView: View {
                     .frame(width: screenWidth, height: 60)
                     .position(x: screenWidth / 2, y: month.yPosition + 30)
                 
-                // Days - FIXED positions (never recalculated)
+                // Days - FIXED positions with visibility optimization
                 ForEach(month.visibleDays.indices, id: \.self) { dayIndex in
                     let day = month.visibleDays[dayIndex]
                     
-                    ZStack {
-                        // Today highlight
-                        if day.isToday {
-                            Circle()
-                                .fill(Color.red)
-                                .frame(width: 32, height: 32)
+                    // Performance optimization: only render days that are reasonably close to screen
+                    let dayScreenY = day.yPosition + currentScrollOffset
+                    if dayScreenY > -100 && dayScreenY < screenHeight + 100 {
+                        ZStack {
+                            // Today highlight
+                            if day.isToday {
+                                Circle()
+                                    .fill(Color.red)
+                                    .frame(width: 32, height: 32)
+                            }
+                            
+                            Text(day.dayNumber)
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundColor(day.isToday ? .white : .primary)
                         }
-                        
-                        Text(day.dayNumber)
-                            .font(.system(size: 16, weight: .medium))
-                            .foregroundColor(day.isToday ? .white : .primary)
+                        .position(
+                            x: day.xPosition + (screenWidth - 24) / 14,
+                            y: day.yPosition + calculator.weekHeight / 2
+                        )
                     }
-                    .position(
-                        x: day.xPosition + (screenWidth - 24) / 14,
-                        y: day.yPosition + calculator.weekHeight / 2
-                    )
                 }
             }
         }
@@ -389,80 +521,66 @@ struct CalendarView: View {
                     // IMMEDIATELY stop any momentum animation
                     if !isDragging {
                         isDragging = true
-                        
-                        // CRITICAL: Stop momentum timer immediately
-                        momentumTimer?.invalidate()
-                        momentumTimer = nil
-                        
-                        // Set base position to current animated position (seamless transition)
+                        stopMomentumAnimation()
                         baseScrollOffset = animatedScrollOffset
                         dragStartOffset = baseScrollOffset
-                        
-                        print("DEBUG: ⭐ NEW DRAG STARTED - STOPPED MOMENTUM at offset: \(Int(dragStartOffset))")
                     }
                     
                     // Update base scroll position (no animation during drag)
                     baseScrollOffset = dragStartOffset + value.translation.height
+                    updateViewportTracking()
                 }
                 .onEnded { value in
-                    print("DEBUG: 🛑 DRAG ENDED at base offset: \(Int(baseScrollOffset))")
-                    handleDragEnd(velocity: value.velocity.height)
+                    handleNativeDragEnd(velocity: value.velocity.height)
+                    updateViewportTracking()
                 }
         )
     }
     
-    private func handleDragEnd(velocity: CGFloat) {
-        // Reset drag state
-        isDragging = false
-        
-        // Set animated offset to current base position first
-        animatedScrollOffset = baseScrollOffset
-        
-        // Only start momentum if there's significant velocity
-        if abs(velocity) > 80 {  // Slightly lower threshold
-            // More conservative momentum calculation - no jerky movements
-            let momentumMultiplier: CGFloat = 0.6  // Reduced for smoother feel
-            let maxMomentum: CGFloat = screenHeight * 2.5  // Slightly reduced max distance
-            let momentumDistance = min(max(velocity * momentumMultiplier, -maxMomentum), maxMomentum)
-            
-            let targetOffset = baseScrollOffset + momentumDistance
-            
-            // Shorter, smoother duration
-            let baseDuration: TimeInterval = 0.4
-            let maxDuration: TimeInterval = 0.8  // Reduced max duration
-            let distanceFactor = min(abs(momentumDistance) / (screenHeight * 2), 1.0)
-            let duration = baseDuration + (maxDuration - baseDuration) * distanceFactor
-            
-            print("DEBUG: 💨 Starting SMOOTH momentum from \(Int(baseScrollOffset)) to \(Int(targetOffset)), duration: \(String(format: "%.1f", duration))s")
-            startSmoothMomentum(from: baseScrollOffset, to: targetOffset, duration: duration)
-        } else {
-            print("DEBUG: 🚫 Skipping momentum (low velocity: \(Int(velocity)))")
+    private func updateViewportTracking() {
+        let shouldUpdate = abs(currentScrollOffset - lastViewportUpdateScroll) > viewportUpdateThreshold
+        if shouldUpdate {
+            lastViewportUpdateScroll = currentScrollOffset
         }
     }
     
-    private func startSmoothMomentum(from startOffset: CGFloat, to targetOffset: CGFloat, duration: TimeInterval) {
-        // Stop any existing momentum
-        momentumTimer?.invalidate()
+    // MARK: - Native Momentum Methods
+    
+    private func handleNativeDragEnd(velocity: CGFloat) {
+        isDragging = false
+        animatedScrollOffset = baseScrollOffset
         
-        let startTime = Date()
-        let totalDistance = targetOffset - startOffset
+        let clampedVelocity = max(-MomentumPhysics.maxVelocity, min(MomentumPhysics.maxVelocity, velocity))
+        let adjustedVelocity = clampedVelocity * MomentumPhysics.velocityMultiplier
         
-        momentumTimer = Timer.scheduledTimer(withTimeInterval: 1.0/60.0, repeats: true) { timer in
-            let elapsed = Date().timeIntervalSince(startTime)
-            let progress = min(elapsed / duration, 1.0)
-            
-            // Simple, smooth ease-out curve - no jerky movements
-            let easedProgress = 1.0 - pow(1.0 - progress, 3.5)  // Smooth deceleration
-            
-            animatedScrollOffset = startOffset + (totalDistance * easedProgress)
-            
-            if progress >= 1.0 {
-                timer.invalidate()
-                momentumTimer = nil
-                baseScrollOffset = animatedScrollOffset
-                print("DEBUG: ✅ Smooth momentum finished at: \(Int(animatedScrollOffset))")
-            }
+        if abs(adjustedVelocity) > MomentumPhysics.minVelocity {
+            startNativeMomentum(initialVelocity: adjustedVelocity)
         }
+    }
+    
+    private func startNativeMomentum(initialVelocity: CGFloat) {
+        stopMomentumAnimation()
+        momentumVelocity = initialVelocity
+        
+        momentumTimer = Timer.scheduledTimer(withTimeInterval: MomentumPhysics.frameInterval, repeats: true) { _ in
+            self.updateMomentumAnimation()
+        }
+    }
+    
+    private func updateMomentumAnimation() {
+        momentumVelocity *= MomentumPhysics.friction
+        animatedScrollOffset += momentumVelocity / MomentumPhysics.targetFPS
+        
+        if abs(momentumVelocity) < MomentumPhysics.minVelocity {
+            stopMomentumAnimation()
+            baseScrollOffset = animatedScrollOffset
+        }
+    }
+    
+    private func stopMomentumAnimation() {
+        momentumTimer?.invalidate()
+        momentumTimer = nil
+        momentumVelocity = 0
     }
     
     // MARK: - Subviews
@@ -504,16 +622,12 @@ struct CalendarView: View {
         
         calculator = MonthCalculator(currentDate: currentDate, screenHeight: screenHeight)
         
-        // Only reset offsets on very first setup
         if abs(baseScrollOffset) < 0.1 && abs(animatedScrollOffset) < 0.1 {
             baseScrollOffset = 0
             animatedScrollOffset = 0
-            print("DEBUG: ✅ Initial setup - setting offsets to 0")
-        } else {
-            print("DEBUG: ⚠️ Screen size change - keeping existing offsets")
         }
         
-        print("DEBUG: Infinite scroll календарь настроен для \(screenWidth)x\(screenHeight)")
+        print("DEBUG: 🎯 INFINITE календарь настроен для \(screenWidth)x\(screenHeight) - бесконечный скролл")
     }
 }
 
