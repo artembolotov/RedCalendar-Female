@@ -1,14 +1,8 @@
 //
-//  CalendarView.swift - Бесконечный календарь с нативным multi-touch 🎯⚡
+//  CalendarView.swift - Бесконечный календарь с простыми ограничениями 🎯⚡
 //  RedCalendar-Female
 //
 //  Created by Артём Болотов on 11.07.2025.
-//
-//  🎯 INFINITE SCROLL WITH NATIVE MULTI-TOUCH:
-//  🖼️ Бесконечный viewport в обе стороны
-//  📐 Кэширование кумулятивных позиций
-//  🖱️ Нативный multi-touch через UIScrollView
-//  ⚡ Упрощенная логика перецентровки
 //
 
 import SwiftUI
@@ -33,7 +27,7 @@ struct VisibleDay {
     let dayNumber: String
 }
 
-// MARK: - Simplified Infinite UIScrollView
+// MARK: - Simple Infinite UIScrollView with Basic Limits
 struct InfiniteScrollContainer: UIViewRepresentable {
     @Binding var scrollOffset: CGFloat
     let onScrollChanged: (CGFloat) -> Void
@@ -42,6 +36,10 @@ struct InfiniteScrollContainer: UIViewRepresentable {
     // Simple infinite scroll parameters
     private let contentHeight: CGFloat = 8000000
     private let centerY: CGFloat = 4000000
+    
+    // Simple boundary limits - approximate but fast
+    private let maxScrollUp: CGFloat = 1800000    // ~6000 months * 300px average
+    private let maxScrollDown: CGFloat = -1800000  // ~6000 months * 300px average
     
     func makeUIView(context: Context) -> UIScrollView {
         let scrollView = UIScrollView()
@@ -83,7 +81,16 @@ struct InfiniteScrollContainer: UIViewRepresentable {
         
         func scrollViewDidScroll(_ scrollView: UIScrollView) {
             let physicalY = scrollView.contentOffset.y
-            let calendarOffset = parent.centerY - physicalY
+            var calendarOffset = parent.centerY - physicalY
+            
+            // Simple boundary check - clamp to limits
+            if calendarOffset > parent.maxScrollUp {
+                calendarOffset = parent.maxScrollUp
+                scrollView.contentOffset.y = parent.centerY - parent.maxScrollUp
+            } else if calendarOffset < parent.maxScrollDown {
+                calendarOffset = parent.maxScrollDown
+                scrollView.contentOffset.y = parent.centerY - parent.maxScrollDown
+            }
             
             // Simple recentering - only when needed and not dragging
             if !isDragging && Date().timeIntervalSince(lastRecenter) > 2.0 {
@@ -116,10 +123,23 @@ struct InfiniteScrollContainer: UIViewRepresentable {
             isDragging = false
             DispatchQueue.main.async { self.parent.onDragStateChanged(false) }
         }
+        
+        // Simple deceleration control at boundaries
+        func scrollViewWillEndDragging(_ scrollView: UIScrollView, withVelocity velocity: CGPoint, targetContentOffset: UnsafeMutablePointer<CGPoint>) {
+            let targetPhysicalY = targetContentOffset.pointee.y
+            let targetCalendarOffset = parent.centerY - targetPhysicalY
+            
+            // Simple boundary check
+            if targetCalendarOffset > parent.maxScrollUp {
+                targetContentOffset.pointee.y = parent.centerY - parent.maxScrollUp
+            } else if targetCalendarOffset < parent.maxScrollDown {
+                targetContentOffset.pointee.y = parent.centerY - parent.maxScrollDown
+            }
+        }
     }
 }
 
-// MARK: - Month Calculator with Proper Caching
+// MARK: - Month Calculator with Proper Caching (RESTORED ORIGINAL)
 final class MonthCalculator: ObservableObject {
     let currentDate: Date
     let screenHeight: CGFloat
@@ -212,7 +232,7 @@ final class MonthCalculator: ObservableObject {
         
         // Handle boundary messages - return empty grid for special rendering
         if monthOffset == pastBoundaryOffset || monthOffset == futureBoundaryOffset {
-            let emptyBoundary: [Date?] = Array(repeating: nil, count: 56)  // 8 weeks * 7 days
+            let emptyBoundary: [Date?] = Array(repeating: nil, count: 42)  // 6 weeks * 7 days
             monthDaysCache[monthOffset] = emptyBoundary
             return emptyBoundary
         }
@@ -222,7 +242,7 @@ final class MonthCalculator: ObservableObject {
         
         guard let startOfMonth = calendar.dateInterval(of: .month, for: monthDate)?.start,
               let range = calendar.range(of: .day, in: .month, for: monthDate) else {
-            // Fallback for problematic dates - return empty month
+            // Fallback - return empty month
             let emptyMonth: [Date?] = Array(repeating: nil, count: 42)  // 6 weeks * 7 days
             monthDaysCache[monthOffset] = emptyMonth
             return emptyMonth
@@ -348,7 +368,7 @@ final class MonthCalculator: ObservableObject {
     }
 }
 
-// MARK: - Viewport Calculator - RESTORED ORIGINAL LOGIC
+// MARK: - Viewport Calculator - ORIGINAL WORKING LOGIC
 class ViewportCalculator {
     static func calculateDynamicViewport(
         scrollOffset: CGFloat,
@@ -693,31 +713,3 @@ struct CalendarView: View {
 #Preview {
     CalendarView()
 }
-
-/*
- 🎯 INFINITE CALENDAR WITH BEAUTIFUL BOUNDARIES:
- 
- ✅ Core features:
- - Infinite scrolling with ±500 year range (1525-2525 CE)
- - Native multi-touch support via UIScrollView
- - Smooth momentum and viewport optimization
- - Safe date handling with Calendar API limits
- 
- ✅ Boundary experience:
- - Beautiful boundary messages at time limits
- - "🕰️ Граница времени" for the distant past
- - "🚀 Край вселенной" for the far future
- - Thanking users for their curiosity
- - No more empty screens at extremes
- 
- ✅ Technical improvements:
- - Special boundary month offsets (-6001, +6001)
- - Custom rendering for boundary messages
- - Graceful fallbacks for Calendar API limits
- - Disabled tap-to-scroll-to-top behavior
- 
- 🧭 User experience:
- "Спасибо за любознательность!" - users now get a warm,
- friendly message when they reach the edges of time,
- encouraging them to return to the present.
- */
