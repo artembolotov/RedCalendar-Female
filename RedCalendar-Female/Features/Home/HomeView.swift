@@ -17,6 +17,7 @@ struct HomeView: View {
                     CalendarView()
                 }
             }
+            .ignoresSafeArea(edges: .bottom)
             .navigationBarTitleDisplayMode(.inline) // Compact mode
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
