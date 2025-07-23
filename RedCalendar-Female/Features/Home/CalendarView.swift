@@ -1,5 +1,5 @@
 //
-//  CalendarView.swift - Бесконечный календарь с простыми ограничениями 🎯⚡
+//  CalendarView.swift - Бесконечный календарь с правильным центрированием 🎯⚡
 //  RedCalendar-Female
 //
 //  Created by Артём Болотов on 11.07.2025.
@@ -27,19 +27,15 @@ struct VisibleDay {
     let dayNumber: String
 }
 
-// MARK: - Simple Infinite UIScrollView with Basic Limits
+// MARK: - Simple Infinite UIScrollView
 struct InfiniteScrollContainer: UIViewRepresentable {
     @Binding var scrollOffset: CGFloat
     let onScrollChanged: (CGFloat) -> Void
     let onDragStateChanged: (Bool) -> Void
+    let initialCenterOffset: CGFloat
     
-    // Simple infinite scroll parameters
     private let contentHeight: CGFloat = 8000000
     private let centerY: CGFloat = 4000000
-    
-    // Simple boundary limits - approximate but fast
-    private let maxScrollUp: CGFloat = 1800000    // ~6000 months * 300px average
-    private let maxScrollDown: CGFloat = -1800000  // ~6000 months * 300px average
     
     func makeUIView(context: Context) -> UIScrollView {
         let scrollView = UIScrollView()
@@ -47,12 +43,15 @@ struct InfiniteScrollContainer: UIViewRepresentable {
         scrollView.contentSize = CGSize(width: 0, height: contentHeight)
         scrollView.showsVerticalScrollIndicator = false
         scrollView.bounces = true
-        scrollView.isMultipleTouchEnabled = true  // Native multi-touch
+        scrollView.alwaysBounceVertical = true
+        scrollView.isMultipleTouchEnabled = true
         scrollView.canCancelContentTouches = true
         scrollView.delaysContentTouches = false
         scrollView.backgroundColor = .clear
-        scrollView.contentOffset.y = centerY
-        scrollView.scrollsToTop = false  // Disable tap-to-scroll-to-top
+        scrollView.scrollsToTop = false
+        
+        // Start with current week centered
+        scrollView.contentOffset.y = centerY - initialCenterOffset
         
         return scrollView
     }
@@ -81,22 +80,13 @@ struct InfiniteScrollContainer: UIViewRepresentable {
         
         func scrollViewDidScroll(_ scrollView: UIScrollView) {
             let physicalY = scrollView.contentOffset.y
-            var calendarOffset = parent.centerY - physicalY
+            let calendarOffset = self.parent.centerY - physicalY
             
-            // Simple boundary check - clamp to limits
-            if calendarOffset > parent.maxScrollUp {
-                calendarOffset = parent.maxScrollUp
-                scrollView.contentOffset.y = parent.centerY - parent.maxScrollUp
-            } else if calendarOffset < parent.maxScrollDown {
-                calendarOffset = parent.maxScrollDown
-                scrollView.contentOffset.y = parent.centerY - parent.maxScrollDown
-            }
-            
-            // Simple recentering - only when needed and not dragging
-            if !isDragging && Date().timeIntervalSince(lastRecenter) > 2.0 {
-                let distanceFromEdge = min(physicalY, parent.contentHeight - physicalY)
-                if distanceFromEdge < 1000000 {
-                    scrollView.contentOffset.y = parent.centerY - calendarOffset
+            // Minimal recentering when very far from center
+            if !isDragging && Date().timeIntervalSince(lastRecenter) > 5.0 {
+                let distanceFromEdge = min(physicalY, self.parent.contentHeight - physicalY)
+                if distanceFromEdge < 100000 {
+                    scrollView.contentOffset.y = self.parent.centerY - calendarOffset
                     lastRecenter = Date()
                 }
             }
@@ -123,43 +113,29 @@ struct InfiniteScrollContainer: UIViewRepresentable {
             isDragging = false
             DispatchQueue.main.async { self.parent.onDragStateChanged(false) }
         }
-        
-        // Simple deceleration control at boundaries
-        func scrollViewWillEndDragging(_ scrollView: UIScrollView, withVelocity velocity: CGPoint, targetContentOffset: UnsafeMutablePointer<CGPoint>) {
-            let targetPhysicalY = targetContentOffset.pointee.y
-            let targetCalendarOffset = parent.centerY - targetPhysicalY
-            
-            // Simple boundary check
-            if targetCalendarOffset > parent.maxScrollUp {
-                targetContentOffset.pointee.y = parent.centerY - parent.maxScrollUp
-            } else if targetCalendarOffset < parent.maxScrollDown {
-                targetContentOffset.pointee.y = parent.centerY - parent.maxScrollDown
-            }
-        }
     }
 }
 
-// MARK: - Month Calculator with Proper Caching (RESTORED ORIGINAL)
+// MARK: - Month Calculator
 final class MonthCalculator: ObservableObject {
     let currentDate: Date
     let screenHeight: CGFloat
     
-    // Reasonable limits for calendar (about ±500 years)
-    private let minMonthOffset: Int = -6000  // ~500 years back
-    private let maxMonthOffset: Int = 6000   // ~500 years forward
+    // Constants
+    let minMonthOffset: Int = -5999
+    let maxMonthOffset: Int = 5999
+    private let monthHeaderHeight: CGFloat = 60
+    private let bottomSpacing: CGFloat = 20
+    private let gridVerticalSpacing: CGFloat = 4
     
-    // Special boundary offsets for edge messages
-    private let pastBoundaryOffset: Int = -6001
-    private let futureBoundaryOffset: Int = 6001
-    
-    // Essential caches - keep the working logic
+    // Caches
     private var weekCountCache: [Int: Int] = [:]
     private var monthHeightCache: [Int: CGFloat] = [:]
     private var monthDaysCache: [Int: [Date?]] = [:]
     private var cumulativePositionCache: [Int: CGFloat] = [0: 0]
     
     var weekHeight: CGFloat {
-        return floor(max(50, (screenHeight - 31) / 15))
+        return floor(max(50, (screenHeight - 31) / 15))  // 31 is calendar header height
     }
     
     init(currentDate: Date, screenHeight: CGFloat) {
@@ -167,36 +143,25 @@ final class MonthCalculator: ObservableObject {
         self.screenHeight = screenHeight
     }
     
-    // Safe date calculation with fallbacks
     private func getMonthDate(for monthOffset: Int) -> Date {
-        // Clamp to reasonable range
         let clampedOffset = max(minMonthOffset, min(maxMonthOffset, monthOffset))
         
-        // Try to create the date
         if let date = Calendar.current.date(byAdding: .month, value: clampedOffset, to: currentDate) {
             return date
         }
         
-        // Fallback for extreme dates
         return currentDate
     }
     
     func getWeeksCount(for monthOffset: Int) -> Int {
         if let cached = weekCountCache[monthOffset] { return cached }
         
-        // Handle boundary messages
-        if monthOffset == pastBoundaryOffset || monthOffset == futureBoundaryOffset {
-            weekCountCache[monthOffset] = 8  // Extra tall for message
-            return 8
-        }
-        
         let monthDate = getMonthDate(for: monthOffset)
         let calendar = Calendar.current
         
         guard let startOfMonth = calendar.dateInterval(of: .month, for: monthDate)?.start,
               let range = calendar.range(of: .day, in: .month, for: monthDate) else {
-            // Fallback for problematic dates
-            weekCountCache[monthOffset] = 6  // Standard month grid
+            weekCountCache[monthOffset] = 6
             return 6
         }
         
@@ -216,12 +181,8 @@ final class MonthCalculator: ObservableObject {
         if let cached = monthHeightCache[monthOffset] { return cached }
         
         let weeksCount = getWeeksCount(for: monthOffset)
-        let headerHeight: CGFloat = 60
-        let bottomSpacing: CGFloat = 20
-        let gridVerticalSpacing: CGFloat = 4
-        
         let gridHeight = (CGFloat(weeksCount) * weekHeight) + (CGFloat(weeksCount - 1) * gridVerticalSpacing)
-        let height = floor(headerHeight + gridHeight + bottomSpacing)
+        let height = floor(monthHeaderHeight + gridHeight + bottomSpacing)
         
         monthHeightCache[monthOffset] = height
         return height
@@ -230,20 +191,12 @@ final class MonthCalculator: ObservableObject {
     func getMonthDays(for monthOffset: Int) -> [Date?] {
         if let cached = monthDaysCache[monthOffset] { return cached }
         
-        // Handle boundary messages - return empty grid for special rendering
-        if monthOffset == pastBoundaryOffset || monthOffset == futureBoundaryOffset {
-            let emptyBoundary: [Date?] = Array(repeating: nil, count: 42)  // 6 weeks * 7 days
-            monthDaysCache[monthOffset] = emptyBoundary
-            return emptyBoundary
-        }
-        
         let monthDate = getMonthDate(for: monthOffset)
         let calendar = Calendar.current
         
         guard let startOfMonth = calendar.dateInterval(of: .month, for: monthDate)?.start,
               let range = calendar.range(of: .day, in: .month, for: monthDate) else {
-            // Fallback - return empty month
-            let emptyMonth: [Date?] = Array(repeating: nil, count: 42)  // 6 weeks * 7 days
+            let emptyMonth: [Date?] = Array(repeating: nil, count: 42)
             monthDaysCache[monthOffset] = emptyMonth
             return emptyMonth
         }
@@ -272,7 +225,9 @@ final class MonthCalculator: ObservableObject {
     }
     
     func getYPosition(for monthOffset: Int) -> CGFloat {
-        if let cached = cumulativePositionCache[monthOffset] { return cached }
+        if let cached = cumulativePositionCache[monthOffset] {
+            return cached
+        }
         
         var nearestCachedOffset: Int
         var nearestCachedPosition: CGFloat
@@ -320,38 +275,12 @@ final class MonthCalculator: ObservableObject {
     }
     
     func getMonthName(for monthOffset: Int) -> String {
-        // Special boundary messages
-        if monthOffset == pastBoundaryOffset {
-            return "🕰️ Граница времени"
-        } else if monthOffset == futureBoundaryOffset {
-            return "🚀 Край вселенной"
-        }
-        
         let monthDate = getMonthDate(for: monthOffset)
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "ru_RU")
         formatter.dateFormat = "LLLL yyyy"
         
-        // Handle extreme dates gracefully
-        let name = formatter.string(from: monthDate).capitalized
-        
-        // Show indication for clamped dates
-        if monthOffset <= minMonthOffset {
-            return "Начало времен"
-        } else if monthOffset >= maxMonthOffset {
-            return "Конец времен"
-        }
-        
-        return name
-    }
-    
-    func getBoundaryMessage(for monthOffset: Int) -> String? {
-        if monthOffset == pastBoundaryOffset {
-            return "Дальше уже ничего нет! 🕰️\n\nСпасибо за любознательность,\nно календарь заканчивается здесь.\n\nВозвращайтесь к нашему времени! ✨"
-        } else if monthOffset == futureBoundaryOffset {
-            return "Это край времени! 🚀\n\nВы достигли границ календаря.\nСпасибо за исследовательский дух!\n\nВремя вернуться назад в реальность 😊"
-        }
-        return nil
+        return formatter.string(from: monthDate).capitalized
     }
     
     private func cleanupCacheIfNeeded() {
@@ -368,7 +297,7 @@ final class MonthCalculator: ObservableObject {
     }
 }
 
-// MARK: - Viewport Calculator - ORIGINAL WORKING LOGIC
+// MARK: - Viewport Calculator
 class ViewportCalculator {
     static func calculateDynamicViewport(
         scrollOffset: CGFloat,
@@ -381,29 +310,37 @@ class ViewportCalculator {
         let viewportTop = -scrollOffset - bufferHeight
         let viewportBottom = -scrollOffset + screenHeight + bufferHeight
         
-        // Simple estimation based on average height
-        let averageMonthHeight: CGFloat = 290
-        let estimatedStartMonth = Int(scrollOffset / averageMonthHeight) - 5
-        
         var visibleMonths: [VisibleMonth] = []
         var currentY: CGFloat = 0
-        var monthOffset = estimatedStartMonth
+        var monthOffset = 0
         
-        // Find the actual starting position
-        currentY = calculator.getYPosition(for: monthOffset)
+        if scrollOffset > 0 {
+            monthOffset = 0
+            currentY = calculator.getYPosition(for: monthOffset)
+            
+            while currentY + calculator.getMonthHeight(for: monthOffset) < viewportTop && monthOffset < calculator.maxMonthOffset {
+                monthOffset += 1
+                currentY = calculator.getYPosition(for: monthOffset)
+            }
+        } else {
+            monthOffset = 0
+            currentY = calculator.getYPosition(for: monthOffset)
+            
+            while currentY > viewportBottom && monthOffset > calculator.minMonthOffset {
+                monthOffset -= 1
+                currentY = calculator.getYPosition(for: monthOffset)
+            }
+        }
         
-        // INFINITE backward search - with boundary message
-        while currentY > viewportTop && monthOffset > -6001 {  // Include boundary
+        while currentY > viewportTop && monthOffset > calculator.minMonthOffset {
             monthOffset -= 1
             currentY = calculator.getYPosition(for: monthOffset)
         }
         
-        // INFINITE forward search to build visible months - with boundary message
-        while currentY < viewportBottom && monthOffset < 6001 {  // Include boundary
+        while currentY < viewportBottom && monthOffset <= calculator.maxMonthOffset {
             let monthHeight = calculator.getMonthHeight(for: monthOffset)
             let monthBottom = currentY + monthHeight
             
-            // Include month if it intersects with viewport
             if monthBottom > viewportTop && currentY < viewportBottom {
                 let visibleMonth = createVisibleMonth(
                     monthOffset: monthOffset,
@@ -418,7 +355,6 @@ class ViewportCalculator {
             currentY += monthHeight
             monthOffset += 1
             
-            // Safety: limit number of visible months to prevent memory issues
             if visibleMonths.count >= 30 {
                 break
             }
@@ -441,7 +377,6 @@ class ViewportCalculator {
         
         var visibleDays: [VisibleDay] = []
         
-        // Calculate day positions
         let headerHeight: CGFloat = 60
         let gridStartY = yPosition + headerHeight
         let dayWidth = (screenWidth - 24) / 7
@@ -484,11 +419,14 @@ struct CalendarView: View {
     @State private var isDragging = false
     @State private var screenHeight: CGFloat = 0
     @State private var screenWidth: CGFloat = 0
-    
-    // Viewport optimization
     @State private var lastViewportUpdateScroll: CGFloat = 0
-    private let viewportUpdateThreshold: CGFloat = 20
+    @State private var initialCenterOffset: CGFloat = 0
     
+    // Constants
+    private let viewportUpdateThreshold: CGFloat = 20
+    private let headerHeight: CGFloat = 31
+    private let monthHeaderHeight: CGFloat = 60
+    private let dayVisibilityBuffer: CGFloat = 100
     private let currentDate = Date()
     
     var body: some View {
@@ -497,7 +435,6 @@ struct CalendarView: View {
             let availableWidth = geometry.size.width
             
             ZStack {
-                // Background
                 LinearGradient(
                     gradient: Gradient(colors: [
                         Color(.systemBackground),
@@ -509,17 +446,17 @@ struct CalendarView: View {
                 .ignoresSafeArea()
                 
                 VStack(spacing: 0) {
-                    // Fixed header
                     headerView
                     
-                    // Calendar content with native scroll overlay
                     ZStack {
-                        // Calendar content layer
                         if let calc = calculator {
-                            dynamicViewportRenderer(calculator: calc, screenWidth: availableWidth, screenHeight: availableHeight)
+                            dynamicViewportRenderer(
+                                calculator: calc,
+                                screenWidth: availableWidth,
+                                screenHeight: availableHeight
+                            )
                         }
                         
-                        // Native scroll layer (invisible but handles touch)
                         InfiniteScrollContainer(
                             scrollOffset: $scrollOffset,
                             onScrollChanged: { newOffset in
@@ -528,7 +465,8 @@ struct CalendarView: View {
                             },
                             onDragStateChanged: { dragging in
                                 self.isDragging = dragging
-                            }
+                            },
+                            initialCenterOffset: initialCenterOffset
                         )
                     }
                 }
@@ -537,14 +475,53 @@ struct CalendarView: View {
                 setupCalculator(screenHeight: availableHeight, screenWidth: availableWidth)
             }
             .onChange(of: geometry.size) { newSize in
-                if abs(newSize.height - screenHeight) > 1 || abs(newSize.width - screenWidth) > 1 {
+                if newSize.height > 0 && newSize.width > 0 {
                     setupCalculator(screenHeight: newSize.height, screenWidth: newSize.width)
                 }
             }
         }
     }
     
-    // MARK: - Calendar Content View - RESTORED WORKING LOGIC
+    // MARK: - Helper Methods
+    
+    private func setupCalculator(screenHeight: CGFloat, screenWidth: CGFloat) {
+        self.screenHeight = screenHeight
+        self.screenWidth = screenWidth
+        
+        // Don't setup if we don't have valid dimensions
+        guard screenHeight > 0 && screenWidth > 0 else { return }
+        
+        let newCalculator = MonthCalculator(currentDate: currentDate, screenHeight: screenHeight)
+        
+        // Find today's week position for centering
+        let currentMonthY = newCalculator.getYPosition(for: 0)
+        let monthDays = newCalculator.getMonthDays(for: 0)
+        let weekHeight = newCalculator.weekHeight
+        
+        var todayWeekIndex = 0
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: currentDate)
+        
+        for (index, date) in monthDays.enumerated() {
+            if let date = date, calendar.isDate(date, inSameDayAs: today) {
+                todayWeekIndex = index / 7
+                break
+            }
+        }
+        
+        let gridStartY = currentMonthY + monthHeaderHeight
+        let todayWeekY = gridStartY + CGFloat(todayWeekIndex) * (weekHeight + 4)
+        let todayWeekCenterY = todayWeekY + weekHeight / 2
+        
+        // Center current week in available view (excluding header)
+        let availableCalendarHeight = screenHeight - headerHeight
+        let centerPosition = availableCalendarHeight / 2
+        
+        initialCenterOffset = centerPosition - todayWeekCenterY
+        
+        calculator = newCalculator
+        scrollOffset = initialCenterOffset
+    }
     
     private func dynamicViewportRenderer(calculator: MonthCalculator, screenWidth: CGFloat, screenHeight: CGFloat) -> some View {
         let shouldUpdateViewport = abs(scrollOffset - lastViewportUpdateScroll) > viewportUpdateThreshold || isDragging
@@ -561,47 +538,33 @@ struct CalendarView: View {
             ForEach(dynamicViewport.visibleMonths.indices, id: \.self) { monthIndex in
                 let month = dynamicViewport.visibleMonths[monthIndex]
                 
-                // Check if this is a boundary month
-                if let boundaryMessage = calculator.getBoundaryMessage(for: month.monthOffset) {
-                    // Render boundary message
-                    boundaryMessageView(
-                        message: boundaryMessage,
-                        title: calculator.getMonthName(for: month.monthOffset),
-                        yPosition: month.yPosition,
-                        height: month.height,
-                        screenWidth: screenWidth
-                    )
-                } else {
-                    // Month header
-                    Text(calculator.getMonthName(for: month.monthOffset))
-                        .font(.title2)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.primary)
-                        .frame(width: screenWidth, height: 60)
-                        .position(x: screenWidth / 2, y: month.yPosition + 30)
+                Text(calculator.getMonthName(for: month.monthOffset))
+                    .font(.title2)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.primary)
+                    .frame(width: screenWidth, height: 60)
+                    .position(x: screenWidth / 2, y: month.yPosition + 30)
+                
+                ForEach(month.visibleDays.indices, id: \.self) { dayIndex in
+                    let day = month.visibleDays[dayIndex]
                     
-                    // Days - each as separate positioned element
-                    ForEach(month.visibleDays.indices, id: \.self) { dayIndex in
-                        let day = month.visibleDays[dayIndex]
-                        
-                        let dayScreenY = day.yPosition + scrollOffset
-                        if dayScreenY > -100 && dayScreenY < screenHeight + 100 {
-                            ZStack {
-                                if day.isToday {
-                                    Circle()
-                                        .fill(Color.red)
-                                        .frame(width: 32, height: 32)
-                                }
-                                
-                                Text(day.dayNumber)
-                                    .font(.system(size: 16, weight: .medium))
-                                    .foregroundColor(day.isToday ? .white : .primary)
+                    let dayScreenY = day.yPosition + scrollOffset
+                    if dayScreenY > -dayVisibilityBuffer && dayScreenY < screenHeight + dayVisibilityBuffer {
+                        ZStack {
+                            if day.isToday {
+                                Circle()
+                                    .fill(Color.red)
+                                    .frame(width: 32, height: 32)
                             }
-                            .position(
-                                x: day.xPosition + (screenWidth - 24) / 14,
-                                y: day.yPosition + calculator.weekHeight / 2
-                            )
+                            
+                            Text(day.dayNumber)
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundColor(day.isToday ? .white : .primary)
                         }
+                        .position(
+                            x: day.xPosition + (screenWidth - 24) / 14,
+                            y: day.yPosition + calculator.weekHeight / 2
+                        )
                     }
                 }
             }
@@ -612,71 +575,12 @@ struct CalendarView: View {
         .allowsHitTesting(false)
     }
     
-    // MARK: - Boundary Message View
-    
-    private func boundaryMessageView(
-        message: String,
-        title: String,
-        yPosition: CGFloat,
-        height: CGFloat,
-        screenWidth: CGFloat
-    ) -> some View {
-        VStack(spacing: 20) {
-            // Title
-            Text(title)
-                .font(.title)
-                .fontWeight(.bold)
-                .foregroundColor(.primary)
-            
-            // Decorative line
-            Rectangle()
-                .fill(LinearGradient(
-                    gradient: Gradient(colors: [Color.red.opacity(0.3), Color.red, Color.red.opacity(0.3)]),
-                    startPoint: .leading,
-                    endPoint: .trailing
-                ))
-                .frame(height: 2)
-                .frame(width: screenWidth * 0.6)
-            
-            // Message
-            Text(message)
-                .font(.body)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-                .lineSpacing(4)
-                .padding(.horizontal, 32)
-            
-            // Decorative element
-            HStack(spacing: 8) {
-                Circle()
-                    .fill(Color.red.opacity(0.3))
-                    .frame(width: 8, height: 8)
-                Circle()
-                    .fill(Color.red.opacity(0.6))
-                    .frame(width: 12, height: 12)
-                Circle()
-                    .fill(Color.red)
-                    .frame(width: 8, height: 8)
-            }
-        }
-        .frame(width: screenWidth, height: height)
-        .position(x: screenWidth / 2, y: yPosition + height / 2)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color(.systemBackground).opacity(0.9))
-                .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 4)
-        )
-        .padding(.horizontal, 20)
-    }
-    
     private func updateViewportTracking() {
         let shouldUpdate = abs(scrollOffset - lastViewportUpdateScroll) > viewportUpdateThreshold
         if shouldUpdate {
             lastViewportUpdateScroll = scrollOffset
         }
     }
-    
-    // MARK: - Subviews
     
     private var headerView: some View {
         VStack(spacing: 0) {
@@ -694,22 +598,11 @@ struct CalendarView: View {
             .background(Color(.systemBackground))
             
             Divider()
-        }
-    }
-    
-    private func setupCalculator(screenHeight: CGFloat, screenWidth: CGFloat) {
-        self.screenHeight = screenHeight
-        self.screenWidth = screenWidth
-        
-        calculator = MonthCalculator(currentDate: currentDate, screenHeight: screenHeight)
-        
-        if abs(scrollOffset) < 0.1 {
-            scrollOffset = 0
+                .frame(height: 1)
         }
     }
 }
 
-// MARK: - Preview
 #Preview {
     CalendarView()
 }
