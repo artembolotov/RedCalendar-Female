@@ -33,7 +33,7 @@ struct InfiniteScrollContainer: UIViewRepresentable {
     let onScrollChanged: (CGFloat) -> Void
     let onDragStateChanged: (Bool) -> Void
     let initialCenterOffset: CGFloat
-    let calculator: MonthCalculator  // Now non-optional
+    let calculator: MonthCalculator
     
     private let contentHeight: CGFloat = 8000000
     private let centerY: CGFloat = 4000000
@@ -83,22 +83,20 @@ struct InfiniteScrollContainer: UIViewRepresentable {
             let physicalY = scrollView.contentOffset.y
             var calendarOffset = self.parent.centerY - physicalY
             
-            print("📍 Scroll: physical=\(Int(physicalY)), calendar=\(Int(calendarOffset))")
-            
             // Apply real calendar limits
             let limits = self.parent.calculator.getScrollLimits()
             let originalOffset = calendarOffset
             calendarOffset = max(limits.min, min(limits.max, calendarOffset))
             
-            print("📊 Limits: min=\(Int(limits.min)), max=\(Int(limits.max))")
-            
             // ALWAYS correct physical position when hitting boundaries
             if originalOffset != calendarOffset {
                 let correctedPhysicalY = self.parent.centerY - calendarOffset
-                print("🔒 BOUNDARY HIT! Original: \(Int(originalOffset)), Limited: \(Int(calendarOffset))")
-                print("🔧 Correcting physical Y: \(Int(physicalY)) -> \(Int(correctedPhysicalY))")
                 scrollView.contentOffset.y = correctedPhysicalY
-                return  // Exit early to prevent recursion
+                
+                // Update state synchronously at boundaries
+                self.parent.scrollOffset = calendarOffset
+                self.parent.onScrollChanged(calendarOffset)
+                return
             }
             
             // Minimal recentering when very far from center
@@ -111,6 +109,7 @@ struct InfiniteScrollContainer: UIViewRepresentable {
                 }
             }
             
+            // Normal async update
             DispatchQueue.main.async {
                 self.parent.scrollOffset = calendarOffset
                 self.parent.onScrollChanged(calendarOffset)
@@ -125,13 +124,93 @@ struct InfiniteScrollContainer: UIViewRepresentable {
         func scrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate: Bool) {
             if !willDecelerate {
                 isDragging = false
-                DispatchQueue.main.async { self.parent.onDragStateChanged(false) }
+                
+                // Additional boundary check after drag without deceleration
+                let physicalY = scrollView.contentOffset.y
+                var calendarOffset = self.parent.centerY - physicalY
+                let limits = self.parent.calculator.getScrollLimits()
+                let correctedOffset = max(limits.min, min(limits.max, calendarOffset))
+                
+                if abs(correctedOffset - calendarOffset) > 0.1 {
+                    let correctedPhysicalY = self.parent.centerY - correctedOffset
+                    scrollView.contentOffset.y = correctedPhysicalY
+                    calendarOffset = correctedOffset
+                }
+                
+                // Update state synchronously
+                self.parent.scrollOffset = calendarOffset
+                self.parent.onScrollChanged(calendarOffset)
+                
+                DispatchQueue.main.async {
+                    self.parent.onDragStateChanged(false)
+                }
             }
         }
         
         func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
             isDragging = false
-            DispatchQueue.main.async { self.parent.onDragStateChanged(false) }
+            
+            // Additional boundary check after deceleration
+            let physicalY = scrollView.contentOffset.y
+            var calendarOffset = self.parent.centerY - physicalY
+            let limits = self.parent.calculator.getScrollLimits()
+            let correctedOffset = max(limits.min, min(limits.max, calendarOffset))
+            
+            if abs(correctedOffset - calendarOffset) > 0.1 {
+                let correctedPhysicalY = self.parent.centerY - correctedOffset
+                scrollView.contentOffset.y = correctedPhysicalY
+                calendarOffset = correctedOffset
+            }
+            
+            // Update state synchronously
+            self.parent.scrollOffset = calendarOffset
+            self.parent.onScrollChanged(calendarOffset)
+            
+            DispatchQueue.main.async {
+                self.parent.onDragStateChanged(false)
+            }
+        }
+        
+        // Smooth deceleration at boundaries
+        func scrollViewWillEndDragging(_ scrollView: UIScrollView, withVelocity velocity: CGPoint, targetContentOffset: UnsafeMutablePointer<CGPoint>) {
+            let targetPhysicalY = targetContentOffset.pointee.y
+            let targetCalendarOffset = parent.centerY - targetPhysicalY
+            
+            let limits = parent.calculator.getScrollLimits()
+            
+            // Check if we're approaching or exceeding boundaries
+            let boundaryBuffer: CGFloat = 200
+            let isApproachingTop = targetCalendarOffset > (limits.max - boundaryBuffer)
+            let isApproachingBottom = targetCalendarOffset < (limits.min + boundaryBuffer)
+            
+            if isApproachingTop || isApproachingBottom {
+                // Calculate smooth deceleration
+                let clampedTarget = max(limits.min, min(limits.max, targetCalendarOffset))
+                let correctedPhysicalY = parent.centerY - clampedTarget
+                
+                if isApproachingTop && targetCalendarOffset > limits.max {
+                    // Smooth deceleration to top boundary
+                    let overshoot = targetCalendarOffset - limits.max
+                    let dampenedOvershoot = overshoot * 0.3
+                    let smoothTarget = limits.max + dampenedOvershoot
+                    targetContentOffset.pointee.y = parent.centerY - smoothTarget
+                } else if isApproachingBottom && targetCalendarOffset < limits.min {
+                    // Smooth deceleration to bottom boundary
+                    let overshoot = limits.min - targetCalendarOffset
+                    let dampenedOvershoot = overshoot * 0.3
+                    let smoothTarget = limits.min - dampenedOvershoot
+                    targetContentOffset.pointee.y = parent.centerY - smoothTarget
+                } else {
+                    // Direct clamp if within boundary buffer
+                    targetContentOffset.pointee.y = correctedPhysicalY
+                }
+                
+                // Reduce deceleration rate for smoother feel near boundaries
+                scrollView.decelerationRate = UIScrollView.DecelerationRate.fast
+            } else {
+                // Normal deceleration rate away from boundaries
+                scrollView.decelerationRate = UIScrollView.DecelerationRate.normal
+            }
         }
     }
 }
@@ -141,9 +220,9 @@ final class MonthCalculator: ObservableObject {
     let currentDate: Date
     let screenHeight: CGFloat
     
-    // Constants
-    let minMonthOffset: Int = -100  // 100 months back for testing
-    let maxMonthOffset: Int = 100   // 100 months forward for testing
+    // Constants - extensive limits for maximum flexibility
+    let minMonthOffset: Int = -2400  // 200 years back
+    let maxMonthOffset: Int = 2400   // 200 years forward
     private let monthHeaderHeight: CGFloat = 60
     private let bottomSpacing: CGFloat = 20
     private let gridVerticalSpacing: CGFloat = 4
@@ -155,7 +234,7 @@ final class MonthCalculator: ObservableObject {
     private var cumulativePositionCache: [Int: CGFloat] = [0: 0]
     
     var weekHeight: CGFloat {
-        return floor(max(50, (screenHeight - 31) / 15))  // 31 is calendar header height
+        return floor(max(50, (screenHeight - 31) / 15))
     }
     
     init(currentDate: Date, screenHeight: CGFloat) {
@@ -312,8 +391,9 @@ final class MonthCalculator: ObservableObject {
         // Can't scroll beyond first month (going up)
         let maxScrollUp = -firstMonthY
         
-        // Can't scroll beyond last month (going down)
-        let maxScrollDown = -(lastMonthY + lastMonthHeight)
+        // Last month bottom aligns with screen bottom
+        let availableHeight = screenHeight - 31
+        let maxScrollDown = availableHeight - (lastMonthY + lastMonthHeight)
         
         return (min: maxScrollDown, max: maxScrollUp)
     }
@@ -345,33 +425,27 @@ class ViewportCalculator {
         let viewportTop = -scrollOffset - bufferHeight
         let viewportBottom = -scrollOffset + screenHeight + bufferHeight
         
+        // Smart starting month search
+        let averageMonthHeight: CGFloat = 290
+        let estimatedMonthOffset = Int(scrollOffset / averageMonthHeight)
+        
+        // Binary search for optimal starting point
+        var monthOffset = findOptimalStartMonth(
+            estimatedOffset: estimatedMonthOffset,
+            viewportTop: viewportTop,
+            calculator: calculator
+        )
+        
         var visibleMonths: [VisibleMonth] = []
-        var currentY: CGFloat = 0
-        var monthOffset = 0
+        var currentY = calculator.getYPosition(for: monthOffset)
         
-        if scrollOffset > 0 {
-            monthOffset = 0
-            currentY = calculator.getYPosition(for: monthOffset)
-            
-            while currentY + calculator.getMonthHeight(for: monthOffset) < viewportTop && monthOffset < calculator.maxMonthOffset {
-                monthOffset += 1
-                currentY = calculator.getYPosition(for: monthOffset)
-            }
-        } else {
-            monthOffset = 0
-            currentY = calculator.getYPosition(for: monthOffset)
-            
-            while currentY > viewportBottom && monthOffset > calculator.minMonthOffset {
-                monthOffset -= 1
-                currentY = calculator.getYPosition(for: monthOffset)
-            }
-        }
-        
+        // Backward search to find first visible month
         while currentY > viewportTop && monthOffset > calculator.minMonthOffset {
             monthOffset -= 1
             currentY = calculator.getYPosition(for: monthOffset)
         }
         
+        // Forward search to build visible months
         while currentY < viewportBottom && monthOffset <= calculator.maxMonthOffset {
             let monthHeight = calculator.getMonthHeight(for: monthOffset)
             let monthBottom = currentY + monthHeight
@@ -390,12 +464,46 @@ class ViewportCalculator {
             currentY += monthHeight
             monthOffset += 1
             
-            if visibleMonths.count >= 30 {
+            if visibleMonths.count >= 12 { // Reduced for better performance
                 break
             }
         }
         
         return ViewportData(visibleMonths: visibleMonths)
+    }
+    
+    // Binary search for optimal starting month
+    private static func findOptimalStartMonth(
+        estimatedOffset: Int,
+        viewportTop: CGFloat,
+        calculator: MonthCalculator
+    ) -> Int {
+        let clampedEstimate = max(calculator.minMonthOffset, min(calculator.maxMonthOffset, estimatedOffset))
+        
+        // Check if estimate is good enough
+        let estimatedY = calculator.getYPosition(for: clampedEstimate)
+        let estimatedHeight = calculator.getMonthHeight(for: clampedEstimate)
+        
+        if estimatedY <= viewportTop && (estimatedY + estimatedHeight) >= viewportTop {
+            return clampedEstimate
+        }
+        
+        // Binary search if estimate is off
+        var low = calculator.minMonthOffset
+        var high = calculator.maxMonthOffset
+        
+        while high - low > 1 {
+            let mid = (low + high) / 2
+            let midY = calculator.getYPosition(for: mid)
+            
+            if midY < viewportTop {
+                low = mid
+            } else {
+                high = mid
+            }
+        }
+        
+        return low
     }
     
     private static func createVisibleMonth(
@@ -416,6 +524,7 @@ class ViewportCalculator {
         let gridStartY = yPosition + headerHeight
         let dayWidth = (screenWidth - 24) / 7
         
+        // Batch process all days for better performance
         for weekIndex in 0..<weeksCount {
             let weekY = gridStartY + CGFloat(weekIndex) * (weekHeight + 4)
             
@@ -458,10 +567,10 @@ struct CalendarView: View {
     @State private var initialCenterOffset: CGFloat = 0
     
     // Constants
-    private let viewportUpdateThreshold: CGFloat = 20
+    private let viewportUpdateThreshold: CGFloat = 12  // More responsive updates
     private let headerHeight: CGFloat = 31
     private let monthHeaderHeight: CGFloat = 60
-    private let dayVisibilityBuffer: CGFloat = 100
+    private let dayVisibilityBuffer: CGFloat = 60  // Tighter culling
     private let currentDate = Date()
     
     var body: some View {
@@ -501,7 +610,7 @@ struct CalendarView: View {
                                     self.isDragging = dragging
                                 },
                                 initialCenterOffset: initialCenterOffset,
-                                calculator: calc  // Pass the non-nil calculator
+                                calculator: calc
                             )
                         }
                     }
@@ -524,7 +633,6 @@ struct CalendarView: View {
         self.screenHeight = screenHeight
         self.screenWidth = screenWidth
         
-        // Don't setup if we don't have valid dimensions
         guard screenHeight > 0 && screenWidth > 0 else { return }
         
         let newCalculator = MonthCalculator(currentDate: currentDate, screenHeight: screenHeight)
@@ -557,10 +665,6 @@ struct CalendarView: View {
         
         calculator = newCalculator
         scrollOffset = initialCenterOffset
-        
-        // Debug scroll limits once
-        let limits = newCalculator.getScrollLimits()
-        print("🎯 Initial setup complete with limits: min=\(limits.min), max=\(limits.max)")
     }
     
     private func dynamicViewportRenderer(calculator: MonthCalculator, screenWidth: CGFloat, screenHeight: CGFloat) -> some View {
@@ -578,6 +682,7 @@ struct CalendarView: View {
             ForEach(dynamicViewport.visibleMonths.indices, id: \.self) { monthIndex in
                 let month = dynamicViewport.visibleMonths[monthIndex]
                 
+                // Month header
                 Text(calculator.getMonthName(for: month.monthOffset))
                     .font(.title2)
                     .fontWeight(.semibold)
@@ -585,6 +690,7 @@ struct CalendarView: View {
                     .frame(width: screenWidth, height: 60)
                     .position(x: screenWidth / 2, y: month.yPosition + 30)
                 
+                // Optimized day rendering
                 ForEach(month.visibleDays.indices, id: \.self) { dayIndex in
                     let day = month.visibleDays[dayIndex]
                     
@@ -616,7 +722,10 @@ struct CalendarView: View {
     }
     
     private func updateViewportTracking() {
-        let shouldUpdate = abs(scrollOffset - lastViewportUpdateScroll) > viewportUpdateThreshold
+        // Adaptive threshold based on drag state
+        let adaptiveThreshold = isDragging ? viewportUpdateThreshold * 0.7 : viewportUpdateThreshold
+        let shouldUpdate = abs(scrollOffset - lastViewportUpdateScroll) > adaptiveThreshold
+        
         if shouldUpdate {
             lastViewportUpdateScroll = scrollOffset
         }
