@@ -1,5 +1,5 @@
 //
-//  CalendarView.swift - Бесконечный календарь с правильным центрированием 🎯⚡
+//  CalendarView.swift - Локализованный календарь
 //  RedCalendar-Female
 //
 //  Created by Артём Болотов on 11.07.2025.
@@ -218,6 +218,7 @@ struct InfiniteScrollContainer: UIViewRepresentable {
 // MARK: - Month Calculator
 final class MonthCalculator: ObservableObject {
     let currentDate: Date
+    let currentYear: Int
     let screenHeight: CGFloat
     
     // Constants - extensive limits for maximum flexibility
@@ -233,13 +234,36 @@ final class MonthCalculator: ObservableObject {
     private var monthDaysCache: [Int: [Date?]] = [:]
     private var cumulativePositionCache: [Int: CGFloat] = [0: 0]
     
+    // Track current locale to invalidate cache when it changes
+    private var cachedLocaleIdentifier: String
+    private var cachedFirstWeekday: Int
+    
     var weekHeight: CGFloat {
         return floor(max(50, (screenHeight - 31) / 15))
     }
     
     init(currentDate: Date, screenHeight: CGFloat) {
         self.currentDate = currentDate
+        self.currentYear = Calendar.current.component(.year, from: currentDate)
         self.screenHeight = screenHeight
+        self.cachedLocaleIdentifier = Locale.current.identifier
+        self.cachedFirstWeekday = Calendar.current.firstWeekday
+    }
+    
+    // Clear cache if locale or first weekday changed
+    private func checkAndInvalidateCacheIfNeeded() {
+        let currentLocale = Locale.current.identifier
+        let currentFirstWeekday = Calendar.current.firstWeekday
+        
+        if currentLocale != cachedLocaleIdentifier || currentFirstWeekday != cachedFirstWeekday {
+            weekCountCache.removeAll()
+            monthHeightCache.removeAll()
+            monthDaysCache.removeAll()
+            cumulativePositionCache = [0: 0]
+            
+            cachedLocaleIdentifier = currentLocale
+            cachedFirstWeekday = currentFirstWeekday
+        }
     }
     
     private func getMonthDate(for monthOffset: Int) -> Date {
@@ -253,6 +277,8 @@ final class MonthCalculator: ObservableObject {
     }
     
     func getWeeksCount(for monthOffset: Int) -> Int {
+        checkAndInvalidateCacheIfNeeded()
+        
         if let cached = weekCountCache[monthOffset] { return cached }
         
         let monthDate = getMonthDate(for: monthOffset)
@@ -266,7 +292,10 @@ final class MonthCalculator: ObservableObject {
         
         let daysInMonth = range.count
         let firstWeekday = calendar.component(.weekday, from: startOfMonth)
-        let emptyCellsAtStart = (firstWeekday + 5) % 7
+        let calendarFirstWeekday = calendar.firstWeekday
+        
+        // Calculate empty cells at start based on user's regional first weekday setting
+        let emptyCellsAtStart = (firstWeekday - calendarFirstWeekday + 7) % 7
         let totalCells = emptyCellsAtStart + daysInMonth
         let weeksCount = Int(ceil(Double(totalCells) / 7.0))
         
@@ -288,6 +317,8 @@ final class MonthCalculator: ObservableObject {
     }
     
     func getMonthDays(for monthOffset: Int) -> [Date?] {
+        checkAndInvalidateCacheIfNeeded()
+        
         if let cached = monthDaysCache[monthOffset] { return cached }
         
         let monthDate = getMonthDate(for: monthOffset)
@@ -301,7 +332,10 @@ final class MonthCalculator: ObservableObject {
         }
         
         let firstWeekday = calendar.component(.weekday, from: startOfMonth)
-        let emptyCellsAtStart = (firstWeekday + 5) % 7
+        let calendarFirstWeekday = calendar.firstWeekday
+        
+        // Calculate empty cells at start based on user's regional first weekday setting
+        let emptyCellsAtStart = (firstWeekday - calendarFirstWeekday + 7) % 7
         
         var days: [Date?] = Array(repeating: nil, count: emptyCellsAtStart)
         
@@ -376,10 +410,35 @@ final class MonthCalculator: ObservableObject {
     func getMonthName(for monthOffset: Int) -> String {
         let monthDate = getMonthDate(for: monthOffset)
         let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "ru_RU")
-        formatter.dateFormat = "LLLL yyyy"
+        formatter.locale = Locale.current // Use system locale
+        
+        let monthYear = Calendar.current.component(.year, from: monthDate)
+        
+        // Show only month name for current year, month + year for other years
+        if monthYear == currentYear {
+            formatter.dateFormat = "LLLL"
+        } else {
+            formatter.dateFormat = "LLLL yyyy"
+        }
         
         return formatter.string(from: monthDate).capitalized
+    }
+    
+    // Get localized weekday names for header respecting regional first weekday
+    func getLocalizedWeekdays() -> [String] {
+        checkAndInvalidateCacheIfNeeded()
+        
+        let formatter = DateFormatter()
+        formatter.locale = Locale.current
+        
+        let weekdays = formatter.shortWeekdaySymbols!
+        let firstWeekday = Calendar.current.firstWeekday
+        
+        // Reorder weekdays based on user's regional settings
+        let startIndex = firstWeekday - 1
+        let reorderedWeekdays = Array(weekdays[startIndex...]) + Array(weekdays[0..<startIndex])
+        
+        return reorderedWeekdays
     }
     
     // Get actual scroll limits based on first and last months
@@ -565,6 +624,7 @@ struct CalendarView: View {
     @State private var screenWidth: CGFloat = 0
     @State private var lastViewportUpdateScroll: CGFloat = 0
     @State private var initialCenterOffset: CGFloat = 0
+    @State private var localizedWeekdays: [String] = []
     
     // Constants
     private let viewportUpdateThreshold: CGFloat = 12
@@ -624,6 +684,13 @@ struct CalendarView: View {
                     setupCalculator(screenHeight: newSize.height, screenWidth: newSize.width)
                 }
             }
+            // Force refresh when returning from background (to catch locale changes)
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
+                // Force refresh calculator to pick up any locale changes
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    setupCalculator(screenHeight: screenHeight, screenWidth: screenWidth)
+                }
+            }
         }
     }
     
@@ -636,6 +703,9 @@ struct CalendarView: View {
         guard screenHeight > 0 && screenWidth > 0 else { return }
         
         let newCalculator = MonthCalculator(currentDate: currentDate, screenHeight: screenHeight)
+        
+        // Update localized weekdays
+        localizedWeekdays = newCalculator.getLocalizedWeekdays()
         
         // Find today's week position for centering
         let currentMonthY = newCalculator.getYPosition(for: 0)
@@ -735,17 +805,21 @@ struct CalendarView: View {
     
     private var headerView: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 0) {
-                ForEach(["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"], id: \.self) { weekday in
+            ZStack(alignment: .topLeading) {
+                // Use exact same positioning logic as calendar days
+                ForEach(Array(localizedWeekdays.enumerated()), id: \.offset) { dayIndex, weekday in
+                    let dayWidth = (screenWidth - 24) / 7
+                    let dayX = 12 + CGFloat(dayIndex) * dayWidth
+                    let centerX = dayX + dayWidth / 2
+                    
                     Text(weekday)
                         .font(.caption)
                         .fontWeight(.medium)
                         .foregroundColor(.secondary)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 30)
+                        .position(x: centerX, y: 15)
                 }
             }
-            .padding(.horizontal, 8)
+            .frame(width: screenWidth, height: 30)
             .background(Color(.systemBackground))
             
             Divider()
