@@ -761,9 +761,9 @@ struct CalendarView: View {
                 
                 // Month header
                 Text(calculator.getMonthName(for: month.monthOffset))
-                    .font(.title2)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.primary)
+                    .font(.title3)
+                    .fontWeight(.heavy)
+                    .foregroundColor(.secondary)
                     .frame(width: screenWidth, height: 60)
                     .position(x: screenWidth / 2, y: month.yPosition + 30)
                 
@@ -773,6 +773,10 @@ struct CalendarView: View {
                     
                     let dayScreenY = day.yPosition + scrollOffset
                     if dayScreenY > -dayVisibilityBuffer && dayScreenY < screenHeight + dayVisibilityBuffer {
+                        let today = Calendar.current.startOfDay(for: currentDate)
+                        let dayDate = day.date != nil ? Calendar.current.startOfDay(for: day.date!) : nil
+                        let isFutureDay = dayDate != nil && dayDate! > today
+                        
                         ZStack {
                             if day.isToday {
                                 Circle()
@@ -781,8 +785,12 @@ struct CalendarView: View {
                             }
                             
                             Text(day.dayNumber)
-                                .font(.system(size: 16, weight: .medium))
-                                .foregroundColor(day.isToday ? .white : .primary)
+                                .font(.system(size: 16, weight: day.isToday ? .bold : .medium))
+                                .foregroundColor(
+                                    day.isToday ? .white :
+                                    isFutureDay ? Color(UIColor.tertiaryLabel) :
+                                    .primary
+                                )
                         }
                         .position(
                             x: day.xPosition + (screenWidth - 24) / 14,
@@ -821,7 +829,7 @@ struct CalendarView: View {
                     
                     Text(weekday)
                         .font(.caption)
-                        .fontWeight(.medium)
+                        .fontWeight(.heavy)
                         .foregroundColor(.secondary)
                         .position(x: centerX, y: 15)
                 }
