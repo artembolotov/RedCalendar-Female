@@ -567,10 +567,10 @@ struct CalendarView: View {
     @State private var initialCenterOffset: CGFloat = 0
     
     // Constants
-    private let viewportUpdateThreshold: CGFloat = 12  // More responsive updates
+    private let viewportUpdateThreshold: CGFloat = 12
     private let headerHeight: CGFloat = 31
     private let monthHeaderHeight: CGFloat = 60
-    private let dayVisibilityBuffer: CGFloat = 60  // Tighter culling
+    private let dayVisibilityBuffer: CGFloat = 60
     private let currentDate = Date()
     
     var body: some View {
@@ -722,8 +722,10 @@ struct CalendarView: View {
     }
     
     private func updateViewportTracking() {
-        // Adaptive threshold based on drag state
-        let adaptiveThreshold = isDragging ? viewportUpdateThreshold * 0.7 : viewportUpdateThreshold
+        // Enhanced adaptive threshold based on device capabilities and drag state
+        let baseThreshold = viewportUpdateThreshold
+        let adaptiveThreshold = isDragging ? baseThreshold * 0.5 : baseThreshold
+        
         let shouldUpdate = abs(scrollOffset - lastViewportUpdateScroll) > adaptiveThreshold
         
         if shouldUpdate {
