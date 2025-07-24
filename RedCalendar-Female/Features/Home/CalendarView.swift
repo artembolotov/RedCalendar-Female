@@ -691,6 +691,13 @@ struct CalendarView: View {
                     setupCalculator(screenHeight: screenHeight, screenWidth: screenWidth)
                 }
             }
+            // Update calendar when day changes or time settings change
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.significantTimeChangeNotification)) { _ in
+                // Refresh calculator to update today's date and recalculate positioning
+                DispatchQueue.main.async {
+                    setupCalculator(screenHeight: screenHeight, screenWidth: screenWidth)
+                }
+            }
         }
     }
     
