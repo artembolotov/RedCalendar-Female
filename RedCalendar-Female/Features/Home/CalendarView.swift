@@ -235,8 +235,8 @@ final class MonthCalculator: ObservableObject {
     private var cumulativePositionCache: [Int: CGFloat] = [0: 0]
     
     // Track current locale to invalidate cache when it changes
-    private var cachedLocaleIdentifier: String
-    private var cachedFirstWeekday: Int
+    private(set) var cachedLocaleIdentifier: String
+    private(set) var cachedFirstWeekday: Int
     
     var weekHeight: CGFloat {
         return floor(max(50, (screenHeight - 31) / 15))
@@ -631,7 +631,6 @@ struct CalendarView: View {
     private let headerHeight: CGFloat = 31
     private let monthHeaderHeight: CGFloat = 60
     private let dayVisibilityBuffer: CGFloat = 60
-    private let currentDate = Date()
     
     var body: some View {
         GeometryReader { geometry in
@@ -684,18 +683,16 @@ struct CalendarView: View {
                     setupCalculator(screenHeight: newSize.height, screenWidth: newSize.width)
                 }
             }
-            // Force refresh when returning from background (to catch locale changes)
+            // Check for changes when returning from background (preserve scroll position)
             .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
-                // Force refresh calculator to pick up any locale changes
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    setupCalculator(screenHeight: screenHeight, screenWidth: screenWidth)
+                    updateCalculatorIfNeeded()
                 }
             }
-            // Update calendar when day changes or time settings change
+            // Update calendar when day changes or time settings change (preserve scroll position)
             .onReceive(NotificationCenter.default.publisher(for: UIApplication.significantTimeChangeNotification)) { _ in
-                // Refresh calculator to update today's date and recalculate positioning
                 DispatchQueue.main.async {
-                    setupCalculator(screenHeight: screenHeight, screenWidth: screenWidth)
+                    updateCalculatorIfNeeded()
                 }
             }
         }
@@ -709,7 +706,8 @@ struct CalendarView: View {
         
         guard screenHeight > 0 && screenWidth > 0 else { return }
         
-        let newCalculator = MonthCalculator(currentDate: currentDate, screenHeight: screenHeight)
+        let actualCurrentDate = Date()
+        let newCalculator = MonthCalculator(currentDate: actualCurrentDate, screenHeight: screenHeight)
         
         // Update localized weekdays
         localizedWeekdays = newCalculator.getLocalizedWeekdays()
@@ -721,7 +719,7 @@ struct CalendarView: View {
         
         var todayWeekIndex = 0
         let calendar = Calendar.current
-        let today = calendar.startOfDay(for: currentDate)
+        let today = calendar.startOfDay(for: actualCurrentDate)
         
         for (index, date) in monthDays.enumerated() {
             if let date = date, calendar.isDate(date, inSameDayAs: today) {
@@ -742,6 +740,32 @@ struct CalendarView: View {
         
         calculator = newCalculator
         scrollOffset = initialCenterOffset
+    }
+    
+    private func updateCalculatorIfNeeded() {
+        guard let currentCalculator = calculator else {
+            return // Don't auto-initialize if no calculator exists
+        }
+        
+        // Check if update is actually needed
+        let currentLocale = Locale.current.identifier
+        let currentFirstWeekday = Calendar.current.firstWeekday
+        let newCurrentDate = Date()
+        let newCurrentYear = Calendar.current.component(.year, from: newCurrentDate)
+        
+        let localeChanged = currentLocale != currentCalculator.cachedLocaleIdentifier
+        let firstWeekdayChanged = currentFirstWeekday != currentCalculator.cachedFirstWeekday
+        let yearChanged = newCurrentYear != currentCalculator.currentYear
+        
+        // Only update if something actually changed
+        if localeChanged || firstWeekdayChanged || yearChanged {
+            // Update calculator but DO NOT change scroll position
+            let newCalculator = MonthCalculator(currentDate: newCurrentDate, screenHeight: screenHeight)
+            localizedWeekdays = newCalculator.getLocalizedWeekdays()
+            
+            calculator = newCalculator
+            // scrollOffset stays the same - user position preserved
+        }
     }
     
     private func dynamicViewportRenderer(calculator: MonthCalculator, screenWidth: CGFloat, screenHeight: CGFloat) -> some View {
@@ -773,7 +797,7 @@ struct CalendarView: View {
                     
                     let dayScreenY = day.yPosition + scrollOffset
                     if dayScreenY > -dayVisibilityBuffer && dayScreenY < screenHeight + dayVisibilityBuffer {
-                        let today = Calendar.current.startOfDay(for: currentDate)
+                        let today = Calendar.current.startOfDay(for: Date())
                         let dayDate = day.date != nil ? Calendar.current.startOfDay(for: day.date!) : nil
                         let isFutureDay = dayDate != nil && dayDate! > today
                         
@@ -829,7 +853,7 @@ struct CalendarView: View {
                     
                     Text(weekday)
                         .font(.caption)
-                        .fontWeight(.heavy)
+                        .fontWeight(.medium)
                         .foregroundColor(.secondary)
                         .position(x: centerX, y: 15)
                 }
