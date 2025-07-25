@@ -853,7 +853,7 @@ struct CalendarView: View {
                     
                     Text(weekday)
                         .font(.caption)
-                        .fontWeight(.medium)
+                        .fontWeight(.heavy)
                         .foregroundColor(.secondary)
                         .position(x: centerX, y: 15)
                 }
