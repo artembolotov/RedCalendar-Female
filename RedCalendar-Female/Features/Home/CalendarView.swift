@@ -477,7 +477,8 @@ class ViewportCalculator {
         scrollOffset: CGFloat,
         screenHeight: CGFloat,
         screenWidth: CGFloat,
-        calculator: MonthCalculator
+        calculator: MonthCalculator,
+        currentDate: Date // Pass current date as parameter
     ) -> ViewportData {
         
         let bufferHeight = screenHeight * 1.5
@@ -515,7 +516,8 @@ class ViewportCalculator {
                     yPosition: currentY,
                     height: monthHeight,
                     screenWidth: screenWidth,
-                    calculator: calculator
+                    calculator: calculator,
+                    currentDate: currentDate // Pass current date
                 )
                 visibleMonths.append(visibleMonth)
             }
@@ -570,7 +572,8 @@ class ViewportCalculator {
         yPosition: CGFloat,
         height: CGFloat,
         screenWidth: CGFloat,
-        calculator: MonthCalculator
+        calculator: MonthCalculator,
+        currentDate: Date // Use passed current date
     ) -> VisibleMonth {
         
         let monthDays = calculator.getMonthDays(for: monthOffset)
@@ -583,6 +586,9 @@ class ViewportCalculator {
         let gridStartY = yPosition + headerHeight
         let dayWidth = (screenWidth - 24) / 7
         
+        // Use passed current date for today comparison
+        let todayStartOfDay = Calendar.current.startOfDay(for: currentDate)
+        
         // Batch process all days for better performance
         for weekIndex in 0..<weeksCount {
             let weekY = gridStartY + CGFloat(weekIndex) * (weekHeight + 4)
@@ -592,7 +598,9 @@ class ViewportCalculator {
                 if cellIndex < monthDays.count, let date = monthDays[cellIndex] {
                     let dayX = 12 + CGFloat(dayIndex) * dayWidth
                     let dayNumber = String(Calendar.current.component(.day, from: date))
-                    let isToday = Calendar.current.isDate(date, inSameDayAs: Calendar.current.startOfDay(for: calculator.currentDate))
+                    
+                    // Use passed current date for "today" comparison
+                    let isToday = Calendar.current.isDate(date, inSameDayAs: todayStartOfDay)
                     
                     let visibleDay = VisibleDay(
                         date: date,
@@ -625,6 +633,7 @@ struct CalendarView: View {
     @State private var lastViewportUpdateScroll: CGFloat = 0
     @State private var initialCenterOffset: CGFloat = 0
     @State private var localizedWeekdays: [String] = []
+    @State private var currentDate: Date = Date() // Track current date in state
     
     // Constants
     private let viewportUpdateThreshold: CGFloat = 12
@@ -683,15 +692,17 @@ struct CalendarView: View {
                     setupCalculator(screenHeight: newSize.height, screenWidth: newSize.width)
                 }
             }
-            // Check for changes when returning from background (preserve scroll position)
+            // Check for changes when returning from background
             .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    updateCurrentDate()
                     updateCalculatorIfNeeded()
                 }
             }
-            // Update calendar when day changes or time settings change (preserve scroll position)
+            // Update calendar when day changes or time settings change
             .onReceive(NotificationCenter.default.publisher(for: UIApplication.significantTimeChangeNotification)) { _ in
                 DispatchQueue.main.async {
+                    updateCurrentDate()
                     updateCalculatorIfNeeded()
                 }
             }
@@ -700,6 +711,10 @@ struct CalendarView: View {
     
     // MARK: - Helper Methods
     
+    private func updateCurrentDate() {
+        currentDate = Date()
+    }
+    
     private func setupCalculator(screenHeight: CGFloat, screenWidth: CGFloat) {
         self.screenHeight = screenHeight
         self.screenWidth = screenWidth
@@ -707,6 +722,7 @@ struct CalendarView: View {
         guard screenHeight > 0 && screenWidth > 0 else { return }
         
         let actualCurrentDate = Date()
+        currentDate = actualCurrentDate // Update state
         let newCalculator = MonthCalculator(currentDate: actualCurrentDate, screenHeight: screenHeight)
         
         // Update localized weekdays
@@ -744,14 +760,13 @@ struct CalendarView: View {
     
     private func updateCalculatorIfNeeded() {
         guard let currentCalculator = calculator else {
-            return // Don't auto-initialize if no calculator exists
+            return
         }
         
         // Check if update is actually needed
         let currentLocale = Locale.current.identifier
         let currentFirstWeekday = Calendar.current.firstWeekday
-        let newCurrentDate = Date()
-        let newCurrentYear = Calendar.current.component(.year, from: newCurrentDate)
+        let newCurrentYear = Calendar.current.component(.year, from: currentDate)
         
         let localeChanged = currentLocale != currentCalculator.cachedLocaleIdentifier
         let firstWeekdayChanged = currentFirstWeekday != currentCalculator.cachedFirstWeekday
@@ -760,7 +775,7 @@ struct CalendarView: View {
         // Only update if something actually changed
         if localeChanged || firstWeekdayChanged || yearChanged {
             // Update calculator but DO NOT change scroll position
-            let newCalculator = MonthCalculator(currentDate: newCurrentDate, screenHeight: screenHeight)
+            let newCalculator = MonthCalculator(currentDate: currentDate, screenHeight: screenHeight)
             localizedWeekdays = newCalculator.getLocalizedWeekdays()
             
             calculator = newCalculator
@@ -776,7 +791,8 @@ struct CalendarView: View {
             scrollOffset: scrollForCalculation,
             screenHeight: screenHeight,
             screenWidth: screenWidth,
-            calculator: calculator
+            calculator: calculator,
+            currentDate: currentDate // Pass current date from state
         )
         
         return ZStack(alignment: .topLeading) {
@@ -797,7 +813,7 @@ struct CalendarView: View {
                     
                     let dayScreenY = day.yPosition + scrollOffset
                     if dayScreenY > -dayVisibilityBuffer && dayScreenY < screenHeight + dayVisibilityBuffer {
-                        let today = Calendar.current.startOfDay(for: Date())
+                        let today = Calendar.current.startOfDay(for: currentDate) // Use state date
                         let dayDate = day.date != nil ? Calendar.current.startOfDay(for: day.date!) : nil
                         let isFutureDay = dayDate != nil && dayDate! > today
                         
