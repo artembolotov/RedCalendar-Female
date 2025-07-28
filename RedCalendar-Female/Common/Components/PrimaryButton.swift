@@ -20,10 +20,14 @@ struct PrimaryButton<Content: View>: View {
             .frame(maxWidth: .infinity)
             .frame(height: 56)
             .background(
-                LinearGradient(
-                    gradient: Gradient(colors: [.red, .pink]),
-                    startPoint: .leading,
-                    endPoint: .trailing
+                RadialGradient(
+                    gradient: Gradient(colors: [
+                        Color.accentColor.opacity(0.9),
+                        Color.accentColor
+                    ]),
+                    center: .center,
+                    startRadius: 5,
+                    endRadius: 100
                 )
             )
             .cornerRadius(16)

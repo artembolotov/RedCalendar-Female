@@ -59,7 +59,6 @@ private struct HomeMenuView: View {
         } label: {
             Image(systemName: "ellipsis.circle")
                 .font(.title2)
-                .foregroundColor(.primary)
         }
         .sheet(isPresented: $showSettings) {
             SettingsView()

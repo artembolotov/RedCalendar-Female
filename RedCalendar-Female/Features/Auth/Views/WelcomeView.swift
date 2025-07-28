@@ -83,7 +83,7 @@ struct WelcomeView: View {
             HStack(spacing: 8) {
                 ForEach(slides.indices, id: \.self) { index in
                     Circle()
-                        .fill(currentSlide == index ? Color.red : Color.gray.opacity(0.3))
+                        .fill(currentSlide == index ? Color.accent : Color.gray.opacity(0.3))
                         .frame(width: 8, height: 8)
                         .animation(.easeInOut(duration: 0.2), value: currentSlide)
                 }
@@ -137,7 +137,7 @@ private struct SlideView: View {
         VStack(spacing: 24) {
             Image(systemName: slide.image)
                 .font(.system(size: 80))
-                .foregroundColor(.red)
+                .foregroundColor(.accent)
             
             VStack(spacing: 12) {
                 Text(slide.title)
