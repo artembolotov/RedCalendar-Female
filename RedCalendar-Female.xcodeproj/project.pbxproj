@@ -291,7 +291,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				API_BASE_URL = "https:/$()/api.calendar.red";
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = "AppIcon-Production";
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = "RedCalendar-Female/RedCalendar-Female.entitlements";
 				CODE_SIGN_STYLE = Automatic;
@@ -327,7 +327,8 @@
 		AB9FE2442DEFF9130083B0D9 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				API_BASE_URL = "https:/$()/api.calendar.red";
+				ASSETCATALOG_COMPILER_APPICON_NAME = "AppIcon-Production";
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = "RedCalendar-Female/RedCalendar-Female.entitlements";
 				CODE_SIGN_STYLE = Automatic;
@@ -430,6 +431,7 @@
 		ABCDBD772E1A460C00CA13E0 /* Debug-Staging */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				API_BASE_URL = "https:/$()/staging.calendar.red";
 				ASSETCATALOG_COMPILER_APPICON_NAME = "AppIcon-Staging";
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = "RedCalendar-Female/RedCalendar-Female.entitlements";
