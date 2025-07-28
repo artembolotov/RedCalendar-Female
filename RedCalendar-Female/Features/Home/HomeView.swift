@@ -12,18 +12,61 @@ struct HomeView: View {
     
     var body: some View {
         NavigationView {
-            VStack {
+            ZStack(alignment: .bottomLeading) {
                 if store.state.isAuthenticated {
+                    // Calendar takes full screen
                     CalendarView()
+                        .ignoresSafeArea(edges: .bottom)
+                    
+                    // Floating Add Button
+                    FloatingAddButton()
+                        .ignoresSafeArea(edges: .bottom)
                 }
             }
-            .ignoresSafeArea(edges: .bottom)
             .navigationBarTitleDisplayMode(.inline) // Compact mode
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     HomeMenuView()
                 }
             }
+        }
+    }
+}
+
+// MARK: - FloatingAddButton Component
+private struct FloatingAddButton: View {
+    var body: some View {
+        HStack {
+            VStack {
+                Spacer()
+                
+                Button(action: {
+                    // Action for adding new event/record
+                    print("Add button tapped")
+                }) {
+                    Image(systemName: "plus")
+                        .font(.title)
+                        .foregroundColor(.white)
+                        .frame(width: 64, height: 64)
+                        .background(
+                            LinearGradient(
+                                gradient: Gradient(colors: [
+                                    Color.accentColor.opacity(0.8),
+                                    Color.accentColor,
+                                    Color.accentColor.opacity(0.9)
+                                ]),
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .clipShape(Circle())
+                        .shadow(color: Color.accentColor.opacity(0.4), radius: 12, x: 0, y: 6)
+                }
+                .padding(.bottom, 20) // Safe distance from bottom edge
+            }
+            .padding(.leading, 20) // Safe distance from left edge
+            
+            Spacer()
         }
     }
 }
