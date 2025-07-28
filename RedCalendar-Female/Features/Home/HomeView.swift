@@ -57,7 +57,7 @@ private struct HomeMenuView: View {
                 }
             }
         } label: {
-            Image(systemName: "ellipsis.circle")
+            Image(systemName: "ellipsis.rectangle.fill")
                 .font(.title2)
         }
         .sheet(isPresented: $showSettings) {
