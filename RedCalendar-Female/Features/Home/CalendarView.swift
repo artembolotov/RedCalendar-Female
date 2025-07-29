@@ -27,13 +27,14 @@ struct VisibleDay {
     let dayNumber: String
 }
 
-// MARK: - Simple Infinite UIScrollView
+// MARK: - Optimized Infinite UIScrollView
 struct InfiniteScrollContainer: UIViewRepresentable {
     @Binding var scrollOffset: CGFloat
     let onScrollChanged: (CGFloat) -> Void
     let onDragStateChanged: (Bool) -> Void
     let initialCenterOffset: CGFloat
     let calculator: MonthCalculator
+    let currentDate: Date // НОВОЕ: Передаем актуальную дату
     
     private let contentHeight: CGFloat = 8000000
     private let centerY: CGFloat = 4000000
@@ -58,6 +59,9 @@ struct InfiniteScrollContainer: UIViewRepresentable {
     }
     
     func updateUIView(_ uiView: UIScrollView, context: Context) {
+        // НОВОЕ: Обновляем дату в координаторе
+        context.coordinator.updateCurrentDate(currentDate)
+        
         if !context.coordinator.isDragging {
             let targetY = centerY - scrollOffset
             if abs(uiView.contentOffset.y - targetY) > 100 {
@@ -74,9 +78,16 @@ struct InfiniteScrollContainer: UIViewRepresentable {
         let parent: InfiniteScrollContainer
         var isDragging = false
         var lastRecenter = Date()
+        private var currentDate: Date // НОВОЕ: Кешируем текущую дату
         
         init(_ parent: InfiniteScrollContainer) {
             self.parent = parent
+            self.currentDate = parent.currentDate // НОВОЕ: Инициализируем дату
+        }
+        
+        // НОВОЕ: Метод для обновления даты
+        func updateCurrentDate(_ date: Date) {
+            self.currentDate = date
         }
         
         func scrollViewDidScroll(_ scrollView: UIScrollView) {
@@ -99,13 +110,13 @@ struct InfiniteScrollContainer: UIViewRepresentable {
                 return
             }
             
-            // Minimal recentering when very far from center
-            if !isDragging && Date().timeIntervalSince(lastRecenter) > 5.0 {
+            // ИСПРАВЛЕНО: Используем кешированную дату вместо Date()
+            if !isDragging && currentDate.timeIntervalSince(lastRecenter) > 5.0 {
                 let correctedPhysicalY = self.parent.centerY - calendarOffset
                 let distanceFromEdge = min(correctedPhysicalY, self.parent.contentHeight - correctedPhysicalY)
                 if distanceFromEdge < 100000 {
                     scrollView.contentOffset.y = self.parent.centerY - calendarOffset
-                    lastRecenter = Date()
+                    lastRecenter = currentDate // ИСПРАВЛЕНО: Используем кешированную дату
                 }
             }
             
@@ -266,91 +277,63 @@ final class MonthCalculator: ObservableObject {
         }
     }
     
-    private func getMonthDate(for monthOffset: Int) -> Date {
-        let clampedOffset = max(minMonthOffset, min(maxMonthOffset, monthOffset))
-        
-        if let date = Calendar.current.date(byAdding: .month, value: clampedOffset, to: currentDate) {
-            return date
-        }
-        
-        return currentDate
-    }
-    
     func getWeeksCount(for monthOffset: Int) -> Int {
         checkAndInvalidateCacheIfNeeded()
         
-        if let cached = weekCountCache[monthOffset] { return cached }
-        
-        let monthDate = getMonthDate(for: monthOffset)
-        let calendar = Calendar.current
-        
-        guard let startOfMonth = calendar.dateInterval(of: .month, for: monthDate)?.start,
-              let range = calendar.range(of: .day, in: .month, for: monthDate) else {
-            weekCountCache[monthOffset] = 6
-            return 6
+        if let cached = weekCountCache[monthOffset] {
+            return cached
         }
         
-        let daysInMonth = range.count
-        let firstWeekday = calendar.component(.weekday, from: startOfMonth)
-        let calendarFirstWeekday = calendar.firstWeekday
-        
-        // Calculate empty cells at start based on user's regional first weekday setting
-        let emptyCellsAtStart = (firstWeekday - calendarFirstWeekday + 7) % 7
-        let totalCells = emptyCellsAtStart + daysInMonth
-        let weeksCount = Int(ceil(Double(totalCells) / 7.0))
+        let monthDate = getMonthDate(for: monthOffset)
+        let range = Calendar.current.range(of: .weekOfMonth, in: .month, for: monthDate) ?? 1..<2
+        let weeksCount = range.count
         
         weekCountCache[monthOffset] = weeksCount
-        cleanupCacheIfNeeded()
-        
         return weeksCount
     }
     
     func getMonthHeight(for monthOffset: Int) -> CGFloat {
-        if let cached = monthHeightCache[monthOffset] { return cached }
+        checkAndInvalidateCacheIfNeeded()
+        
+        if let cached = monthHeightCache[monthOffset] {
+            return cached
+        }
         
         let weeksCount = getWeeksCount(for: monthOffset)
-        let gridHeight = (CGFloat(weeksCount) * weekHeight) + (CGFloat(weeksCount - 1) * gridVerticalSpacing)
-        let height = floor(monthHeaderHeight + gridHeight + bottomSpacing)
+        let gridHeight = CGFloat(weeksCount) * weekHeight + CGFloat(weeksCount - 1) * gridVerticalSpacing
+        let totalHeight = monthHeaderHeight + gridHeight + bottomSpacing
         
-        monthHeightCache[monthOffset] = height
-        return height
+        monthHeightCache[monthOffset] = totalHeight
+        return totalHeight
     }
     
     func getMonthDays(for monthOffset: Int) -> [Date?] {
         checkAndInvalidateCacheIfNeeded()
         
-        if let cached = monthDaysCache[monthOffset] { return cached }
+        if let cached = monthDaysCache[monthOffset] {
+            return cached
+        }
         
         let monthDate = getMonthDate(for: monthOffset)
         let calendar = Calendar.current
         
-        guard let startOfMonth = calendar.dateInterval(of: .month, for: monthDate)?.start,
-              let range = calendar.range(of: .day, in: .month, for: monthDate) else {
-            let emptyMonth: [Date?] = Array(repeating: nil, count: 42)
-            monthDaysCache[monthOffset] = emptyMonth
-            return emptyMonth
+        guard let monthRange = calendar.range(of: .day, in: .month, for: monthDate),
+              let firstOfMonth = calendar.dateInterval(of: .month, for: monthDate)?.start else {
+            monthDaysCache[monthOffset] = []
+            return []
         }
         
-        let firstWeekday = calendar.component(.weekday, from: startOfMonth)
-        let calendarFirstWeekday = calendar.firstWeekday
+        let weeksCount = getWeeksCount(for: monthOffset)
+        var days: [Date?] = Array(repeating: nil, count: weeksCount * 7)
         
-        // Calculate empty cells at start based on user's regional first weekday setting
-        let emptyCellsAtStart = (firstWeekday - calendarFirstWeekday + 7) % 7
+        let firstWeekday = calendar.component(.weekday, from: firstOfMonth)
+        let firstWeekdayIndex = (firstWeekday - calendar.firstWeekday + 7) % 7
         
-        var days: [Date?] = Array(repeating: nil, count: emptyCellsAtStart)
-        
-        for day in range {
-            if let date = calendar.date(byAdding: .day, value: day - 1, to: startOfMonth) {
-                days.append(date)
+        for day in monthRange {
+            let dayIndex = firstWeekdayIndex + day - 1
+            if dayIndex < days.count {
+                days[dayIndex] = calendar.date(byAdding: .day, value: day - 1, to: firstOfMonth)
             }
-        }
-        
-        let totalCells = emptyCellsAtStart + range.count
-        let weeksNeeded = Int(ceil(Double(totalCells) / 7.0))
-        let cellsNeeded = weeksNeeded * 7
-        
-        while days.count < cellsNeeded {
-            days.append(nil)
         }
         
         monthDaysCache[monthOffset] = days
@@ -358,53 +341,42 @@ final class MonthCalculator: ObservableObject {
     }
     
     func getYPosition(for monthOffset: Int) -> CGFloat {
+        if monthOffset == 0 {
+            return 0
+        }
+        
         if let cached = cumulativePositionCache[monthOffset] {
             return cached
         }
         
-        var nearestCachedOffset: Int
-        var nearestCachedPosition: CGFloat
+        var position: CGFloat = 0
         
         if monthOffset > 0 {
-            nearestCachedOffset = 0
-            nearestCachedPosition = 0
-            
-            for offset in stride(from: monthOffset - 1, through: 0, by: -1) {
+            for offset in 1...monthOffset {
                 if let cachedPos = cumulativePositionCache[offset] {
-                    nearestCachedOffset = offset
-                    nearestCachedPosition = cachedPos
-                    break
+                    position = cachedPos
+                } else {
+                    position += getMonthHeight(for: offset - 1)
+                    cumulativePositionCache[offset] = position
                 }
             }
-            
-            var currentPosition = nearestCachedPosition
-            for offset in (nearestCachedOffset + 1)...monthOffset {
-                let monthHeight = getMonthHeight(for: offset - 1)
-                currentPosition += monthHeight
-                cumulativePositionCache[offset] = currentPosition
-            }
-            
-        } else if monthOffset < 0 {
-            nearestCachedOffset = 0
-            nearestCachedPosition = 0
-            
-            for offset in stride(from: monthOffset + 1, to: 1, by: 1) {
+        } else {
+            for offset in stride(from: -1, through: monthOffset, by: -1) {
                 if let cachedPos = cumulativePositionCache[offset] {
-                    nearestCachedOffset = offset
-                    nearestCachedPosition = cachedPos
-                    break
+                    position = cachedPos
+                } else {
+                    position -= getMonthHeight(for: offset)
+                    cumulativePositionCache[offset] = position
                 }
-            }
-            
-            var currentPosition = nearestCachedPosition
-            for offset in stride(from: nearestCachedOffset - 1, through: monthOffset, by: -1) {
-                let monthHeight = getMonthHeight(for: offset)
-                currentPosition -= monthHeight
-                cumulativePositionCache[offset] = currentPosition
             }
         }
         
-        return cumulativePositionCache[monthOffset] ?? 0
+        cleanupCacheIfNeeded()
+        return position
+    }
+    
+    func getMonthDate(for monthOffset: Int) -> Date {
+        return Calendar.current.date(byAdding: .month, value: monthOffset, to: currentDate) ?? currentDate
     }
     
     func getMonthName(for monthOffset: Int) -> String {
@@ -481,6 +453,7 @@ class ViewportCalculator {
         currentDate: Date // Pass current date as parameter
     ) -> ViewportData {
         
+        // Adaptive buffer based on scroll state
         let bufferHeight = screenHeight * 1.5
         let viewportTop = -scrollOffset - bufferHeight
         let viewportBottom = -scrollOffset + screenHeight + bufferHeight
@@ -628,59 +601,59 @@ struct CalendarView: View {
     @State private var calculator: MonthCalculator?
     @State private var scrollOffset: CGFloat = 0
     @State private var isDragging = false
+    @State private var currentDate = Date()
     @State private var screenHeight: CGFloat = 0
     @State private var screenWidth: CGFloat = 0
-    @State private var lastViewportUpdateScroll: CGFloat = 0
     @State private var initialCenterOffset: CGFloat = 0
     @State private var localizedWeekdays: [String] = []
-    @State private var currentDate: Date = Date() // Track current date in state
     
-    // Constants
-    private let viewportUpdateThreshold: CGFloat = 12
-    private let headerHeight: CGFloat = 31
+    // Performance optimization states
+    @State private var lastViewportUpdateScroll: CGFloat = 0
+    private let viewportUpdateThreshold: CGFloat = 30
+    private let dayVisibilityBuffer: CGFloat = 100
     private let monthHeaderHeight: CGFloat = 60
-    private let dayVisibilityBuffer: CGFloat = 60
+    
+    // Computed property для состояния кнопки
+    private var floatingButtonState: FloatingButtonState {
+        let headerHeight: CGFloat = 31 // headerView height (30px + 1px divider)
+        let availableCalendarHeight = screenHeight - headerHeight
+        let halfViewThreshold = availableCalendarHeight / 2
+        let deviation = scrollOffset - initialCenterOffset
+        
+        if abs(deviation) <= halfViewThreshold {
+            return .plus                // Current week still visible
+        } else if deviation > halfViewThreshold {
+            return .arrowUp             // Scrolled down - today is above
+        } else {
+            return .arrowDown           // Scrolled up - today is below
+        }
+    }
     
     var body: some View {
         GeometryReader { geometry in
             let availableHeight = geometry.size.height
             let availableWidth = geometry.size.width
             
-            ZStack {
-                LinearGradient(
-                    gradient: Gradient(colors: [
-                        Color(.systemBackground),
-                        Color.red.opacity(0.02)
-                    ]),
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .ignoresSafeArea()
+            VStack(spacing: 0) {
+                headerView
                 
-                VStack(spacing: 0) {
-                    headerView
-                    
-                    ZStack {
-                        if let calc = calculator {
-                            dynamicViewportRenderer(
-                                calculator: calc,
-                                screenWidth: availableWidth,
-                                screenHeight: availableHeight
-                            )
-                            
-                            InfiniteScrollContainer(
-                                scrollOffset: $scrollOffset,
-                                onScrollChanged: { newOffset in
-                                    self.scrollOffset = newOffset
-                                    updateViewportTracking()
-                                },
-                                onDragStateChanged: { dragging in
-                                    self.isDragging = dragging
-                                },
-                                initialCenterOffset: initialCenterOffset,
-                                calculator: calc
-                            )
-                        }
+                ZStack {
+                    if let calc = calculator {
+                        InfiniteScrollContainer(
+                            scrollOffset: $scrollOffset,
+                            onScrollChanged: { newOffset in
+                                self.scrollOffset = newOffset
+                                updateViewportTracking()
+                            },
+                            onDragStateChanged: { dragging in
+                                self.isDragging = dragging
+                            },
+                            initialCenterOffset: initialCenterOffset,
+                            calculator: calc,
+                            currentDate: currentDate // НОВОЕ: Передаем актуальную дату
+                        )
+                        
+                        dynamicViewportRenderer(calculator: calc, screenWidth: screenWidth, screenHeight: screenHeight)
                     }
                 }
             }
@@ -707,6 +680,8 @@ struct CalendarView: View {
                 }
             }
         }
+        // Передаем состояние кнопки через PreferenceKey
+        .preference(key: TodayVisibilityPreferenceKey.self, value: floatingButtonState)
     }
     
     // MARK: - Helper Methods
@@ -749,7 +724,7 @@ struct CalendarView: View {
         let todayWeekCenterY = todayWeekY + weekHeight / 2
         
         // Center current week in available view (excluding header)
-        let availableCalendarHeight = screenHeight - headerHeight
+        let availableCalendarHeight = screenHeight - monthHeaderHeight
         let centerPosition = availableCalendarHeight / 2
         
         initialCenterOffset = centerPosition - todayWeekCenterY

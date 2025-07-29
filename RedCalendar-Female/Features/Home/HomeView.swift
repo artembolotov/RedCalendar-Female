@@ -10,6 +10,10 @@ import SwiftUI
 struct HomeView: View {
     @EnvironmentObject var store: AppStore
     
+    // НОВОЕ: Состояние для отслеживания кнопки
+    @State private var floatingButtonState: FloatingButtonState = .plus
+    @State private var isInitialLoad = true // Флаг первичной загрузки
+    
     var body: some View {
         NavigationView {
             ZStack(alignment: .bottomLeading) {
@@ -17,9 +21,22 @@ struct HomeView: View {
                     // Calendar takes full screen
                     CalendarView()
                         .ignoresSafeArea(edges: .bottom)
+                        // НОВОЕ: Отслеживаем изменения состояния кнопки из календаря
+                        .onPreferenceChange(TodayVisibilityPreferenceKey.self) { newState in
+                            if isInitialLoad {
+                                // При первой загрузке обновляем без анимации
+                                floatingButtonState = newState
+                                isInitialLoad = false
+                            } else {
+                                // При обычных изменениях обновляем с анимацией
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    floatingButtonState = newState
+                                }
+                            }
+                        }
                     
-                    // Floating Add Button
-                    FloatingAddButton()
+                    // НОВОЕ: Динамическая кнопка с состоянием
+                    FloatingAddButton(state: floatingButtonState)
                         .ignoresSafeArea(edges: .bottom)
                 }
             }
@@ -33,18 +50,19 @@ struct HomeView: View {
     }
 }
 
-// MARK: - FloatingAddButton Component
+// MARK: - FloatingAddButton Component (ОБНОВЛЕНА)
 private struct FloatingAddButton: View {
+    let state: FloatingButtonState
+    
     var body: some View {
         HStack {
             VStack {
                 Spacer()
                 
                 Button(action: {
-                    // Action for adding new event/record
-                    print("Add button tapped")
+                    handleButtonAction()
                 }) {
-                    Image(systemName: "plus")
+                    Image(systemName: iconName)
                         .font(.title)
                         .foregroundColor(.white)
                         .frame(width: 64, height: 64)
@@ -63,15 +81,48 @@ private struct FloatingAddButton: View {
                         .shadow(color: Color.accentColor.opacity(0.4), radius: 12, x: 0, y: 6)
                 }
                 .padding(.bottom, 20) // Safe distance from bottom edge
+                // Убираем .animation() отсюда, так как управляем анимацией в HomeView
             }
             .padding(.leading, 20) // Safe distance from left edge
             
             Spacer()
         }
     }
+    
+    // НОВОЕ: Динамическая иконка
+    private var iconName: String {
+        switch state {
+        case .plus:
+            return "plus"
+        case .arrowUp:
+            return "arrow.up"
+        case .arrowDown:
+            return "arrow.down"
+        }
+    }
+    
+    // НОВОЕ: Обработка действий
+    private func handleButtonAction() {
+        switch state {
+        case .plus:
+            // Action for adding new event/record
+            print("Add button tapped")
+            
+        case .arrowUp, .arrowDown:
+            // Action for scrolling to today
+            scrollToToday()
+        }
+    }
+    
+    // НОВОЕ: Функция скролла к сегодняшнему дню (заглушка)
+    private func scrollToToday() {
+        print("Scroll to today requested - direction: \(state)")
+        // TODO: Implement scroll to today functionality
+        // Можно реализовать через NotificationCenter или другой механизм
+    }
 }
 
-// MARK: - HomeMenuView Component
+// MARK: - HomeMenuView Component (БЕЗ ИЗМЕНЕНИЙ)
 private struct HomeMenuView: View {
     @State private var showSettings = false
     @State private var showStatistics = false
@@ -94,7 +145,6 @@ private struct HomeMenuView: View {
                 Divider()
                 
                 let link = URL(string: Constants.URLs.appLink)!
-                
                 ShareLink(item: link) {
                     Label("Поделиться приложением", systemImage: "square.and.arrow.up")
                 }
