@@ -623,9 +623,9 @@ struct CalendarView: View {
         if abs(deviation) <= halfViewThreshold {
             return .plus                // Current week still visible
         } else if deviation > halfViewThreshold {
-            return .arrowUp             // Scrolled down - today is above
+            return .arrowDown             // Scrolled down - today is above
         } else {
-            return .arrowDown           // Scrolled up - today is below
+            return .arrowUp           // Scrolled up - today is below
         }
     }
     
