@@ -14,8 +14,8 @@ struct FloatingAddButton: View {
         Button(action: {
             handleButtonAction()
         }) {
-            Image(systemName: iconName)
-                .font(.title)
+            AnimatedIcon(state: state)
+                .frame(width: 28, height: 28)
                 .foregroundColor(.white)
                 .frame(width: 64, height: 64)
                 .background(
@@ -31,17 +31,7 @@ struct FloatingAddButton: View {
                 )
                 .clipShape(Circle())
                 .shadow(color: Color.accentColor.opacity(0.4), radius: 12, x: 0, y: 6)
-        }
-    }
-    
-    private var iconName: String {
-        switch state {
-        case .plus:
-            return "plus"
-        case .arrowUp:
-            return "arrow.up"
-        case .arrowDown:
-            return "arrow.down"
+                .animation(.spring(response: 0.5, dampingFraction: 0.8), value: state)
         }
     }
     
@@ -59,4 +49,149 @@ struct FloatingAddButton: View {
         print("Scroll to today requested - direction: \(state)")
         // TODO: Implement scroll to today functionality
     }
+}
+
+// MARK: - Animated Icon View
+struct AnimatedIcon: View {
+    let state: FloatingButtonState
+    
+    private var morphProgress: CGFloat {
+        switch state {
+        case .arrowDown: return -1    // Chevron down
+        case .plus: return 0          // Plus (center)
+        case .arrowUp: return 1       // Chevron up
+        }
+    }
+    
+    var body: some View {
+        MorphingShape(progress: morphProgress)
+            .stroke(Color.white, style: StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))
+            .animation(.spring(response: 0.5, dampingFraction: 0.8), value: morphProgress)
+    }
+}
+
+// MARK: - Morphing Shape
+struct MorphingShape: Shape {
+    var progress: CGFloat
+    
+    var animatableData: CGFloat {
+        get { progress }
+        set { progress = newValue }
+    }
+    
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        let center = CGPoint(x: rect.midX, y: rect.midY)
+        
+        let baseLineLength: CGFloat = rect.width * 0.7
+        let chevronWidth: CGFloat = rect.width * 0.6
+        let chevronHeight: CGFloat = rect.height * 0.35
+        
+        // Clamp progress to valid range
+        let clampedProgress = max(-1, min(1, progress))
+        
+        // Calculate horizontal line points (always present)
+        let horizontalLength = baseLineLength / 2
+        let leftX = center.x - horizontalLength
+        let rightX = center.x + horizontalLength
+        
+        // Calculate morphing positions
+        let leftY: CGFloat
+        let rightY: CGFloat
+        let centerY: CGFloat
+        
+        if clampedProgress == 0 {
+            // Plus state - horizontal line at center
+            leftY = center.y
+            rightY = center.y
+            centerY = center.y
+        } else if clampedProgress > 0 {
+            // Morphing towards chevron up
+            let morphFactor = clampedProgress
+            leftY = center.y + (chevronHeight/2 * morphFactor)
+            rightY = center.y + (chevronHeight/2 * morphFactor)
+            centerY = center.y - (chevronHeight/2 * morphFactor)
+        } else {
+            // Morphing towards chevron down
+            let morphFactor = abs(clampedProgress)
+            let downwardOffset = morphFactor * 2 // 2px offset for better visual balance
+            leftY = center.y - (chevronHeight/2 * morphFactor) + downwardOffset
+            rightY = center.y - (chevronHeight/2 * morphFactor) + downwardOffset
+            centerY = center.y + (chevronHeight/2 * morphFactor) + downwardOffset
+        }
+        
+        // Adjust width for chevron states
+        let currentWidth = horizontalLength + (chevronWidth/2 - horizontalLength) * abs(clampedProgress)
+        let adjustedLeftX = center.x - currentWidth
+        let adjustedRightX = center.x + currentWidth
+        
+        // Draw horizontal line (morphs into chevron arms)
+        path.move(to: CGPoint(x: adjustedLeftX, y: leftY))
+        path.addLine(to: CGPoint(x: center.x, y: centerY))
+        path.addLine(to: CGPoint(x: adjustedRightX, y: rightY))
+        
+        // Draw vertical line converging to chevron apex (accelerated disappearance)
+        let disappearanceThreshold: CGFloat = 0.75
+        let verticalOpacity = max(0, (disappearanceThreshold - abs(clampedProgress)) / disappearanceThreshold)
+        
+        if verticalOpacity > 0.05 {
+            let baseVerticalLength = baseLineLength / 2
+            
+            // Original vertical line endpoints
+            let originalTop = CGPoint(x: center.x, y: center.y - baseVerticalLength)
+            let originalBottom = CGPoint(x: center.x, y: center.y + baseVerticalLength)
+            
+            if clampedProgress > 0 {
+                // Morphing to chevron up - both ends converge to chevron apex (top)
+                let chevronApex = CGPoint(x: center.x, y: center.y - chevronHeight/2 * clampedProgress)
+                
+                let topPoint = CGPoint(
+                    x: originalTop.x + (chevronApex.x - originalTop.x) * clampedProgress,
+                    y: originalTop.y + (chevronApex.y - originalTop.y) * clampedProgress
+                )
+                let bottomPoint = CGPoint(
+                    x: originalBottom.x + (chevronApex.x - originalBottom.x) * clampedProgress,
+                    y: originalBottom.y + (chevronApex.y - originalBottom.y) * clampedProgress
+                )
+                
+                path.move(to: topPoint)
+                path.addLine(to: bottomPoint)
+                
+            } else if clampedProgress < 0 {
+                // Morphing to chevron down - both ends converge to chevron apex (bottom)
+                let morphFactor = abs(clampedProgress)
+                let chevronApex = CGPoint(x: center.x, y: center.y + chevronHeight/2 * morphFactor)
+                
+                let topPoint = CGPoint(
+                    x: originalTop.x + (chevronApex.x - originalTop.x) * morphFactor,
+                    y: originalTop.y + (chevronApex.y - originalTop.y) * morphFactor
+                )
+                let bottomPoint = CGPoint(
+                    x: originalBottom.x + (chevronApex.x - originalBottom.x) * morphFactor,
+                    y: originalBottom.y + (chevronApex.y - originalBottom.y) * morphFactor
+                )
+                
+                path.move(to: topPoint)
+                path.addLine(to: bottomPoint)
+                
+            } else {
+                // Plus state - full vertical line
+                path.move(to: originalTop)
+                path.addLine(to: originalBottom)
+            }
+        }
+        
+        return path
+    }
+}
+
+// MARK: - Preview
+#Preview {
+    VStack(spacing: 30) {
+        FloatingAddButton(state: .plus)
+        FloatingAddButton(state: .arrowUp)
+        FloatingAddButton(state: .arrowDown)
+    }
+    .padding()
+    .background(Color.gray.opacity(0.1))
 }
