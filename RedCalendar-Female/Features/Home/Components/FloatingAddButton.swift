@@ -92,8 +92,6 @@ struct MorphingShape: Shape {
         
         // Calculate horizontal line points (always present)
         let horizontalLength = baseLineLength / 2
-        let leftX = center.x - horizontalLength
-        let rightX = center.x + horizontalLength
         
         // Calculate morphing positions
         let leftY: CGFloat
