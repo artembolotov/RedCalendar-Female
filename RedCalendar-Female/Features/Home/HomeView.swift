@@ -11,32 +11,26 @@ struct HomeView: View {
     @EnvironmentObject var store: AppStore
     @State private var floatingButtonState: FloatingButtonState = .plus
     @State private var bottomCenterOffset: CGFloat = 0
-    @State private var calendarTopOffset: CGFloat = 0
     
     var body: some View {
         NavigationView {
             ZStack(alignment: .bottomLeading) {
                 if store.state.isAuthenticated {
-                    GeometryReader { geometry in
-                        CalendarView(
-                            bottomCenterOffset: $bottomCenterOffset
-                        )
-                        .ignoresSafeArea(edges: .bottom)
-                        .onAppear {
-                            calendarTopOffset = geometry.frame(in: .global).minY
+                    CalendarView(
+                        bottomCenterOffset: $bottomCenterOffset
+                    )
+                    .ignoresSafeArea(edges: .bottom)
+                    .onPreferenceChange(TodayVisibilityPreferenceKey.self) { newState in
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            floatingButtonState = newState
                         }
-                        .onPreferenceChange(TodayVisibilityPreferenceKey.self) { newState in
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                floatingButtonState = newState
-                            }
-                        }
-                        
-                        FloatingAddButton(state: floatingButtonState)
-                            .padding(.leading, 20)
-                            .padding(.bottom, 20)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
-                            .ignoresSafeArea(edges: .bottom)
                     }
+                    
+                    FloatingAddButton(state: floatingButtonState)
+                        .padding(.leading, 20)
+                        .padding(.bottom, 20)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+                        .ignoresSafeArea(edges: .bottom)
                 }
             }
             .navigationBarTitleDisplayMode(.inline)

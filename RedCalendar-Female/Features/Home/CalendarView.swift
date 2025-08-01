@@ -598,7 +598,6 @@ class ViewportCalculator {
 
 // MARK: - Main Calendar View
 struct CalendarView: View {
-    let topCenterOffset: CGFloat?
     @Binding var bottomCenterOffset: CGFloat
     
     @State private var calculator: MonthCalculator?
@@ -632,9 +631,7 @@ struct CalendarView: View {
         }
     }
     
-    init(topCenterOffset: CGFloat = 0,
-         bottomCenterOffset: Binding<CGFloat> = .constant(0)) {
-        self.topCenterOffset = topCenterOffset
+    init(bottomCenterOffset: Binding<CGFloat> = .constant(0)) {
         self._bottomCenterOffset = bottomCenterOffset
     }
     
@@ -659,7 +656,7 @@ struct CalendarView: View {
                             },
                             initialCenterOffset: initialCenterOffset,
                             calculator: calc,
-                            currentDate: currentDate // НОВОЕ: Передаем актуальную дату
+                            currentDate: currentDate
                         )
                         
                         dynamicViewportRenderer(calculator: calc, screenWidth: screenWidth, screenHeight: screenHeight)
