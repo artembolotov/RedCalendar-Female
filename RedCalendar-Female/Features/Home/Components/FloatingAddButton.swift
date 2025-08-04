@@ -31,7 +31,6 @@ struct FloatingAddButton: View {
                 )
                 .clipShape(Circle())
                 .shadow(color: Color.accentColor.opacity(0.4), radius: 12, x: 0, y: 6)
-                .animation(.spring(response: 0.5, dampingFraction: 0.8), value: state)
         }
     }
     

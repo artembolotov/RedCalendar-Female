@@ -17,14 +17,10 @@ struct HomeView: View {
             ZStack(alignment: .bottomLeading) {
                 if store.state.isAuthenticated {
                     CalendarView(
-                        bottomCenterOffset: $bottomCenterOffset
+                        bottomCenterOffset: $bottomCenterOffset,
+                        floatingButtonState: $floatingButtonState
                     )
                     .ignoresSafeArea(edges: .bottom)
-                    .onPreferenceChange(TodayVisibilityPreferenceKey.self) { newState in
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            floatingButtonState = newState
-                        }
-                    }
                     
                     FloatingAddButton(state: floatingButtonState)
                         .padding(.leading, 20)
