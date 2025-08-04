@@ -59,7 +59,6 @@ struct InfiniteScrollContainer: UIViewRepresentable {
     }
     
     func updateUIView(_ uiView: UIScrollView, context: Context) {
-        // НОВОЕ: Обновляем дату в координаторе
         context.coordinator.updateCurrentDate(currentDate)
         
         if !context.coordinator.isDragging {
@@ -78,14 +77,13 @@ struct InfiniteScrollContainer: UIViewRepresentable {
         let parent: InfiniteScrollContainer
         var isDragging = false
         var lastRecenter = Date()
-        private var currentDate: Date // НОВОЕ: Кешируем текущую дату
+        private var currentDate: Date
         
         init(_ parent: InfiniteScrollContainer) {
             self.parent = parent
-            self.currentDate = parent.currentDate // НОВОЕ: Инициализируем дату
+            self.currentDate = parent.currentDate
         }
         
-        // НОВОЕ: Метод для обновления даты
         func updateCurrentDate(_ date: Date) {
             self.currentDate = date
         }
@@ -110,13 +108,12 @@ struct InfiniteScrollContainer: UIViewRepresentable {
                 return
             }
             
-            // ИСПРАВЛЕНО: Используем кешированную дату вместо Date()
             if !isDragging && currentDate.timeIntervalSince(lastRecenter) > 5.0 {
                 let correctedPhysicalY = self.parent.centerY - calendarOffset
                 let distanceFromEdge = min(correctedPhysicalY, self.parent.contentHeight - correctedPhysicalY)
                 if distanceFromEdge < 100000 {
                     scrollView.contentOffset.y = self.parent.centerY - calendarOffset
-                    lastRecenter = currentDate // ИСПРАВЛЕНО: Используем кешированную дату
+                    lastRecenter = currentDate
                 }
             }
             
@@ -615,22 +612,6 @@ struct CalendarView: View {
     private let dayVisibilityBuffer: CGFloat = 100
     private let monthHeaderHeight: CGFloat = 60
     
-    // Computed property для состояния кнопки
-    private var floatingButtonState: FloatingButtonState {
-        let headerHeight: CGFloat = 31 // headerView height (30px + 1px divider)
-        let availableCalendarHeight = screenHeight - headerHeight
-        let halfViewThreshold = availableCalendarHeight / 2
-        let deviation = scrollOffset - initialCenterOffset
-        
-        if abs(deviation) <= halfViewThreshold {
-            return .plus                // Current week still visible
-        } else if deviation > halfViewThreshold {
-            return .arrowDown             // Scrolled down - today is above
-        } else {
-            return .arrowUp           // Scrolled up - today is below
-        }
-    }
-    
     init(bottomCenterOffset: Binding<CGFloat> = .constant(0)) {
         self._bottomCenterOffset = bottomCenterOffset
     }
@@ -639,6 +620,32 @@ struct CalendarView: View {
         GeometryReader { geometry in
             let availableHeight = geometry.size.height
             let availableWidth = geometry.size.width
+            let globalTopOffset = geometry.frame(in: .global).minY
+            
+            // Calculate floating button state with current globalTopOffset
+            let headerHeight: CGFloat = 31
+            let availableCalendarHeight = screenHeight - headerHeight
+            let baseThreshold = availableCalendarHeight / 2
+            let deviation = scrollOffset - initialCenterOffset
+            
+            // Get week height for precise calculation
+            let weekHeight = calculator?.weekHeight ?? 50
+            
+            // For down arrow: this was working correctly
+            let downThreshold = baseThreshold + weekHeight * 0.9 + headerHeight
+            
+            // For up arrow: symmetric logic
+            let upThreshold = -baseThreshold + globalTopOffset / 2
+            
+            let buttonState: FloatingButtonState = {
+                if deviation > downThreshold {
+                    return .arrowDown
+                } else if deviation < upThreshold {
+                    return .arrowUp
+                } else {
+                    return .plus
+                }
+            }()
             
             VStack(spacing: 0) {
                 headerView
@@ -664,11 +671,11 @@ struct CalendarView: View {
                 }
             }
             .onAppear {
-                setupCalculator(screenHeight: availableHeight, screenWidth: availableWidth)
+                setupCalculator(screenHeight: availableHeight, screenWidth: availableWidth, globalTopOffset: globalTopOffset)
             }
             .onChange(of: geometry.size) { newSize in
                 if newSize.height > 0 && newSize.width > 0 {
-                    setupCalculator(screenHeight: newSize.height, screenWidth: newSize.width)
+                    setupCalculator(screenHeight: newSize.height, screenWidth: newSize.width, globalTopOffset: geometry.frame(in: .global).minY)
                 }
             }
             // Check for changes when returning from background
@@ -685,9 +692,9 @@ struct CalendarView: View {
                     updateCalculatorIfNeeded()
                 }
             }
+            // Передаем состояние кнопки через PreferenceKey
+            .preference(key: TodayVisibilityPreferenceKey.self, value: buttonState)
         }
-        // Передаем состояние кнопки через PreferenceKey
-        .preference(key: TodayVisibilityPreferenceKey.self, value: floatingButtonState)
     }
     
     // MARK: - Helper Methods
@@ -696,7 +703,7 @@ struct CalendarView: View {
         currentDate = Date()
     }
     
-    private func setupCalculator(screenHeight: CGFloat, screenWidth: CGFloat) {
+    private func setupCalculator(screenHeight: CGFloat, screenWidth: CGFloat, globalTopOffset: CGFloat) {
         self.screenHeight = screenHeight
         self.screenWidth = screenWidth
         
@@ -729,11 +736,12 @@ struct CalendarView: View {
         let todayWeekY = gridStartY + CGFloat(todayWeekIndex) * (weekHeight + 4)
         let todayWeekCenterY = todayWeekY + weekHeight / 2
         
-        // Center current week in available view (excluding header)
+        // NEW: Center relative to full screen, accounting for navigation offset
         let availableCalendarHeight = screenHeight - monthHeaderHeight
         let centerPosition = availableCalendarHeight / 2
+        let adjustedCenter = centerPosition - globalTopOffset / 2
         
-        initialCenterOffset = centerPosition - todayWeekCenterY
+        initialCenterOffset = adjustedCenter - todayWeekCenterY
         
         calculator = newCalculator
         scrollOffset = initialCenterOffset
