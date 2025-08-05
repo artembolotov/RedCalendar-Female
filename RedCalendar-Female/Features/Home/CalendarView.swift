@@ -229,6 +229,9 @@ final class MonthCalculator: ObservableObject {
     let currentYear: Int
     let screenHeight: CGFloat
     
+    // OPTIMIZATION: Cache Calendar.current to avoid repeated system calls
+    private let calendar: Calendar
+    
     // Constants - extensive limits for maximum flexibility
     let minMonthOffset: Int = -2400  // 200 years back
     let maxMonthOffset: Int = 2400   // 200 years forward
@@ -252,16 +255,19 @@ final class MonthCalculator: ObservableObject {
     
     init(currentDate: Date, screenHeight: CGFloat) {
         self.currentDate = currentDate
-        self.currentYear = Calendar.current.component(.year, from: currentDate)
         self.screenHeight = screenHeight
+        
+        // OPTIMIZATION: Cache calendar instance
+        self.calendar = Calendar.current
+        self.currentYear = calendar.component(.year, from: currentDate)
         self.cachedLocaleIdentifier = Locale.current.identifier
-        self.cachedFirstWeekday = Calendar.current.firstWeekday
+        self.cachedFirstWeekday = calendar.firstWeekday
     }
     
     // Clear cache if locale or first weekday changed
     private func checkAndInvalidateCacheIfNeeded() {
         let currentLocale = Locale.current.identifier
-        let currentFirstWeekday = Calendar.current.firstWeekday
+        let currentFirstWeekday = calendar.firstWeekday
         
         if currentLocale != cachedLocaleIdentifier || currentFirstWeekday != cachedFirstWeekday {
             weekCountCache.removeAll()
@@ -282,7 +288,7 @@ final class MonthCalculator: ObservableObject {
         }
         
         let monthDate = getMonthDate(for: monthOffset)
-        let range = Calendar.current.range(of: .weekOfMonth, in: .month, for: monthDate) ?? 1..<2
+        let range = calendar.range(of: .weekOfMonth, in: .month, for: monthDate) ?? 1..<2
         let weeksCount = range.count
         
         weekCountCache[monthOffset] = weeksCount
@@ -312,7 +318,6 @@ final class MonthCalculator: ObservableObject {
         }
         
         let monthDate = getMonthDate(for: monthOffset)
-        let calendar = Calendar.current
         
         guard let monthRange = calendar.range(of: .day, in: .month, for: monthDate),
               let firstOfMonth = calendar.dateInterval(of: .month, for: monthDate)?.start else {
@@ -373,7 +378,7 @@ final class MonthCalculator: ObservableObject {
     }
     
     func getMonthDate(for monthOffset: Int) -> Date {
-        return Calendar.current.date(byAdding: .month, value: monthOffset, to: currentDate) ?? currentDate
+        return calendar.date(byAdding: .month, value: monthOffset, to: currentDate) ?? currentDate
     }
     
     func getMonthName(for monthOffset: Int) -> String {
@@ -381,7 +386,7 @@ final class MonthCalculator: ObservableObject {
         let formatter = DateFormatter()
         formatter.locale = Locale.current // Use system locale
         
-        let monthYear = Calendar.current.component(.year, from: monthDate)
+        let monthYear = calendar.component(.year, from: monthDate)
         
         // Show only month name for current year, month + year for other years
         if monthYear == currentYear {
@@ -401,7 +406,7 @@ final class MonthCalculator: ObservableObject {
         formatter.locale = Locale.current
         
         let weekdays = formatter.shortWeekdaySymbols!
-        let firstWeekday = Calendar.current.firstWeekday
+        let firstWeekday = calendar.firstWeekday
         
         // Reorder weekdays based on user's regional settings
         let startIndex = firstWeekday - 1
@@ -556,8 +561,9 @@ class ViewportCalculator {
         let gridStartY = yPosition + headerHeight
         let dayWidth = (screenWidth - 24) / 7
         
-        // Use passed current date for today comparison
-        let todayStartOfDay = Calendar.current.startOfDay(for: currentDate)
+        // OPTIMIZATION: Create calendar instance once for this method
+        let calendar = Calendar.current
+        let todayStartOfDay = calendar.startOfDay(for: currentDate)
         
         // Batch process all days for better performance
         for weekIndex in 0..<weeksCount {
@@ -567,10 +573,10 @@ class ViewportCalculator {
                 let cellIndex = weekIndex * 7 + dayIndex
                 if cellIndex < monthDays.count, let date = monthDays[cellIndex] {
                     let dayX = 12 + CGFloat(dayIndex) * dayWidth
-                    let dayNumber = String(Calendar.current.component(.day, from: date))
+                    let dayNumber = String(calendar.component(.day, from: date))
                     
                     // Use passed current date for "today" comparison
-                    let isToday = Calendar.current.isDate(date, inSameDayAs: todayStartOfDay)
+                    let isToday = calendar.isDate(date, inSameDayAs: todayStartOfDay)
                     
                     let visibleDay = VisibleDay(
                         date: date,
@@ -868,8 +874,10 @@ struct CalendarView: View {
                     
                     let dayScreenY = day.yPosition + scrollOffset
                     if dayScreenY > -dayVisibilityBuffer && dayScreenY < height + dayVisibilityBuffer {
-                        let today = Calendar.current.startOfDay(for: currentDate) // Use state date
-                        let dayDate = day.date != nil ? Calendar.current.startOfDay(for: day.date!) : nil
+                        // OPTIMIZATION: Create calendar once for this scope
+                        let calendar = Calendar.current
+                        let today = calendar.startOfDay(for: currentDate)
+                        let dayDate = day.date != nil ? calendar.startOfDay(for: day.date!) : nil
                         let isFutureDay = dayDate != nil && dayDate! > today
                         
                         ZStack {
