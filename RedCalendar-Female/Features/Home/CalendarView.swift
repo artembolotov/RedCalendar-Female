@@ -1,5 +1,5 @@
 //
-//  CalendarView.swift - Локализованный календарь
+//  CalendarView.swift - Локализованный календарь с оптимизацией
 //  RedCalendar-Female
 //
 //  Created by Артём Болотов on 11.07.2025.
@@ -27,14 +27,14 @@ struct VisibleDay {
     let dayNumber: String
 }
 
-// MARK: - Optimized Infinite UIScrollView
+// MARK: - Infinite Scroll Container
 struct InfiniteScrollContainer: UIViewRepresentable {
     @Binding var scrollOffset: CGFloat
     let onScrollChanged: (CGFloat) -> Void
     let onDragStateChanged: (Bool) -> Void
     let initialCenterOffset: CGFloat
     let calculator: MonthCalculator
-    let currentDate: Date // НОВОЕ: Передаем актуальную дату
+    let currentDate: Date
     
     private let contentHeight: CGFloat = 8000000
     private let centerY: CGFloat = 4000000
@@ -52,7 +52,6 @@ struct InfiniteScrollContainer: UIViewRepresentable {
         scrollView.backgroundColor = .clear
         scrollView.scrollsToTop = false
         
-        // Start with current week centered
         scrollView.contentOffset.y = centerY - initialCenterOffset
         
         return scrollView
@@ -92,17 +91,14 @@ struct InfiniteScrollContainer: UIViewRepresentable {
             let physicalY = scrollView.contentOffset.y
             var calendarOffset = self.parent.centerY - physicalY
             
-            // Apply real calendar limits
             let limits = self.parent.calculator.getScrollLimits()
             let originalOffset = calendarOffset
             calendarOffset = max(limits.min, min(limits.max, calendarOffset))
             
-            // ALWAYS correct physical position when hitting boundaries
             if originalOffset != calendarOffset {
                 let correctedPhysicalY = self.parent.centerY - calendarOffset
                 scrollView.contentOffset.y = correctedPhysicalY
                 
-                // Update state synchronously at boundaries
                 self.parent.scrollOffset = calendarOffset
                 self.parent.onScrollChanged(calendarOffset)
                 return
@@ -117,7 +113,6 @@ struct InfiniteScrollContainer: UIViewRepresentable {
                 }
             }
             
-            // Normal async update
             DispatchQueue.main.async {
                 self.parent.scrollOffset = calendarOffset
                 self.parent.onScrollChanged(calendarOffset)
@@ -133,7 +128,6 @@ struct InfiniteScrollContainer: UIViewRepresentable {
             if !willDecelerate {
                 isDragging = false
                 
-                // Additional boundary check after drag without deceleration
                 let physicalY = scrollView.contentOffset.y
                 var calendarOffset = self.parent.centerY - physicalY
                 let limits = self.parent.calculator.getScrollLimits()
@@ -145,7 +139,6 @@ struct InfiniteScrollContainer: UIViewRepresentable {
                     calendarOffset = correctedOffset
                 }
                 
-                // Update state synchronously
                 self.parent.scrollOffset = calendarOffset
                 self.parent.onScrollChanged(calendarOffset)
                 
@@ -158,7 +151,6 @@ struct InfiniteScrollContainer: UIViewRepresentable {
         func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
             isDragging = false
             
-            // Additional boundary check after deceleration
             let physicalY = scrollView.contentOffset.y
             var calendarOffset = self.parent.centerY - physicalY
             let limits = self.parent.calculator.getScrollLimits()
@@ -170,7 +162,6 @@ struct InfiniteScrollContainer: UIViewRepresentable {
                 calendarOffset = correctedOffset
             }
             
-            // Update state synchronously
             self.parent.scrollOffset = calendarOffset
             self.parent.onScrollChanged(calendarOffset)
             
@@ -179,44 +170,36 @@ struct InfiniteScrollContainer: UIViewRepresentable {
             }
         }
         
-        // Smooth deceleration at boundaries
         func scrollViewWillEndDragging(_ scrollView: UIScrollView, withVelocity velocity: CGPoint, targetContentOffset: UnsafeMutablePointer<CGPoint>) {
             let targetPhysicalY = targetContentOffset.pointee.y
             let targetCalendarOffset = parent.centerY - targetPhysicalY
             
             let limits = parent.calculator.getScrollLimits()
             
-            // Check if we're approaching or exceeding boundaries
             let boundaryBuffer: CGFloat = 200
             let isApproachingTop = targetCalendarOffset > (limits.max - boundaryBuffer)
             let isApproachingBottom = targetCalendarOffset < (limits.min + boundaryBuffer)
             
             if isApproachingTop || isApproachingBottom {
-                // Calculate smooth deceleration
                 let clampedTarget = max(limits.min, min(limits.max, targetCalendarOffset))
-                let correctedPhysicalY = parent.centerY - clampedTarget
                 
                 if isApproachingTop && targetCalendarOffset > limits.max {
-                    // Smooth deceleration to top boundary
                     let overshoot = targetCalendarOffset - limits.max
                     let dampenedOvershoot = overshoot * 0.3
                     let smoothTarget = limits.max + dampenedOvershoot
                     targetContentOffset.pointee.y = parent.centerY - smoothTarget
                 } else if isApproachingBottom && targetCalendarOffset < limits.min {
-                    // Smooth deceleration to bottom boundary
                     let overshoot = limits.min - targetCalendarOffset
                     let dampenedOvershoot = overshoot * 0.3
                     let smoothTarget = limits.min - dampenedOvershoot
                     targetContentOffset.pointee.y = parent.centerY - smoothTarget
                 } else {
-                    // Direct clamp if within boundary buffer
+                    let correctedPhysicalY = parent.centerY - clampedTarget
                     targetContentOffset.pointee.y = correctedPhysicalY
                 }
                 
-                // Reduce deceleration rate for smoother feel near boundaries
                 scrollView.decelerationRate = UIScrollView.DecelerationRate.fast
             } else {
-                // Normal deceleration rate away from boundaries
                 scrollView.decelerationRate = UIScrollView.DecelerationRate.normal
             }
         }
@@ -229,23 +212,25 @@ final class MonthCalculator: ObservableObject {
     let currentYear: Int
     let screenHeight: CGFloat
     
-    // OPTIMIZATION: Cache Calendar.current to avoid repeated system calls
     private let calendar: Calendar
     
-    // Constants - extensive limits for maximum flexibility
-    let minMonthOffset: Int = -2400  // 200 years back
-    let maxMonthOffset: Int = 2400   // 200 years forward
+    private lazy var dateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale.current
+        return formatter
+    }()
+    
+    let minMonthOffset: Int = -2400
+    let maxMonthOffset: Int = 2400
     private let monthHeaderHeight: CGFloat = 60
     private let bottomSpacing: CGFloat = 20
     private let gridVerticalSpacing: CGFloat = 4
     
-    // Caches
     private var weekCountCache: [Int: Int] = [:]
     private var monthHeightCache: [Int: CGFloat] = [:]
     private var monthDaysCache: [Int: [Date?]] = [:]
     private var cumulativePositionCache: [Int: CGFloat] = [0: 0]
     
-    // Track current locale to invalidate cache when it changes
     private(set) var cachedLocaleIdentifier: String
     private(set) var cachedFirstWeekday: Int
     
@@ -253,18 +238,15 @@ final class MonthCalculator: ObservableObject {
         return floor(max(50, (screenHeight - 31) / 15))
     }
     
-    init(currentDate: Date, screenHeight: CGFloat) {
+    init(currentDate: Date, screenHeight: CGFloat, calendar: Calendar) {
         self.currentDate = currentDate
         self.screenHeight = screenHeight
-        
-        // OPTIMIZATION: Cache calendar instance
-        self.calendar = Calendar.current
+        self.calendar = calendar
         self.currentYear = calendar.component(.year, from: currentDate)
         self.cachedLocaleIdentifier = Locale.current.identifier
         self.cachedFirstWeekday = calendar.firstWeekday
     }
     
-    // Clear cache if locale or first weekday changed
     private func checkAndInvalidateCacheIfNeeded() {
         let currentLocale = Locale.current.identifier
         let currentFirstWeekday = calendar.firstWeekday
@@ -274,6 +256,8 @@ final class MonthCalculator: ObservableObject {
             monthHeightCache.removeAll()
             monthDaysCache.removeAll()
             cumulativePositionCache = [0: 0]
+            
+            dateFormatter.locale = Locale.current
             
             cachedLocaleIdentifier = currentLocale
             cachedFirstWeekday = currentFirstWeekday
@@ -383,48 +367,31 @@ final class MonthCalculator: ObservableObject {
     
     func getMonthName(for monthOffset: Int) -> String {
         let monthDate = getMonthDate(for: monthOffset)
-        let formatter = DateFormatter()
-        formatter.locale = Locale.current // Use system locale
-        
         let monthYear = calendar.component(.year, from: monthDate)
         
-        // Show only month name for current year, month + year for other years
-        if monthYear == currentYear {
-            formatter.dateFormat = "LLLL"
-        } else {
-            formatter.dateFormat = "LLLL yyyy"
-        }
+        dateFormatter.dateFormat = monthYear == currentYear ? "LLLL" : "LLLL yyyy"
         
-        return formatter.string(from: monthDate).capitalized
+        return dateFormatter.string(from: monthDate).capitalized
     }
     
-    // Get localized weekday names for header respecting regional first weekday
     func getLocalizedWeekdays() -> [String] {
         checkAndInvalidateCacheIfNeeded()
         
-        let formatter = DateFormatter()
-        formatter.locale = Locale.current
-        
-        let weekdays = formatter.shortWeekdaySymbols!
+        let weekdays = dateFormatter.shortWeekdaySymbols!
         let firstWeekday = calendar.firstWeekday
         
-        // Reorder weekdays based on user's regional settings
         let startIndex = firstWeekday - 1
         let reorderedWeekdays = Array(weekdays[startIndex...]) + Array(weekdays[0..<startIndex])
         
         return reorderedWeekdays
     }
     
-    // Get actual scroll limits based on first and last months
     func getScrollLimits() -> (min: CGFloat, max: CGFloat) {
         let firstMonthY = getYPosition(for: minMonthOffset)
         let lastMonthY = getYPosition(for: maxMonthOffset)
         let lastMonthHeight = getMonthHeight(for: maxMonthOffset)
         
-        // Can't scroll beyond first month (going up)
         let maxScrollUp = -firstMonthY
-        
-        // Last month bottom aligns with screen bottom
         let availableHeight = screenHeight - 31
         let maxScrollDown = availableHeight - (lastMonthY + lastMonthHeight)
         
@@ -452,19 +419,17 @@ class ViewportCalculator {
         screenHeight: CGFloat,
         screenWidth: CGFloat,
         calculator: MonthCalculator,
-        currentDate: Date // Pass current date as parameter
+        currentDate: Date,
+        calendar: Calendar
     ) -> ViewportData {
         
-        // Adaptive buffer based on scroll state
         let bufferHeight = screenHeight * 1.5
         let viewportTop = -scrollOffset - bufferHeight
         let viewportBottom = -scrollOffset + screenHeight + bufferHeight
         
-        // Smart starting month search
         let averageMonthHeight: CGFloat = 290
         let estimatedMonthOffset = Int(scrollOffset / averageMonthHeight)
         
-        // Binary search for optimal starting point
         var monthOffset = findOptimalStartMonth(
             estimatedOffset: estimatedMonthOffset,
             viewportTop: viewportTop,
@@ -474,13 +439,11 @@ class ViewportCalculator {
         var visibleMonths: [VisibleMonth] = []
         var currentY = calculator.getYPosition(for: monthOffset)
         
-        // Backward search to find first visible month
         while currentY > viewportTop && monthOffset > calculator.minMonthOffset {
             monthOffset -= 1
             currentY = calculator.getYPosition(for: monthOffset)
         }
         
-        // Forward search to build visible months
         while currentY < viewportBottom && monthOffset <= calculator.maxMonthOffset {
             let monthHeight = calculator.getMonthHeight(for: monthOffset)
             let monthBottom = currentY + monthHeight
@@ -492,7 +455,8 @@ class ViewportCalculator {
                     height: monthHeight,
                     screenWidth: screenWidth,
                     calculator: calculator,
-                    currentDate: currentDate // Pass current date
+                    currentDate: currentDate,
+                    calendar: calendar
                 )
                 visibleMonths.append(visibleMonth)
             }
@@ -500,7 +464,7 @@ class ViewportCalculator {
             currentY += monthHeight
             monthOffset += 1
             
-            if visibleMonths.count >= 12 { // Reduced for better performance
+            if visibleMonths.count >= 12 {
                 break
             }
         }
@@ -508,7 +472,6 @@ class ViewportCalculator {
         return ViewportData(visibleMonths: visibleMonths)
     }
     
-    // Binary search for optimal starting month
     private static func findOptimalStartMonth(
         estimatedOffset: Int,
         viewportTop: CGFloat,
@@ -516,7 +479,6 @@ class ViewportCalculator {
     ) -> Int {
         let clampedEstimate = max(calculator.minMonthOffset, min(calculator.maxMonthOffset, estimatedOffset))
         
-        // Check if estimate is good enough
         let estimatedY = calculator.getYPosition(for: clampedEstimate)
         let estimatedHeight = calculator.getMonthHeight(for: clampedEstimate)
         
@@ -524,7 +486,6 @@ class ViewportCalculator {
             return clampedEstimate
         }
         
-        // Binary search if estimate is off
         var low = calculator.minMonthOffset
         var high = calculator.maxMonthOffset
         
@@ -548,7 +509,8 @@ class ViewportCalculator {
         height: CGFloat,
         screenWidth: CGFloat,
         calculator: MonthCalculator,
-        currentDate: Date // Use passed current date
+        currentDate: Date,
+        calendar: Calendar
     ) -> VisibleMonth {
         
         let monthDays = calculator.getMonthDays(for: monthOffset)
@@ -561,11 +523,8 @@ class ViewportCalculator {
         let gridStartY = yPosition + headerHeight
         let dayWidth = (screenWidth - 24) / 7
         
-        // OPTIMIZATION: Create calendar instance once for this method
-        let calendar = Calendar.current
         let todayStartOfDay = calendar.startOfDay(for: currentDate)
         
-        // Batch process all days for better performance
         for weekIndex in 0..<weeksCount {
             let weekY = gridStartY + CGFloat(weekIndex) * (weekHeight + 4)
             
@@ -575,7 +534,6 @@ class ViewportCalculator {
                     let dayX = 12 + CGFloat(dayIndex) * dayWidth
                     let dayNumber = String(calendar.component(.day, from: date))
                     
-                    // Use passed current date for "today" comparison
                     let isToday = calendar.isDate(date, inSameDayAs: todayStartOfDay)
                     
                     let visibleDay = VisibleDay(
@@ -612,9 +570,9 @@ struct CalendarView: View {
     @State private var calendarWidth: CGFloat = 0
     @State private var initialCenterOffset: CGFloat = 0
     @State private var localizedWeekdays: [String] = []
-    @State private var globalTopOffset: CGFloat = 0 // NEW: Make globalTopOffset a state variable
+    @State private var globalTopOffset: CGFloat = 0
+    @State private var calendar = Calendar.current
     
-    // Performance optimization states
     @State private var lastViewportUpdateScroll: CGFloat = 0
     private let viewportUpdateThreshold: CGFloat = 30
     private let dayVisibilityBuffer: CGFloat = 100
@@ -644,7 +602,7 @@ struct CalendarView: View {
                             onScrollChanged: { newOffset in
                                 self.scrollOffset = newOffset
                                 updateViewportTracking()
-                                updateFloatingButtonState() // NEW: No parameter needed
+                                updateFloatingButtonState()
                             },
                             onDragStateChanged: { dragging in
                                 self.isDragging = dragging
@@ -659,25 +617,24 @@ struct CalendarView: View {
                 }
             }
             .onAppear {
-                globalTopOffset = currentGlobalTopOffset // NEW: Update state
-                setupCalculator(height: availableHeight, width: availableWidth) // Removed parameter
+                globalTopOffset = currentGlobalTopOffset
+                setupCalculator(height: availableHeight, width: availableWidth)
             }
             .onChange(of: geometry.size) { newSize in
-                globalTopOffset = currentGlobalTopOffset // NEW: Update state
+                globalTopOffset = currentGlobalTopOffset
                 if newSize.height > 0 && newSize.width > 0 {
-                    setupCalculator(height: newSize.height, width: newSize.width) // Removed parameter
+                    setupCalculator(height: newSize.height, width: newSize.width)
                 }
             }
             .onChange(of: currentGlobalTopOffset) { newOffset in
-                globalTopOffset = newOffset // NEW: Update when geometry changes
-                // NEW: Recalculate center offset when globalTopOffset changes
+                globalTopOffset = newOffset
+                
                 if let calc = calculator, calendarHeight > 0 {
                     let currentMonthY = calc.getYPosition(for: 0)
                     let monthDays = calc.getMonthDays(for: 0)
                     let weekHeight = calc.weekHeight
                     
                     var todayWeekIndex = 0
-                    let calendar = Calendar.current
                     let today = calendar.startOfDay(for: currentDate)
                     
                     for (index, date) in monthDays.enumerated() {
@@ -699,27 +656,36 @@ struct CalendarView: View {
                     scrollOffset = initialCenterOffset
                 }
             }
-            // Check for changes when returning from background
             .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                     updateCurrentDate()
-                    updateCalculatorIfNeeded()
+                    updateCalendarAndCalculatorIfNeeded()
                 }
             }
-            // Update calendar when day changes or time settings change
             .onReceive(NotificationCenter.default.publisher(for: UIApplication.significantTimeChangeNotification)) { _ in
                 DispatchQueue.main.async {
                     updateCurrentDate()
-                    updateCalculatorIfNeeded()
+                    updateCalendarAndCalculatorIfNeeded()
                 }
             }
         }
     }
     
-    // MARK: - Helper Methods
-    
     private func updateCurrentDate() {
         currentDate = Date()
+    }
+    
+    private func updateCalendarAndCalculatorIfNeeded() {
+        let newCalendar = Calendar.current
+        
+        let localeChanged = newCalendar.locale?.identifier != calendar.locale?.identifier
+        let firstWeekdayChanged = newCalendar.firstWeekday != calendar.firstWeekday
+        
+        if localeChanged || firstWeekdayChanged {
+            calendar = newCalendar
+        }
+        
+        updateCalculatorIfNeeded()
     }
     
     private func setupCalculator(height: CGFloat, width: CGFloat) {
@@ -729,19 +695,16 @@ struct CalendarView: View {
         guard height > 0 && width > 0 else { return }
         
         let actualCurrentDate = Date()
-        currentDate = actualCurrentDate // Update state
-        let newCalculator = MonthCalculator(currentDate: actualCurrentDate, screenHeight: height)
+        currentDate = actualCurrentDate
         
-        // Update localized weekdays
+        let newCalculator = MonthCalculator(currentDate: actualCurrentDate, screenHeight: height, calendar: calendar)
         localizedWeekdays = newCalculator.getLocalizedWeekdays()
         
-        // Find today's week position for centering
         let currentMonthY = newCalculator.getYPosition(for: 0)
         let monthDays = newCalculator.getMonthDays(for: 0)
         let weekHeight = newCalculator.weekHeight
         
         var todayWeekIndex = 0
-        let calendar = Calendar.current
         let today = calendar.startOfDay(for: actualCurrentDate)
         
         for (index, date) in monthDays.enumerated() {
@@ -755,10 +718,9 @@ struct CalendarView: View {
         let todayWeekY = gridStartY + CGFloat(todayWeekIndex) * (weekHeight + 4)
         let todayWeekCenterY = todayWeekY + weekHeight / 2
         
-        // NEW: Center relative to full screen, accounting for navigation offset
         let availableCalendarHeight = height - monthHeaderHeight
         let centerPosition = availableCalendarHeight / 2
-        let adjustedCenter = centerPosition - globalTopOffset / 2 // Use state variable
+        let adjustedCenter = centerPosition - globalTopOffset / 2
         
         initialCenterOffset = adjustedCenter - todayWeekCenterY
         
@@ -771,30 +733,26 @@ struct CalendarView: View {
             return
         }
         
-        // Check if update is actually needed
         let currentLocale = Locale.current.identifier
-        let currentFirstWeekday = Calendar.current.firstWeekday
-        let newCurrentYear = Calendar.current.component(.year, from: currentDate)
+        let currentFirstWeekday = calendar.firstWeekday
+        let newCurrentYear = calendar.component(.year, from: currentDate)
         
         let localeChanged = currentLocale != currentCalculator.cachedLocaleIdentifier
         let firstWeekdayChanged = currentFirstWeekday != currentCalculator.cachedFirstWeekday
         let yearChanged = newCurrentYear != currentCalculator.currentYear
         
-        // Only update if something actually changed
         if localeChanged || firstWeekdayChanged || yearChanged {
-            let newCalculator = MonthCalculator(currentDate: currentDate, screenHeight: calendarHeight)
+            let newCalculator = MonthCalculator(currentDate: currentDate, screenHeight: calendarHeight, calendar: calendar)
             localizedWeekdays = newCalculator.getLocalizedWeekdays()
             
             calculator = newCalculator
             
-            // NEW: Update only initialCenterOffset for correct button logic, but keep scrollOffset unchanged
             if calendarHeight > 0 {
                 let currentMonthY = newCalculator.getYPosition(for: 0)
                 let monthDays = newCalculator.getMonthDays(for: 0)
                 let weekHeight = newCalculator.weekHeight
                 
                 var todayWeekIndex = 0
-                let calendar = Calendar.current
                 let today = calendar.startOfDay(for: currentDate)
                 
                 for (index, date) in monthDays.enumerated() {
@@ -812,16 +770,12 @@ struct CalendarView: View {
                 let centerPosition = availableCalendarHeight / 2
                 let adjustedCenter = centerPosition - globalTopOffset / 2
                 
-                // Update only initialCenterOffset for correct deviation calculation
                 initialCenterOffset = adjustedCenter - todayWeekCenterY
-                // scrollOffset stays the same - calendar doesn't move visually
             }
         }
     }
     
-    // NEW: Method to update floating button state - now uses state variable
     private func updateFloatingButtonState() {
-        // Calculate floating button state using state variable
         let headerHeight: CGFloat = 31
         let baseThreshold = calendarHeight / 2
         let deviation = scrollOffset - initialCenterOffset
@@ -853,14 +807,14 @@ struct CalendarView: View {
             screenHeight: height,
             screenWidth: width,
             calculator: calculator,
-            currentDate: currentDate
+            currentDate: currentDate,
+            calendar: calendar
         )
         
         return ZStack(alignment: .topLeading) {
             ForEach(dynamicViewport.visibleMonths.indices, id: \.self) { monthIndex in
                 let month = dynamicViewport.visibleMonths[monthIndex]
                 
-                // Month header
                 Text(calculator.getMonthName(for: month.monthOffset))
                     .font(.title3)
                     .fontWeight(.heavy)
@@ -868,14 +822,11 @@ struct CalendarView: View {
                     .frame(width: width, height: 60)
                     .position(x: width / 2, y: month.yPosition + 30)
                 
-                // Optimized day rendering
                 ForEach(month.visibleDays.indices, id: \.self) { dayIndex in
                     let day = month.visibleDays[dayIndex]
                     
                     let dayScreenY = day.yPosition + scrollOffset
                     if dayScreenY > -dayVisibilityBuffer && dayScreenY < height + dayVisibilityBuffer {
-                        // OPTIMIZATION: Create calendar once for this scope
-                        let calendar = Calendar.current
                         let today = calendar.startOfDay(for: currentDate)
                         let dayDate = day.date != nil ? calendar.startOfDay(for: day.date!) : nil
                         let isFutureDay = dayDate != nil && dayDate! > today
@@ -910,7 +861,6 @@ struct CalendarView: View {
     }
     
     private func updateViewportTracking() {
-        // Enhanced adaptive threshold based on device capabilities and drag state
         let baseThreshold = viewportUpdateThreshold
         let adaptiveThreshold = isDragging ? baseThreshold * 0.5 : baseThreshold
         
@@ -924,7 +874,6 @@ struct CalendarView: View {
     private var headerView: some View {
         VStack(spacing: 0) {
             ZStack(alignment: .topLeading) {
-                // Use exact same positioning logic as calendar days
                 ForEach(Array(localizedWeekdays.enumerated()), id: \.offset) { dayIndex, weekday in
                     let dayWidth = (calendarWidth - 24) / 7
                     let dayX = 12 + CGFloat(dayIndex) * dayWidth
