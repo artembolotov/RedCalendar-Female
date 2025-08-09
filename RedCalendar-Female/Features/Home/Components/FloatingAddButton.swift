@@ -9,6 +9,12 @@ import SwiftUI
 
 struct FloatingAddButton: View {
     let state: FloatingButtonState
+    let calendarController: CalendarController
+    
+    init(state: FloatingButtonState, calendarController: CalendarController) {
+        self.state = state
+        self.calendarController = calendarController
+    }
     
     var body: some View {
         Button(action: {
@@ -40,13 +46,8 @@ struct FloatingAddButton: View {
             print("Add button tapped")
             
         case .arrowUp, .arrowDown:
-            scrollToToday()
+            calendarController.scrollToToday()
         }
-    }
-    
-    private func scrollToToday() {
-        print("Scroll to today requested - direction: \(state)")
-        // TODO: Implement scroll to today functionality
     }
 }
 
@@ -184,11 +185,27 @@ struct MorphingShape: Shape {
 
 // MARK: - Preview
 #Preview {
+    let previewController = CalendarController()
+    
     VStack(spacing: 30) {
-        FloatingAddButton(state: .plus)
-        FloatingAddButton(state: .arrowUp)
-        FloatingAddButton(state: .arrowDown)
+        FloatingAddButton(
+            state: .plus,
+            calendarController: previewController
+        )
+        FloatingAddButton(
+            state: .arrowUp,
+            calendarController: previewController
+        )
+        FloatingAddButton(
+            state: .arrowDown,
+            calendarController: previewController
+        )
     }
     .padding()
     .background(Color.gray.opacity(0.1))
+    .onAppear {
+        previewController.setScrollAction {
+            print("Preview: Scroll to today triggered!")
+        }
+    }
 }

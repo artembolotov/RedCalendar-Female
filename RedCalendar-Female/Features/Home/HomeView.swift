@@ -9,8 +9,9 @@ import SwiftUI
 
 struct HomeView: View {
     @EnvironmentObject var store: AppStore
-    @State private var floatingButtonState: FloatingButtonState = .plus
     @State private var bottomCenterOffset: CGFloat = 0
+    @State private var floatingButtonState: FloatingButtonState = .plus
+    @State private var calendarController = CalendarController()
     
     var body: some View {
         NavigationView {
@@ -18,15 +19,19 @@ struct HomeView: View {
                 if store.state.isAuthenticated {
                     CalendarView(
                         bottomCenterOffset: $bottomCenterOffset,
-                        floatingButtonState: $floatingButtonState
+                        floatingButtonState: $floatingButtonState,
+                        calendarController: calendarController
                     )
                     .ignoresSafeArea(edges: .bottom)
                     
-                    FloatingAddButton(state: floatingButtonState)
-                        .padding(.leading, 20)
-                        .padding(.bottom, 20)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
-                        .ignoresSafeArea(edges: .bottom)
+                    FloatingAddButton(
+                        state: floatingButtonState,
+                        calendarController: calendarController
+                    )
+                    .padding(.leading, 20)
+                    .padding(.bottom, 20)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+                    .ignoresSafeArea(edges: .bottom)
                 }
             }
             .navigationBarTitleDisplayMode(.inline)

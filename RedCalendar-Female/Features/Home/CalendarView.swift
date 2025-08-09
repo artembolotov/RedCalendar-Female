@@ -557,10 +557,24 @@ class ViewportCalculator {
     }
 }
 
+// MARK: - Calendar Controller (simple class)
+class CalendarController {
+    private var scrollAction: (() -> Void)?
+    
+    func setScrollAction(_ action: @escaping () -> Void) {
+        scrollAction = action
+    }
+    
+    func scrollToToday() {
+       scrollAction?()
+    }
+}
+
 // MARK: - Main Calendar View
 struct CalendarView: View {
     @Binding var bottomCenterOffset: CGFloat
     @Binding var floatingButtonState: FloatingButtonState
+    let calendarController: CalendarController
     
     @State private var calculator: MonthCalculator?
     @State private var scrollOffset: CGFloat = 0
@@ -580,10 +594,12 @@ struct CalendarView: View {
     
     init(
         bottomCenterOffset: Binding<CGFloat> = .constant(0),
-        floatingButtonState: Binding<FloatingButtonState>
+        floatingButtonState: Binding<FloatingButtonState>,
+        calendarController: CalendarController
     ) {
         self._bottomCenterOffset = bottomCenterOffset
         self._floatingButtonState = floatingButtonState
+        self.calendarController = calendarController
     }
     
     var body: some View {
@@ -619,6 +635,12 @@ struct CalendarView: View {
             .onAppear {
                 globalTopOffset = currentGlobalTopOffset
                 setupCalculator(height: availableHeight, width: availableWidth)
+                
+                calendarController.setScrollAction {
+                    withAnimation(.easeInOut(duration: 0.6)) {
+                        scrollOffset = initialCenterOffset
+                    }
+                }
             }
             .onChange(of: geometry.size) { newSize in
                 globalTopOffset = currentGlobalTopOffset
@@ -896,5 +918,10 @@ struct CalendarView: View {
 }
 
 #Preview {
-   CalendarView(floatingButtonState: .constant(.plus))
+    let previewController = CalendarController()
+    
+    CalendarView(
+        floatingButtonState: .constant(.plus),
+        calendarController: previewController
+    )
 }
