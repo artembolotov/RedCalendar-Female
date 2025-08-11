@@ -11,7 +11,7 @@ import SwiftUI
 struct CalendarView: View {
     @Binding var bottomCenterOffset: CGFloat
     @Binding var floatingButtonState: FloatingButtonState
-    let calendarController: CalendarController
+    @Binding var scrollCommand: ScrollCommand
     
     @State private var calculator: MonthCalculator?
     @State private var scrollOffset: CGFloat = 0
@@ -25,6 +25,7 @@ struct CalendarView: View {
     @State private var calendar = Calendar.current
     
     @State private var lastViewportUpdateScroll: CGFloat = 0
+    
     private let viewportUpdateThreshold: CGFloat = CalendarConstants.viewportUpdateThreshold
     private let dayVisibilityBuffer: CGFloat = CalendarConstants.dayVisibilityBuffer
     private let monthHeaderHeight: CGFloat = CalendarConstants.monthHeaderHeight
@@ -33,11 +34,11 @@ struct CalendarView: View {
     init(
         bottomCenterOffset: Binding<CGFloat> = .constant(0),
         floatingButtonState: Binding<FloatingButtonState>,
-        calendarController: CalendarController
+        scrollCommand: Binding<ScrollCommand>
     ) {
         self._bottomCenterOffset = bottomCenterOffset
         self._floatingButtonState = floatingButtonState
-        self.calendarController = calendarController
+        self._scrollCommand = scrollCommand
     }
     
     var body: some View {
@@ -56,13 +57,18 @@ struct CalendarView: View {
                     if let calc = calculator {
                         InfiniteScrollContainer(
                             scrollOffset: $scrollOffset,
+                            scrollCommand: $scrollCommand,
                             onScrollChanged: { newOffset in
-                                self.scrollOffset = newOffset
-                                updateViewportTracking()
-                                updateFloatingButtonState()
+                                DispatchQueue.main.async {
+                                    self.scrollOffset = newOffset
+                                    updateViewportTracking()
+                                    updateFloatingButtonState()
+                                }
                             },
                             onDragStateChanged: { dragging in
-                                self.isDragging = dragging
+                                DispatchQueue.main.async {
+                                    self.isDragging = dragging
+                                }
                             },
                             initialCenterOffset: initialCenterOffset,
                             calculator: calc,
@@ -71,11 +77,6 @@ struct CalendarView: View {
                         
                         dynamicViewportRenderer(calculator: calc, width: calendarWidth, height: calendarHeight)
                     }
-                }
-            }
-            .onAppear {
-                calendarController.setScrollAction {
-                    scrollOffset = initialCenterOffset
                 }
             }
             .onChange(of: geometry.size) { newSize in
@@ -303,10 +304,8 @@ struct CalendarView: View {
 }
 
 #Preview {
-    let previewController = CalendarController()
-    
     CalendarView(
         floatingButtonState: .constant(.plus),
-        calendarController: previewController
+        scrollCommand: .constant(.none)
     )
 }

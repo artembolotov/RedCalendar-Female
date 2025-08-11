@@ -9,6 +9,8 @@ import SwiftUI
 
 struct InfiniteScrollContainer: UIViewRepresentable {
     @Binding var scrollOffset: CGFloat
+    @Binding var scrollCommand: ScrollCommand
+    
     let onScrollChanged: (CGFloat) -> Void
     let onDragStateChanged: (Bool) -> Void
     let initialCenterOffset: CGFloat
@@ -38,6 +40,17 @@ struct InfiniteScrollContainer: UIViewRepresentable {
     
     func updateUIView(_ uiView: UIScrollView, context: Context) {
         context.coordinator.updateCurrentDate(currentDate)
+        
+        if scrollCommand == .animateToCenter {
+           let targetY = centerY - initialCenterOffset
+           uiView.setContentOffset(CGPoint(x: 0, y: targetY), animated: true)
+           
+           // Команда выполнена - сбрасываем
+           DispatchQueue.main.async {
+               scrollCommand = .none
+           }
+           return // Важно! Не продолжаем к обычной синхронизации
+       }
         
         if !context.coordinator.isDragging {
             let targetY = centerY - scrollOffset

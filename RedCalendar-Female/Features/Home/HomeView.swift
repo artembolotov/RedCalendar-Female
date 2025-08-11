@@ -11,7 +11,7 @@ struct HomeView: View {
     @EnvironmentObject var store: AppStore
     @State private var bottomCenterOffset: CGFloat = 0
     @State private var floatingButtonState: FloatingButtonState = .plus
-    @State private var calendarController = CalendarController()
+    @State private var scrollCommand: ScrollCommand = .none
     
     var body: some View {
         NavigationView {
@@ -20,13 +20,13 @@ struct HomeView: View {
                     CalendarView(
                         bottomCenterOffset: $bottomCenterOffset,
                         floatingButtonState: $floatingButtonState,
-                        calendarController: calendarController
+                        scrollCommand: $scrollCommand
                     )
                     .ignoresSafeArea(edges: .bottom)
                     
                     FloatingAddButton(
                         state: floatingButtonState,
-                        calendarController: calendarController
+                        scrollCommand: $scrollCommand
                     )
                     .padding(.leading, 20)
                     .padding(.bottom, 20)
