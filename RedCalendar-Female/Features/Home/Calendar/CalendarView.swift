@@ -75,9 +75,7 @@ struct CalendarView: View {
             }
             .onAppear {
                 calendarController.setScrollAction {
-                    withAnimation(.easeInOut(duration: 0.6)) {
-                        scrollOffset = initialCenterOffset
-                    }
+                    scrollOffset = initialCenterOffset
                 }
             }
             .onChange(of: geometry.size) { newSize in

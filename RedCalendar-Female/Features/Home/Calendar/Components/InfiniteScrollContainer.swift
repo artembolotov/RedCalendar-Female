@@ -41,7 +41,14 @@ struct InfiniteScrollContainer: UIViewRepresentable {
         
         if !context.coordinator.isDragging {
             let targetY = centerY - scrollOffset
-            if abs(uiView.contentOffset.y - targetY) > 100 {
+            let currentY = uiView.contentOffset.y
+            let difference = abs(currentY - targetY)
+            
+            let weekHeight = calculator.weekHeight
+            
+            if difference > weekHeight * 2 {
+                uiView.setContentOffset(CGPoint(x: 0, y: targetY), animated: true)
+            } else {
                 uiView.contentOffset.y = targetY
             }
         }
