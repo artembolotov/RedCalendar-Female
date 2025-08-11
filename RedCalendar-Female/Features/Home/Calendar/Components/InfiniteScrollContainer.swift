@@ -45,23 +45,18 @@ struct InfiniteScrollContainer: UIViewRepresentable {
            let targetY = centerY - initialCenterOffset
            uiView.setContentOffset(CGPoint(x: 0, y: targetY), animated: true)
            
-           // Команда выполнена - сбрасываем
            DispatchQueue.main.async {
                scrollCommand = .none
            }
-           return // Важно! Не продолжаем к обычной синхронизации
-       }
+           return
+        }
         
         if !context.coordinator.isDragging {
             let targetY = centerY - scrollOffset
             let currentY = uiView.contentOffset.y
             let difference = abs(currentY - targetY)
             
-            let weekHeight = calculator.weekHeight
-            
-            if difference > weekHeight * 2 {
-                uiView.setContentOffset(CGPoint(x: 0, y: targetY), animated: true)
-            } else {
+            if difference > 1 {
                 uiView.contentOffset.y = targetY
             }
         }
@@ -98,8 +93,10 @@ struct InfiniteScrollContainer: UIViewRepresentable {
                 let correctedPhysicalY = self.parent.centerY - calendarOffset
                 scrollView.contentOffset.y = correctedPhysicalY
                 
-                self.parent.scrollOffset = calendarOffset
-                self.parent.onScrollChanged(calendarOffset)
+                DispatchQueue.main.async {
+                    self.parent.scrollOffset = calendarOffset
+                    self.parent.onScrollChanged(calendarOffset)
+                }
                 return
             }
             
@@ -138,10 +135,9 @@ struct InfiniteScrollContainer: UIViewRepresentable {
                     calendarOffset = correctedOffset
                 }
                 
-                self.parent.scrollOffset = calendarOffset
-                self.parent.onScrollChanged(calendarOffset)
-                
                 DispatchQueue.main.async {
+                    self.parent.scrollOffset = calendarOffset
+                    self.parent.onScrollChanged(calendarOffset)
                     self.parent.onDragStateChanged(false)
                 }
             }
@@ -161,10 +157,9 @@ struct InfiniteScrollContainer: UIViewRepresentable {
                 calendarOffset = correctedOffset
             }
             
-            self.parent.scrollOffset = calendarOffset
-            self.parent.onScrollChanged(calendarOffset)
-            
             DispatchQueue.main.async {
+                self.parent.scrollOffset = calendarOffset
+                self.parent.onScrollChanged(calendarOffset)
                 self.parent.onDragStateChanged(false)
             }
         }
