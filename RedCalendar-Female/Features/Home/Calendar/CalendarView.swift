@@ -7,8 +7,6 @@
 
 import SwiftUI
 
-
-
 // MARK: - Main Calendar View
 struct CalendarView: View {
     @Binding var bottomCenterOffset: CGFloat
@@ -83,10 +81,11 @@ struct CalendarView: View {
                 }
             }
             .onChange(of: geometry.size) { newSize in
-                globalTopOffset = currentGlobalTopOffset
+                let headerHeight = CalendarConstants.weekdaysHeaderHeight
                 
+                globalTopOffset = currentGlobalTopOffset
                 setupCalculator(
-                    height: newSize.height - CalendarConstants.weekdaysHeaderHeight,
+                    height: newSize.height - headerHeight,
                     width: newSize.width
                 )
             }
@@ -95,48 +94,51 @@ struct CalendarView: View {
                 
                 guard let calc = calculator else { return }
                 
-                let currentMonthY = calc.getYPosition(for: 0)
-                let monthDays = calc.getMonthDays(for: 0)
-                let weekHeight = calc.weekHeight
-                
-                var todayWeekIndex = 0
-                let today = calendar.startOfDay(for: currentDate)
-                
-                for (index, date) in monthDays.enumerated() {
-                    if let date = date, calendar.isDate(date, inSameDayAs: today) {
-                        todayWeekIndex = index / 7
-                        break
-                    }
-                }
-                
-                let gridStartY = currentMonthY + monthHeaderHeight
-                let todayWeekY = gridStartY + CGFloat(todayWeekIndex) * (weekHeight + 4)
-                let todayWeekCenterY = todayWeekY + weekHeight / 2
-                
-                let availableCalendarHeight = calendarHeight
-                let centerPosition = availableCalendarHeight / 2
-                let adjustedCenter = centerPosition - (globalTopOffset + headerHeight) / 2
-                
-                initialCenterOffset = adjustedCenter - todayWeekCenterY
+                initialCenterOffset = calculateInitialCenterOffset(calculator: calc)
                 scrollOffset = initialCenterOffset
+                updateFloatingButtonState()
             }
             .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    updateCurrentDate()
-                    updateCalendarAndCalculatorIfNeeded()
-                }
+                handleAppStateChange()
             }
             .onReceive(NotificationCenter.default.publisher(for: UIApplication.significantTimeChangeNotification)) { _ in
-                DispatchQueue.main.async {
-                    updateCurrentDate()
-                    updateCalendarAndCalculatorIfNeeded()
-                }
+                handleAppStateChange()
             }
         }
     }
     
-    private func updateCurrentDate() {
-        currentDate = Date()
+    // MARK: - Calculate Initial Center Offset
+    private func calculateInitialCenterOffset(calculator: MonthCalculator) -> CGFloat {
+        let currentMonthY = calculator.getYPosition(for: 0)
+        let monthDays = calculator.getMonthDays(for: 0)
+        let weekHeight = calculator.weekHeight
+        
+        var todayWeekIndex = 0
+        let today = calendar.startOfDay(for: currentDate)
+        
+        for (index, date) in monthDays.enumerated() {
+            if let date = date, calendar.isDate(date, inSameDayAs: today) {
+                todayWeekIndex = index / 7
+                break
+            }
+        }
+        
+        let gridStartY = currentMonthY + monthHeaderHeight
+        let todayWeekY = gridStartY + CGFloat(todayWeekIndex) * (weekHeight + 4)
+        let todayWeekCenterY = todayWeekY + weekHeight / 2
+        
+        let availableCalendarHeight = calendarHeight
+        let centerPosition = availableCalendarHeight / 2
+        let adjustedCenter = centerPosition - (globalTopOffset + headerHeight) / 2
+        
+        return adjustedCenter - todayWeekCenterY
+    }
+    
+    private func handleAppStateChange() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            currentDate = Date()
+            updateCalendarAndCalculatorIfNeeded()
+        }
     }
     
     private func updateCalendarAndCalculatorIfNeeded() {
@@ -161,36 +163,19 @@ struct CalendarView: View {
         let actualCurrentDate = Date()
         currentDate = actualCurrentDate
         
-        let newCalculator = MonthCalculator(currentDate: actualCurrentDate, screenHeight: height, calendar: calendar)
+        let newCalculator = MonthCalculator(
+            currentDate: actualCurrentDate,
+            screenHeight: height,
+            calendar: calendar
+        )
+        
         localizedWeekdays = newCalculator.getLocalizedWeekdays()
         
-        let currentMonthY = newCalculator.getYPosition(for: 0)
-        let monthDays = newCalculator.getMonthDays(for: 0)
-        let weekHeight = newCalculator.weekHeight
-        
-        var todayWeekIndex = 0
-        let today = calendar.startOfDay(for: actualCurrentDate)
-        
-        for (index, date) in monthDays.enumerated() {
-            if let date = date, calendar.isDate(date, inSameDayAs: today) {
-                todayWeekIndex = index / 7
-                break
-            }
-        }
-        
-        let gridStartY = currentMonthY + monthHeaderHeight
-        let todayWeekY = gridStartY + CGFloat(todayWeekIndex) * (weekHeight + 4)
-        let todayWeekCenterY = todayWeekY + weekHeight / 2
-        
-        let availableCalendarHeight = height
-        let centerPosition = availableCalendarHeight / 2
-        
-        let adjustedCenter = centerPosition
-        
-        initialCenterOffset = adjustedCenter - todayWeekCenterY
-        
         calculator = newCalculator
+        initialCenterOffset = calculateInitialCenterOffset(calculator: newCalculator)
         scrollOffset = initialCenterOffset
+        
+        updateFloatingButtonState()
     }
     
     private func updateCalculatorIfNeeded() {
@@ -200,44 +185,20 @@ struct CalendarView: View {
         
         let currentLocale = Locale.current.identifier
         let currentFirstWeekday = calendar.firstWeekday
-        let newCurrentYear = calendar.component(.year, from: currentDate)
         
         let localeChanged = currentLocale != currentCalculator.cachedLocaleIdentifier
         let firstWeekdayChanged = currentFirstWeekday != currentCalculator.cachedFirstWeekday
-        let yearChanged = newCurrentYear != currentCalculator.currentYear
         
-        if localeChanged || firstWeekdayChanged || yearChanged {
+        let dateChanged = !calendar.isDate(currentDate, inSameDayAs: currentCalculator.currentDate)
+        
+        if localeChanged || firstWeekdayChanged || dateChanged {
             let newCalculator = MonthCalculator(currentDate: currentDate, screenHeight: calendarHeight, calendar: calendar)
             localizedWeekdays = newCalculator.getLocalizedWeekdays()
             
             calculator = newCalculator
-            
-            if calendarHeight > 0 {
-                let currentMonthY = newCalculator.getYPosition(for: 0)
-                let monthDays = newCalculator.getMonthDays(for: 0)
-                let weekHeight = newCalculator.weekHeight
-                
-                var todayWeekIndex = 0
-                let today = calendar.startOfDay(for: currentDate)
-                
-                for (index, date) in monthDays.enumerated() {
-                    if let date = date, calendar.isDate(date, inSameDayAs: today) {
-                        todayWeekIndex = index / 7
-                        break
-                    }
-                }
-                
-                let gridStartY = currentMonthY + monthHeaderHeight
-                let todayWeekY = gridStartY + CGFloat(todayWeekIndex) * (weekHeight + 4)
-                let todayWeekCenterY = todayWeekY + weekHeight / 2
-                
-                let availableCalendarHeight = calendarHeight - monthHeaderHeight
-                let centerPosition = availableCalendarHeight / 2
-                let adjustedCenter = centerPosition - globalTopOffset / 2
-                
-                initialCenterOffset = adjustedCenter - todayWeekCenterY
-                AppLogger.info("Calculator updated if significant change")
-            }
+
+            initialCenterOffset = calculateInitialCenterOffset(calculator: newCalculator)
+            updateFloatingButtonState()
         }
     }
     
@@ -251,9 +212,7 @@ struct CalendarView: View {
         let deviation = scrollOffset - initialCenterOffset
         
         let downThreshold = baseThreshold
-        let upThreshold = -baseThreshold + globalTopOffset / 2 + headerHeight
-        
-        let _ = AppLogger.info("downThreshold: \(downThreshold), upThreshold: \(upThreshold), deviation: \(deviation)")
+        let upThreshold = -baseThreshold + globalTopOffset + headerHeight
         
         let newState: FloatingButtonState = {
             if deviation > downThreshold {
