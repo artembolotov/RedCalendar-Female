@@ -35,7 +35,8 @@ RedCalendar-Female/
 │   │   ├── PhoneAuthState.swift            # Phone auth состояния
 │   │   ├── AuthenticationError.swift       # Ошибки аутентификации
 │   │   ├── APNSToken.swift                 # APNS токен модель
-│   │   └── UserDetails.swift               # Данные пользователя
+│   │   ├── UserDetails.swift               # Данные пользователя
+│   │   └── Daystamp.swift                  # Типобезопасный тип даты
 │   ├── Redux/                              # Redux архитектура
 │   │   ├── Actions/
 │   │   │   └── AppAction.swift             # Действия приложения
@@ -65,262 +66,32 @@ RedCalendar-Female/
 │   │       ├── AuthTextField.swift         # Стилизованное поле ввода
 │   │       └── ContinueButton.swift        # Кнопка продолжения
 │   └── Home/                               # Главный экран
-│       ├── HomeView.swift                  # Контейнер главного экрана
-│       ├── HomeMenuView.swift              # Меню в navigation bar
-│       ├── FloatingButtonState.swift       # Состояния плавающей кнопки
-│       └── Calendar/                       # 📅 КАЛЕНДАРНАЯ СИСТЕМА
-│           ├── CalendarView.swift          # Основной календарный интерфейс
-│           ├── Components/
-│           │   ├── InfiniteScrollContainer.swift # Бесконечная прокрутка
-│           │   ├── CalendarHeaderView.swift      # Заголовки дней недели
-│           │   ├── MonthView.swift               # Отображение месяца
-│           │   ├── DayView.swift                 # Отображение дня
-│           │   └── FloatingAddButton.swift       # Плавающая кнопка
-│           └── Models/
-│               ├── MonthCalculator.swift         # Расчеты календаря
-│               ├── CalendarConstants.swift       # Константы календаря
-│               ├── CalendarModels.swift          # Модели данных
-│               └── ScrollCommand.swift           # Команды прокрутки
+│       └── Views/
+│           └── HomeView.swift              # Главный экран приложения
+├── Calendar/                               # Календарная система
+│   ├── Core/
+│   │   ├── MonthCalculator.swift           # Вычислительное ядро
+│   │   ├── CalendarConstants.swift         # Константы конфигурации
+│   │   └── CalendarModels.swift            # Модели данных календаря
+│   ├── Components/
+│   │   ├── InfiniteScrollContainer.swift   # Бесконечная прокрутка
+│   │   ├── MonthView.swift                 # Компонент месяца
+│   │   └── DayView.swift                   # Компонент дня
+│   └── State/
+│       ├── ScrollCommand.swift             # Команды управления прокруткой
+│       └── FloatingButtonState.swift       # Состояния плавающей кнопки
 └── Resources/                              # Ресурсы
     ├── Assets.xcassets                     # Изображения и цвета
     ├── Localizable.strings                 # Локализация
     └── Info.plist                          # Конфигурация приложения
 ```
 
-## 📅 Календарная система - Подробная архитектура
+### Модели данных в Core
 
-### Ключевые компоненты
-
-#### 🎯 **CalendarView** - Главный контроллер
 ```swift
-struct CalendarView: View {
-    @Binding var bottomCenterOffset: CGFloat
-    @Binding var floatingButtonState: FloatingButtonState
-    @Binding var scrollCommand: ScrollCommand
-    
-    @State private var calculator: MonthCalculator?
-    @State private var scrollOffset: CGFloat = 0
-    @State private var isDragging = false
-    @State private var currentDate = Date()
-    @State private var localizedWeekdays: [String] = []
-}
-```
-
-**Ответственность:**
-- Управление состоянием прокрутки и viewport
-- Координация между UI компонентами
-- Обновление плавающей кнопки в зависимости от позиции
-- Локализация календаря
-
-#### ⚡ **MonthCalculator** - Вычислительное ядро
-```swift
-final class MonthCalculator: ObservableObject {
-    let currentDate: Date
-    let currentYear: Int
-    let screenHeight: CGFloat
-    
-    private var weekCountCache: [Int: Int] = [:]
-    private var monthHeightCache: [Int: CGFloat] = [:]
-    private var monthDaysCache: [Int: [Date?]] = [:]
-    private var cumulativePositionCache: [Int: CGFloat] = [0: 0]
-}
-```
-
-**Возможности:**
-- **Кэширование** - интеллектуальное кэширование вычислений
-- **Виртуализация** - расчет только видимых месяцев
-- **Локализация** - поддержка разных первых дней недели
-- **Оптимизация** - автоматическая очистка кэша при превышении лимитов
-- **Диапазон** - поддержка ±2400 месяцев (200 лет в каждую сторону)
-
-#### 🔄 **InfiniteScrollContainer** - Бесконечная прокрутка
-```swift
-struct InfiniteScrollContainer: UIViewRepresentable {
-    private let contentHeight: CGFloat = 8000000  // 8 миллионов точек
-    private let centerY: CGFloat = 4000000        // Центр контента
-}
-```
-
-**Технические решения:**
-- **UIViewRepresentable** - мост между SwiftUI и UIKit
-- **Огромный contentSize** - 8 млн точек для плавной прокрутки
-- **Автоматический recentering** - предотвращение overflow
-- **Лимиты прокрутки** - ограничения через calculator.getScrollLimits()
-- **Drag state tracking** - отслеживание состояния перетаскивания
-
-#### 📐 **CalendarConstants** - Конфигурация
-```swift
-enum CalendarConstants {
-    static let weekdaysHeaderHeight: CGFloat = 31
-    static let monthHeaderHeight: CGFloat = 60
-    static let viewportUpdateThreshold: CGFloat = 30
-    static let minMonthOffset: Int = -2400  // 200 лет назад
-    static let maxMonthOffset: Int = 2400   // 200 лет вперед
-}
-```
-
-#### 🎛 **FloatingButtonState** - Умная навигация
-```swift
-enum FloatingButtonState: Equatable {
-    case plus        // Сегодня видно - показать плюс
-    case arrowUp     // Сегодня ушло вниз - показать стрелку вверх
-    case arrowDown   // Сегодня ушло вверх - показать стрелку вниз
-}
-```
-
-#### 📜 **ScrollCommand** - Программное управление
-```swift
-enum ScrollCommand: Equatable {
-    case none
-    case animateToCenter  // Анимированная прокрутка к сегодня
-}
-```
-
-### Алгоритмы и оптимизации
-
-#### 1. **Viewport Tracking System**
-```swift
-private func updateViewportTracking() {
-    let baseThreshold: CGFloat = CalendarConstants.viewportUpdateThreshold
-    let adaptiveThreshold = isDragging ? 
-        baseThreshold * 0.5 : baseThreshold
-    
-    let shouldUpdate = abs(scrollOffset - lastViewportUpdateScroll) > adaptiveThreshold
-}
-```
-
-#### 2. **Dynamic Height Calculation**
-```swift
-var weekHeight: CGFloat {
-    return floor(max(50, (screenHeight - CalendarConstants.weekdaysHeaderHeight) / 15))
-}
-```
-
-#### 3. **Cache Management**
-```swift
-private func cleanupCacheIfNeeded() {
-    if weekCountCache.count > 200 {
-        let sortedKeys = weekCountCache.keys.sorted { abs($0) > abs($1) }
-        let keysToRemove = Array(sortedKeys.prefix(50))
-        // Удаляем самые далекие от центра месяцы
-    }
-}
-```
-
-#### 4. **Scroll Limits Protection**
-```swift
-func getScrollLimits() -> (min: CGFloat, max: CGFloat) {
-    let firstMonthY = getYPosition(for: minMonthOffset)
-    let lastMonthY = getYPosition(for: maxMonthOffset)
-    let lastMonthHeight = getMonthHeight(for: maxMonthOffset)
-    
-    let maxScrollUp = -firstMonthY
-    let availableHeight = screenHeight - 31
-    let maxScrollDown = availableHeight - (lastMonthY + lastMonthHeight)
-    
-    return (min: maxScrollDown, max: maxScrollUp)
-}
-```
-
-### Производительность календаря
-
-#### ✅ **Оптимизации**
-- **Lazy rendering** - рендеринг только видимого viewport
-- **Intelligent caching** - кэширование вычислений позиций
-- **Adaptive thresholds** - разные пороги обновления для drag/scroll
-- **Memory management** - автоматическая очистка кэша
-- **Localization caching** - кэширование локализованных строк
-
-#### 📊 **Metrics**
-- **Поддерживаемый диапазон**: ±200 лет (4800 месяцев)
-- **Размер content**: 8 млн точек для плавной прокрутки
-- **Cache size**: до 200 месяцев с автоочисткой
-- **Update threshold**: 30pt с адаптацией под drag state
-- **Memory footprint**: минимальный за счет виртуализации
-
-## 📱 Функциональность
-
-### ✅ Реализовано
-
-**Система авторизации:**
-- ✅ Email авторизация с валидацией и автозаполнением
-- ✅ Flash Call авторизация для пользователей версии 2.0
-- ✅ Детальные состояния для каждого шага процесса
-- ✅ Миграция с Firebase UID → device_id
-- ✅ Обработка ошибок на каждом этапе с понятными сообщениями
-- ✅ Единая модель UserDetails для всех методов auth
-
-**Календарная система:**
-- ✅ Бесконечная прокрутка с виртуализацией
-- ✅ Интеллектуальное кэширование вычислений
-- ✅ Полная локализация (дни недели, месяцы)
-- ✅ Адаптивная высота дней под разные экраны
-- ✅ Оптимизированный viewport tracking
-- ✅ Плавающая кнопка с умной навигацией
-- ✅ Поддержка диапазона ±200 лет
-- ✅ Автоматическое управление памятью
-
-**Пользовательский интерфейс:**
-- ✅ Экран приветствия с онбордингом (4 слайда)
-- ✅ Адаптивная верстка (max width 320pt для форм)
-- ✅ Автофокус на полях ввода с плавными переходами
-- ✅ Email suggestions и умное автозаполнение
-- ✅ Поддержка markdown ссылок в тексте
-- ✅ Единообразный дизайн-язык на всех экранах
-
-**Push уведомления:**
-- ✅ Автоматическая регистрация APNS токенов
-- ✅ Синхронизация с сервером через middleware
-- ✅ Background refresh для обновления токенов
-
-**Haptic Feedback система:**
-- ✅ TapticFeedbackService для управления тактильной обратной связью
-- ✅ FeedbackMiddleware для интеграции в Redux
-- ✅ Success/Error/Prepare feedback для ключевых событий
-
-### 🔄 В разработке
-- 🔄 CRUD операции для циклов и симптомов
-- 🔄 Интеграция данных в календарные дни
-- 🔄 Расширение Haptic Feedback для календарных взаимодействий
-- 🔄 Offline поддержка с синхронизацией
-
-## 🔐 Authentication Architecture
-
-### Flash Call Authentication Flow
-
-#### Phone Auth States
-```swift
-enum PhoneAuthState {
-    case entry(
-        prettyPhoneNumber: String? = nil,
-        error: AuthenticationError? = nil
-    )
-    case requesting(
-        prettyPhoneNumber: String,
-        e164PhoneNumber: String
-    )
-    case verification(
-        prettyPhoneNumber: String,
-        e164PhoneNumber: String,
-        maskedCallerNumber: String,
-        requestId: String,
-        error: AuthenticationError? = nil
-    )
-    case verifying(
-        prettyPhoneNumber: String,
-        e164PhoneNumber: String,
-        requestId: String,
-        verificationCode: String
-    )
-}
-```
-
-### Email Authentication Flow
-
-#### Email Auth States
-```swift
+// Daystamp - типобезопасный тип для работы с датами
 enum EmailAuthState {
-    case entry(email: String? = nil, error: Error? = nil)
+    case idle(email: String? = nil, name: String? = nil, error: Error? = nil)
     case checking(email: String, name: String? = nil)
     case codeEntry(email: String, code: String? = nil, userName: String? = nil, error: AuthenticationError? = nil)
     case verifying(email: String, code: String, name: String? = nil)
@@ -342,7 +113,42 @@ enum EmailAuthState {
   - AppMetricaCrashes
 - **PhoneNumberKit** (4.1.1) - валидация и форматирование номеров
 
+### Кастомные типы данных
+- **Daystamp** - типобезопасная альтернатива Int для работы с календарными датами
+  - Математические операции (+, -, сравнения)
+  - Конвертация с Date через Calendar
+  - Codable для сериализации
+  - CustomStringConvertible для отладки
+
 ## 🔧 Последние изменения
+
+### **Август 2025 - Типобезопасная система дат**
+
+**Новые файлы:**
+- `Daystamp.swift` - структура для типобезопасной работы с датами
+
+**Ключевые особенности:**
+- Замена typealias на полноценную структуру
+- Поддержка всех математических операций (+, -, +=, -=)
+- Протоколы: Comparable, AdditiveArithmetic, Codable, ExpressibleByIntegerLiteral
+- Безопасная конвертация между Date и Daystamp через Calendar
+- Отладочный вывод в формате "Daystamp(100 -> 2001-04-10)"
+- Референсная дата: 1 января 2001
+
+**Примеры использования:**
+```swift
+let today: Daystamp = 100              // ExpressibleByIntegerLiteral
+let tomorrow = today + 1               // Математические операции
+let lastWeek = today - 7
+let difference = tomorrow - today      // = 1
+
+if today > lastWeek { ... }            // Сравнения
+let range = today...(today + 30)       // Диапазоны
+
+// Конвертация с Date
+let dayFromDate = Daystamp(from: Date(), calendar: calendar)
+let dateFromDay = today.toDate(calendar: calendar)
+```
 
 ### **Август 2025 - Продвинутая календарная система**
 
@@ -415,15 +221,16 @@ enum EmailAuthState {
 - ✅ Унифицированная модель UserDetails
 - ✅ Haptic Feedback система
 - ✅ Продвинутая календарная система с виртуализацией
+- ✅ Типобезопасная система дат (Daystamp)
 
 ### Версия 3.2 (В разработке) 🔄
-- 🔄 Интеграция данных циклов в календарь
+- 🔄 Интеграция данных циклов в календарь с использованием Daystamp
 - 🔄 CRUD операции для пользовательских данных
 - 🔄 Система тегов и симптомов
 - 🔄 Offline поддержка с синхронизацией
 
 ### Версия 3.3 (Планируется) 📋
-- 📋 Продвинутая аналитика и прогнозы
+- 📋 Продвинутая аналитика и прогнозы на основе Daystamp
 - 📋 Comprehensive unit и UI тестирование
 - 📋 Локализация на дополнительные языки
 - 📋 Виджеты для iOS
@@ -431,5 +238,5 @@ enum EmailAuthState {
 ---
 
 **Разработчик:** Артём Болотов  
-**Архитектура:** SwiftUI + Redux + Virtual Calendar  
+**Архитектура:** SwiftUI + Redux + Virtual Calendar + Type-Safe Dates  
 **Версия:** 3.1 - Август 2025
