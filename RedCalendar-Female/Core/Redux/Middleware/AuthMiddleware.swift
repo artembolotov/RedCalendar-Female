@@ -18,7 +18,11 @@ let authMiddleware: Middleware<AppState, AppAction> = { state, action, dispatch 
     case .checkAuthState:
         // Priority 1: Check for device_id (new system)
         if let deviceId = keychain.getDeviceID() {
-            return [.setAuthState(AuthState.authenticated(deviceId: deviceId, userDetails: nil))]
+            return [.setAuthState(.authenticated(
+                deviceId: deviceId,
+                userDetails: nil,
+                calendarState: CalendarState())
+            )]
         }
         
         // Priority 2: Check for legacy user_id (Firebase)
@@ -77,7 +81,8 @@ let authMiddleware: Middleware<AppState, AppAction> = { state, action, dispatch 
                         
                         dispatch(.setAuthState(.authenticated(
                             deviceId: data.deviceId,
-                            userDetails: data.user  // ← Now passes UserDetails instead of nil
+                            userDetails: data.user,
+                            calendarState: CalendarState()
                         )))
                         
                     } catch {
@@ -168,7 +173,8 @@ let authMiddleware: Middleware<AppState, AppAction> = { state, action, dispatch 
                             // Move to authenticated state
                             dispatch(.setAuthState(.authenticated(
                                 deviceId: data.deviceId,
-                                userDetails: data.user  // ← Now passes UserDetails instead of nil
+                                userDetails: data.user,
+                                calendarState: CalendarState()
                             )))
                             
                         } catch {
@@ -200,7 +206,7 @@ let authMiddleware: Middleware<AppState, AppAction> = { state, action, dispatch 
             keychain.deleteDeviceID()
         }
         
-        if case .authenticated(_, _) = authState {
+        if case .authenticated(_, _, _) = authState {
             await MainActor.run {
                 UIApplication.shared.registerForRemoteNotifications()
             }
@@ -212,7 +218,7 @@ let authMiddleware: Middleware<AppState, AppAction> = { state, action, dispatch 
         return []
        
     case .logout:
-        if case .authenticated(let deviceId, _) = state.authState {
+        if case .authenticated(let deviceId, _, _) = state.authState {
             Task {
                 do {
                     let _ = try await apiService.logout(deviceId: deviceId)

@@ -10,10 +10,16 @@ import SwiftUI
 struct FloatingAddButton: View {
     let state: FloatingButtonState
     @Binding var scrollCommand: ScrollCommand
+    let onPlusTapped: (() -> Void)?
     
-    init(state: FloatingButtonState, scrollCommand: Binding<ScrollCommand>) {
+    init(
+        state: FloatingButtonState,
+        scrollCommand: Binding<ScrollCommand> = .constant(.none),
+        onPlusTapped: (() -> Void)? = nil
+    ) {
         self.state = state
         self._scrollCommand = scrollCommand
+        self.onPlusTapped = onPlusTapped
     }
     
     var body: some View {
@@ -43,7 +49,7 @@ struct FloatingAddButton: View {
     private func handleButtonAction() {
         switch state {
         case .plus:
-            print("Add button tapped")
+            onPlusTapped?()
             
         case .arrowUp, .arrowDown:
             scrollCommand = .animateToCenter
@@ -186,16 +192,13 @@ struct MorphingShape: Shape {
 #Preview {
     VStack(spacing: 30) {
         FloatingAddButton(
-            state: .plus,
-            scrollCommand: .constant(.none)
+            state: .plus
         )
         FloatingAddButton(
-            state: .arrowUp,
-            scrollCommand: .constant(.none)
+            state: .arrowUp
         )
         FloatingAddButton(
-            state: .arrowDown,
-            scrollCommand: .constant(.none)
+            state: .arrowDown
         )
     }
     .padding()

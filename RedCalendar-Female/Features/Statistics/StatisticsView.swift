@@ -31,7 +31,8 @@ struct StatisticsView: View {
                     apnsToken: nil,
                     authState: .authenticated(
                         deviceId: "test-device-id",
-                        userDetails: nil
+                        userDetails: nil,
+                        calendarState: CalendarState()
                     )
                 ),
                 reducer: appReducer,

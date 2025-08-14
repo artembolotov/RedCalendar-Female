@@ -46,7 +46,11 @@ let migrationMiddleware: Middleware<AppState, AppAction> = { state, action, disp
                     
                     keychain.deleteUserUID()
                     
-                    dispatch(.setAuthState(.authenticated(deviceId: data.deviceId, userDetails: nil)))
+                    dispatch(.setAuthState(.authenticated(
+                        deviceId: data.deviceId,
+                        userDetails: nil,
+                        calendarState: CalendarState()
+                    )))
                 } catch {
                     AppLogger.error("Migration failed", error: error)
                     dispatch(.setAuthState(.migrating(userId: userId, error: error)))

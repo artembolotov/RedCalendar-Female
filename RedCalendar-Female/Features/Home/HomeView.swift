@@ -16,7 +16,8 @@ struct HomeView: View {
     var body: some View {
         NavigationView {
             ZStack(alignment: .bottomLeading) {
-                if store.state.isAuthenticated {
+                if case .authenticated(_, _, let calendarState) = store.state.authState {
+                    
                     CalendarView(
                         bottomCenterOffset: $bottomCenterOffset,
                         floatingButtonState: $floatingButtonState,
@@ -26,12 +27,18 @@ struct HomeView: View {
                     
                     FloatingAddButton(
                         state: floatingButtonState,
-                        scrollCommand: $scrollCommand
+                        scrollCommand: $scrollCommand,
+                        onPlusTapped: setTodaySelected
                     )
                     .padding(.leading, 20)
                     .padding(.bottom, 20)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
                     .ignoresSafeArea(edges: .bottom)
+                    
+                    if calendarState.selectedDayStamp != nil {
+                        DayDetailsView()
+                            .ignoresSafeArea(edges: .bottom)
+                    }
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
@@ -41,6 +48,11 @@ struct HomeView: View {
                 }
             }
         }
+    }
+    
+    private func setTodaySelected() {
+        let dayStamp = Daystamp.today(calendar: Calendar.current)
+        store.send(.setSelectedDayStamp(dayStamp))
     }
 }
 
@@ -52,7 +64,8 @@ struct HomeView: View {
                     apnsToken: nil,
                     authState: .authenticated(
                         deviceId: "B7DDU4pUigTiAhpNDWnQW83tGQ6R",
-                        userDetails: nil
+                        userDetails: nil,
+                        calendarState: CalendarState()
                     )
                 ),
                 reducer: appReducer,

@@ -11,6 +11,9 @@ enum AppAction {
     case setAuthState(_ state: AuthState)
     case logout
     
+    // Calendar actions
+    case setSelectedDayStamp(_ dayStamp: Daystamp?) 
+    
     // Push notification actions
     case setAPNSToken(_ token: APNSToken)
     case setPushPermissionState(_ state: PushPermissionState?)

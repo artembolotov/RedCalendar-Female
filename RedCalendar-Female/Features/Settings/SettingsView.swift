@@ -12,7 +12,7 @@ struct SettingsView: View {
     
     var body: some View {
         NavigationView {
-            if case .authenticated(let deviceId, _) = store.state.authState {
+            if case .authenticated(let deviceId, _, _) = store.state.authState {
                 Form {
                     Section("Устройство") {
                         HStack {
@@ -46,7 +46,8 @@ struct SettingsView: View {
                     apnsToken: nil,
                     authState: .authenticated(
                         deviceId: "test-device-id",
-                        userDetails: nil
+                        userDetails: nil,
+                        calendarState: CalendarState()
                     )
                 ),
                 reducer: appReducer,

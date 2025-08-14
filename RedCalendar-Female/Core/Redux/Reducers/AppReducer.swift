@@ -27,6 +27,12 @@ func appReducer(state: AppState, action: AppAction) -> AppState {
     case .setPushPermissionState(let permissionState):
         state.pushPermissionState = permissionState
         
+    case .setSelectedDayStamp(let dayStamp):
+        if case .authenticated(let deviceId, let userDetails, var calendarState) = state.authState {
+            calendarState.selectedDayStamp = dayStamp
+            state.authState = .authenticated(deviceId: deviceId, userDetails: userDetails, calendarState: calendarState)
+        }
+        
     case .retryFailedTasks:
         break
         
