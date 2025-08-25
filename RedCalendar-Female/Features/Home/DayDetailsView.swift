@@ -27,29 +27,29 @@ struct DayDetailsView: View {
     }
     
     var body: some View {
-        VStack(spacing: 20) {
-            // Header with close button
-            HStack {
-                Text("Детали дня")
-                    .font(.title2)
-                    .fontWeight(.semibold)
-                
-                Spacer()
-                
-                Button(action: {
-                    store.send(.setSelectedDayStamp(nil))
-                }) {
-                    Image(systemName: "xmark.circle.fill")
+        if let dayStamp = dayStamp {
+            VStack(spacing: 20) {
+                // Header with close button
+                HStack {
+                    Text("Детали дня")
                         .font(.title2)
-                        .foregroundColor(.secondary)
+                        .fontWeight(.semibold)
+                    
+                    Spacer()
+                    
+                    Button(action: {
+                        store.send(.setSelectedDayStamp(nil))
+                    }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.title2)
+                            .foregroundColor(.secondary)
+                    }
                 }
-            }
-            .padding(.horizontal)
-            
-            Divider()
-            
-            // Day information
-            if let dayStamp = dayStamp {
+                .padding(.horizontal)
+                
+                Divider()
+                
+                // Day information
                 VStack(spacing: 12) {
                     Text(formattedDate)
                         .font(.headline)
@@ -64,17 +64,16 @@ struct DayDetailsView: View {
                         .foregroundColor(.secondary)
                 }
                 .padding(.horizontal)
+                
+                Spacer() // Оставить или убрать?
             }
-            
-            Spacer()
+            .padding([.top, .bottom])
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Color(.systemBackground))
+                    .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: -5)
+            )
         }
-        .padding(.top)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color(.systemBackground))
-                .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: -5)
-        )
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 }
 

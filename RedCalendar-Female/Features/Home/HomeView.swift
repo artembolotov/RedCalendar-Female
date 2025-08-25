@@ -15,36 +15,41 @@ struct HomeView: View {
     
     var body: some View {
         NavigationView {
-            ZStack(alignment: .bottomLeading) {
-                if case .authenticated(_, _, let calendarState) = store.state.authState {
-                    
-                    CalendarView(
-                        bottomCenterOffset: $bottomCenterOffset,
-                        floatingButtonState: $floatingButtonState,
-                        scrollCommand: $scrollCommand
-                    )
-                    .ignoresSafeArea(edges: .bottom)
-                    
-                    FloatingAddButton(
-                        state: floatingButtonState,
-                        scrollCommand: $scrollCommand,
-                        onPlusTapped: setTodaySelected
-                    )
-                    .padding(.leading, 20)
-                    .padding(.bottom, 20)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
-                    .ignoresSafeArea(edges: .bottom)
-                    
-                    if calendarState.selectedDayStamp != nil {
-                        DayDetailsView()
-                            .ignoresSafeArea(edges: .bottom)
+            if case .authenticated(_, _, let calendarState) = store.state.authState {
+                GeometryReader { geometry in
+                    ZStack(alignment: .bottomLeading) {
+                        CalendarView(
+                            bottomCenterOffset: $bottomCenterOffset,
+                            floatingButtonState: $floatingButtonState,
+                            scrollCommand: $scrollCommand
+                        )
+                        
+                        FloatingAddButton(
+                            state: floatingButtonState,
+                            scrollCommand: $scrollCommand,
+                            onPlusTapped: setTodaySelected
+                        )
+                        .padding(.leading, 20)
+                        .padding(.bottom, 20)
+                        
+                        if calendarState.selectedDayStamp != nil {
+                            let bottomPadding = geometry.safeAreaInsets.bottom > 0 ? geometry.safeAreaInsets.bottom : nil
+                            
+                            DayDetailsView()
+                                .frame(height: 300)
+                                .padding(.horizontal)
+                                .padding(.bottom, bottomPadding)
+                                .transition(.move(edge: .bottom))
+                        }
                     }
-                }
-            }
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    HomeMenuView()
+                    .ignoresSafeArea(edges: .bottom)
+                    .animation(.bouncy, value: calendarState.selectedDayStamp != nil)
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .navigationBarTrailing) {
+                            HomeMenuView()
+                        }
+                    }
                 }
             }
         }
