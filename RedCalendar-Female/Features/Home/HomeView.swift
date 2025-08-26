@@ -36,7 +36,6 @@ struct HomeView: View {
                             let bottomPadding = geometry.safeAreaInsets.bottom > 0 ? geometry.safeAreaInsets.bottom : nil
                             
                             DayDetailsView()
-                                .frame(height: 300)
                                 .padding(.horizontal)
                                 .padding(.bottom, bottomPadding)
                                 .transition(.move(edge: .bottom))

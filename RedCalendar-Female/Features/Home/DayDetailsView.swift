@@ -63,9 +63,8 @@ struct DayDetailsView: View {
                         .font(.caption2)
                         .foregroundColor(.secondary)
                 }
+                .frame(height: 250)
                 .padding(.horizontal)
-                
-                Spacer() // Оставить или убрать?
             }
             .padding([.top, .bottom])
             .background(
