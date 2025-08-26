@@ -24,14 +24,6 @@ struct HomeView: View {
                             scrollCommand: $scrollCommand
                         )
                         
-                        FloatingAddButton(
-                            state: floatingButtonState,
-                            scrollCommand: $scrollCommand,
-                            onPlusTapped: setTodaySelected
-                        )
-                        .padding(.leading, 20)
-                        .padding(.bottom, 20)
-                        
                         if calendarState.selectedDayStamp != nil {
                             let bottomPadding = geometry.safeAreaInsets.bottom > 0 ? geometry.safeAreaInsets.bottom : nil
                             
@@ -39,7 +31,17 @@ struct HomeView: View {
                                 .padding(.horizontal)
                                 .padding(.bottom, bottomPadding)
                                 .transition(.move(edge: .bottom))
+                        } else {
+                            FloatingAddButton(
+                                state: floatingButtonState,
+                                scrollCommand: $scrollCommand,
+                                onPlusTapped: setTodaySelected
+                            )
+                            .padding(.leading, 20)
+                            .padding(.bottom, 20)
+                            .transition(.scale)
                         }
+                        
                     }
                     .ignoresSafeArea(edges: .bottom)
                     .animation(.bouncy, value: calendarState.selectedDayStamp != nil)
