@@ -13,11 +13,12 @@ struct DayDetailsView: View {
     // MARK: - Swipe to dismiss state
     @State private var dragOffset: CGFloat = 0
     @State private var viewHeight: CGFloat = 0
-    @State private var gestureHandler: WindowGestureHandler.Coordinator?
     
     // MARK: - Constants
     private let velocityThreshold: CGFloat = 1200
     private let rubberBandFactor: CGFloat = 0.3
+    private let gestureDetectionThreshold: CGFloat = 5
+    private let bottomScreenRatio: CGFloat = 0.6
     
     private var dayStamp: Daystamp? {
         if case .authenticated(_, _, let calendarState) = store.state.authState {
@@ -95,15 +96,9 @@ struct DayDetailsView: View {
                 WindowGestureHandler(
                     onGestureChange: { translation, velocity, state in
                         handlePanGesture(translation: translation, velocity: velocity, state: state)
-                    },
-                    coordinatorBinding: $gestureHandler
+                    }
                 )
             )
-            .onDisappear {
-                // Clean up gesture when view disappears
-                gestureHandler?.cleanUp()
-                gestureHandler = nil
-            }
         }
     }
     
@@ -125,13 +120,7 @@ struct DayDetailsView: View {
     }
     
     private func handleDragChanged(translation: CGFloat) {
-        if translation < 0 {
-            // Drag up - apply rubber band effect
-            dragOffset = translation * rubberBandFactor
-        } else {
-            // Drag down - normal behavior
-            dragOffset = translation
-        }
+        dragOffset = translation < 0 ? translation * rubberBandFactor : translation
     }
     
     private func handleDragEnded(translation: CGFloat, velocity: CGFloat) {
@@ -144,11 +133,9 @@ struct DayDetailsView: View {
         let shouldDismiss = dragOffset > dismissThreshold || velocity > velocityThreshold
         
         if shouldDismiss {
-            // Reset offset and let SwiftUI transition handle the animation
             dragOffset = 0
             dismissView()
         } else {
-            // Return to original position
             withAnimation(.bouncy) {
                 dragOffset = 0
             }
@@ -168,52 +155,24 @@ enum PanGestureState {
 
 struct WindowGestureHandler: UIViewRepresentable {
     let onGestureChange: (CGFloat, CGFloat, PanGestureState) -> Void
-    @Binding var coordinatorBinding: Coordinator?
     
     func makeUIView(context: Context) -> UIView {
         let view = UIView()
         view.backgroundColor = .clear
-        view.isUserInteractionEnabled = false // Don't block touches
+        view.isUserInteractionEnabled = false
         
-        // Delay all setup to avoid modifying state during view update
-        DispatchQueue.main.async {
-            // Store coordinator in binding
-            self.coordinatorBinding = context.coordinator
-            
-            guard let window = view.window else { return }
-            
-            // Remove any existing gestures with our identifier
-            window.gestureRecognizers?.forEach { gesture in
-                if let panGesture = gesture as? UIPanGestureRecognizer,
-                   panGesture.name == "DayDetailsSwipeToDismiss" {
-                    window.removeGestureRecognizer(panGesture)
-                }
-            }
-            
-            // Add new gesture
-            let panGesture = UIPanGestureRecognizer(
-                target: context.coordinator,
-                action: #selector(Coordinator.handlePan(_:))
-            )
-            panGesture.maximumNumberOfTouches = 2
-            panGesture.minimumNumberOfTouches = 1
-            panGesture.delegate = context.coordinator
-            panGesture.cancelsTouchesInView = false
-            panGesture.delaysTouchesBegan = false
-            panGesture.delaysTouchesEnded = false
-            panGesture.name = "DayDetailsSwipeToDismiss"
-            
-            window.addGestureRecognizer(panGesture)
-            context.coordinator.gesture = panGesture
-            context.coordinator.onGestureChange = self.onGestureChange
-        }
+        setupGestureIfPossible(view: view, context: context)
         
         return view
     }
     
     func updateUIView(_ uiView: UIView, context: Context) {
-        // Update callback if needed
+
         context.coordinator.onGestureChange = onGestureChange
+        
+        if context.coordinator.gesture == nil {
+            setupGestureIfPossible(view: uiView, context: context)
+        }
     }
     
     static func dismantleUIView(_ uiView: UIView, coordinator: Coordinator) {
@@ -224,11 +183,51 @@ struct WindowGestureHandler: UIViewRepresentable {
         Coordinator()
     }
     
+    private func findWindow(from view: UIView) -> UIWindow? {
+        return view.window ?? UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .first(where: { $0.activationState == .foregroundActive })?
+            .windows.first(where: { $0.isKeyWindow })
+    }
+    
+    private func setupGestureIfPossible(view: UIView, context: Context) {
+        guard let targetWindow = findWindow(from: view) else { return }
+        
+        targetWindow.gestureRecognizers?.forEach { gesture in
+            if let panGesture = gesture as? UIPanGestureRecognizer,
+               panGesture.name == "DayDetailsSwipeToDismiss" {
+                targetWindow.removeGestureRecognizer(panGesture)
+            }
+        }
+        
+        let panGesture = UIPanGestureRecognizer(
+            target: context.coordinator,
+            action: #selector(Coordinator.handlePan(_:))
+        )
+        panGesture.maximumNumberOfTouches = 2
+        panGesture.minimumNumberOfTouches = 1
+        panGesture.delegate = context.coordinator
+        panGesture.cancelsTouchesInView = false
+        panGesture.delaysTouchesBegan = false
+        panGesture.delaysTouchesEnded = false
+        panGesture.name = "DayDetailsSwipeToDismiss"
+        
+        targetWindow.addGestureRecognizer(panGesture)
+        context.coordinator.gesture = panGesture
+        context.coordinator.onGestureChange = onGestureChange
+    }
+    
     class Coordinator: NSObject, UIGestureRecognizerDelegate {
         var onGestureChange: ((CGFloat, CGFloat, PanGestureState) -> Void)?
         weak var gesture: UIPanGestureRecognizer?
-        private var isVerticalGesture = false
-        private var hasDecidedDirection = false
+        
+        private enum GestureDirection {
+            case undecided, vertical, horizontal
+        }
+        
+        private var gestureDirection: GestureDirection = .undecided
+        private let gestureDetectionThreshold: CGFloat = 5
+        private let bottomScreenRatio: CGFloat = 0.6
         
         func cleanUp() {
             if let gesture = gesture, let view = gesture.view {
@@ -244,34 +243,30 @@ struct WindowGestureHandler: UIViewRepresentable {
             
             switch gesture.state {
             case .began:
-                hasDecidedDirection = false
-                isVerticalGesture = false
+                gestureDirection = .undecided
                 onGestureChange?(0, 0, .began)
                 
             case .changed:
-                if !hasDecidedDirection {
+                if gestureDirection == .undecided {
                     let translation2D = gesture.translation(in: gesture.view)
-                    if abs(translation2D.x) > 5 || abs(translation2D.y) > 5 {
-                        hasDecidedDirection = true
-                        isVerticalGesture = abs(translation2D.y) >= abs(translation2D.x)
+                    if abs(translation2D.x) > gestureDetectionThreshold || abs(translation2D.y) > gestureDetectionThreshold {
+                        gestureDirection = abs(translation2D.y) >= abs(translation2D.x) ? .vertical : .horizontal
                     }
                 }
                 
-                if isVerticalGesture || !hasDecidedDirection {
+                if gestureDirection != .horizontal {
                     onGestureChange?(translation, velocity, .changed)
                 }
                 
             case .ended:
-                if isVerticalGesture || !hasDecidedDirection {
+                if gestureDirection != .horizontal {
                     onGestureChange?(translation, velocity, .ended)
                 }
-                hasDecidedDirection = false
-                isVerticalGesture = false
+                gestureDirection = .undecided
                 
             case .cancelled, .failed:
                 onGestureChange?(translation, velocity, .cancelled)
-                hasDecidedDirection = false
-                isVerticalGesture = false
+                gestureDirection = .undecided
                 
             default:
                 break
@@ -279,25 +274,13 @@ struct WindowGestureHandler: UIViewRepresentable {
         }
         
         func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+            
             guard let panGesture = gestureRecognizer as? UIPanGestureRecognizer else { return true }
             
-            // Get the location and check if it's in the bottom portion of screen
             let location = panGesture.location(in: panGesture.view)
             let screenHeight = UIScreen.main.bounds.height
             
-            // Only handle gestures in bottom 40% of screen (where DayDetailsView is)
-            guard location.y > screenHeight * 0.6 else {
-                return false
-            }
-            
-            let translation = panGesture.translation(in: panGesture.view)
-            
-            // Check if movement is vertical
-            if abs(translation.y) > 3 || abs(translation.x) > 3 {
-                return abs(translation.y) >= abs(translation.x)
-            }
-            
-            return true
+            return location.y > screenHeight * bottomScreenRatio
         }
         
         func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer,
