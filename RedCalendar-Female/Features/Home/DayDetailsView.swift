@@ -10,6 +10,8 @@ import SwiftUI
 struct DayDetailsView: View {
     @EnvironmentObject var store: AppStore
     
+    private static var lastValidDayStamp: Daystamp!
+    
     // MARK: - Swipe to dismiss state
     @State private var dragOffset: CGFloat = 0
     @State private var viewHeight: CGFloat = 0
@@ -20,15 +22,17 @@ struct DayDetailsView: View {
     private let gestureDetectionThreshold: CGFloat = 5
     private let bottomScreenRatio: CGFloat = 0.6
     
-    private var dayStamp: Daystamp? {
+    private var dayStamp: Daystamp {
         if case .authenticated(_, _, let calendarState) = store.state.authState {
-            return calendarState.selectedDayStamp
+            if let selectedDayStamp = calendarState.selectedDayStamp {
+                Self.lastValidDayStamp = selectedDayStamp
+            }
         }
-        return nil
+        return Self.lastValidDayStamp
     }
     
     private var formattedDate: String {
-        guard let dayStamp = dayStamp else { return "" }
+        //guard let dayStamp = dayStamp else { return "" }
         let date = dayStamp.toDate(calendar: Calendar.current)
         let formatter = DateFormatter()
         formatter.dateStyle = .full
@@ -37,71 +41,69 @@ struct DayDetailsView: View {
     }
     
     var body: some View {
-        if let dayStamp = dayStamp {
-            VStack(spacing: 20) {
-                // Header with close button
-                HStack {
-                    Text("Детали дня")
+        VStack(spacing: 20) {
+            // Header with close button
+            HStack {
+                Text("Детали дня")
+                    .font(.title2)
+                    .fontWeight(.semibold)
+                
+                Spacer()
+                
+                Button(action: {
+                    dismissView()
+                }) {
+                    Image(systemName: "xmark.circle.fill")
                         .font(.title2)
-                        .fontWeight(.semibold)
-                    
-                    Spacer()
-                    
-                    Button(action: {
-                        dismissView()
-                    }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.title2)
-                            .foregroundColor(.secondary)
-                    }
-                }
-                .padding(.horizontal)
-                
-                Divider()
-                
-                // Day information
-                VStack(spacing: 12) {
-                    Text(formattedDate)
-                        .font(.headline)
-                        .multilineTextAlignment(.center)
-                    
-                    Text("Daystamp: \(dayStamp.rawValue)")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    
-                    Text(dayStamp.description)
-                        .font(.caption2)
                         .foregroundColor(.secondary)
                 }
-                .frame(height: 250)
-                .padding(.horizontal)
             }
-            .padding([.top, .bottom])
-            .background(
-                Rectangle()
-                    .fill(Color(.systemBackground))
-                    .cornerRadius(16, corners: [.topLeft, .topRight])
-                    .shadow(color: .black.opacity(0.1), radius: 10, x: -2, y: -5)
-                    .shadow(color: .black.opacity(0.1), radius: 10, x: 2, y: -5)
-            )
-            .background(
-                GeometryReader { geometry in
-                    Color.clear
-                        .onAppear { viewHeight = geometry.size.height }
-                        .onChange(of: geometry.size.height) { newHeight in
-                            viewHeight = newHeight
-                        }
+            .padding(.horizontal)
+            
+            Divider()
+            
+            // Day information
+            VStack(spacing: 12) {
+                Text(formattedDate)
+                    .font(.headline)
+                    .multilineTextAlignment(.center)
+                
+                Text("Daystamp: \(dayStamp.rawValue)")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                
+                Text(dayStamp.description)
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+            .frame(height: 250)
+            .padding(.horizontal)
+        }
+        .padding([.top, .bottom])
+        .background(
+            Rectangle()
+                .fill(Color(.systemBackground))
+                .cornerRadius(16, corners: [.topLeft, .topRight])
+                .shadow(color: .black.opacity(0.1), radius: 10, x: -2, y: -5)
+                .shadow(color: .black.opacity(0.1), radius: 10, x: 2, y: -5)
+        )
+        .background(
+            GeometryReader { geometry in
+                Color.clear
+                    .onAppear { viewHeight = geometry.size.height }
+                    .onChange(of: geometry.size.height) { newHeight in
+                        viewHeight = newHeight
+                    }
+            }
+        )
+        .offset(y: dragOffset)
+        .background(
+            WindowGestureHandler(
+                onGestureChange: { translation, velocity, state in
+                    handlePanGesture(translation: translation, velocity: velocity, state: state)
                 }
             )
-            .offset(y: dragOffset)
-            .background(
-                WindowGestureHandler(
-                    onGestureChange: { translation, velocity, state in
-                        handlePanGesture(translation: translation, velocity: velocity, state: state)
-                    }
-                )
-            )
-        }
+        )
     }
     
     // MARK: - Private Methods
@@ -135,7 +137,6 @@ struct DayDetailsView: View {
         let shouldDismiss = dragOffset > dismissThreshold || velocity > velocityThreshold
         
         if shouldDismiss {
-            dragOffset = 0
             dismissView()
         } else {
             withAnimation(.bouncy) {

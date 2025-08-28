@@ -38,7 +38,6 @@ struct HomeView: View {
                             .padding(.bottom, 20)
                             .transition(.scale)
                         }
-                        
                     }
                     .ignoresSafeArea(edges: .bottom)
                     .animation(.bouncy, value: calendarState.selectedDayStamp != nil)
