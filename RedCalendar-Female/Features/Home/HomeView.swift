@@ -25,11 +25,8 @@ struct HomeView: View {
                         )
                         
                         if calendarState.selectedDayStamp != nil {
-                            let bottomPadding = geometry.safeAreaInsets.bottom > 0 ? geometry.safeAreaInsets.bottom : nil
-                            
                             DayDetailsView()
                                 .padding(.horizontal)
-                                .padding(.bottom, bottomPadding)
                                 .transition(.move(edge: .bottom))
                         } else {
                             FloatingAddButton(

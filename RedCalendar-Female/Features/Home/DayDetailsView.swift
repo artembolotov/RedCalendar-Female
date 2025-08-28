@@ -78,9 +78,11 @@ struct DayDetailsView: View {
             }
             .padding([.top, .bottom])
             .background(
-                RoundedRectangle(cornerRadius: 16)
+                Rectangle()
                     .fill(Color(.systemBackground))
-                    .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: -5)
+                    .cornerRadius(16, corners: [.topLeft, .topRight])
+                    .shadow(color: .black.opacity(0.1), radius: 10, x: -2, y: -5)
+                    .shadow(color: .black.opacity(0.1), radius: 10, x: 2, y: -5)
             )
             .background(
                 GeometryReader { geometry in
