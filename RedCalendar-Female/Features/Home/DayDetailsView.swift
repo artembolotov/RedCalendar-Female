@@ -13,6 +13,7 @@ struct DayDetailsView: View {
     // MARK: - Swipe to dismiss state
     @State private var dragOffset: CGFloat = 0
     @State private var viewHeight: CGFloat = 0
+    @State private var gestureHandler: WindowGestureHandler.Coordinator?
     
     // MARK: - Constants
     private let velocityThreshold: CGFloat = 1200
@@ -80,14 +81,29 @@ struct DayDetailsView: View {
                     .fill(Color(.systemBackground))
                     .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: -5)
             )
-            .overlay(  
-                PanGestureOverlay { translation, velocity, state in
-                    handlePanGesture(translation: translation, velocity: velocity, state: state)
-                } heightCallback: { height in
-                    viewHeight = height
+            .background(
+                GeometryReader { geometry in
+                    Color.clear
+                        .onAppear { viewHeight = geometry.size.height }
+                        .onChange(of: geometry.size.height) { newHeight in
+                            viewHeight = newHeight
+                        }
                 }
             )
             .offset(y: dragOffset)
+            .background(
+                WindowGestureHandler(
+                    onGestureChange: { translation, velocity, state in
+                        handlePanGesture(translation: translation, velocity: velocity, state: state)
+                    },
+                    coordinatorBinding: $gestureHandler
+                )
+            )
+            .onDisappear {
+                // Clean up gesture when view disappears
+                gestureHandler?.cleanUp()
+                gestureHandler = nil
+            }
         }
     }
     
@@ -150,77 +166,113 @@ enum PanGestureState {
     case began, changed, ended, cancelled, failed
 }
 
-struct PanGestureOverlay: UIViewRepresentable {
+struct WindowGestureHandler: UIViewRepresentable {
     let onGestureChange: (CGFloat, CGFloat, PanGestureState) -> Void
-    let heightCallback: (CGFloat) -> Void
+    @Binding var coordinatorBinding: Coordinator?
     
-    init(onGestureChange: @escaping (CGFloat, CGFloat, PanGestureState) -> Void, heightCallback: @escaping (CGFloat) -> Void) {
-        self.onGestureChange = onGestureChange
-        self.heightCallback = heightCallback
-    }
-    
-    func makeUIView(context: Context) -> GestureView {
-        let view = GestureView()
+    func makeUIView(context: Context) -> UIView {
+        let view = UIView()
         view.backgroundColor = .clear
+        view.isUserInteractionEnabled = false // Don't block touches
         
-        let panGesture = UIPanGestureRecognizer(
-            target: context.coordinator,
-            action: #selector(Coordinator.handlePan(_:))
-        )
-        panGesture.maximumNumberOfTouches = 2
-        panGesture.minimumNumberOfTouches = 1
-        panGesture.delegate = context.coordinator
-        panGesture.cancelsTouchesInView = false
-        panGesture.delaysTouchesBegan = false
-        
-        view.addGestureRecognizer(panGesture)
-        view.onGestureChange = onGestureChange
-        view.heightCallback = heightCallback
+        // Delay all setup to avoid modifying state during view update
+        DispatchQueue.main.async {
+            // Store coordinator in binding
+            self.coordinatorBinding = context.coordinator
+            
+            guard let window = view.window else { return }
+            
+            // Remove any existing gestures with our identifier
+            window.gestureRecognizers?.forEach { gesture in
+                if let panGesture = gesture as? UIPanGestureRecognizer,
+                   panGesture.name == "DayDetailsSwipeToDismiss" {
+                    window.removeGestureRecognizer(panGesture)
+                }
+            }
+            
+            // Add new gesture
+            let panGesture = UIPanGestureRecognizer(
+                target: context.coordinator,
+                action: #selector(Coordinator.handlePan(_:))
+            )
+            panGesture.maximumNumberOfTouches = 2
+            panGesture.minimumNumberOfTouches = 1
+            panGesture.delegate = context.coordinator
+            panGesture.cancelsTouchesInView = false
+            panGesture.delaysTouchesBegan = false
+            panGesture.delaysTouchesEnded = false
+            panGesture.name = "DayDetailsSwipeToDismiss"
+            
+            window.addGestureRecognizer(panGesture)
+            context.coordinator.gesture = panGesture
+            context.coordinator.onGestureChange = self.onGestureChange
+        }
         
         return view
     }
     
-    func updateUIView(_ uiView: GestureView, context: Context) {
-        uiView.onGestureChange = onGestureChange
-        uiView.heightCallback = heightCallback
+    func updateUIView(_ uiView: UIView, context: Context) {
+        // Update callback if needed
+        context.coordinator.onGestureChange = onGestureChange
+    }
+    
+    static func dismantleUIView(_ uiView: UIView, coordinator: Coordinator) {
+        coordinator.cleanUp()
     }
     
     func makeCoordinator() -> Coordinator {
         Coordinator()
     }
     
-    class GestureView: UIView {
-        var onGestureChange: ((CGFloat, CGFloat, PanGestureState) -> Void)?
-        var heightCallback: ((CGFloat) -> Void)?
-        
-        override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
-            return self
-        }
-        
-        override func layoutSubviews() {
-            super.layoutSubviews()
-            DispatchQueue.main.async {
-                self.heightCallback?(self.bounds.height)
-            }
-        }
-    }
-    
     class Coordinator: NSObject, UIGestureRecognizerDelegate {
+        var onGestureChange: ((CGFloat, CGFloat, PanGestureState) -> Void)?
+        weak var gesture: UIPanGestureRecognizer?
+        private var isVerticalGesture = false
+        private var hasDecidedDirection = false
+        
+        func cleanUp() {
+            if let gesture = gesture, let view = gesture.view {
+                view.removeGestureRecognizer(gesture)
+            }
+            gesture = nil
+            onGestureChange = nil
+        }
+        
         @objc func handlePan(_ gesture: UIPanGestureRecognizer) {
-            guard let view = gesture.view as? GestureView else { return }
-            
-            let translation = gesture.translation(in: view).y
-            let velocity = gesture.velocity(in: view).y
+            let translation = gesture.translation(in: gesture.view).y
+            let velocity = gesture.velocity(in: gesture.view).y
             
             switch gesture.state {
             case .began:
-                view.onGestureChange?(0, 0, .began)
+                hasDecidedDirection = false
+                isVerticalGesture = false
+                onGestureChange?(0, 0, .began)
+                
             case .changed:
-                view.onGestureChange?(translation, velocity, .changed)
+                if !hasDecidedDirection {
+                    let translation2D = gesture.translation(in: gesture.view)
+                    if abs(translation2D.x) > 5 || abs(translation2D.y) > 5 {
+                        hasDecidedDirection = true
+                        isVerticalGesture = abs(translation2D.y) >= abs(translation2D.x)
+                    }
+                }
+                
+                if isVerticalGesture || !hasDecidedDirection {
+                    onGestureChange?(translation, velocity, .changed)
+                }
+                
             case .ended:
-                view.onGestureChange?(translation, velocity, .ended)
+                if isVerticalGesture || !hasDecidedDirection {
+                    onGestureChange?(translation, velocity, .ended)
+                }
+                hasDecidedDirection = false
+                isVerticalGesture = false
+                
             case .cancelled, .failed:
-                view.onGestureChange?(translation, velocity, .cancelled)
+                onGestureChange?(translation, velocity, .cancelled)
+                hasDecidedDirection = false
+                isVerticalGesture = false
+                
             default:
                 break
             }
@@ -228,16 +280,38 @@ struct PanGestureOverlay: UIViewRepresentable {
         
         func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
             guard let panGesture = gestureRecognizer as? UIPanGestureRecognizer else { return true }
+            
+            // Get the location and check if it's in the bottom portion of screen
+            let location = panGesture.location(in: panGesture.view)
+            let screenHeight = UIScreen.main.bounds.height
+            
+            // Only handle gestures in bottom 40% of screen (where DayDetailsView is)
+            guard location.y > screenHeight * 0.6 else {
+                return false
+            }
+            
             let translation = panGesture.translation(in: panGesture.view)
             
+            // Check if movement is vertical
             if abs(translation.y) > 3 || abs(translation.x) > 3 {
                 return abs(translation.y) >= abs(translation.x)
             }
+            
             return true
         }
         
-        func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
+        func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer,
+                              shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
             return true
+        }
+        
+        func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer,
+                              shouldRequireFailureOf otherGestureRecognizer: UIGestureRecognizer) -> Bool {
+            // Let taps take priority
+            if otherGestureRecognizer is UITapGestureRecognizer {
+                return true
+            }
+            return false
         }
     }
 }
