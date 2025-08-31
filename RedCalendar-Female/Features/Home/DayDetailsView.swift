@@ -14,8 +14,6 @@ struct DayDetailsView: View {
     
     // MARK: - Swipe to dismiss state
     @State private var dragOffset: CGFloat = 0
-    @State private var oldDragOffset: CGFloat = 0
-    
     @State private var viewHeight: CGFloat = 0
     
     // MARK: - Constants
@@ -84,13 +82,6 @@ struct DayDetailsView: View {
             }
             .padding([.top, .bottom])
             .background(
-                Rectangle()
-                    .fill(Color(.systemBackground))
-                    .cornerRadius(16, corners: [.topLeft, .topRight])
-                    .shadow(color: .black.opacity(0.1), radius: 10, x: -2, y: -5)
-                    .shadow(color: .black.opacity(0.1), radius: 10, x: 2, y: -5)
-            )
-            .background(
                 GeometryReader { geometry in
                     Color.clear
                         .onAppear { viewHeight = geometry.size.height }
@@ -99,7 +90,14 @@ struct DayDetailsView: View {
                         }
                 }
             )
-            .offset(y: currentDayStamp != nil ? dragOffset : oldDragOffset)
+            .padding(.bottom, -dragOffset)
+            .background(
+                Rectangle()
+                    .fill(Color(.systemBackground))
+                    .cornerRadius(16, corners: [.topLeft, .topRight])
+                    .shadow(color: .black.opacity(0.1), radius: 10, x: -2, y: -5)
+                    .shadow(color: .black.opacity(0.1), radius: 10, x: 2, y: -5)
+            )
             .background(
                 currentDayStamp.map { _ in
                    WindowGestureHandler(
@@ -109,11 +107,8 @@ struct DayDetailsView: View {
                    )
                }
             )
-            .onChange(of: currentDayStamp) { newValue in
-                if newValue == nil {
-                    oldDragOffset = dragOffset
-                    dragOffset = 0
-                }
+            .onChange(of: viewHeight) { newValue in
+                AppLogger.info("viewHeight changed to \(newValue)")
             }
         }
     }
