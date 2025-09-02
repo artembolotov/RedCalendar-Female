@@ -90,7 +90,7 @@ struct DayDetailsView: View {
                         }
                 }
             )
-            .padding(.bottom, -dragOffset)
+            .padding(.bottom, 25 - dragOffset)
             .background(
                 Rectangle()
                     .fill(Color(.systemBackground))
@@ -98,6 +98,7 @@ struct DayDetailsView: View {
                     .shadow(color: .black.opacity(0.1), radius: 10, x: -2, y: -5)
                     .shadow(color: .black.opacity(0.1), radius: 10, x: 2, y: -5)
             )
+            .offset(y: 25)
             .background(
                 currentDayStamp.map { _ in
                    WindowGestureHandler(
