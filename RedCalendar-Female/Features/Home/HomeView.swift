@@ -25,8 +25,8 @@ struct HomeView: View {
                             scrollCommand: $scrollCommand
                         )
                         
-                        if calendarState.selectedDayStamp != nil {
-                            DayDetailsView()
+                        if let dayStamp = calendarState.selectedDayStamp {
+                            DayDetailsView(dayStamp: dayStamp)
                                 .padding(.horizontal)
                                 .transition(.move(edge: .bottom))
                                 .id(dayDetailsDisplayId)

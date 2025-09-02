@@ -10,7 +10,7 @@ import SwiftUI
 struct DayDetailsView: View {
     @EnvironmentObject var store: AppStore
     
-    static private var cachedDayStamp: Daystamp?
+    let dayStamp: Daystamp
     
     // MARK: - Swipe to dismiss state
     @State private var dragOffset: CGFloat = 0
@@ -22,16 +22,6 @@ struct DayDetailsView: View {
     private let gestureDetectionThreshold: CGFloat = 5
     private let bottomScreenRatio: CGFloat = 0.6
     
-    private var currentDayStamp: Daystamp? {
-        if case .authenticated(_, _, let calendarState) = store.state.authState {
-            if let dayStamp = calendarState.selectedDayStamp {
-                Self.cachedDayStamp = dayStamp
-                return dayStamp
-            }
-        }
-        return nil
-    }
-    
     private func formattedDate(date: Date) -> String {
         
         let formatter = DateFormatter()
@@ -41,7 +31,7 @@ struct DayDetailsView: View {
     }
     
     var body: some View {
-        if let dayStamp = currentDayStamp ?? Self.cachedDayStamp {
+        
             VStack(spacing: 20) {
                 // Header with close button
                 HStack {
@@ -100,18 +90,15 @@ struct DayDetailsView: View {
             )
             .offset(y: 25)
             .background(
-                currentDayStamp.map { _ in
-                   WindowGestureHandler(
-                       onGestureChange: { translation, velocity, state in
-                           handlePanGesture(translation: translation, velocity: velocity, state: state)
-                       }
-                   )
-               }
+               WindowGestureHandler(
+                   onGestureChange: { translation, velocity, state in
+                       handlePanGesture(translation: translation, velocity: velocity, state: state)
+                   }
+               )
             )
             .onChange(of: viewHeight) { newValue in
                 AppLogger.info("viewHeight changed to \(newValue)")
             }
-        }
     }
     
     // MARK: - Private Methods
@@ -315,7 +302,7 @@ struct WindowGestureHandler: UIViewRepresentable {
         Color.gray.opacity(0.3)
             .ignoresSafeArea()
         
-        DayDetailsView()
+        DayDetailsView(dayStamp: 2000)
     }
     .environmentObject(
         AppStore(
