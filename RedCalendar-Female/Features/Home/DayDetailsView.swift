@@ -127,7 +127,7 @@ struct DayDetailsView: View {
         let screenHeight = UIScreen.main.bounds.height
         let currentTopPosition = viewFrame.origin.y + dragOffset
         
-        if currentTopPosition > (screenHeight - bottomThreshold) || velocity > velocityThreshold {
+        if (currentTopPosition > (screenHeight - bottomThreshold) && velocity >= 0 ) || velocity > velocityThreshold {
             dismissView()
         } else {
             withAnimation(.bouncy) {
