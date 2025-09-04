@@ -1,10 +1,3 @@
-//
-//  DayDetailsView.swift
-//  RedCalendar-Female
-//
-//  Created by Артём Болотов on 12.08.2025.
-//
-
 import SwiftUI
 
 struct DayDetailsView: View {
@@ -12,18 +5,14 @@ struct DayDetailsView: View {
     
     let dayStamp: Daystamp
     
-    // MARK: - Swipe to dismiss state
     @State private var dragOffset: CGFloat = 0
-    @State private var viewHeight: CGFloat = 0
+    @State private var viewFrame: CGRect = .zero
     
-    // MARK: - Constants
     private let velocityThreshold: CGFloat = 1200
     private let rubberBandFactor: CGFloat = 0.3
-    private let gestureDetectionThreshold: CGFloat = 5
-    private let bottomScreenRatio: CGFloat = 0.6
+    private let bottomThreshold: CGFloat = 200
     
     private func formattedDate(date: Date) -> String {
-        
         let formatter = DateFormatter()
         formatter.dateStyle = .full
         formatter.locale = Locale.current
@@ -31,77 +20,84 @@ struct DayDetailsView: View {
     }
     
     var body: some View {
-        
-            VStack(spacing: 20) {
-                // Header with close button
-                HStack {
-                    Text("Детали дня")
+        VStack(spacing: 20) {
+            HStack {
+                Text("Детали дня")
+                    .font(.title2)
+                    .fontWeight(.semibold)
+                
+                Spacer()
+                
+                Button(action: {
+                    dismissView()
+                }) {
+                    Image(systemName: "xmark.circle.fill")
                         .font(.title2)
-                        .fontWeight(.semibold)
-                    
-                    Spacer()
-                    
-                    Button(action: {
-                        dismissView()
-                    }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.title2)
-                            .foregroundColor(.secondary)
+                        .foregroundColor(.secondary)
+                }
+            }
+            .padding(.horizontal)
+            
+            Divider()
+            
+            VStack(spacing: 12) {
+                Text(formattedDate(date: dayStamp.toDate(calendar: Calendar.current)))
+                    .font(.headline)
+                    .multilineTextAlignment(.center)
+                
+                Text("Daystamp: \(dayStamp.rawValue)")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                
+                Text(dayStamp.description)
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+            .frame(height: 250)
+            .padding(.horizontal)
+        }
+        .padding([.top, .bottom])
+        .padding(.bottom, 25 - dragOffset)
+        .background(
+            Rectangle()
+                .fill(Color(.systemBackground))
+                .cornerRadius(16, corners: [.topLeft, .topRight])
+                .shadow(color: .black.opacity(0.1), radius: 10, x: -2, y: -5)
+                .shadow(color: .black.opacity(0.1), radius: 10, x: 2, y: -5)
+        )
+        .offset(y: 25)
+        .background(
+            GeometryReader { geometry in
+                Color.clear
+                    .onAppear {
+                        updateViewFrame(geometry.frame(in: .global))
                     }
-                }
-                .padding(.horizontal)
-                
-                Divider()
-                
-                // Day information
-                VStack(spacing: 12) {
-                    Text(formattedDate(date: dayStamp.toDate(calendar: Calendar.current)))
-                        .font(.headline)
-                        .multilineTextAlignment(.center)
-                    
-                    Text("Daystamp: \(dayStamp.rawValue)")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    
-                    Text(dayStamp.description)
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                }
-                .frame(height: 250)
-                .padding(.horizontal)
+                    .onChange(of: geometry.frame(in: .global)) { newFrame in
+                        updateViewFrame(newFrame)
+                    }
             }
-            .padding([.top, .bottom])
-            .background(
-                GeometryReader { geometry in
-                    Color.clear
-                        .onAppear { viewHeight = geometry.size.height }
-                        .onChange(of: geometry.size.height) { newHeight in
-                            viewHeight = newHeight
-                        }
-                }
-            )
-            .padding(.bottom, 25 - dragOffset)
-            .background(
-                Rectangle()
-                    .fill(Color(.systemBackground))
-                    .cornerRadius(16, corners: [.topLeft, .topRight])
-                    .shadow(color: .black.opacity(0.1), radius: 10, x: -2, y: -5)
-                    .shadow(color: .black.opacity(0.1), radius: 10, x: 2, y: -5)
-            )
-            .offset(y: 25)
-            .background(
-               WindowGestureHandler(
-                   onGestureChange: { translation, velocity, state in
-                       handlePanGesture(translation: translation, velocity: velocity, state: state)
-                   }
-               )
-            )
-            .onChange(of: viewHeight) { newValue in
-                AppLogger.info("viewHeight changed to \(newValue)")
-            }
+        )
+        .background(
+           WindowGestureHandler(
+               gestureFrame: viewFrame,
+               onGestureChange: { translation, velocity, state in
+                   handlePanGesture(translation: translation, velocity: velocity, state: state)
+               }
+           )
+        )
     }
     
-    // MARK: - Private Methods
+    private func updateViewFrame(_ globalFrame: CGRect) {
+        guard abs(globalFrame.origin.y - viewFrame.origin.y) > 2.0 ||
+              abs(globalFrame.size.height - viewFrame.size.height) > 2.0 else {
+            return
+        }
+        
+        DispatchQueue.main.async {
+            let shadowExpansion: CGFloat = 15
+            self.viewFrame = globalFrame.insetBy(dx: -shadowExpansion, dy: -shadowExpansion)
+        }
+    }
     
     private func handlePanGesture(translation: CGFloat, velocity: CGFloat, state: PanGestureState) {
         switch state {
@@ -110,7 +106,7 @@ struct DayDetailsView: View {
         case .changed:
             handleDragChanged(translation: translation)
         case .ended:
-            handleDragEnded(translation: translation, velocity: velocity)
+            handleDragEnded(velocity: velocity)
         case .cancelled, .failed:
             withAnimation(.bouncy) {
                 dragOffset = 0
@@ -122,16 +118,16 @@ struct DayDetailsView: View {
         dragOffset = translation < 0 ? translation * rubberBandFactor : translation
     }
     
-    private func handleDragEnded(translation: CGFloat, velocity: CGFloat) {
-        guard viewHeight > 0 else {
+    private func handleDragEnded(velocity: CGFloat) {
+        guard viewFrame.height > 0 else {
             withAnimation(.bouncy) { dragOffset = 0 }
             return
         }
         
-        let dismissThreshold = viewHeight / 3
-        let shouldDismiss = dragOffset > dismissThreshold || velocity > velocityThreshold
+        let screenHeight = UIScreen.main.bounds.height
+        let currentTopPosition = viewFrame.origin.y + dragOffset
         
-        if shouldDismiss {
+        if currentTopPosition > (screenHeight - bottomThreshold) || velocity > velocityThreshold {
             dismissView()
         } else {
             withAnimation(.bouncy) {
@@ -145,13 +141,12 @@ struct DayDetailsView: View {
     }
 }
 
-// MARK: - Pan Gesture Support
-
 enum PanGestureState {
     case began, changed, ended, cancelled, failed
 }
 
 struct WindowGestureHandler: UIViewRepresentable {
+    let gestureFrame: CGRect
     let onGestureChange: (CGFloat, CGFloat, PanGestureState) -> Void
     
     func makeUIView(context: Context) -> UIView {
@@ -165,8 +160,8 @@ struct WindowGestureHandler: UIViewRepresentable {
     }
     
     func updateUIView(_ uiView: UIView, context: Context) {
-
         context.coordinator.onGestureChange = onGestureChange
+        context.coordinator.gestureFrame = gestureFrame
         
         if context.coordinator.gesture == nil {
             setupGestureIfPossible(view: uiView, context: context)
@@ -178,7 +173,7 @@ struct WindowGestureHandler: UIViewRepresentable {
     }
     
     func makeCoordinator() -> Coordinator {
-        Coordinator()
+        Coordinator(gestureFrame: gestureFrame)
     }
     
     private func findWindow(from view: UIView) -> UIWindow? {
@@ -191,11 +186,11 @@ struct WindowGestureHandler: UIViewRepresentable {
     private func setupGestureIfPossible(view: UIView, context: Context) {
         guard let targetWindow = findWindow(from: view) else { return }
         
-        targetWindow.gestureRecognizers?.forEach { gesture in
-            if let panGesture = gesture as? UIPanGestureRecognizer,
-               panGesture.name == "DayDetailsSwipeToDismiss" {
-                targetWindow.removeGestureRecognizer(panGesture)
+        targetWindow.gestureRecognizers?.removeAll { gesture in
+            if let panGesture = gesture as? UIPanGestureRecognizer {
+                return panGesture.name == "DayDetailsSwipeToDismiss"
             }
+            return false
         }
         
         let panGesture = UIPanGestureRecognizer(
@@ -213,10 +208,12 @@ struct WindowGestureHandler: UIViewRepresentable {
         targetWindow.addGestureRecognizer(panGesture)
         context.coordinator.gesture = panGesture
         context.coordinator.onGestureChange = onGestureChange
+        context.coordinator.gestureFrame = gestureFrame
     }
     
     class Coordinator: NSObject, UIGestureRecognizerDelegate {
         var onGestureChange: ((CGFloat, CGFloat, PanGestureState) -> Void)?
+        var gestureFrame: CGRect
         weak var gesture: UIPanGestureRecognizer?
         
         private enum GestureDirection {
@@ -225,7 +222,10 @@ struct WindowGestureHandler: UIViewRepresentable {
         
         private var gestureDirection: GestureDirection = .undecided
         private let gestureDetectionThreshold: CGFloat = 5
-        private let bottomScreenRatio: CGFloat = 0.6
+        
+        init(gestureFrame: CGRect) {
+            self.gestureFrame = gestureFrame
+        }
         
         func cleanUp() {
             if let gesture = gesture, let view = gesture.view {
@@ -272,25 +272,22 @@ struct WindowGestureHandler: UIViewRepresentable {
         }
         
         func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
-            
             guard let panGesture = gestureRecognizer as? UIPanGestureRecognizer else { return true }
             
             let location = panGesture.location(in: panGesture.view)
-            let screenHeight = UIScreen.main.bounds.height
-            
-            return location.y > screenHeight * bottomScreenRatio
+            return gestureFrame.contains(location)
         }
         
         func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer,
                               shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
-            return true
+            return false
         }
         
         func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer,
-                              shouldRequireFailureOf otherGestureRecognizer: UIGestureRecognizer) -> Bool {
-            // Let taps take priority
-            if otherGestureRecognizer is UITapGestureRecognizer {
-                return true
+                              shouldBeRequiredToFailBy otherGestureRecognizer: UIGestureRecognizer) -> Bool {
+            if let panGesture = gestureRecognizer as? UIPanGestureRecognizer {
+                let location = panGesture.location(in: panGesture.view)
+                return gestureFrame.contains(location)
             }
             return false
         }
