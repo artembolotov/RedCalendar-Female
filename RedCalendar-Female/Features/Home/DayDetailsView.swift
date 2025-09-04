@@ -10,7 +10,8 @@ struct DayDetailsView: View {
     
     private let velocityThreshold: CGFloat = 1200
     private let rubberBandFactor: CGFloat = 0.3
-    private let bottomThreshold: CGFloat = 200
+    private let bottomThreshold: CGFloat = 250
+    private let maxUpwardOffset: CGFloat = 150
     
     private func formattedDate(date: Date) -> String {
         let formatter = DateFormatter()
@@ -115,7 +116,27 @@ struct DayDetailsView: View {
     }
     
     private func handleDragChanged(translation: CGFloat) {
-        dragOffset = translation < 0 ? translation * rubberBandFactor : translation
+        if translation < 0 {
+            let absTranslation = abs(translation)
+            let initialVisualThreshold = maxUpwardOffset / 3
+            let initialTranslationThreshold = initialVisualThreshold / rubberBandFactor
+            
+            if absTranslation <= initialTranslationThreshold {
+                dragOffset = translation * rubberBandFactor
+            } else {
+                let baseOffset = initialVisualThreshold
+                let excessTranslation = absTranslation - initialTranslationThreshold
+                
+                let remainingDistance = maxUpwardOffset - initialVisualThreshold
+                let resistanceFactor = 1.0 / (1.0 + excessTranslation / (remainingDistance * 2.0))
+                let excessOffset = excessTranslation * rubberBandFactor * resistanceFactor
+                
+                let totalOffset = baseOffset + excessOffset
+                dragOffset = -min(totalOffset, maxUpwardOffset)
+            }
+        } else {
+            dragOffset = translation
+        }
     }
     
     private func handleDragEnded(velocity: CGFloat) {
@@ -127,7 +148,7 @@ struct DayDetailsView: View {
         let screenHeight = UIScreen.main.bounds.height
         let currentTopPosition = viewFrame.origin.y + dragOffset
         
-        if (currentTopPosition > (screenHeight - bottomThreshold) && velocity >= 0 ) || velocity > velocityThreshold {
+        if (currentTopPosition > (screenHeight - bottomThreshold) && velocity >= -150 ) || velocity > velocityThreshold {
             dismissView()
         } else {
             withAnimation(.bouncy) {
