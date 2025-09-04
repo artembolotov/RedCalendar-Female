@@ -29,6 +29,7 @@ struct HomeView: View {
                             DayDetailsView(dayStamp: dayStamp)
                                 .padding(.horizontal)
                                 .transition(.move(edge: .bottom))
+                                .zIndex(1)
                                 .id(dayDetailsDisplayId)
                         } else {
                             FloatingAddButton(
