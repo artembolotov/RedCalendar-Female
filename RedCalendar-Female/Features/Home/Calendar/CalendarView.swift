@@ -89,12 +89,16 @@ struct CalendarView: View {
                 )
             }
             .onChange(of: currentGlobalTopOffset) { newOffset in
+                let oldOffset = globalTopOffset
                 globalTopOffset = newOffset
                 
                 guard let calc = calculator else { return }
                 
-                initialCenterOffset = calculateInitialCenterOffset(calculator: calc)
-                scrollOffset = initialCenterOffset
+                if oldOffset == 0 {
+                    initialCenterOffset = calculateInitialCenterOffset(calculator: calc)
+                    scrollOffset = initialCenterOffset
+                }
+                
                 updateFloatingButtonState()
             }
             .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
