@@ -2,6 +2,7 @@ import SwiftUI
 
 struct DayDetailsView: View {
     @EnvironmentObject var store: AppStore
+    @Environment(\.colorScheme) var colorScheme
     
     let dayStamp: Daystamp
     
@@ -60,11 +61,9 @@ struct DayDetailsView: View {
         .padding([.top, .bottom])
         .padding(.bottom, 25 - dragOffset)
         .background(
-            Rectangle()
-                .fill(Color(.systemBackground))
-                .cornerRadius(16, corners: [.topLeft, .topRight])
-                .shadow(color: .black.opacity(0.1), radius: 10, x: -2, y: -5)
-                .shadow(color: .black.opacity(0.1), radius: 10, x: 2, y: -5)
+            RoundedRectangle(cornerRadius: 16)
+                .fill(colorScheme == .dark ? AnyShapeStyle(.regularMaterial) : AnyShapeStyle(Color(.systemBackground)))
+                .adaptiveShadow(colorScheme: colorScheme)
         )
         .offset(y: 25)
         .background(
@@ -321,6 +320,7 @@ struct WindowGestureHandler: UIViewRepresentable {
             .ignoresSafeArea()
         
         DayDetailsView(dayStamp: 2000)
+            .padding()
     }
     .environmentObject(
         AppStore(
