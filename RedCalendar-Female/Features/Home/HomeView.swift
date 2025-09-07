@@ -42,8 +42,8 @@ struct HomeView: View {
                             .transition(.scale)
                         }
                     }
-                    .ignoresSafeArea(edges: .bottom)
                     .animation(.bouncy, value: calendarState.selectedDayStamp != nil)
+                    .ignoresSafeArea(edges: .bottom)
                     .navigationBarTitleDisplayMode(.inline)
                     .toolbar {
                         ToolbarItem(placement: .navigationBarTrailing) {
