@@ -38,7 +38,6 @@ struct DayDetailsView: View {
                         .foregroundColor(.secondary)
                 }
             }
-            .padding(.horizontal)
             
             Divider()
             
@@ -56,15 +55,15 @@ struct DayDetailsView: View {
                     .foregroundColor(.secondary)
             }
             .frame(height: 250)
-            .padding(.horizontal)
         }
-        .padding([.top, .bottom])
+        .padding()
         .padding(.bottom, 25 - dragOffset)
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(colorScheme == .dark ? AnyShapeStyle(.regularMaterial) : AnyShapeStyle(Color(.systemBackground)))
+                .adaptiveBackground(colorScheme: colorScheme)
                 .adaptiveShadow(colorScheme: colorScheme)
         )
+        .padding([.horizontal, .top])
         .offset(y: 25)
         .background(
             GeometryReader { geometry in
@@ -94,8 +93,7 @@ struct DayDetailsView: View {
         }
         
         DispatchQueue.main.async {
-            let shadowExpansion: CGFloat = 15
-            self.viewFrame = globalFrame.insetBy(dx: -shadowExpansion, dy: -shadowExpansion)
+            self.viewFrame = globalFrame
         }
     }
     
@@ -320,7 +318,6 @@ struct WindowGestureHandler: UIViewRepresentable {
             .ignoresSafeArea()
         
         DayDetailsView(dayStamp: 2000)
-            .padding()
     }
     .environmentObject(
         AppStore(
