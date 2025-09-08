@@ -84,6 +84,12 @@ struct DayDetailsView: View {
                }
            )
         )
+        .onReceive(store.$state.map(\.authState)) { authState in
+            if case .authenticated(_, _, let calendarState) = authState,
+               calendarState.selectedDayStamp != nil {
+                dragOffset = 0
+            }
+        }
     }
     
     private func updateViewFrame(_ globalFrame: CGRect) {
@@ -142,10 +148,7 @@ struct DayDetailsView: View {
             return
         }
         
-        let screenHeight = UIScreen.main.bounds.height
-        let currentTopPosition = viewFrame.origin.y + dragOffset
-        
-        if (currentTopPosition > (screenHeight - bottomThreshold) && velocity >= -150 ) || velocity > velocityThreshold {
+        if (viewFrame.height < bottomThreshold) && velocity >= -150  || velocity > velocityThreshold {
             dismissView()
         } else {
             withAnimation(.bouncy) {
