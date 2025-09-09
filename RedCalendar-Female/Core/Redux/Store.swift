@@ -2,10 +2,11 @@
 //  Store.swift
 //  RedCalendar-Female
 //
-//  Created by Артём Болотов on 04.06.2025.
+//  Simple solution with Task.yield() for smooth animations
 //
 
 import Foundation
+import Combine
 
 typealias Reducer<State, Action> = (State, Action) -> State
 typealias Middleware<State, Action> = (State, Action, @escaping (Action) -> Void) async -> [Action]
@@ -26,26 +27,29 @@ final class Store<State, Action>: ObservableObject {
         self.middlewares = middlewares
     }
     
+    // MARK: - Public Interface
+    
     func send(_ action: Action) {
-        state = reducer(state, action)
-        
         Task {
+            // Yield to give animations priority
+            await Task.yield()
+            
+            state = reducer(state, action)
+            
             await processMiddlewares(for: action)
         }
     }
     
+    // MARK: - Private Implementation
+    
     private func processMiddlewares(for action: Action) async {
         for middleware in middlewares {
             let actions = await middleware(state, action) { [weak self] asyncAction in
-                Task { @MainActor in
-                    self?.send(asyncAction)
-                }
+                self?.send(asyncAction)
             }
             
             for action in actions {
-                await MainActor.run {
-                    send(action)
-                }
+                send(action)
             }
         }
     }
