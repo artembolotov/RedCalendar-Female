@@ -89,18 +89,14 @@ struct CalendarView: View {
                 )
             }
             .onChange(of: currentGlobalTopOffset) { newOffset in
-                
-                let safeAreaTop = geometry.safeAreaInsets.top
-                    let frameInGlobal = geometry.frame(in: .global)
-                    let screenBounds = UIScreen.main.bounds
-                
                 let oldOffset = globalTopOffset
                 globalTopOffset = newOffset
                 
                 guard let calc = calculator else { return }
                 
+                initialCenterOffset = calculateInitialCenterOffset(calculator: calc)
+                
                 if oldOffset == 0 {
-                    initialCenterOffset = calculateInitialCenterOffset(calculator: calc)
                     scrollOffset = initialCenterOffset
                 }
                 
