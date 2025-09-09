@@ -44,7 +44,7 @@ struct CalendarView: View {
     var body: some View {
         GeometryReader { geometry in
             
-            let currentGlobalTopOffset = geometry.frame(in: .global).minY
+            let currentGlobalTopOffset = geometry.safeAreaInsets.top
             
             VStack(spacing: 0) {
                 CalendarHeaderView(
@@ -89,6 +89,11 @@ struct CalendarView: View {
                 )
             }
             .onChange(of: currentGlobalTopOffset) { newOffset in
+                
+                let safeAreaTop = geometry.safeAreaInsets.top
+                    let frameInGlobal = geometry.frame(in: .global)
+                    let screenBounds = UIScreen.main.bounds
+                
                 let oldOffset = globalTopOffset
                 globalTopOffset = newOffset
                 
