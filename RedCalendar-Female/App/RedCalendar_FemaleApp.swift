@@ -30,6 +30,7 @@ struct RedCalendarApp: App {
     var body: some Scene {
         WindowGroup {
             RootView()
+                .tint(.accent)
                 .environmentObject(store)
                 .onAppear {
                     appDelegate.appStore = store
