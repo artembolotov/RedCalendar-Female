@@ -9,6 +9,7 @@ import SwiftUI
 
 // MARK: - Main Calendar View
 struct CalendarView: View {
+    @EnvironmentObject var store: AppStore // Add store access
     @Binding var bottomCenterOffset: CGFloat
     @Binding var floatingButtonState: FloatingButtonState
     @Binding var scrollCommand: ScrollCommand
@@ -69,6 +70,10 @@ struct CalendarView: View {
                                 DispatchQueue.main.async {
                                     self.isDragging = dragging
                                 }
+                            },
+                            onDayTapped: { date in // Add day tap callback
+                                let dayStamp = Daystamp(from: date, calendar: calendar)
+                                store.send(.setSelectedDayStamp(dayStamp))
                             },
                             initialCenterOffset: initialCenterOffset,
                             calculator: calc,
