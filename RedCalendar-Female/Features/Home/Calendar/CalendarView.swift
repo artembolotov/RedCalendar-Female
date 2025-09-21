@@ -133,7 +133,7 @@ struct CalendarView: View {
         }
         
         let gridStartY = currentMonthY + monthHeaderHeight
-        let todayWeekY = gridStartY + CGFloat(todayWeekIndex) * (weekHeight + 4)
+        let todayWeekY = gridStartY + CGFloat(todayWeekIndex) * (weekHeight + CalendarConstants.gridVerticalSpacing)
         let todayWeekCenterY = todayWeekY + weekHeight / 2
         
         let availableCalendarHeight = calendarHeight

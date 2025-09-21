@@ -37,6 +37,7 @@ struct InfiniteScrollContainer: UIViewRepresentable {
         // Add tap gesture recognizer
         let tapGesture = UITapGestureRecognizer(target: context.coordinator, action: #selector(context.coordinator.handleTap(_:)))
         tapGesture.delegate = context.coordinator
+        tapGesture.require(toFail: scrollView.panGestureRecognizer)
         scrollView.addGestureRecognizer(tapGesture)
         
         scrollView.contentOffset.y = centerY - initialCenterOffset
@@ -118,6 +119,7 @@ struct InfiniteScrollContainer: UIViewRepresentable {
             let screenWidth = scrollView.bounds.width
             let screenHeight = scrollView.bounds.height
             
+            // Keep original coordinate system logic
             let dynamicViewport = ViewportCalculator.calculateDynamicViewport(
                 scrollOffset: currentScrollOffset,
                 screenHeight: screenHeight,
@@ -130,20 +132,38 @@ struct InfiniteScrollContainer: UIViewRepresentable {
             let horizontalPadding = CalendarConstants.horizontalPadding
             let dayWidth = (screenWidth - horizontalPadding) / 7
             
+            // Calculate day of week once (0-6)
+            let dayOfWeek = Int(tapX / dayWidth)
+            guard dayOfWeek >= 0 && dayOfWeek < 7 else { return nil }
+            
+            let tapCalendarY = calendarY - currentScrollOffset
+            
+            // Optimize: find month first, then calculate day mathematically
             for month in dynamicViewport.visibleMonths {
-                for day in month.visibleDays {
-                    // Check if tap is within day bounds
-                    let dayLeft = day.xPosition
-                    let dayRight = day.xPosition + dayWidth
-                    let dayTop = day.yPosition - calculator.weekHeight / 2
-                    let dayBottom = day.yPosition + calculator.weekHeight / 2
+                let weeksCount = calculator.getWeeksCount(for: month.monthOffset)
+                
+                // Use proper constants instead of magic numbers
+                let headerHeight = CalendarConstants.monthHeaderHeight
+                let weekSpacing = CalendarConstants.gridVerticalSpacing // Use constant instead of magic number 4
+                
+                let gridStartY = month.yPosition + headerHeight
+                let gridEndY = gridStartY + CGFloat(weeksCount) * (calculator.weekHeight + weekSpacing)
+                
+                // Check if tap is within the month grid area
+                if tapCalendarY >= gridStartY - calculator.weekHeight / 2 &&
+                   tapCalendarY <= gridEndY + calculator.weekHeight / 2 {
                     
-                    let tapCalendarY = calendarY - currentScrollOffset
+                    // Calculate which week was tapped using same formula as ViewportCalculator
+                    let relativeY = tapCalendarY - gridStartY
+                    let weekIndex = Int(relativeY / (calculator.weekHeight + weekSpacing))
                     
-                    if tapX >= dayLeft && tapX <= dayRight &&
-                       tapCalendarY >= dayTop && tapCalendarY <= dayBottom {
-                        return day.date
-                    }
+                    // Get the specific day directly from month days array
+                    let monthDays = calculator.getMonthDays(for: month.monthOffset)
+                    let dayIndex = weekIndex * 7 + dayOfWeek
+                    
+                    guard dayIndex >= 0 && dayIndex < monthDays.count else { return nil }
+                    
+                    return monthDays[dayIndex]
                 }
             }
             

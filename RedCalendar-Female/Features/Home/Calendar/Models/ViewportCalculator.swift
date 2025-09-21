@@ -120,7 +120,7 @@ class ViewportCalculator {
         let todayStartOfDay = calendar.startOfDay(for: currentDate)
         
         for weekIndex in 0..<weeksCount {
-            let weekY = gridStartY + CGFloat(weekIndex) * (weekHeight + 4)
+            let weekY = gridStartY + CGFloat(weekIndex) * (weekHeight + CalendarConstants.gridVerticalSpacing)
             
             for dayIndex in 0..<7 {
                 let cellIndex = weekIndex * 7 + dayIndex
