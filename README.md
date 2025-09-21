@@ -65,21 +65,22 @@ RedCalendar-Female/
 │   │       ├── SlideView.swift             # Компонент слайда онбординга
 │   │       ├── AuthTextField.swift         # Стилизованное поле ввода
 │   │       └── ContinueButton.swift        # Кнопка продолжения
-│   └── Home/                               # Главный экран
-│       └── Views/
-│           └── HomeView.swift              # Главный экран приложения
-├── Calendar/                               # Календарная система
-│   ├── Core/
-│   │   ├── MonthCalculator.swift           # Вычислительное ядро
-│   │   ├── CalendarConstants.swift         # Константы конфигурации
-│   │   └── CalendarModels.swift            # Модели данных календаря
-│   ├── Components/
-│   │   ├── InfiniteScrollContainer.swift   # Бесконечная прокрутка
-│   │   ├── MonthView.swift                 # Компонент месяца
-│   │   └── DayView.swift                   # Компонент дня
-│   └── State/
-│       ├── ScrollCommand.swift             # Команды управления прокруткой
-│       └── FloatingButtonState.swift       # Состояния плавающей кнопки
+│   └── Home/                               # Главный экран с интегрированным календарем
+│       ├── Views/
+│       │   └── HomeView.swift              # Главный экран приложения
+│       └── Calendar/                       # Календарная система (интегрирована в Home)
+│           ├── Core/
+│           │   ├── MonthCalculator.swift           # Вычислительное ядро
+│           │   ├── CalendarConstants.swift         # Константы конфигурации
+│           │   └── CalendarModels.swift            # Модели данных календаря
+│           ├── Components/
+│           │   ├── InfiniteScrollContainer.swift   # Бесконечная прокрутка
+│           │   ├── MonthView.swift                 # Компонент месяца
+│           │   └── DayView.swift                   # Компонент дня
+│           ├── Models/
+│           │   └── ScrollCommand.swift             # Команды управления прокруткой
+│           └── State/
+│               └── FloatingButtonState.swift       # Состояния плавающей кнопки
 └── Resources/                              # Ресурсы
     ├── Assets.xcassets                     # Изображения и цвета
     ├── Localizable.strings                 # Локализация
@@ -90,6 +91,11 @@ RedCalendar-Female/
 
 ```swift
 // Daystamp - типобезопасный тип для работы с датами
+struct Daystamp {
+    let rawValue: Int
+    // Математические операции, конвертация с Date, Codable поддержка
+}
+
 enum EmailAuthState {
     case idle(email: String? = nil, name: String? = nil, error: Error? = nil)
     case checking(email: String, name: String? = nil)
@@ -121,6 +127,20 @@ enum EmailAuthState {
   - CustomStringConvertible для отладки
 
 ## 🔧 Последние изменения
+
+### **Сентябрь 2025 - Архитектурная реструктуризация** ✨
+
+**Ключевые изменения:**
+- ✅ **Календарная интеграция** - календарь перенесен в `Features/Home/Calendar`
+- ✅ **Улучшенная архитектура** - более логичная организация feature-модулей
+- ✅ **Unified Home Experience** - календарь как интегральная часть главного экрана
+- ✅ **Интеграция данных циклов** в календарь с использованием Daystamp
+
+**Архитектурные улучшения:**
+- Календарь теперь является частью Home feature вместо отдельного модуля
+- Более тесная интеграция между календарем и главным экраном
+- Улучшенное взаимодействие компонентов для лучшего UX
+- Логичная группировка связанной функциональности
 
 ### **Август 2025 - Типобезопасная система дат**
 
@@ -198,13 +218,6 @@ let dateFromDay = today.toDate(calendar: calendar)
 - Xcode 16.4+
 - Swift 5.9+
 
-### Установка
-1. Клонировать репозиторий
-2. Открыть `RedCalendar-Female.xcodeproj` в Xcode
-3. Настроить Bundle Identifier и команду разработчика
-4. Настроить push notifications в Apple Developer Portal
-5. Убедиться что все сервисы зарегистрированы в DI контейнере
-
 ### Конфигурация окружений
 - **Debug** - Development API endpoint
 - **Release** - Production API endpoint
@@ -214,7 +227,7 @@ let dateFromDay = today.toDate(calendar: calendar)
 
 ## 📈 Roadmap
 
-### Версия 3.1 (Текущая) ✅
+### Версия 3.2 (Текущая) ✅
 - ✅ Базовая Redux архитектура
 - ✅ Email и Flash Call авторизация
 - ✅ Push notifications через APNs
@@ -222,14 +235,16 @@ let dateFromDay = today.toDate(calendar: calendar)
 - ✅ Haptic Feedback система
 - ✅ Продвинутая календарная система с виртуализацией
 - ✅ Типобезопасная система дат (Daystamp)
+- ✅ **Интеграция данных циклов в календарь с использованием Daystamp** 🆕
+- ✅ **Архитектурная реструктуризация календаря** 🆕
 
-### Версия 3.2 (В разработке) 🔄
-- 🔄 Интеграция данных циклов в календарь с использованием Daystamp
+### Версия 3.3 (В разработке) 🔄
 - 🔄 CRUD операции для пользовательских данных
 - 🔄 Система тегов и симптомов
 - 🔄 Offline поддержка с синхронизацией
+- 🔄 Подключение к новому API (api.calendar.red)
 
-### Версия 3.3 (Планируется) 📋
+### Версия 3.4 (Планируется) 📋
 - 📋 Продвинутая аналитика и прогнозы на основе Daystamp
 - 📋 Comprehensive unit и UI тестирование
 - 📋 Локализация на дополнительные языки
@@ -238,5 +253,5 @@ let dateFromDay = today.toDate(calendar: calendar)
 ---
 
 **Разработчик:** Артём Болотов  
-**Архитектура:** SwiftUI + Redux + Virtual Calendar + Type-Safe Dates  
-**Версия:** 3.1 - Август 2025
+**Архитектура:** SwiftUI + Redux + Integrated Calendar + Type-Safe Dates  
+**Версия:** 3.2 - Сентябрь 2025
