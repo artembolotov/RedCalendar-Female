@@ -238,6 +238,9 @@ struct CalendarView: View {
         }
     }
     
+    // Updated dynamicViewportRenderer function for CalendarView.swift
+    // Replace the existing dynamicViewportRenderer function with this version
+
     private func dynamicViewportRenderer(calculator: MonthCalculator, width: CGFloat, height: CGFloat) -> some View {
         let shouldUpdateViewport = abs(scrollOffset - lastViewportUpdateScroll) > viewportUpdateThreshold || isDragging
         let scrollForCalculation = shouldUpdateViewport ? scrollOffset : lastViewportUpdateScroll
@@ -250,6 +253,15 @@ struct CalendarView: View {
             currentDate: currentDate,
             calendar: calendar
         )
+        
+        // Get selected day from CalendarState
+        let selectedDayStamp: Daystamp? = {
+            if case .authenticated(_, _, let calendarState) = store.state.authState {
+                return calendarState.selectedDayStamp
+            }
+            return nil
+        }()
+        
         
         return ZStack(alignment: .topLeading) {
             ForEach(dynamicViewport.visibleMonths.indices, id: \.self) { monthIndex in
@@ -272,17 +284,39 @@ struct CalendarView: View {
                         let dayDate = day.date != nil ? calendar.startOfDay(for: day.date!) : nil
                         let isFutureDay = dayDate != nil && dayDate! > today
                         
+                        // Check if current day is selected
+                        let isSelected: Bool = {
+                            guard let date = day.date, let selected = selectedDayStamp else {
+                                return false
+                            }
+                            let currentDayStamp = Daystamp(from: date, calendar: calendar)
+                            return currentDayStamp.rawValue == selected.rawValue
+                        }()
+                        
                         ZStack {
+                            // Today indicator - red filled circle
                             if day.isToday {
                                 Circle()
                                     .fill(Color.red)
                                     .frame(width: 32, height: 32)
                             }
                             
+                            // Selected indicator - blue stroke circle
+                            if isSelected {
+                                Circle()
+                                    .stroke(Color.blue, lineWidth: 2)
+                                    .frame(
+                                        width: day.isToday ? 38 : 32,
+                                        height: day.isToday ? 38 : 32
+                                    )
+                            }
+                            
+                            // Day number text
                             Text(day.dayNumber)
                                 .font(.system(size: 16, weight: day.isToday ? .bold : .medium))
                                 .foregroundColor(
                                     day.isToday ? .white :
+                                    isSelected ? .blue :
                                     isFutureDay ? Color(UIColor.tertiaryLabel) :
                                     .primary
                                 )
