@@ -113,7 +113,9 @@ struct DayDetailsView: View {
             handleDragEnded(velocity: velocity)
         case .cancelled, .failed:
             withAnimation(.bouncy) {
-                dragOffset = 0
+                DispatchQueue.main.async {
+                    dragOffset = 0
+                }
             }
         }
     }

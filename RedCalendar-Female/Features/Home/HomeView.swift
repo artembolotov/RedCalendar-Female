@@ -26,6 +26,7 @@ struct HomeView: View {
                         
                         if let dayStamp = calendarState.selectedDayStamp {
                             DayDetailsView(dayStamp: dayStamp)
+                                .id(dayStamp.rawValue)
                                 .transition(.move(edge: .bottom))
                                 .zIndex(1)
                         } else {
