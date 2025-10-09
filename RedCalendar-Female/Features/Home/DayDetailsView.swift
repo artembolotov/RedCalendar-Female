@@ -5,10 +5,8 @@ struct DayDetailsView: View {
     @Environment(\.colorScheme) var colorScheme
     
     let dayStamp: Daystamp
-    
-    @State private var dragOffset: CGFloat = 0
+    @Binding var dragOffset: CGFloat
     @State private var viewFrame: CGRect = .zero
-    @State private var previousDayStamp: Daystamp?
     
     private let velocityThreshold: CGFloat = 1200
     private let rubberBandFactor: CGFloat = 0.3
@@ -85,17 +83,6 @@ struct DayDetailsView: View {
                }
            )
         )
-        .onReceive(store.$state.map(\.authState)) { authState in
-            if case .authenticated(_, _, let calendarState) = authState {
-                let newDayStamp = calendarState.selectedDayStamp
-                
-                if previousDayStamp == nil && newDayStamp != nil {
-                    dragOffset = 0
-                }
-                
-                previousDayStamp = newDayStamp
-            }
-        }
     }
     
     private func updateViewFrame(_ globalFrame: CGRect) {
@@ -323,7 +310,10 @@ struct WindowGestureHandler: UIViewRepresentable {
         Color.gray.opacity(0.3)
             .ignoresSafeArea()
         
-        DayDetailsView(dayStamp: 2000)
+        DayDetailsView(
+            dayStamp: 2000,
+            dragOffset: .constant(0)  // Updated preview with binding
+        )
     }
     .environmentObject(
         AppStore(

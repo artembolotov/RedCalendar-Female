@@ -12,6 +12,7 @@ struct HomeView: View {
     @State private var bottomCenterOffset: CGFloat = 0
     @State private var floatingButtonState: FloatingButtonState = .plus
     @State private var scrollCommand: ScrollCommand = .none
+    @State private var dragOffset: CGFloat = 0  // Add dragOffset state
     
     var body: some View {
         NavigationView {
@@ -25,10 +26,13 @@ struct HomeView: View {
                         )
                         
                         if let dayStamp = calendarState.selectedDayStamp {
-                            DayDetailsView(dayStamp: dayStamp)
-                                .id(dayStamp.rawValue)
-                                .transition(.move(edge: .bottom))
-                                .zIndex(1)
+                            DayDetailsView(
+                                dayStamp: dayStamp,
+                                dragOffset: $dragOffset  // Pass dragOffset binding
+                            )
+                            .id(dayStamp.rawValue)
+                            .transition(.move(edge: .bottom))
+                            .zIndex(1)
                         } else {
                             FloatingAddButton(
                                 state: floatingButtonState,
@@ -41,6 +45,11 @@ struct HomeView: View {
                         }
                     }
                     .animation(.bouncy, value: calendarState.selectedDayStamp != nil)
+                    .onChange(of: calendarState.selectedDayStamp) { newValue in
+                        if newValue == nil {
+                            dragOffset = 0
+                        }
+                    }
                     .ignoresSafeArea(edges: .bottom)
                     .navigationBarTitleDisplayMode(.inline)
                     .toolbar {
