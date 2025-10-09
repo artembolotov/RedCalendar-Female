@@ -8,6 +8,7 @@ struct DayDetailsView: View {
     
     @State private var dragOffset: CGFloat = 0
     @State private var viewFrame: CGRect = .zero
+    @State private var previousDayStamp: Daystamp?
     
     private let velocityThreshold: CGFloat = 1200
     private let rubberBandFactor: CGFloat = 0.3
@@ -85,9 +86,14 @@ struct DayDetailsView: View {
            )
         )
         .onReceive(store.$state.map(\.authState)) { authState in
-            if case .authenticated(_, _, let calendarState) = authState,
-               calendarState.selectedDayStamp != nil {
-                dragOffset = 0
+            if case .authenticated(_, _, let calendarState) = authState {
+                let newDayStamp = calendarState.selectedDayStamp
+                
+                if previousDayStamp == nil && newDayStamp != nil {
+                    dragOffset = 0
+                }
+                
+                previousDayStamp = newDayStamp
             }
         }
     }
