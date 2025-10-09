@@ -113,9 +113,7 @@ struct DayDetailsView: View {
             handleDragEnded(velocity: velocity)
         case .cancelled, .failed:
             withAnimation(.bouncy) {
-                DispatchQueue.main.async {
-                    dragOffset = 0
-                }
+                dragOffset = 0
             }
         }
     }
@@ -209,11 +207,8 @@ struct WindowGestureHandler: UIViewRepresentable {
     private func setupGestureIfPossible(view: UIView, context: Context) {
         guard let targetWindow = findWindow(from: view) else { return }
         
-        targetWindow.gestureRecognizers?.removeAll { gesture in
-            if let panGesture = gesture as? UIPanGestureRecognizer {
-                return panGesture.name == "DayDetailsSwipeToDismiss"
-            }
-            return false
+        if let existingGesture = context.coordinator.gesture {
+            existingGesture.view?.removeGestureRecognizer(existingGesture)
         }
         
         let panGesture = UIPanGestureRecognizer(
