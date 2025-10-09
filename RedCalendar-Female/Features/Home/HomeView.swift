@@ -12,7 +12,6 @@ struct HomeView: View {
     @State private var bottomCenterOffset: CGFloat = 0
     @State private var floatingButtonState: FloatingButtonState = .plus
     @State private var scrollCommand: ScrollCommand = .none
-    @State private var dayDetailsDisplayId = UUID()
     
     var body: some View {
         NavigationView {
@@ -26,7 +25,7 @@ struct HomeView: View {
                         )
                         
                         if let dayStamp = calendarState.selectedDayStamp {
-                            DayDetailsView(dayStamp: dayStamp) 
+                            DayDetailsView(dayStamp: dayStamp)
                                 .transition(.move(edge: .bottom))
                                 .zIndex(1)
                         } else {
@@ -55,13 +54,8 @@ struct HomeView: View {
     
     private func setTodaySelected() {
         let dayStamp = Daystamp.today(calendar: Calendar.current)
-        resetDayDetailsDisplayId()
         
         store.send(.setSelectedDayStamp(dayStamp))
-    }
-    
-    private func resetDayDetailsDisplayId() {
-        dayDetailsDisplayId = UUID()
     }
 }
 
