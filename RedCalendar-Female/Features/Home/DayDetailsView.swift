@@ -12,6 +12,7 @@ struct DayDetailsView: View {
     private let rubberBandFactor: CGFloat = 0.3
     private let bottomThreshold: CGFloat = 250
     private let maxUpwardOffset: CGFloat = 150
+    private let globalBottomOffset: CGFloat = 25
     
     private func formattedDate(date: Date) -> String {
         let formatter = DateFormatter()
@@ -56,14 +57,14 @@ struct DayDetailsView: View {
             .frame(height: 250)
         }
         .padding()
-        .padding(.bottom, 25 - dragOffset)
+        .padding(.bottom, globalBottomOffset - dragOffset)
         .background(
             RoundedRectangle(cornerRadius: 16)
                 .adaptiveBackground(colorScheme: colorScheme)
                 .adaptiveShadow(colorScheme: colorScheme)
         )
         .padding([.horizontal, .top])
-        .offset(y: 25)
+        .offset(y: globalBottomOffset)
         .background(
             GeometryReader { geometry in
                 Color.clear
@@ -86,10 +87,15 @@ struct DayDetailsView: View {
     }
     
     private func updateViewFrame(_ globalFrame: CGRect) {
-        print("globalFrame is = \(globalFrame)")
+        let fixedFrame = CGRect(
+            x: globalFrame.minX,
+            y: globalFrame.minY + globalBottomOffset,
+            width: globalFrame.width,
+            height: globalFrame.height - globalBottomOffset
+        )
         
         DispatchQueue.main.async {
-            self.viewFrame = globalFrame
+            self.viewFrame = fixedFrame
         }
     }
     
