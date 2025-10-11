@@ -86,10 +86,7 @@ struct DayDetailsView: View {
     }
     
     private func updateViewFrame(_ globalFrame: CGRect) {
-        guard abs(globalFrame.origin.y - viewFrame.origin.y) > 2.0 ||
-              abs(globalFrame.size.height - viewFrame.size.height) > 2.0 else {
-            return
-        }
+        print("globalFrame is = \(globalFrame)")
         
         DispatchQueue.main.async {
             self.viewFrame = globalFrame
