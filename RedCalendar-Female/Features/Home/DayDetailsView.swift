@@ -68,11 +68,10 @@ struct DayDetailsView: View {
         .background(
             GeometryReader { geometry in
                 Color.clear
-                    .onAppear {
-                        updateViewFrame(geometry.frame(in: .global))
-                    }
                     .onChange(of: geometry.frame(in: .global)) { newFrame in
-                        updateViewFrame(newFrame)
+                        Task { @MainActor in
+                            updateViewFrame(newFrame)
+                        }
                     }
             }
         )
@@ -94,9 +93,7 @@ struct DayDetailsView: View {
             height: globalFrame.height - globalBottomOffset
         )
         
-        DispatchQueue.main.async {
-            self.viewFrame = fixedFrame
-        }
+        self.viewFrame = fixedFrame
     }
     
     private func handlePanGesture(translation: CGFloat, velocity: CGFloat, state: PanGestureState) {
