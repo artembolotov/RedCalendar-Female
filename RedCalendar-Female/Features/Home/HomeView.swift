@@ -9,10 +9,10 @@ import SwiftUI
 
 struct HomeView: View {
     @EnvironmentObject var store: AppStore
-    @State private var bottomCenterOffset: CGFloat = 0
+    @State private var dayDetailsHeight: CGFloat = 0
     @State private var floatingButtonState: FloatingButtonState = .plus
     @State private var scrollCommand: ScrollCommand = .none
-    @State private var dragOffset: CGFloat = 0  // Add dragOffset state
+    @State private var dragOffset: CGFloat = 0
     
     var body: some View {
         NavigationView {
@@ -20,7 +20,7 @@ struct HomeView: View {
                 GeometryReader { geometry in
                     ZStack(alignment: .bottomLeading) {
                         CalendarView(
-                            bottomCenterOffset: $bottomCenterOffset,
+                            prefferedBottomOffset: $dayDetailsHeight,
                             floatingButtonState: $floatingButtonState,
                             scrollCommand: $scrollCommand
                         )

@@ -33,11 +33,11 @@ struct CalendarView: View {
     private let headerHeight: CGFloat = CalendarConstants.weekdaysHeaderHeight
     
     init(
-        bottomCenterOffset: Binding<CGFloat> = .constant(0),
+        prefferedBottomOffset: Binding<CGFloat> = .constant(0),
         floatingButtonState: Binding<FloatingButtonState>,
         scrollCommand: Binding<ScrollCommand>
     ) {
-        self._bottomCenterOffset = bottomCenterOffset
+        self._bottomCenterOffset = prefferedBottomOffset
         self._floatingButtonState = floatingButtonState
         self._scrollCommand = scrollCommand
     }
