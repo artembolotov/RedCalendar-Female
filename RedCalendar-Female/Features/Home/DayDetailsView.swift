@@ -11,6 +11,13 @@ struct DayDetailsView: View {
     
     @State private var viewFrame: CGRect = .zero
     
+    private var isCurrentlySelected: Bool {
+        if case .authenticated(_, _, let calendarState) = store.state.authState {
+            return calendarState.selectedDayStamp?.rawValue == dayStamp.rawValue
+        }
+        return false
+    }
+    
     private let velocityThreshold: CGFloat = 1200
     private let rubberBandFactor: CGFloat = 0.3
     private let bottomThreshold: CGFloat = 250
@@ -73,7 +80,9 @@ struct DayDetailsView: View {
                 Color.clear
                     .onChange(of: geometry.frame(in: .global)) { newFrame in
                         Task { @MainActor in
-                            updateViewFrame(newFrame)
+                            if isCurrentlySelected {
+                                updateViewFrame(newFrame)
+                            }
                         }
                     }
             }
@@ -86,9 +95,6 @@ struct DayDetailsView: View {
                }
            )
         )
-        .onDisappear {
-            height = 0
-        }
     }
     
     private func updateViewFrame(_ globalFrame: CGRect) {
@@ -290,10 +296,7 @@ struct WindowGestureHandler: UIViewRepresentable {
         }
         
         func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
-            guard let panGesture = gestureRecognizer as? UIPanGestureRecognizer else { return true }
-            
-            let location = panGesture.location(in: panGesture.view)
-            return gestureFrame.contains(location)
+            return true
         }
         
         func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer,
@@ -303,10 +306,6 @@ struct WindowGestureHandler: UIViewRepresentable {
         
         func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer,
                               shouldBeRequiredToFailBy otherGestureRecognizer: UIGestureRecognizer) -> Bool {
-            if let panGesture = gestureRecognizer as? UIPanGestureRecognizer {
-                let location = panGesture.location(in: panGesture.view)
-                return gestureFrame.contains(location)
-            }
             return false
         }
     }

@@ -49,6 +49,7 @@ struct HomeView: View {
                     .onChange(of: calendarState.selectedDayStamp) { newValue in
                         if newValue == nil {
                             dragOffset = 0
+                            dayDetailsHeight = 0
                         }
                     }
                     .onChange(of: dayDetailsHeight) {
