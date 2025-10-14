@@ -5,7 +5,10 @@ struct DayDetailsView: View {
     @Environment(\.colorScheme) var colorScheme
     
     let dayStamp: Daystamp
+    
     @Binding var dragOffset: CGFloat
+    @Binding var height: CGFloat
+    
     @State private var viewFrame: CGRect = .zero
     
     private let velocityThreshold: CGFloat = 1200
@@ -83,6 +86,9 @@ struct DayDetailsView: View {
                }
            )
         )
+        .onDisappear {
+            height = 0
+        }
     }
     
     private func updateViewFrame(_ globalFrame: CGRect) {
@@ -93,7 +99,8 @@ struct DayDetailsView: View {
             height: globalFrame.height - globalBottomOffset
         )
         
-        self.viewFrame = fixedFrame
+        viewFrame = fixedFrame
+        height = fixedFrame.height
     }
     
     private func handlePanGesture(translation: CGFloat, velocity: CGFloat, state: PanGestureState) {
@@ -312,7 +319,8 @@ struct WindowGestureHandler: UIViewRepresentable {
         
         DayDetailsView(
             dayStamp: 2000,
-            dragOffset: .constant(0)  // Updated preview with binding
+            dragOffset: .constant(0),
+            height: .constant(0)
         )
     }
     .environmentObject(

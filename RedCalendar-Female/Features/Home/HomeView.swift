@@ -28,7 +28,8 @@ struct HomeView: View {
                         if let dayStamp = calendarState.selectedDayStamp {
                             DayDetailsView(
                                 dayStamp: dayStamp,
-                                dragOffset: $dragOffset  // Pass dragOffset binding
+                                dragOffset: $dragOffset,
+                                height: $dayDetailsHeight
                             )
                             .id(dayStamp.rawValue)
                             .transition(.move(edge: .bottom))
@@ -49,6 +50,9 @@ struct HomeView: View {
                         if newValue == nil {
                             dragOffset = 0
                         }
+                    }
+                    .onChange(of: dayDetailsHeight) {
+                        AppLogger.info("DayDetailsHeight = \($0)")
                     }
                     .ignoresSafeArea(edges: .bottom)
                     .navigationBarTitleDisplayMode(.inline)
