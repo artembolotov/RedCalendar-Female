@@ -13,7 +13,7 @@ struct HomeMenuView: View {
     @State private var showStatistics = false
     
     var body: some View {
-        Menu {
+        Menu("HomeMenuView.Menu", systemImage: "ellipsis") {
             Button(action: {
                 showSettings = true
             }) {
@@ -34,9 +34,6 @@ struct HomeMenuView: View {
                     Label("Поделиться приложением", systemImage: "square.and.arrow.up")
                 }
             }
-        } label: {
-            Image(systemName: "ellipsis.rectangle.fill")
-                .font(.title2)
         }
         .sheet(isPresented: $showSettings) {
             SettingsView()

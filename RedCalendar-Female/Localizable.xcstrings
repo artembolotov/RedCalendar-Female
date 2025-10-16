@@ -10,6 +10,9 @@
     "Email" : {
 
     },
+    "HomeMenuView.Menu" : {
+
+    },
     "Test.Localizable" : {
       "extractionState" : "manual",
       "localizations" : {
