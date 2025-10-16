@@ -107,6 +107,9 @@ struct CalendarView: View {
                 
                 updateFloatingButtonState()
             }
+            .onChange(of: bottomCenterOffset) {
+                AppLogger.info("Preferred bottom offset = \($0)")
+            }
             .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
                 handleAppStateChange()
             }

@@ -52,9 +52,6 @@ struct HomeView: View {
                             dayDetailsHeight = 0
                         }
                     }
-                    .onChange(of: dayDetailsHeight) {
-                        AppLogger.info("DayDetailsHeight = \($0)")
-                    }
                     .ignoresSafeArea(edges: .bottom)
                     .navigationBarTitleDisplayMode(.inline)
                     .toolbar {
