@@ -9,7 +9,7 @@ import SwiftUI
 
 // MARK: - Main Calendar View
 struct CalendarView: View {
-    @EnvironmentObject var store: AppStore // Add store access
+    @EnvironmentObject var store: AppStore
     @Binding var bottomCenterOffset: CGFloat
     @Binding var floatingButtonState: FloatingButtonState
     @Binding var scrollCommand: ScrollCommand
@@ -71,7 +71,7 @@ struct CalendarView: View {
                                     self.isDragging = dragging
                                 }
                             },
-                            onDayTapped: { date in // Add day tap callback
+                            onDayTapped: { date in
                                 let dayStamp = Daystamp(from: date, calendar: calendar)
                                 store.send(.setSelectedDayStamp(dayStamp))
                             },
@@ -110,6 +110,20 @@ struct CalendarView: View {
             .onChange(of: bottomCenterOffset) {
                 AppLogger.info("Preferred bottom offset = \($0)")
             }
+            .onChange(of: getSelectedDayStamp()) { newValue in
+                guard let calc = calculator else { return }
+                
+                if newValue != nil {
+                    initialCenterOffset = calculateInitialCenterOffset(calculator: calc)
+                    scrollCommand = .animateToCenter
+                } else {
+                    // Пересчитываем offset для текущей даты после того как состояние обновится
+                    DispatchQueue.main.async {
+                        initialCenterOffset = calculateInitialCenterOffset(calculator: calc)
+                        updateFloatingButtonState()
+                    }
+                }
+            }
             .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
                 handleAppStateChange()
             }
@@ -119,31 +133,59 @@ struct CalendarView: View {
         }
     }
     
-    // MARK: - Calculate Initial Center Offset
-    private func calculateInitialCenterOffset(calculator: MonthCalculator) -> CGFloat {
-        let currentMonthY = calculator.getYPosition(for: 0)
-        let monthDays = calculator.getMonthDays(for: 0)
+    // MARK: - Get Selected DayStamp
+    private func getSelectedDayStamp() -> Daystamp? {
+        if case .authenticated(_, _, let calendarState) = store.state.authState {
+            return calendarState.selectedDayStamp
+        }
+        return nil
+    }
+    
+    // MARK: - Week Center Calculation
+    private func calculateWeekCenterY(for date: Date, calculator: MonthCalculator) -> CGFloat {
+        let normalized = calendar.startOfDay(for: date)
+        let normalizedCurrent = calendar.startOfDay(for: currentDate)
+        
+        guard let targetMonthStart = calendar.dateInterval(of: .month, for: normalized)?.start,
+              let currentMonthStart = calendar.dateInterval(of: .month, for: normalizedCurrent)?.start else {
+            return 0
+        }
+        
+        let monthOffset = calendar.dateComponents([.month], from: currentMonthStart, to: targetMonthStart).month ?? 0
+        let monthY = calculator.getYPosition(for: monthOffset)
+        let monthDays = calculator.getMonthDays(for: monthOffset)
         let weekHeight = calculator.weekHeight
         
-        var todayWeekIndex = 0
-        let today = calendar.startOfDay(for: currentDate)
-        
-        for (index, date) in monthDays.enumerated() {
-            if let date = date, calendar.isDate(date, inSameDayAs: today) {
-                todayWeekIndex = index / 7
+        var weekIndex = 0
+        for (index, dayDate) in monthDays.enumerated() {
+            if let dayDate = dayDate, calendar.isDate(dayDate, inSameDayAs: normalized) {
+                weekIndex = index / 7
                 break
             }
         }
         
-        let gridStartY = currentMonthY + monthHeaderHeight
-        let todayWeekY = gridStartY + CGFloat(todayWeekIndex) * (weekHeight + CalendarConstants.gridVerticalSpacing)
-        let todayWeekCenterY = todayWeekY + weekHeight / 2
+        let gridStartY = monthY + monthHeaderHeight
+        let weekY = gridStartY + CGFloat(weekIndex) * (weekHeight + CalendarConstants.gridVerticalSpacing)
+        return weekY + weekHeight / 2
+    }
+    
+    // MARK: - Calculate Initial Center Offset
+    private func calculateInitialCenterOffset(calculator: MonthCalculator) -> CGFloat {
+        // Определяем какую дату центрировать
+        let dateToCenter: Date
+        if let selectedDayStamp = getSelectedDayStamp() {
+            dateToCenter = selectedDayStamp.toDate(calendar: calendar)
+        } else {
+            dateToCenter = currentDate
+        }
+        
+        let weekCenterY = calculateWeekCenterY(for: dateToCenter, calculator: calculator)
         
         let availableCalendarHeight = calendarHeight
         let centerPosition = availableCalendarHeight / 2
         let adjustedCenter = centerPosition - (globalTopOffset + headerHeight) / 2
         
-        return adjustedCenter - todayWeekCenterY
+        return adjustedCenter - weekCenterY
     }
     
     private func handleAppStateChange() {
@@ -221,7 +263,15 @@ struct CalendarView: View {
         
         let baseThreshold = fullScreenHeight / 2
         
-        let deviation = scrollOffset - initialCenterOffset
+        // Calculate deviation from the CURRENT center (which may be for selected date or current date)
+        let currentCenterOffset: CGFloat
+        if let calc = calculator {
+            currentCenterOffset = calculateInitialCenterOffset(calculator: calc)
+        } else {
+            currentCenterOffset = initialCenterOffset
+        }
+        
+        let deviation = scrollOffset - currentCenterOffset
         
         let downThreshold = baseThreshold
         let upThreshold = -baseThreshold + globalTopOffset + headerHeight
@@ -241,9 +291,6 @@ struct CalendarView: View {
         }
     }
     
-    // Updated dynamicViewportRenderer function for CalendarView.swift
-    // Replace the existing dynamicViewportRenderer function with this version
-
     private func dynamicViewportRenderer(calculator: MonthCalculator, width: CGFloat, height: CGFloat) -> some View {
         let shouldUpdateViewport = abs(scrollOffset - lastViewportUpdateScroll) > viewportUpdateThreshold || isDragging
         let scrollForCalculation = shouldUpdateViewport ? scrollOffset : lastViewportUpdateScroll
@@ -340,7 +387,8 @@ struct CalendarView: View {
     
     private func updateViewportTracking() {
         let baseThreshold = viewportUpdateThreshold
-        let adaptiveThreshold = isDragging ? baseThreshold * 0.5 : baseThreshold
+        let adaptiveThreshold = isDragging ?
+            baseThreshold * 0.5 : baseThreshold
         
         let shouldUpdate = abs(scrollOffset - lastViewportUpdateScroll) > adaptiveThreshold
         
