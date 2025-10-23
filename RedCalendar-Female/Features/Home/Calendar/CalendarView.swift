@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Combine
 
 // MARK: - Main Calendar View
 struct CalendarView: View {
@@ -21,6 +22,7 @@ struct CalendarView: View {
     @State private var calendarHeight: CGFloat = 0
     @State private var calendarWidth: CGFloat = 0
     
+    // NEW: Decomposed offset components (replacing initialCenterOffset)
     @State private var todayWeekCenterY: CGFloat = 0
     @State private var uiOffset: CGFloat = 0
     @State private var selectionOffset: CGFloat = 0
@@ -30,9 +32,29 @@ struct CalendarView: View {
     @State private var calendar = Calendar.current
     
     @State private var lastViewportUpdateScroll: CGFloat = 0
+    @State private var bottomOffsetDebouncer = PassthroughSubject<CGFloat, Never>()
     
+    // Computed selection UI offset - adjusts position when DayDetailsView is shown
+    private var selectionUIOffset: CGFloat {
+        if bottomCenterOffset > 0 {
+            return (bottomCenterOffset - globalTopOffset) / 2
+        } else {
+            return 0
+        }
+    }
+    
+    // Computed effective offset (replaces initialCenterOffset)
     private var effectiveOffset: CGFloat {
-        uiOffset - todayWeekCenterY - selectionOffset
+        let result: CGFloat
+        if bottomCenterOffset > 0 {
+            // When DayDetails is shown, apply both selection and UI offsets
+            result = uiOffset - todayWeekCenterY - selectionOffset - selectionUIOffset
+        } else {
+            // When DayDetails is closed, ignore selection offset (center on today)
+            result = uiOffset - todayWeekCenterY
+        }
+        AppLogger.info("effectiveOffset = \(result), bottomCenterOffset = \(bottomCenterOffset), selectionOffset = \(selectionOffset), selectionUIOffset = \(selectionUIOffset)")
+        return result
     }
     
     private let viewportUpdateThreshold: CGFloat = CalendarConstants.viewportUpdateThreshold
@@ -105,6 +127,7 @@ struct CalendarView: View {
                 let oldOffset = globalTopOffset
                 globalTopOffset = newOffset
                 
+                // Recalculate only UI offset when globalTopOffset changes
                 uiOffset = calculateUIOffset()
                 
                 if oldOffset == 0 {
@@ -113,18 +136,35 @@ struct CalendarView: View {
                 
                 updateFloatingButtonState()
             }
-            .onChange(of: bottomCenterOffset) {
-                AppLogger.info("Preferred bottom offset = \($0)")
+            .onChange(of: bottomCenterOffset) { newValue in
+                AppLogger.info("Preferred bottom offset = \(newValue)")
+                bottomOffsetDebouncer.send(newValue)
+            }
+            .onReceive(
+                bottomOffsetDebouncer
+                    .debounce(for: .seconds(0.1), scheduler: DispatchQueue.main)
+            ) { newValue in
+                // Only animate when DayDetails is opening (not closing)
+                if newValue > 0 && getSelectedDayStamp() != nil {
+                    scrollCommand = .animateToCenter
+                }
             }
             .onChange(of: getSelectedDayStamp()) { newValue in
                 guard let calc = calculator else { return }
                 
                 if let selectedDayStamp = newValue {
+                    // Calculate selection offset for the selected date
                     let selectedDate = selectedDayStamp.toDate(calendar: calendar)
                     selectionOffset = calculateSelectionOffset(for: selectedDate, calculator: calc)
-                    scrollCommand = .animateToCenter
+                    
+                    // Animate only if DayDetails is already open
+                    if bottomCenterOffset > 0 {
+                        scrollCommand = .animateToCenter
+                    }
                 } else {
+                    // Reset selection offset when no day is selected
                     selectionOffset = 0
+                    // Update floating button state after state updates
                     DispatchQueue.main.async {
                         updateFloatingButtonState()
                     }
@@ -229,9 +269,11 @@ struct CalendarView: View {
         
         calculator = newCalculator
         
+        // Calculate all offset components
         todayWeekCenterY = weekCenterY(for: currentDate, calculator: newCalculator)
         uiOffset = calculateUIOffset()
         
+        // Calculate selection offset if there's a selected day
         if let selectedDayStamp = getSelectedDayStamp() {
             let selectedDate = selectedDayStamp.toDate(calendar: calendar)
             selectionOffset = calculateSelectionOffset(for: selectedDate, calculator: newCalculator)
@@ -263,8 +305,10 @@ struct CalendarView: View {
             
             calculator = newCalculator
             
+            // Recalculate todayWeekCenterY when currentDate changes
             todayWeekCenterY = weekCenterY(for: currentDate, calculator: newCalculator)
             
+            // Recalculate selection offset if there's a selected day
             if let selectedDayStamp = getSelectedDayStamp() {
                 let selectedDate = selectedDayStamp.toDate(calendar: calendar)
                 selectionOffset = calculateSelectionOffset(for: selectedDate, calculator: newCalculator)
@@ -281,6 +325,7 @@ struct CalendarView: View {
         
         let baseThreshold = fullScreenHeight / 2
         
+        // Calculate deviation from the effective center
         let deviation = scrollOffset - effectiveOffset
         
         let downThreshold = baseThreshold
@@ -344,6 +389,7 @@ struct CalendarView: View {
                         let dayDate = day.date != nil ? calendar.startOfDay(for: day.date!) : nil
                         let isFutureDay = dayDate != nil && dayDate! > today
                         
+                        // Check if current day is selected
                         let isSelected: Bool = {
                             guard let date = day.date, let selected = selectedDayStamp else {
                                 return false
@@ -353,12 +399,14 @@ struct CalendarView: View {
                         }()
                         
                         ZStack {
+                            // Today indicator - red filled circle
                             if day.isToday {
                                 Circle()
                                     .fill(Color.red)
                                     .frame(width: 32, height: 32)
                             }
                             
+                            // Selected indicator - blue stroke circle
                             if isSelected {
                                 Circle()
                                     .stroke(Color.blue, lineWidth: 2)
@@ -368,6 +416,7 @@ struct CalendarView: View {
                                     )
                             }
                             
+                            // Day number text
                             Text(day.dayNumber)
                                 .font(.system(size: 16, weight: day.isToday ? .bold : .medium))
                                 .foregroundColor(
