@@ -15,52 +15,52 @@ struct CalendarView: View {
     @Binding var floatingButtonState: FloatingButtonState
     @Binding var scrollCommand: ScrollCommand
     
+    // MARK: - State: Core Calendar
     @State private var calculator: MonthCalculator?
-    @State private var scrollOffset: CGFloat = 0
-    @State private var isDragging = false
+    @State private var calendar = Calendar.current
     @State private var currentDate = Date()
+    @State private var localizedWeekdays: [String] = []
+    
+    // MARK: - State: Dimensions
     @State private var calendarHeight: CGFloat = 0
     @State private var calendarWidth: CGFloat = 0
+    @State private var globalTopOffset: CGFloat = 0
     
-    // NEW: Decomposed offset components (replacing initialCenterOffset)
+    // MARK: - State: Scroll & Offsets
+    @State private var scrollOffset: CGFloat = 0
+    @State private var isDragging = false
+    @State private var lastViewportUpdateScroll: CGFloat = 0
+    
+    // MARK: - State: Offset Components
     @State private var todayWeekCenterY: CGFloat = 0
     @State private var uiOffset: CGFloat = 0
     @State private var selectionOffset: CGFloat = 0
     
-    @State private var localizedWeekdays: [String] = []
-    @State private var globalTopOffset: CGFloat = 0
-    @State private var calendar = Calendar.current
-    
-    @State private var lastViewportUpdateScroll: CGFloat = 0
+    // MARK: - State: Debouncer
     @State private var bottomOffsetDebouncer = PassthroughSubject<CGFloat, Never>()
     
-    // Computed selection UI offset - adjusts position when DayDetailsView is shown
+    // MARK: - Computed Properties
+    
+    /// Adjusts calendar position when DayDetailsView is shown
+    /// Returns offset to center selected date within visible area above the panel
     private var selectionUIOffset: CGFloat {
-        if bottomCenterOffset > 0 {
-            return (bottomCenterOffset - globalTopOffset) / 2
-        } else {
-            return 0
-        }
+        bottomCenterOffset > 0 ? (bottomCenterOffset - globalTopOffset) / 2 : 0
     }
     
-    // Computed effective offset (replaces initialCenterOffset)
+    /// Main offset that determines calendar scroll position
+    /// - When DayDetails closed: centers on today's week
+    /// - When DayDetails open: centers on selected date with panel adjustment
     private var effectiveOffset: CGFloat {
-        let result: CGFloat
-        if bottomCenterOffset > 0 {
-            // When DayDetails is shown, apply both selection and UI offsets
-            result = uiOffset - todayWeekCenterY - selectionOffset - selectionUIOffset
-        } else {
-            // When DayDetails is closed, ignore selection offset (center on today)
-            result = uiOffset - todayWeekCenterY
-        }
-        AppLogger.info("effectiveOffset = \(result), bottomCenterOffset = \(bottomCenterOffset), selectionOffset = \(selectionOffset), selectionUIOffset = \(selectionUIOffset)")
-        return result
+        let baseOffset = uiOffset - todayWeekCenterY
+        return bottomCenterOffset > 0 ? baseOffset - selectionOffset - selectionUIOffset : baseOffset
     }
     
+    // MARK: - Constants
     private let viewportUpdateThreshold: CGFloat = CalendarConstants.viewportUpdateThreshold
     private let dayVisibilityBuffer: CGFloat = CalendarConstants.dayVisibilityBuffer
     private let monthHeaderHeight: CGFloat = CalendarConstants.monthHeaderHeight
     private let headerHeight: CGFloat = CalendarConstants.weekdaysHeaderHeight
+    private let bottomOffsetDebounceDelay: TimeInterval = 0.1
     
     init(
         prefferedBottomOffset: Binding<CGFloat> = .constant(0),
@@ -142,7 +142,7 @@ struct CalendarView: View {
             }
             .onReceive(
                 bottomOffsetDebouncer
-                    .debounce(for: .seconds(0.1), scheduler: DispatchQueue.main)
+                    .debounce(for: .seconds(bottomOffsetDebounceDelay), scheduler: DispatchQueue.main)
             ) { newValue in
                 // Only animate when DayDetails is opening (not closing)
                 if newValue > 0 && getSelectedDayStamp() != nil {
@@ -151,24 +151,7 @@ struct CalendarView: View {
             }
             .onChange(of: getSelectedDayStamp()) { newValue in
                 guard let calc = calculator else { return }
-                
-                if let selectedDayStamp = newValue {
-                    // Calculate selection offset for the selected date
-                    let selectedDate = selectedDayStamp.toDate(calendar: calendar)
-                    selectionOffset = calculateSelectionOffset(for: selectedDate, calculator: calc)
-                    
-                    // Animate only if DayDetails is already open
-                    if bottomCenterOffset > 0 {
-                        scrollCommand = .animateToCenter
-                    }
-                } else {
-                    // Reset selection offset when no day is selected
-                    selectionOffset = 0
-                    // Update floating button state after state updates
-                    DispatchQueue.main.async {
-                        updateFloatingButtonState()
-                    }
-                }
+                handleDaySelection(newValue, calculator: calc)
             }
             .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
                 handleAppStateChange()
@@ -179,12 +162,28 @@ struct CalendarView: View {
         }
     }
     
+    // MARK: - Day Selection Handler
+    private func handleDaySelection(_ selectedDayStamp: Daystamp?, calculator: MonthCalculator) {
+        if let selectedDayStamp = selectedDayStamp {
+            let selectedDate = selectedDayStamp.toDate(calendar: calendar)
+            selectionOffset = calculateSelectionOffset(for: selectedDate, calculator: calculator)
+            
+            // Animate only if DayDetails is already open
+            if bottomCenterOffset > 0 {
+                scrollCommand = .animateToCenter
+            }
+        } else {
+            selectionOffset = 0
+            updateFloatingButtonState()
+        }
+    }
+    
     // MARK: - Get Selected DayStamp
     private func getSelectedDayStamp() -> Daystamp? {
-        if case .authenticated(_, _, let calendarState) = store.state.authState {
-            return calendarState.selectedDayStamp
+        guard case .authenticated(_, _, let calendarState) = store.state.authState else {
+            return nil
         }
-        return nil
+        return calendarState.selectedDayStamp
     }
     
     // MARK: - Week Center Y Calculation (renamed from calculateWeekCenterY)
@@ -230,6 +229,19 @@ struct CalendarView: View {
         return weekCenterY(for: selectedDate, calculator: calculator) - todayWeekCenterY
     }
     
+    // MARK: - Recalculate Offsets Helper
+    private func recalculateOffsets(calculator: MonthCalculator) {
+        todayWeekCenterY = weekCenterY(for: currentDate, calculator: calculator)
+        uiOffset = calculateUIOffset()
+        
+        if let selectedDayStamp = getSelectedDayStamp() {
+            let selectedDate = selectedDayStamp.toDate(calendar: calendar)
+            selectionOffset = calculateSelectionOffset(for: selectedDate, calculator: calculator)
+        } else {
+            selectionOffset = 0
+        }
+    }
+    
     private func handleAppStateChange() {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
             currentDate = Date()
@@ -270,16 +282,7 @@ struct CalendarView: View {
         calculator = newCalculator
         
         // Calculate all offset components
-        todayWeekCenterY = weekCenterY(for: currentDate, calculator: newCalculator)
-        uiOffset = calculateUIOffset()
-        
-        // Calculate selection offset if there's a selected day
-        if let selectedDayStamp = getSelectedDayStamp() {
-            let selectedDate = selectedDayStamp.toDate(calendar: calendar)
-            selectionOffset = calculateSelectionOffset(for: selectedDate, calculator: newCalculator)
-        } else {
-            selectionOffset = 0
-        }
+        recalculateOffsets(calculator: newCalculator)
         
         scrollOffset = effectiveOffset
         
@@ -305,14 +308,8 @@ struct CalendarView: View {
             
             calculator = newCalculator
             
-            // Recalculate todayWeekCenterY when currentDate changes
-            todayWeekCenterY = weekCenterY(for: currentDate, calculator: newCalculator)
-            
-            // Recalculate selection offset if there's a selected day
-            if let selectedDayStamp = getSelectedDayStamp() {
-                let selectedDate = selectedDayStamp.toDate(calendar: calendar)
-                selectionOffset = calculateSelectionOffset(for: selectedDate, calculator: newCalculator)
-            }
+            // Recalculate all offsets when calculator changes
+            recalculateOffsets(calculator: newCalculator)
             
             updateFloatingButtonState()
         }
@@ -360,13 +357,7 @@ struct CalendarView: View {
         )
         
         // Get selected day from CalendarState
-        let selectedDayStamp: Daystamp? = {
-            if case .authenticated(_, _, let calendarState) = store.state.authState {
-                return calendarState.selectedDayStamp
-            }
-            return nil
-        }()
-        
+        let selectedDayStamp = getSelectedDayStamp()
         
         return ZStack(alignment: .topLeading) {
             ForEach(dynamicViewport.visibleMonths.indices, id: \.self) { monthIndex in
