@@ -13,7 +13,7 @@ struct InfiniteScrollContainer: UIViewRepresentable {
     
     let onScrollChanged: (CGFloat) -> Void
     let onDragStateChanged: (Bool) -> Void
-    let onDayTapped: (Date) -> Void // Add this callback
+    let onDayTapped: (Date) -> Void
     let initialCenterOffset: CGFloat
     let calculator: MonthCalculator
     let currentDate: Date
@@ -51,13 +51,17 @@ struct InfiniteScrollContainer: UIViewRepresentable {
         context.coordinator.updateScrollOffset(scrollOffset)
         
         if scrollCommand == .animateToCenter {
-           let targetY = centerY - initialCenterOffset
-           uiView.setContentOffset(CGPoint(x: 0, y: targetY), animated: true)
-           
-           DispatchQueue.main.async {
-               scrollCommand = .none
-           }
-           return
+            let targetY = centerY - initialCenterOffset
+            
+            let duration = TimeInterval(0.7)
+            
+            // Start smooth animation using CADisplayLink
+            context.coordinator.startAnimation(to: targetY, in: uiView, duration: duration)
+            
+            DispatchQueue.main.async {
+                scrollCommand = .none
+            }
+            return
         }
         
         if !context.coordinator.isDragging {
@@ -83,10 +87,22 @@ struct InfiniteScrollContainer: UIViewRepresentable {
         private var calculator: MonthCalculator
         private var currentScrollOffset: CGFloat = 0
         
+        // Animation properties
+        private var displayLink: CADisplayLink?
+        private var animationStartTime: CFTimeInterval = 0
+        private var animationDuration: TimeInterval = 0
+        private var animationStartOffset: CGFloat = 0
+        private var animationTargetOffset: CGFloat = 0
+        private weak var animatingScrollView: UIScrollView?
+        
         init(_ parent: InfiniteScrollContainer) {
             self.parent = parent
             self.currentDate = parent.currentDate
             self.calculator = parent.calculator
+        }
+        
+        deinit {
+            stopAnimation()
         }
         
         func updateCurrentDate(_ date: Date) {
@@ -100,6 +116,89 @@ struct InfiniteScrollContainer: UIViewRepresentable {
         func updateScrollOffset(_ offset: CGFloat) {
             self.currentScrollOffset = offset
         }
+        
+        // MARK: - Animation Methods
+        
+        func startAnimation(to targetY: CGFloat, in scrollView: UIScrollView, duration: TimeInterval) {
+            stopAnimation()
+            
+            // Stop any active scroll/deceleration
+            scrollView.setContentOffset(scrollView.contentOffset, animated: false)
+            
+            animationStartOffset = scrollView.contentOffset.y
+            animationTargetOffset = targetY
+            animationDuration = duration
+            animationStartTime = CACurrentMediaTime()
+            animatingScrollView = scrollView
+            
+            displayLink = CADisplayLink(target: self, selector: #selector(updateAnimation))
+            displayLink?.add(to: .main, forMode: .common)
+        }
+        
+        func stopAnimation() {
+            displayLink?.invalidate()
+            displayLink = nil
+            animatingScrollView = nil
+        }
+        
+        @objc private func updateAnimation() {
+            guard let scrollView = animatingScrollView else {
+                stopAnimation()
+                return
+            }
+            
+            let currentTime = CACurrentMediaTime()
+            let elapsed = currentTime - animationStartTime
+            
+            if elapsed >= animationDuration {
+                // Animation complete
+                scrollView.contentOffset.y = animationTargetOffset
+                stopAnimation()
+                return
+            }
+            
+            // Spring physics with natural bounce
+            let progress = elapsed / animationDuration
+            let springProgress = springInterpolation(progress)
+            
+            let delta = animationTargetOffset - animationStartOffset
+            let newOffset = animationStartOffset + (delta * springProgress)
+            
+            scrollView.contentOffset.y = newOffset
+        }
+        
+        // Underdamped spring interpolation (iOS-like)
+        private func springInterpolation(_ t: Double) -> Double {
+            guard t > 0 else { return 0 }
+            guard t < 1 else { return 1 }
+            
+            // Spring parameters
+            let damping: Double = 0.85        // 0.7-0.8 gives nice bounce
+            let mass: Double = 1.0
+            let stiffness: Double = 100.0
+            let velocity: Double = 0.0
+            
+            let c = damping * 2.0 * sqrt(mass * stiffness)
+            let omega = sqrt(stiffness / mass)
+            let zeta = c / (2.0 * sqrt(stiffness * mass))
+            
+            // Underdamped case (zeta < 1)
+            if zeta < 1.0 {
+                let omegaD = omega * sqrt(1.0 - zeta * zeta)
+                let exponential = exp(-zeta * omega * t)
+                let cosine = cos(omegaD * t)
+                let sine = sin(omegaD * t)
+                let A = 1.0
+                let B = (zeta * omega + velocity) / omegaD
+                
+                return 1.0 - exponential * (A * cosine + B * sine)
+            }
+            
+            // Fallback to critically damped
+            return 1.0 - exp(-omega * t) * (1.0 + omega * t)
+        }
+        
+        // MARK: - Tap Handler
         
         @objc func handleTap(_ gesture: UITapGestureRecognizer) {
             guard let scrollView = gesture.view as? UIScrollView else { return }
@@ -144,7 +243,7 @@ struct InfiniteScrollContainer: UIViewRepresentable {
                 
                 // Use proper constants instead of magic numbers
                 let headerHeight = CalendarConstants.monthHeaderHeight
-                let weekSpacing = CalendarConstants.gridVerticalSpacing // Use constant instead of magic number 4
+                let weekSpacing = CalendarConstants.gridVerticalSpacing
                 
                 let gridStartY = month.yPosition + headerHeight
                 let gridEndY = gridStartY + CGFloat(weeksCount) * (calculator.weekHeight + weekSpacing)
@@ -172,10 +271,10 @@ struct InfiniteScrollContainer: UIViewRepresentable {
         
         // MARK: - UIGestureRecognizerDelegate
         func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
-            return true // Allow tap gesture to work with scroll gestures
+            return true
         }
         
-        // MARK: - UIScrollViewDelegate methods (unchanged)
+        // MARK: - UIScrollViewDelegate methods
         func scrollViewDidScroll(_ scrollView: UIScrollView) {
             let physicalY = scrollView.contentOffset.y
             var calendarOffset = self.parent.centerY - physicalY
@@ -211,6 +310,9 @@ struct InfiniteScrollContainer: UIViewRepresentable {
         }
         
         func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
+            // Stop any active animation
+            stopAnimation()
+            
             isDragging = true
             DispatchQueue.main.async { self.parent.onDragStateChanged(true) }
         }
