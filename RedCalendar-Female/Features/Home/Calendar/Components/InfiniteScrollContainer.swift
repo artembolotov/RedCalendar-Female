@@ -52,11 +52,21 @@ struct InfiniteScrollContainer: UIViewRepresentable {
         
         if scrollCommand == .animateToCenter {
             let targetY = centerY - initialCenterOffset
+            let currentY = uiView.contentOffset.y
+            let distance = abs(targetY - currentY)
             
-            let duration = TimeInterval(0.7)
+            // Calculate optimal duration and damping based on distance
+            let (duration, damping): (TimeInterval, Double) = {
+                switch distance {
+                case 0..<150: return (0.35, 0.68)  // More bounce for short
+                case 150..<400: return (0.5, 0.72)  // Medium bounce
+                case 400..<700: return (0.65, 0.78) // Less bounce for long
+                default: return (0.75, 0.82)        // Minimal bounce for very long
+                }
+            }()
             
             // Start smooth animation using CADisplayLink
-            context.coordinator.startAnimation(to: targetY, in: uiView, duration: duration)
+            context.coordinator.startAnimation(to: targetY, in: uiView, duration: duration, damping: damping)
             
             DispatchQueue.main.async {
                 scrollCommand = .none
@@ -93,6 +103,7 @@ struct InfiniteScrollContainer: UIViewRepresentable {
         private var animationDuration: TimeInterval = 0
         private var animationStartOffset: CGFloat = 0
         private var animationTargetOffset: CGFloat = 0
+        private var animationDamping: Double = 0.68
         private weak var animatingScrollView: UIScrollView?
         
         init(_ parent: InfiniteScrollContainer) {
@@ -119,7 +130,7 @@ struct InfiniteScrollContainer: UIViewRepresentable {
         
         // MARK: - Animation Methods
         
-        func startAnimation(to targetY: CGFloat, in scrollView: UIScrollView, duration: TimeInterval) {
+        func startAnimation(to targetY: CGFloat, in scrollView: UIScrollView, duration: TimeInterval, damping: Double = 0.68) {
             stopAnimation()
             
             // Stop any active scroll/deceleration
@@ -128,6 +139,7 @@ struct InfiniteScrollContainer: UIViewRepresentable {
             animationStartOffset = scrollView.contentOffset.y
             animationTargetOffset = targetY
             animationDuration = duration
+            animationDamping = damping
             animationStartTime = CACurrentMediaTime()
             animatingScrollView = scrollView
             
@@ -159,7 +171,7 @@ struct InfiniteScrollContainer: UIViewRepresentable {
             
             // Spring physics with natural bounce
             let progress = elapsed / animationDuration
-            let springProgress = springInterpolation(progress)
+            let springProgress = springInterpolation(progress, damping: animationDamping)
             
             let delta = animationTargetOffset - animationStartOffset
             let newOffset = animationStartOffset + (delta * springProgress)
@@ -168,12 +180,11 @@ struct InfiniteScrollContainer: UIViewRepresentable {
         }
         
         // Underdamped spring interpolation (iOS-like)
-        private func springInterpolation(_ t: Double) -> Double {
+        private func springInterpolation(_ t: Double, damping: Double) -> Double {
             guard t > 0 else { return 0 }
             guard t < 1 else { return 1 }
             
-            // Spring parameters
-            let damping: Double = 0.85        // 0.7-0.8 gives nice bounce
+            // Spring parameters - damping is now adaptive
             let mass: Double = 1.0
             let stiffness: Double = 100.0
             let velocity: Double = 0.0
