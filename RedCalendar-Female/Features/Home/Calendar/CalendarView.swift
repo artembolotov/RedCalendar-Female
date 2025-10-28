@@ -137,7 +137,6 @@ struct CalendarView: View {
                 updateFloatingButtonState()
             }
             .onChange(of: bottomCenterOffset) { newValue in
-                AppLogger.info("Preferred bottom offset = \(newValue)")
                 bottomOffsetDebouncer.send(newValue)
             }
             .onReceive(

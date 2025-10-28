@@ -58,10 +58,8 @@ struct InfiniteScrollContainer: UIViewRepresentable {
             // Calculate optimal duration and damping based on distance
             let (duration, damping): (TimeInterval, Double) = {
                 switch distance {
-                case 0..<150: return (0.35, 0.68)  // More bounce for short
-                case 150..<400: return (0.5, 0.72)  // Medium bounce
-                case 400..<700: return (0.65, 0.78) // Less bounce for long
-                default: return (0.75, 0.82)        // Minimal bounce for very long
+                case 0..<1400: return (0.65, 0.78) // Less bounce for long
+                default: return (0.75, 0.95)        // Minimal bounce for very long
                 }
             }()
             
