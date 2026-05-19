@@ -63,19 +63,10 @@ jobs:
           echo "${{ secrets.ASC_API_KEY }}" | base64 --decode \
             > ~/.appstoreconnect/private_keys/AuthKey_${{ secrets.ASC_KEY_ID }}.p8
 
-      - name: Find IPA
-        run: find build/ -name "*.ipa" | head -5
-
       - name: Upload to TestFlight
         run: |
-          IPA=$(find build/ -name "*.ipa" | head -1)
-          if [ -z "$IPA" ]; then
-            echo "IPA not found"
-            exit 1
-          fi
-          echo "Uploading $IPA"
           output=$(xcrun altool --upload-app \
-            -f "$IPA" \
+            -f build/RedCalendar-Female.ipa \
             --apiKey ${{ secrets.ASC_KEY_ID }} \
             --apiIssuer ${{ secrets.ASC_ISSUER_ID }} 2>&1)
           echo "$output"
