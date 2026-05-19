@@ -40,7 +40,7 @@ jobs:
         run: |
           xcodebuild archive \
             -scheme RedCalendar-Production \
-            -archivePath build/MyApp.xcarchive \
+            -archivePath build/RedCalendar.xcarchive \
             -destination "generic/platform=iOS" \
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="iPhone Distribution" \
@@ -53,7 +53,7 @@ jobs:
       - name: Export IPA
         run: |
           xcodebuild -exportArchive \
-            -archivePath build/RedCalendar-Female.xcarchive \
+            -archivePath build/RedCalendar.xcarchive \
             -exportPath build/ \
             -exportOptionsPlist ExportOptions.plist
 
