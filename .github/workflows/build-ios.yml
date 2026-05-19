@@ -39,7 +39,7 @@ jobs:
       - name: Build archive
         run: |
           xcodebuild archive \
-            -scheme MyApp \
+            -scheme RedCalendar-Production \
             -archivePath build/MyApp.xcarchive \
             -destination "generic/platform=iOS" \
             CODE_SIGN_STYLE=Manual \
@@ -53,7 +53,7 @@ jobs:
       - name: Export IPA
         run: |
           xcodebuild -exportArchive \
-            -archivePath build/MyApp.xcarchive \
+            -archivePath build/RedCalendar.xcarchive \
             -exportPath build/ \
             -exportOptionsPlist ExportOptions.plist
 
@@ -66,7 +66,7 @@ jobs:
       - name: Upload to TestFlight
         run: |
           output=$(xcrun altool --upload-app \
-            -f build/MyApp.ipa \
+            -f build/RedCalendar.ipa \
             --apiKey ${{ secrets.ASC_KEY_ID }} \
             --apiIssuer ${{ secrets.ASC_ISSUER_ID }} 2>&1)
           echo "$output"
