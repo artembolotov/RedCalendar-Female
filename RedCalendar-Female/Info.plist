@@ -6,6 +6,8 @@
 	<string>$(API_BASE_URL)</string>
 	<key>ENVIRONMENT_NAME</key>
 	<string>$(ENVIRONMENT_NAME)</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>remote-notification</string>
