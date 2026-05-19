@@ -53,7 +53,7 @@ jobs:
       - name: Export IPA
         run: |
           xcodebuild -exportArchive \
-            -archivePath build/RedCalendar.xcarchive \
+            -archivePath build/RedCalendar-Female.xcarchive \
             -exportPath build/ \
             -exportOptionsPlist ExportOptions.plist
 
