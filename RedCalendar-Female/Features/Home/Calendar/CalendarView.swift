@@ -321,8 +321,13 @@ struct CalendarView: View {
         
         let baseThreshold = fullScreenHeight / 2
         
-        // Calculate deviation from the effective center
-        let deviation = scrollOffset - effectiveOffset
+        // When no day is selected the panel is closed (or closing), so compare against
+        // today's base position directly — effectiveOffset still includes the panel
+        // adjustment for one render cycle after selectedDayStamp becomes nil.
+        let reference = getSelectedDayStamp() == nil
+            ? uiOffset - todayWeekCenterY
+            : effectiveOffset
+        let deviation = scrollOffset - reference
         
         let downThreshold = baseThreshold
         let upThreshold = -baseThreshold + globalTopOffset + headerHeight
