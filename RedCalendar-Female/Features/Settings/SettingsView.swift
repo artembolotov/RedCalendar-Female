@@ -11,7 +11,6 @@ struct SettingsView: View {
     @EnvironmentObject var store: AppStore
 
     @State private var versionTapCount = 0
-    @State private var developerUnlocked = false
 
     var body: some View {
         NavigationView {
@@ -21,7 +20,7 @@ struct SettingsView: View {
                         versionRow
                     }
 
-                    if developerUnlocked {
+                    if versionTapCount >= 8 {
                         developerSection(deviceId: deviceId)
                     }
 
@@ -41,19 +40,15 @@ struct SettingsView: View {
     // MARK: - Private Views
 
     private var versionRow: some View {
-        Button {
+        HStack {
+            Text("Версия")
+            Spacer()
+            Text(Bundle.main.versionString)
+                .foregroundColor(.secondary)
+        }
+        .contentShape(Rectangle())
+        .onTapGesture {
             versionTapCount += 1
-            if versionTapCount >= 8 {
-                developerUnlocked = true
-            }
-        } label: {
-            HStack {
-                Text("Версия")
-                    .foregroundColor(.primary)
-                Spacer()
-                Text(Bundle.main.versionString)
-                    .foregroundColor(.secondary)
-            }
         }
     }
 
