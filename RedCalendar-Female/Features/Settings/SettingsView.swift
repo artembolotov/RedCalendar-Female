@@ -25,6 +25,15 @@ struct SettingsView: View {
                     }
                     
                     Section {
+                        HStack {
+                            Text("Версия")
+                            Spacer()
+                            Text(Bundle.main.versionString)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+
+                    Section {
                         Button("Выйти") {
                             store.send(.logout)
                         }
