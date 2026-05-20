@@ -9,28 +9,20 @@ import SwiftUI
 
 struct SettingsView: View {
     @EnvironmentObject var store: AppStore
-    
+
+    @State private var versionTapCount = 0
+    @State private var developerUnlocked = false
+
     var body: some View {
         NavigationView {
             if case .authenticated(let deviceId, _, _) = store.state.authState {
                 Form {
-                    Section("Устройство") {
-                        HStack {
-                            Text("Device ID")
-                            Spacer()
-                            Text(deviceId)
-                                .foregroundColor(.secondary)
-                                .textSelection(.enabled)
-                        }
-                    }
-                    
                     Section {
-                        HStack {
-                            Text("Версия")
-                            Spacer()
-                            Text(Bundle.main.versionString)
-                                .foregroundColor(.secondary)
-                        }
+                        versionRow
+                    }
+
+                    if developerUnlocked {
+                        developerSection(deviceId: deviceId)
                     }
 
                     Section {
@@ -45,6 +37,61 @@ struct SettingsView: View {
             }
         }
     }
+
+    // MARK: - Private Views
+
+    private var versionRow: some View {
+        Button {
+            versionTapCount += 1
+            if versionTapCount >= 8 {
+                developerUnlocked = true
+            }
+        } label: {
+            HStack {
+                Text("Версия")
+                    .foregroundColor(.primary)
+                Spacer()
+                Text(Bundle.main.versionString)
+                    .foregroundColor(.secondary)
+            }
+        }
+    }
+
+    private func developerSection(deviceId: String) -> some View {
+        Section("Developer") {
+            HStack {
+                Text("Device ID")
+                Spacer()
+                Text(deviceId)
+                    .foregroundColor(.secondary)
+                    .textSelection(.enabled)
+            }
+
+            HStack {
+                Text("AppMetrica")
+                Spacer()
+                statusCircle(active: store.state.analyticsActivated)
+            }
+
+            HStack {
+                Text("Push-уведомления")
+                Spacer()
+                statusCircle(active: pushRegistered)
+            }
+        }
+    }
+
+    private func statusCircle(active: Bool) -> some View {
+        Circle()
+            .fill(active ? Color.green : Color.red)
+            .frame(width: 10, height: 10)
+    }
+
+    // MARK: - Private Helpers
+
+    private var pushRegistered: Bool {
+        store.state.pushPermissionState == .authorized && store.state.apnsToken != nil
+    }
 }
 
 #Preview {
@@ -52,12 +99,14 @@ struct SettingsView: View {
         .environmentObject(
             AppStore(
                 initialState: AppState(
-                    apnsToken: nil,
+                    apnsToken: APNSToken(value: "test-token", isSynced: true),
                     authState: .authenticated(
                         deviceId: "test-device-id",
                         userDetails: nil,
                         calendarState: CalendarState()
-                    )
+                    ),
+                    pushPermissionState: .authorized,
+                    analyticsActivated: true
                 ),
                 reducer: appReducer,
                 middlewares: []

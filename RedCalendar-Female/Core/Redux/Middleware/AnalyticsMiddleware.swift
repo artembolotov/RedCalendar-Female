@@ -10,8 +10,10 @@ let analyticsMiddleware: Middleware<AppState, AppAction> = { state, action, disp
     @Injected var analytics: AnalyticsServiceProtocol
     
     switch action {
-    
-        
+
+    case .checkAnalyticsStatus:
+        return [.setAnalyticsActivated(analytics.isActivated)]
+
     default:
         break
     }

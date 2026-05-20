@@ -18,6 +18,10 @@ enum AppAction {
     case setAPNSToken(_ token: APNSToken)
     case setPushPermissionState(_ state: PushPermissionState?)
     
+    // Analytics actions
+    case checkAnalyticsStatus
+    case setAnalyticsActivated(_ activated: Bool)
+
     // Retry actions
     case retryFailedTasks
 }

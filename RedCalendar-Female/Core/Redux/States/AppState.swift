@@ -11,6 +11,7 @@ struct AppState {
     var apnsToken: APNSToken?
     var authState: AuthState?
     var pushPermissionState: PushPermissionState?
+    var analyticsActivated: Bool = false
 }
 
 extension AppState {

@@ -35,6 +35,7 @@ struct RedCalendarApp: App {
                 .onAppear {
                     appDelegate.appStore = store
                     store.send(.checkAuthState)
+                    store.send(.checkAnalyticsStatus)
                 }
                 .onChange(of: scenePhase) { newPhase in
                     if newPhase == .active {

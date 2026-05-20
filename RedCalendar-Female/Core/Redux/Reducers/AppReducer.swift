@@ -33,9 +33,15 @@ func appReducer(state: AppState, action: AppAction) -> AppState {
             state.authState = .authenticated(deviceId: deviceId, userDetails: userDetails, calendarState: calendarState)
         }
         
+    case .checkAnalyticsStatus:
+        break
+
+    case .setAnalyticsActivated(let activated):
+        state.analyticsActivated = activated
+
     case .retryFailedTasks:
         break
-        
+
     case .logout:
         break
     }

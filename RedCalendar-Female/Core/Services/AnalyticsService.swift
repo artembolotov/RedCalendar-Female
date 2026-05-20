@@ -8,12 +8,15 @@
 import AppMetricaCore
 
 protocol AnalyticsServiceProtocol {
+    var isActivated: Bool { get }
     func registerApp()
     func trackEvent(_ name: String)
     func trackEvent(_ name: String, parameters: [AnyHashable : Any]?)
 }
 
 final class AnalyticsService: AnalyticsServiceProtocol {
+
+    var isActivated: Bool { AppMetrica.isActivated }
 
     private var apiKey: String {
         Bundle.main.object(forInfoDictionaryKey: "APPMETRICA_API_KEY") as? String ?? ""
