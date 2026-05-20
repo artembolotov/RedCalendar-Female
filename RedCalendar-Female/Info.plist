@@ -4,6 +4,8 @@
 <dict>
 	<key>API_BASE_URL</key>
 	<string>$(API_BASE_URL)</string>
+	<key>APPMETRICA_API_KEY</key>
+	<string>$(APPMETRICA_API_KEY)</string>
 	<key>ENVIRONMENT_NAME</key>
 	<string>$(ENVIRONMENT_NAME)</string>
 	<key>ITSAppUsesNonExemptEncryption</key>

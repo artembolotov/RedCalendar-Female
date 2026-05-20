@@ -30,3 +30,6 @@ playground.xcworkspace
 # .swiftpm
 
 .build/
+
+# Local secrets (never commit)
+Secrets.xcconfig

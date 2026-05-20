@@ -14,18 +14,21 @@ protocol AnalyticsServiceProtocol {
 }
 
 final class AnalyticsService: AnalyticsServiceProtocol {
-    
-    private let apiKey = "***REMOVED***"
-    
-    func registerApp() {
-        let configuration = AppMetricaConfiguration(apiKey: apiKey)
-        AppMetrica.activate(with: configuration!)
+
+    private var apiKey: String {
+        Bundle.main.object(forInfoDictionaryKey: "APPMETRICA_API_KEY") as? String ?? ""
     }
-    
+
+    func registerApp() {
+        guard !apiKey.isEmpty,
+              let configuration = AppMetricaConfiguration(apiKey: apiKey) else { return }
+        AppMetrica.activate(with: configuration)
+    }
+
     func trackEvent(_ name: String) {
         AppMetrica.reportEvent(name: name)
     }
-    
+
     func trackEvent(_ name: String, parameters: [AnyHashable : Any]?) {
         AppMetrica.reportEvent(name: name, parameters: parameters)
     }

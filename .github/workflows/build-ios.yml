@@ -47,6 +47,7 @@ jobs:
             PROVISIONING_PROFILE_SPECIFIER="RedCalendarW_AppStore" \
             DEVELOPMENT_TEAM=43YQFDZNH8 \
             CURRENT_PROJECT_VERSION=${{ github.run_number }} \
+            APPMETRICA_API_KEY=${{ secrets.APPMETRICA_API_KEY }} \
             CODE_SIGNING_REQUIRED=YES \
             CODE_SIGNING_ALLOWED=NO
 
