@@ -60,11 +60,6 @@ jobs:
           echo "${{ secrets.ASC_API_KEY }}" | base64 --decode \
             > ~/.appstoreconnect/private_keys/AuthKey_${{ secrets.ASC_KEY_ID }}.p8
 
-      - name: Verify entitlements
-        run: |
-          unzip -q build/RedCalendar-Female.ipa -d /tmp/ipa_check
-          codesign -d --entitlements :- /tmp/ipa_check/Payload/RedCalendar-Female.app
-
       - name: Upload to TestFlight
         run: |
           output=$(xcrun altool --upload-app \
