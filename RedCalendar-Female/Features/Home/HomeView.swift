@@ -16,7 +16,7 @@ struct HomeView: View {
     
     var body: some View {
         NavigationView {
-            if case .authenticated(_, _, let calendarState) = store.state.authState {
+            if store.state.isAuthenticated {
                 GeometryReader { geometry in
                     ZStack(alignment: .bottomLeading) {
                         CalendarView(
@@ -24,8 +24,8 @@ struct HomeView: View {
                             floatingButtonState: $floatingButtonState,
                             scrollCommand: $scrollCommand
                         )
-                        
-                        if let dayStamp = calendarState.selectedDayStamp {
+
+                        if let dayStamp = store.state.calendarState.selectedDayStamp {
                             DayDetailsView(
                                 dayStamp: dayStamp,
                                 dragOffset: $dragOffset,
@@ -45,8 +45,8 @@ struct HomeView: View {
                             .transition(.scale)
                         }
                     }
-                    .animation(.bouncy, value: calendarState.selectedDayStamp != nil)
-                    .onChange(of: calendarState.selectedDayStamp) { newValue in
+                    .animation(.bouncy, value: store.state.calendarState.selectedDayStamp != nil)
+                    .onChange(of: store.state.calendarState.selectedDayStamp) { newValue in
                         if newValue == nil {
                             dragOffset = 0
                             dayDetailsHeight = 0
@@ -76,11 +76,9 @@ struct HomeView: View {
         .environmentObject(
             AppStore(
                 initialState: AppState(
-                    apnsToken: nil,
                     authState: .authenticated(
                         deviceId: "B7DDU4pUigTiAhpNDWnQW83tGQ6R",
-                        userDetails: nil,
-                        calendarState: CalendarState()
+                        userDetails: nil
                     )
                 ),
                 reducer: appReducer,

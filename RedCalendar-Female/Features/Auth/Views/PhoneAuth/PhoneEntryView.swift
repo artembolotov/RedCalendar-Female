@@ -115,10 +115,7 @@ struct PhoneEntryView: View {
     PhoneEntryView()
         .environmentObject(
             AppStore(
-                initialState: AppState(
-                    apnsToken: nil,
-                    authState: .authenticating(.phone(.entry()))
-                ),
+                initialState: AppState(authState: .authenticating(.phone(.entry()))),
                 reducer: appReducer,
                 middlewares: []
             )

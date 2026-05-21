@@ -120,7 +120,6 @@ struct EmailEntryView: View {
         .environmentObject(
             AppStore(
                 initialState: AppState(
-                    apnsToken: nil,
                     authState: .authenticating(.email(.entry(
                         email: nil,
                         error: nil
@@ -137,7 +136,6 @@ struct EmailEntryView: View {
         .environmentObject(
             AppStore(
                 initialState: AppState(
-                    apnsToken: nil,
                     authState: .authenticating(.email(.entry(
                         email: "user@example.com",
                         error: nil
@@ -154,7 +152,6 @@ struct EmailEntryView: View {
         .environmentObject(
             AppStore(
                 initialState: AppState(
-                    apnsToken: nil,
                     authState: .authenticating(.email(.entry(
                         email: "invalid@email",
                         error: AuthenticationError.emailAlreadyExists

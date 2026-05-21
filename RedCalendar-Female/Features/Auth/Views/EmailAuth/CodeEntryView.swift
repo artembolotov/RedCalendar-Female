@@ -200,7 +200,6 @@ struct CodeEntryView: View {
         .environmentObject(
             AppStore(
                 initialState: AppState(
-                    apnsToken: nil,
                     authState: .authenticating(.email(.codeEntry(
                         email: "arina@example.com",
                         userName: "Арина",
@@ -218,7 +217,6 @@ struct CodeEntryView: View {
         .environmentObject(
             AppStore(
                 initialState: AppState(
-                    apnsToken: nil,
                     authState: .authenticating(.email(.codeEntry(
                         email: "user@example.com",
                         userName: nil,
@@ -236,7 +234,6 @@ struct CodeEntryView: View {
         .environmentObject(
             AppStore(
                 initialState: AppState(
-                    apnsToken: nil,
                     authState: .authenticating(.email(.registration(
                         email: "test@example.com",
                         code: nil,
@@ -255,7 +252,6 @@ struct CodeEntryView: View {
         .environmentObject(
             AppStore(
                 initialState: AppState(
-                    apnsToken: nil,
                     authState: .authenticating(.email(.registration(
                         email: "user@example.com",
                         code: "123456",

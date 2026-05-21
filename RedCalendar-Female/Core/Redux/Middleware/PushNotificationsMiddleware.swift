@@ -14,7 +14,7 @@ let pushNotificationMiddleware: Middleware<AppState, AppAction> = { state, actio
     
     switch action {
     case .setAPNSToken(let token):
-        if case .authenticated(let deviceId, _, _) = state.authState, token.isSynced == false {
+        if case .authenticated(let deviceId, _) = state.authState, token.isSynced == false {
             Task {
                 do {
                     let _ = try await apiService.updateAPNSToken(deviceId: deviceId, apnsToken: token.value)
@@ -41,7 +41,7 @@ let pushNotificationMiddleware: Middleware<AppState, AppAction> = { state, actio
         
     case .retryFailedTasks:
         
-        if state.isAuthenticated, let token = state.apnsToken, token.isSynced == false {
+        if state.isAuthenticated, let token = state.notifications.apnsToken, token.isSynced == false {
             return [.setAPNSToken(token)]
         }
         return []

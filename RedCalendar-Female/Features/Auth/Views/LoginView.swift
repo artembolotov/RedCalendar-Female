@@ -72,10 +72,7 @@ struct LoginView: View {
     LoginView()
         .environmentObject(
             AppStore(
-                initialState: AppState(
-                    apnsToken: nil,
-                    authState: .authenticating(.email(.entry()))
-                ),
+                initialState: AppState(authState: .authenticating(.email(.entry()))),
                 reducer: appReducer,
                 middlewares: []
             )

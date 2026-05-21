@@ -9,30 +9,28 @@ import UIKit
 
 func appReducer(state: AppState, action: AppAction) -> AppState {
     var state = state
-    
+
     switch action {
-        
+
     case .checkAuthState:
         break
-        
+
     case .setAuthState(let authState):
         state.authState = authState
         if case .notAuthenticated = authState {
-            state.apnsToken = nil
+            state.notifications.apnsToken = nil
+            state.calendarState = CalendarState()
         }
-        
+
     case .setAPNSToken(let token):
-        state.apnsToken = token
-        
+        state.notifications.apnsToken = token
+
     case .setPushPermissionState(let permissionState):
-        state.pushPermissionState = permissionState
-        
+        state.notifications.pushPermissionState = permissionState
+
     case .setSelectedDayStamp(let dayStamp):
-        if case .authenticated(let deviceId, let userDetails, var calendarState) = state.authState {
-            calendarState.selectedDayStamp = dayStamp
-            state.authState = .authenticated(deviceId: deviceId, userDetails: userDetails, calendarState: calendarState)
-        }
-        
+        state.calendarState.selectedDayStamp = dayStamp
+
     case .checkAnalyticsStatus:
         break
 
@@ -45,6 +43,6 @@ func appReducer(state: AppState, action: AppAction) -> AppState {
     case .logout:
         break
     }
-    
+
     return state
 }

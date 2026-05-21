@@ -28,12 +28,7 @@ struct StatisticsView: View {
         .environmentObject(
             AppStore(
                 initialState: AppState(
-                    apnsToken: nil,
-                    authState: .authenticated(
-                        deviceId: "test-device-id",
-                        userDetails: nil,
-                        calendarState: CalendarState()
-                    )
+                    authState: .authenticated(deviceId: "test-device-id", userDetails: nil)
                 ),
                 reducer: appReducer,
                 middlewares: []

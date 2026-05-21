@@ -162,10 +162,7 @@ private struct SlideView: View {
     WelcomeView()
         .environmentObject(
             AppStore(
-                initialState: AppState(
-                    apnsToken: nil,
-                    authState: .notAuthenticated
-                ),
+                initialState: AppState(authState: .notAuthenticated),
                 reducer: appReducer,
                 middlewares: []
             )
@@ -176,10 +173,7 @@ private struct SlideView: View {
     WelcomeView()
         .environmentObject(
             AppStore(
-                initialState: AppState(
-                    apnsToken: nil,
-                    authState: .authenticating(.email(.entry()))
-                ),
+                initialState: AppState(authState: .authenticating(.email(.entry()))),
                 reducer: appReducer,
                 middlewares: []
             )

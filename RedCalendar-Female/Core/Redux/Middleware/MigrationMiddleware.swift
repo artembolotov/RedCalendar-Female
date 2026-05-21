@@ -48,8 +48,7 @@ let migrationMiddleware: Middleware<AppState, AppAction> = { state, action, disp
                     
                     dispatch(.setAuthState(.authenticated(
                         deviceId: data.deviceId,
-                        userDetails: nil,
-                        calendarState: CalendarState()
+                        userDetails: nil
                     )))
                 } catch {
                     AppLogger.error("Migration failed", error: error)

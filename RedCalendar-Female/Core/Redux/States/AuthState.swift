@@ -7,7 +7,7 @@
 
 enum AuthState {
     case notAuthenticated
-    case authenticated(deviceId: String, userDetails: UserDetails?, calendarState: CalendarState)
+    case authenticated(deviceId: String, userDetails: UserDetails?)
     case migrating(userId: String, error: Error? = nil)
     case authenticating(AuthenticationMethod)
 }

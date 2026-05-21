@@ -12,10 +12,7 @@ struct DayDetailsView: View {
     @State private var viewFrame: CGRect = .zero
     
     private var isCurrentlySelected: Bool {
-        if case .authenticated(_, _, let calendarState) = store.state.authState {
-            return calendarState.selectedDayStamp?.rawValue == dayStamp.rawValue
-        }
-        return false
+        store.state.calendarState.selectedDayStamp?.rawValue == dayStamp.rawValue
     }
     
     private let velocityThreshold: CGFloat = 1200
@@ -325,11 +322,8 @@ struct WindowGestureHandler: UIViewRepresentable {
     .environmentObject(
         AppStore(
             initialState: AppState(
-                authState: .authenticated(
-                    deviceId: "test",
-                    userDetails: nil,
-                    calendarState: CalendarState(selectedDayStamp: Daystamp(rawValue: 100))
-                )
+                authState: .authenticated(deviceId: "test", userDetails: nil),
+                calendarState: CalendarState(selectedDayStamp: Daystamp(rawValue: 100))
             ),
             reducer: appReducer,
             middlewares: []

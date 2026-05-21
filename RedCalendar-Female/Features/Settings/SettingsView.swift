@@ -85,7 +85,7 @@ struct SettingsView: View {
     // MARK: - Private Helpers
 
     private var pushRegistered: Bool {
-        store.state.pushPermissionState == .authorized && store.state.apnsToken != nil
+        store.state.notifications.pushPermissionState == .authorized && store.state.notifications.apnsToken != nil
     }
 }
 
@@ -94,13 +94,11 @@ struct SettingsView: View {
         .environmentObject(
             AppStore(
                 initialState: AppState(
-                    apnsToken: APNSToken(value: "test-token", isSynced: true),
-                    authState: .authenticated(
-                        deviceId: "test-device-id",
-                        userDetails: nil,
-                        calendarState: CalendarState()
+                    authState: .authenticated(deviceId: "test-device-id", userDetails: nil),
+                    notifications: NotificationState(
+                        apnsToken: APNSToken(value: "test-token", isSynced: true),
+                        pushPermissionState: .authorized
                     ),
-                    pushPermissionState: .authorized,
                     analyticsActivated: true
                 ),
                 reducer: appReducer,

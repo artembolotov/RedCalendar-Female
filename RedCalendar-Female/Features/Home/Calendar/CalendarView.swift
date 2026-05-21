@@ -144,11 +144,11 @@ struct CalendarView: View {
                     .debounce(for: .seconds(bottomOffsetDebounceDelay), scheduler: DispatchQueue.main)
             ) { newValue in
                 // Only animate when DayDetails is opening (not closing)
-                if newValue > 0 && getSelectedDayStamp() != nil {
+                if newValue > 0 && store.state.calendarState.selectedDayStamp != nil {
                     scrollCommand = .animateToCenter
                 }
             }
-            .onChange(of: getSelectedDayStamp()) { newValue in
+            .onChange(of: store.state.calendarState.selectedDayStamp) { newValue in
                 guard let calc = calculator else { return }
                 handleDaySelection(newValue, calculator: calc)
             }
@@ -175,14 +175,6 @@ struct CalendarView: View {
             selectionOffset = 0
             updateFloatingButtonState()
         }
-    }
-    
-    // MARK: - Get Selected DayStamp
-    private func getSelectedDayStamp() -> Daystamp? {
-        guard case .authenticated(_, _, let calendarState) = store.state.authState else {
-            return nil
-        }
-        return calendarState.selectedDayStamp
     }
     
     // MARK: - Week Center Y Calculation (renamed from calculateWeekCenterY)
@@ -233,7 +225,7 @@ struct CalendarView: View {
         todayWeekCenterY = weekCenterY(for: currentDate, calculator: calculator)
         uiOffset = calculateUIOffset()
         
-        if let selectedDayStamp = getSelectedDayStamp() {
+        if let selectedDayStamp = store.state.calendarState.selectedDayStamp {
             let selectedDate = selectedDayStamp.toDate(calendar: calendar)
             selectionOffset = calculateSelectionOffset(for: selectedDate, calculator: calculator)
         } else {
@@ -324,7 +316,7 @@ struct CalendarView: View {
         // When no day is selected the panel is closed (or closing), so compare against
         // today's base position directly — effectiveOffset still includes the panel
         // adjustment for one render cycle after selectedDayStamp becomes nil.
-        let reference = getSelectedDayStamp() == nil
+        let reference = store.state.calendarState.selectedDayStamp == nil
             ? uiOffset - todayWeekCenterY
             : effectiveOffset
         let deviation = scrollOffset - reference
@@ -360,8 +352,7 @@ struct CalendarView: View {
             calendar: calendar
         )
         
-        // Get selected day from CalendarState
-        let selectedDayStamp = getSelectedDayStamp()
+        let selectedDayStamp = store.state.calendarState.selectedDayStamp
         
         return ZStack(alignment: .topLeading) {
             ForEach(dynamicViewport.visibleMonths.indices, id: \.self) { monthIndex in

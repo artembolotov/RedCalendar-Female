@@ -205,7 +205,6 @@ struct FlashCallCodeEntryView: View {
         .environmentObject(
             AppStore(
                 initialState: AppState(
-                    apnsToken: nil,
                     authState: .authenticating(.phone(.verification(
                         prettyPhoneNumber: "+7 (999) 123-45-67",
                         e164PhoneNumber: "+79991234567",
@@ -225,7 +224,6 @@ struct FlashCallCodeEntryView: View {
         .environmentObject(
             AppStore(
                 initialState: AppState(
-                    apnsToken: nil,
                     authState: .authenticating(.phone(.verification(
                         prettyPhoneNumber: "+7 (999) 123-45-67",
                         e164PhoneNumber: "+79991234567",
