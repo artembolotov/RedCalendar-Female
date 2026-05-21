@@ -48,7 +48,8 @@ jobs:
             DEVELOPMENT_TEAM=43YQFDZNH8 \
             CURRENT_PROJECT_VERSION=${{ github.run_number }} \
             APPMETRICA_API_KEY=${{ secrets.APPMETRICA_API_KEY }} \
-            CODE_SIGNING_REQUIRED=YES
+            CODE_SIGNING_REQUIRED=YES \
+            CODE_SIGNING_ALLOWED=NO
 
       - name: Export IPA
         run: |
@@ -62,6 +63,11 @@ jobs:
           mkdir -p ~/.appstoreconnect/private_keys
           echo "${{ secrets.ASC_API_KEY }}" | base64 --decode \
             > ~/.appstoreconnect/private_keys/AuthKey_${{ secrets.ASC_KEY_ID }}.p8
+
+      - name: Verify entitlements
+        run: |
+          unzip -q build/RedCalendar-Female.ipa -d /tmp/ipa_check
+          codesign -d --entitlements :- /tmp/ipa_check/Payload/RedCalendar-Female.app
 
       - name: Upload to TestFlight
         run: |
