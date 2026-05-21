@@ -21,7 +21,7 @@ struct SettingsView: View {
                     }
 
                     if versionTapCount >= 8 {
-                        developerSection(deviceId: deviceId)
+                        DeveloperSectionView(deviceId: deviceId)
                     }
 
                     Section {
@@ -52,7 +52,13 @@ struct SettingsView: View {
         }
     }
 
-    private func developerSection(deviceId: String) -> some View {
+}
+
+private struct DeveloperSectionView: View {
+    let deviceId: String
+    @EnvironmentObject var store: AppStore
+
+    var body: some View {
         Section("Developer") {
             HStack {
                 Text("Device ID")
@@ -76,16 +82,14 @@ struct SettingsView: View {
         }
     }
 
+    private var pushRegistered: Bool {
+        store.state.notifications.pushPermissionState == .authorized && store.state.notifications.apnsToken != nil
+    }
+
     private func statusCircle(active: Bool) -> some View {
         Circle()
             .fill(active ? Color.green : Color.red)
             .frame(width: 10, height: 10)
-    }
-
-    // MARK: - Private Helpers
-
-    private var pushRegistered: Bool {
-        store.state.notifications.pushPermissionState == .authorized && store.state.notifications.apnsToken != nil
     }
 }
 
