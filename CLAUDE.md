@@ -24,7 +24,7 @@ typealias Middleware<State, Action> = (State, Action, @escaping (Action) -> Void
 
 **Adding a new action:** add a case to `AppAction`, handle it in `appReducer`, handle side effects in the relevant middleware file.
 
-**Adding a new middleware:** create `*Middleware.swift` in `Core/Redux/Middleware/`, register it in `AppStore` initialization in `RedCalendar_FemaleApp.swift`.
+**Adding a new middleware:** create `*Middleware.swift` in `Core/Redux/Middleware/`, register it in `combineAppMiddlewares()` in `Core/Redux/AppMiddleware.swift`.
 
 ### Dependency Injection
 
@@ -49,13 +49,23 @@ App/          — entry point, AppDelegate, Configurator
 Core/
   DI/         — ServiceLocator, @Injected
   Models/     — shared data models (Daystamp, AuthState, UserDetails, …)
-  Redux/      — Store, AppAction, AppState, reducers, middleware
-  Services/   — APIService, KeychainService, etc.
-  Utils/      — Logger
+  Redux/
+    Actions/  — AppAction
+    Middleware/ — one file per concern (auth, analytics, push, …)
+    Reducers/ — appReducer
+    States/   — AppState, AuthState, CalendarState, NotificationState, …
+    AppMiddleware.swift  — combineAppMiddlewares()
+    AppStore.swift       — typealias AppStore = Store<AppState, AppAction>
+    Store.swift          — generic Store<State, Action>
+  Services/   — APIService, KeychainService, AnalyticsService, etc.
+  Utils/      — AppLogger
 Common/       — reusable components, extensions, modifiers
 Features/
   Auth/       — welcome, login, email auth, phone/Flash Call auth
-  Home/       — main screen + integrated calendar (CalendarView, InfiniteScrollContainer, …)
+  Home/
+    Calendar/ — CalendarView, InfiniteScrollContainer, models
+    Components/ — FloatingAddButton, HomeMenuView
+    HomeView.swift, DayDetailsView.swift
   Settings/
   Statistics/
 ```
@@ -64,20 +74,45 @@ Feature folders own their own views and feature-specific models. Shared types go
 
 ## Key Patterns
 
-### AuthState
+### AppState
 
-`AuthState` is a nested enum stored in `AppState.authState`. The `.authenticated` case carries `deviceId`, `userDetails`, and `CalendarState`. Always pattern-match before reading nested state:
+`AppState` has four top-level fields:
 
 ```swift
-if case .authenticated(let deviceId, let userDetails, let calendarState) = state.authState { … }
+struct AppState {
+    var authState: AuthState?          // nil until first auth check completes
+    var calendarState: CalendarState   // always present, reset on logout
+    var notifications: NotificationState
+    var analyticsActivated: Bool
+}
 ```
 
-When mutating nested calendar state in the reducer, unpack, mutate, repack:
+Convenience computed properties (`isAuthenticated`, `deviceId`, `currentUser`) are defined in an extension — prefer them over pattern-matching in views and middleware.
+
+### AuthState
+
+`AuthState` is an enum stored in `AppState.authState` (optional — `nil` means the initial check hasn't run yet). Cases:
+
 ```swift
-if case .authenticated(let deviceId, let userDetails, var calendarState) = state.authState {
-    calendarState.selectedDayStamp = dayStamp
-    state.authState = .authenticated(deviceId: deviceId, userDetails: userDetails, calendarState: calendarState)
+enum AuthState {
+    case notAuthenticated
+    case authenticated(deviceId: String, userDetails: UserDetails?)
+    case migrating(userId: String, error: Error? = nil)
+    case authenticating(AuthenticationMethod)
 }
+```
+
+Always pattern-match before reading nested associated values:
+
+```swift
+if case .authenticated(let deviceId, let userDetails) = state.authState { … }
+```
+
+`CalendarState` is a **top-level** field on `AppState` — not inside `AuthState`. Mutate it directly in the reducer:
+
+```swift
+case .setSelectedDayStamp(let dayStamp):
+    state.calendarState.selectedDayStamp = dayStamp
 ```
 
 ### Daystamp
@@ -115,7 +150,7 @@ Never compare calendar dates using `Date` directly — convert to `Daystamp` fir
 
 ## Swift & SwiftUI Style
 
-- **SwiftUI only** for UI. Do not introduce UIKit views unless wrapping a third-party component that has no SwiftUI equivalent.
+- **SwiftUI only** for UI. `UIViewRepresentable` wrappers are allowed when SwiftUI has no equivalent (e.g., window-level gesture recognizers, third-party components); keep them isolated in dedicated files.
 - Views read state via `@EnvironmentObject var store: AppStore` and dispatch actions via `store.send(…)`. No direct service calls in views.
 - Local ephemeral UI state (`@State`) is fine for things like sheet presentation, drag offsets, animation state. Do not lift these into the Redux store.
 - Use `MARK: -` sections: `// MARK: - Body`, `// MARK: - Private Methods`, etc., matching the existing files.
