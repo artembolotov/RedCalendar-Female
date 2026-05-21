@@ -23,6 +23,7 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
+				Secrets.xcconfig,
 			);
 			target = AB9FE2362DEFF9110083B0D9 /* RedCalendar-Female */;
 		};
@@ -107,7 +108,7 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 1640;
-				LastUpgradeCheck = 2600;
+				LastUpgradeCheck = 2640;
 				TargetAttributes = {
 					AB9FE2362DEFF9110083B0D9 = {
 						CreatedOnToolsVersion = 16.4;
@@ -160,12 +161,9 @@
 /* Begin XCBuildConfiguration section */
 		AB9FE2402DEFF9130083B0D9 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReferenceAnchor = AB9FE2392DEFF9110083B0D9 /* RedCalendar-Female */;
-			baseConfigurationReferenceRelativePath = Configurations/Debug.xcconfig;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				API_BASE_URL = "https:/$()/api.calendar.red";
-				APPMETRICA_API_KEY = "";
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -232,8 +230,6 @@
 		};
 		AB9FE2412DEFF9130083B0D9 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReferenceAnchor = AB9FE2392DEFF9110083B0D9 /* RedCalendar-Female */;
-			baseConfigurationReferenceRelativePath = Configurations/Release.xcconfig;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -294,9 +290,10 @@
 		};
 		AB9FE2432DEFF9130083B0D9 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReferenceAnchor = AB9FE2392DEFF9110083B0D9 /* RedCalendar-Female */;
+			baseConfigurationReferenceRelativePath = Secrets.xcconfig;
 			buildSettings = {
 				API_BASE_URL = "https:/$()/api.calendar.red";
-				APPMETRICA_API_KEY = "";
 				ASSETCATALOG_COMPILER_APPICON_NAME = "AppIcon-Production";
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = "RedCalendar-Female/RedCalendar-Female.entitlements";
@@ -332,15 +329,15 @@
 		};
 		AB9FE2442DEFF9130083B0D9 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReferenceAnchor = AB9FE2392DEFF9110083B0D9 /* RedCalendar-Female */;
+			baseConfigurationReferenceRelativePath = Secrets.xcconfig;
 			buildSettings = {
 				API_BASE_URL = "https:/$()/api.calendar.red";
-				APPMETRICA_API_KEY = "";
 				ASSETCATALOG_COMPILER_APPICON_NAME = "AppIcon-Production";
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = "RedCalendar-Female/RedCalendar-Female.Release.entitlements";
 				CODE_SIGN_IDENTITY = "iPhone Distribution";
 				CODE_SIGN_STYLE = Manual;
-				PROVISIONING_PROFILE_SPECIFIER = RedCalendarW_AppStore;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 43YQFDZNH8;
 				ENABLE_PREVIEWS = YES;
@@ -361,6 +358,7 @@
 				MARKETING_VERSION = 3.0.1;
 				PRODUCT_BUNDLE_IDENTIFIER = "ru.artembolotov.RedCalendar-Woman";
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = RedCalendarW_AppStore;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
 				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
@@ -372,8 +370,6 @@
 		};
 		ABCDBD762E1A460C00CA13E0 /* Debug-Staging */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReferenceAnchor = AB9FE2392DEFF9110083B0D9 /* RedCalendar-Female */;
-			baseConfigurationReferenceRelativePath = Configurations/Debug.xcconfig;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -441,9 +437,10 @@
 		};
 		ABCDBD772E1A460C00CA13E0 /* Debug-Staging */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReferenceAnchor = AB9FE2392DEFF9110083B0D9 /* RedCalendar-Female */;
+			baseConfigurationReferenceRelativePath = Secrets.xcconfig;
 			buildSettings = {
 				API_BASE_URL = "https:/$()/staging.calendar.red";
-				APPMETRICA_API_KEY = "";
 				ASSETCATALOG_COMPILER_APPICON_NAME = "AppIcon-Staging";
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = "RedCalendar-Female/RedCalendar-Female.entitlements";
@@ -479,12 +476,9 @@
 		};
 		ABCDBD782E1A462E00CA13E0 /* Release-Staging */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReferenceAnchor = AB9FE2392DEFF9110083B0D9 /* RedCalendar-Female */;
-			baseConfigurationReferenceRelativePath = Configurations/Release.xcconfig;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				API_BASE_URL = "https:/$()/staging.calendar.red\n";
-				APPMETRICA_API_KEY = "";
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -544,9 +538,10 @@
 		};
 		ABCDBD792E1A462E00CA13E0 /* Release-Staging */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReferenceAnchor = AB9FE2392DEFF9110083B0D9 /* RedCalendar-Female */;
+			baseConfigurationReferenceRelativePath = Secrets.xcconfig;
 			buildSettings = {
 				API_BASE_URL = "https:/$()/staging.calendar.red";
-				APPMETRICA_API_KEY = "";
 				ASSETCATALOG_COMPILER_APPICON_NAME = "AppIcon-Staging";
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = "RedCalendar-Female/RedCalendar-Female.Release.entitlements";
