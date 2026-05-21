@@ -21,7 +21,13 @@ struct SettingsView: View {
                     }
 
                     if versionTapCount >= 8 {
-                        DeveloperSectionView(deviceId: deviceId)
+                        DeveloperSectionView(
+                            deviceId: deviceId,
+                            analyticsActivated: store.state.analyticsActivated,
+                            pushRegistered: store.state.notifications.pushPermissionState == .authorized
+                                && store.state.notifications.apnsToken != nil
+                        )
+                        .equatable()
                     }
 
                     Section {
@@ -54,9 +60,10 @@ struct SettingsView: View {
 
 }
 
-private struct DeveloperSectionView: View {
+private struct DeveloperSectionView: View, Equatable {
     let deviceId: String
-    @EnvironmentObject var store: AppStore
+    let analyticsActivated: Bool
+    let pushRegistered: Bool
 
     var body: some View {
         Section("Developer") {
@@ -71,7 +78,7 @@ private struct DeveloperSectionView: View {
             HStack {
                 Text("AppMetrica")
                 Spacer()
-                statusCircle(active: store.state.analyticsActivated)
+                statusCircle(active: analyticsActivated)
             }
 
             HStack {
@@ -80,10 +87,6 @@ private struct DeveloperSectionView: View {
                 statusCircle(active: pushRegistered)
             }
         }
-    }
-
-    private var pushRegistered: Bool {
-        store.state.notifications.pushPermissionState == .authorized && store.state.notifications.apnsToken != nil
     }
 
     private func statusCircle(active: Bool) -> some View {
