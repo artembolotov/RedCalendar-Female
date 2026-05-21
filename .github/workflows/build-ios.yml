@@ -28,13 +28,11 @@ jobs:
           security set-key-partition-list \
             -S apple-tool:,apple: -s -k "" build.keychain
 
-      - name: Import provisioning profile
+      - name: Prepare API key
         run: |
-          echo "${{ secrets.PROVISIONING_PROFILE }}" | base64 --decode \
-            > profile.mobileprovision
-          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          cp profile.mobileprovision \
-            ~/Library/MobileDevice/Provisioning\ Profiles/
+          mkdir -p ~/.appstoreconnect/private_keys
+          echo "${{ secrets.ASC_API_KEY }}" | base64 --decode \
+            > ~/.appstoreconnect/private_keys/AuthKey_${{ secrets.ASC_KEY_ID }}.p8
 
       - name: Build archive
         run: |
@@ -42,23 +40,24 @@ jobs:
             -scheme RedCalendar-Production \
             -archivePath build/RedCalendar.xcarchive \
             -destination "generic/platform=iOS" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath ~/.appstoreconnect/private_keys/AuthKey_${{ secrets.ASC_KEY_ID }}.p8 \
+            -authenticationKeyID ${{ secrets.ASC_KEY_ID }} \
+            -authenticationKeyIssuerID ${{ secrets.ASC_ISSUER_ID }} \
             DEVELOPMENT_TEAM=43YQFDZNH8 \
             CURRENT_PROJECT_VERSION=${{ github.run_number }} \
-            APPMETRICA_API_KEY=${{ secrets.APPMETRICA_API_KEY }} \
-            CODE_SIGNING_REQUIRED=YES
+            APPMETRICA_API_KEY=${{ secrets.APPMETRICA_API_KEY }}
 
       - name: Export IPA
         run: |
           xcodebuild -exportArchive \
             -archivePath build/RedCalendar.xcarchive \
             -exportPath build/ \
-            -exportOptionsPlist ExportOptions.plist
-
-      - name: Prepare API key
-        run: |
-          mkdir -p ~/.appstoreconnect/private_keys
-          echo "${{ secrets.ASC_API_KEY }}" | base64 --decode \
-            > ~/.appstoreconnect/private_keys/AuthKey_${{ secrets.ASC_KEY_ID }}.p8
+            -exportOptionsPlist ExportOptions.plist \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath ~/.appstoreconnect/private_keys/AuthKey_${{ secrets.ASC_KEY_ID }}.p8 \
+            -authenticationKeyID ${{ secrets.ASC_KEY_ID }} \
+            -authenticationKeyIssuerID ${{ secrets.ASC_ISSUER_ID }}
 
       - name: Upload to TestFlight
         run: |

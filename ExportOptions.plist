@@ -7,11 +7,6 @@
     <key>teamID</key>
     <string>43YQFDZNH8</string>
     <key>signingStyle</key>
-    <string>manual</string>
-    <key>provisioningProfiles</key>
-    <dict>
-        <key>ru.artembolotov.RedCalendar-Woman</key>
-        <string>RedCalendarW_AppStore</string>
-    </dict>
+    <string>automatic</string>
 </dict>
 </plist>
