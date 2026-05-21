@@ -53,11 +53,7 @@ jobs:
           xcodebuild -exportArchive \
             -archivePath build/RedCalendar.xcarchive \
             -exportPath build/ \
-            -exportOptionsPlist ExportOptions.plist \
-            -allowProvisioningUpdates \
-            -authenticationKeyPath ~/.appstoreconnect/private_keys/AuthKey_${{ secrets.ASC_KEY_ID }}.p8 \
-            -authenticationKeyID ${{ secrets.ASC_KEY_ID }} \
-            -authenticationKeyIssuerID ${{ secrets.ASC_ISSUER_ID }}
+            -exportOptionsPlist ExportOptions.plist
 
       - name: Upload to TestFlight
         run: |
