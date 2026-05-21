@@ -42,7 +42,6 @@ jobs:
             -scheme RedCalendar-Production \
             -archivePath build/RedCalendar.xcarchive \
             -destination "generic/platform=iOS" \
-            CODE_SIGN_IDENTITY="iPhone Distribution" \
             DEVELOPMENT_TEAM=43YQFDZNH8 \
             CURRENT_PROJECT_VERSION=${{ github.run_number }} \
             APPMETRICA_API_KEY=${{ secrets.APPMETRICA_API_KEY }} \
