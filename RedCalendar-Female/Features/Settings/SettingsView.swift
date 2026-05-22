@@ -27,7 +27,6 @@ struct SettingsView: View {
                             pushRegistered: store.state.notifications.pushPermissionState == .authorized
                                 && store.state.notifications.apnsToken != nil
                         )
-                        .equatable()
                     }
 
                     Section {
@@ -60,7 +59,7 @@ struct SettingsView: View {
 
 }
 
-private struct DeveloperSectionView: View, Equatable {
+private struct DeveloperSectionView: View {
     let deviceId: String
     let analyticsActivated: Bool
     let pushRegistered: Bool
