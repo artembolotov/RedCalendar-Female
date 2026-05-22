@@ -192,6 +192,14 @@ Never compare calendar dates using `Date` directly — convert to `Daystamp` fir
 
 Do not add new SPM packages without a clear reason.
 
+## Git Workflow
+
+- Always `git fetch origin` before comparing branches. Use `origin/main` (not local `main`) as the base:
+  ```
+  git fetch origin && git log --oneline origin/main..HEAD
+  ```
+  Local branch refs can be stale and produce false diffs.
+
 ## What's in Progress (v3.3)
 
 - CRUD operations for user cycle data
