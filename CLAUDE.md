@@ -47,27 +47,49 @@ typealias Middleware<State, Action> = (State, Action, @escaping (Action) -> Void
 ```
 App/          — entry point, AppDelegate, Configurator
 Core/
+  Constants.swift
   DI/         — ServiceLocator, @Injected
-  Models/     — shared data models (Daystamp, AuthState, UserDetails, …)
+  Models/     — Daystamp, AuthenticationMethod, AuthenticationError,
+                 APNSToken, UserDetails
   Redux/
     Actions/  — AppAction
-    Middleware/ — one file per concern (auth, analytics, push, …)
-    Reducers/ — appReducer
-    States/   — AppState, AuthState, CalendarState, NotificationState, …
+    Middleware/
+      AuthMiddleware.swift
+      MigrationMiddleware.swift
+      PushNotificationsMiddleware.swift
+      AnalyticsMiddleware.swift
+      FeedbackMiddleware.swift
+      LoggerMiddleware.swift
+    Reducers/ — AppReducer
+    States/   — AppState, AuthState, CalendarState,
+                 EmailAuthState, PhoneAuthState, NotificationState
     AppMiddleware.swift  — combineAppMiddlewares()
     AppStore.swift       — typealias AppStore = Store<AppState, AppAction>
     Store.swift          — generic Store<State, Action>
-  Services/   — APIService, KeychainService, AnalyticsService, etc.
-  Utils/      — AppLogger
-Common/       — reusable components, extensions, modifiers
+  Services/   — APIService, KeychainService, AnalyticsService,
+                 PushPermissionService, TapticFeedbackService
+  Utils/      — Logger (AppLogger)
+Common/
+  Components/ — PrimaryButton, PhoneNumberKitField
+  Extensions/ — Bundle+AppInfo, String+Validation, View+AdaptiveShadow, …
+  Modifiers/  — FormFieldStyle
+  Views/      — RootView, WaitingView
 Features/
-  Auth/       — welcome, login, email auth, phone/Flash Call auth
+  Auth/
+    Views/
+      WelcomeView, LoginView
+      EmailAuth/ — EmailEntryView, CodeEntryView
+      PhoneAuth/ — PhoneEntryView, FlashCallCodeEntryView
   Home/
-    Calendar/ — CalendarView, InfiniteScrollContainer, models
-    Components/ — FloatingAddButton, HomeMenuView
-    HomeView.swift, DayDetailsView.swift
-  Settings/
-  Statistics/
+    Calendar/
+      CalendarView
+      Components/ — CalendarHeaderView, InfiniteScrollContainer
+      Models/     — CalendarModels, CalendarConstants,
+                     MonthCalculator, ScrollCommand, ViewportCalculator
+    Components/   — FloatingAddButton, HomeMenuView
+    HomeView, DayDetailsView, FloatingButtonState
+  Settings/   — SettingsView
+  Statistics/ — StatisticsView
 ```
 
 Feature folders own their own views and feature-specific models. Shared types go in `Core/Models/`.
@@ -87,7 +109,17 @@ struct AppState {
 }
 ```
 
-Convenience computed properties (`isAuthenticated`, `deviceId`, `currentUser`) are defined in an extension — prefer them over pattern-matching in views and middleware.
+Convenience computed properties (`isAuthenticated`, `deviceId`, `currentUser`) are defined in an extension. Use them when reading a single value:
+
+```swift
+if let deviceId = store.state.deviceId { … }
+```
+
+Use direct pattern-matching only when you need multiple associated values at once:
+
+```swift
+if case .authenticated(let deviceId, let userDetails) = state.authState { … }
+```
 
 ### AuthState
 
@@ -100,12 +132,6 @@ enum AuthState {
     case migrating(userId: String, error: Error? = nil)
     case authenticating(AuthenticationMethod)
 }
-```
-
-Always pattern-match before reading nested associated values:
-
-```swift
-if case .authenticated(let deviceId, let userDetails) = state.authState { … }
 ```
 
 `CalendarState` is a **top-level** field on `AppState` — not inside `AuthState`. Mutate it directly in the reducer:

@@ -14,7 +14,7 @@ struct SettingsView: View {
 
     var body: some View {
         NavigationView {
-            if case .authenticated(let deviceId, _) = store.state.authState {
+            if let deviceId = store.state.deviceId {
                 Form {
                     Section {
                         versionRow
