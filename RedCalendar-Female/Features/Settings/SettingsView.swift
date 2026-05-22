@@ -5,15 +5,16 @@
 //  Created by Артём Болотов on 08.07.2025.
 //
 
+import QuartzCore
 import SwiftUI
 
 struct SettingsView: View {
     @EnvironmentObject var store: AppStore
 
     @State private var versionTapCount = 0
-    @State private var lastVersionTapDate: Date?
+    @State private var lastVersionTapTime: CFTimeInterval?
 
-    private let devModeTapThreshold: TimeInterval = 0.5
+    private let devModeTapThreshold: CFTimeInterval = 0.5
 
     var body: some View {
         NavigationView {
@@ -57,13 +58,13 @@ struct SettingsView: View {
         .contentShape(Rectangle())
         .onTapGesture {
             guard versionTapCount < 8 else { return }
-            let now = Date()
-            if let last = lastVersionTapDate, now.timeIntervalSince(last) > devModeTapThreshold {
+            let now = CACurrentMediaTime()
+            if let last = lastVersionTapTime, now - last > devModeTapThreshold {
                 versionTapCount = 1
             } else {
                 versionTapCount += 1
             }
-            lastVersionTapDate = now
+            lastVersionTapTime = now
         }
     }
 
