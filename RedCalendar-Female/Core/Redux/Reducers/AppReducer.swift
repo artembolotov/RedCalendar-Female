@@ -28,6 +28,9 @@ func appReducer(state: AppState, action: AppAction) -> AppState {
     case .setPushPermissionState(let permissionState):
         state.notifications.pushPermissionState = permissionState
 
+    case .updateTodayDayStamp:
+        state.calendarState.todayDayStamp = Daystamp.today(calendar: .current)
+
     case .setSelectedDayStamp(let dayStamp):
         state.calendarState.selectedDayStamp = dayStamp
 

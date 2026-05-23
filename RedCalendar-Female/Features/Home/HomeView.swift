@@ -65,9 +65,7 @@ struct HomeView: View {
     }
     
     private func setTodaySelected() {
-        let dayStamp = Daystamp.today(calendar: Calendar.current)
-        
-        store.send(.setSelectedDayStamp(dayStamp))
+        store.send(.setSelectedDayStamp(store.state.calendarState.todayDayStamp))
     }
 }
 

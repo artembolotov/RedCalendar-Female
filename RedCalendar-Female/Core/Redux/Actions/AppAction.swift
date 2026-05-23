@@ -12,7 +12,8 @@ enum AppAction {
     case logout
     
     // Calendar actions
-    case setSelectedDayStamp(_ dayStamp: Daystamp?) 
+    case updateTodayDayStamp
+    case setSelectedDayStamp(_ dayStamp: Daystamp?)
     
     // Push notification actions
     case setAPNSToken(_ token: APNSToken)

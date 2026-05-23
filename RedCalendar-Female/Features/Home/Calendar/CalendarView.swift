@@ -18,7 +18,6 @@ struct CalendarView: View {
     // MARK: - State: Core Calendar
     @State private var calculator: MonthCalculator?
     @State private var calendar = Calendar.current
-    @State private var currentDate = Date()
     @State private var localizedWeekdays: [String] = []
     
     // MARK: - State: Dimensions
@@ -40,7 +39,11 @@ struct CalendarView: View {
     @State private var bottomOffsetDebouncer = PassthroughSubject<CGFloat, Never>()
     
     // MARK: - Computed Properties
-    
+
+    private var currentDate: Date {
+        store.state.calendarState.todayDayStamp.toDate(calendar: calendar)
+    }
+
     /// Adjusts calendar position when DayDetailsView is shown
     /// Returns offset to center selected date within visible area above the panel
     private var selectionUIOffset: CGFloat {
@@ -152,11 +155,11 @@ struct CalendarView: View {
                 guard let calc = calculator else { return }
                 handleDaySelection(newValue, calculator: calc)
             }
-            .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
-                handleAppStateChange()
+            .onChange(of: store.state.calendarState.todayDayStamp) { _ in
+                updateCalculatorIfNeeded()
             }
-            .onReceive(NotificationCenter.default.publisher(for: UIApplication.significantTimeChangeNotification)) { _ in
-                handleAppStateChange()
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
+                updateCalendarAndCalculatorIfNeeded()
             }
         }
     }
@@ -233,13 +236,6 @@ struct CalendarView: View {
         }
     }
     
-    private func handleAppStateChange() {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            currentDate = Date()
-            updateCalendarAndCalculatorIfNeeded()
-        }
-    }
-    
     private func updateCalendarAndCalculatorIfNeeded() {
         let newCalendar = Calendar.current
         
@@ -258,12 +254,9 @@ struct CalendarView: View {
         self.calendarWidth = width
         
         guard height > 0 && width > 0 else { return }
-        
-        let actualCurrentDate = Date()
-        currentDate = actualCurrentDate
-        
+
         let newCalculator = MonthCalculator(
-            currentDate: actualCurrentDate,
+            currentDate: currentDate,
             screenHeight: height,
             calendar: calendar
         )

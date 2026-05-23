@@ -6,5 +6,6 @@
 //
 
 struct CalendarState {
+    var todayDayStamp: Daystamp = Daystamp.today(calendar: .current)
     var selectedDayStamp: Daystamp?
 }

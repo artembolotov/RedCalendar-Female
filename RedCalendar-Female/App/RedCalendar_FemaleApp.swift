@@ -11,22 +11,22 @@ import SwiftUI
 struct RedCalendarApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @Environment(\.scenePhase) private var scenePhase
-    
+
     @StateObject private var store = AppStore(
         initialState: AppState(),
         reducer: appReducer,
         middlewares: combineAppMiddlewares()
     )
-    
+
     init() {
         Configurator.shared.setup()
     }
-    
+
     private func clearNotifications() {
         UIApplication.shared.applicationIconBadgeNumber = 0
         UNUserNotificationCenter.current().removeAllDeliveredNotifications()
     }
-    
+
     var body: some Scene {
         WindowGroup {
             RootView()
@@ -39,11 +39,15 @@ struct RedCalendarApp: App {
                 }
                 .onChange(of: scenePhase) { newPhase in
                     if newPhase == .active {
+                        store.send(.updateTodayDayStamp)
                         store.send(.setPushPermissionState(nil))
                         store.send(.retryFailedTasks)
-                        
+
                         clearNotifications()
                     }
+                }
+                .onReceive(NotificationCenter.default.publisher(for: UIApplication.significantTimeChangeNotification)) { _ in
+                    store.send(.updateTodayDayStamp)
                 }
         }
     }
