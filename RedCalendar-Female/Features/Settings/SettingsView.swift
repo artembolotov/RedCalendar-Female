@@ -27,6 +27,7 @@ struct SettingsView: View {
                     if versionTapCount >= 8 {
                         DeveloperSectionView(
                             deviceId: deviceId,
+                            todayDayStamp: store.state.calendarState.todayDayStamp,
                             analyticsActivated: store.state.analyticsActivated,
                             pushRegistered: store.state.notifications.pushPermissionState == .authorized
                                 && store.state.notifications.apnsToken != nil
@@ -72,6 +73,7 @@ struct SettingsView: View {
 
 private struct DeveloperSectionView: View {
     let deviceId: String
+    let todayDayStamp: Daystamp
     let analyticsActivated: Bool
     let pushRegistered: Bool
 
@@ -81,6 +83,15 @@ private struct DeveloperSectionView: View {
                 Text("Device ID")
                 Spacer()
                 Text(deviceId)
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+
+            HStack {
+                Text("Today Daystamp")
+                Spacer()
+                Text(todayDayStamp.description)
                     .foregroundColor(.secondary)
                     .lineLimit(1)
                     .truncationMode(.middle)
