@@ -91,7 +91,7 @@ private struct DeveloperSectionView: View {
             HStack {
                 Text("Today Daystamp")
                 Spacer()
-                Text(todayDayStamp.description)
+                Text("\(todayDayStamp.rawValue)")
                     .foregroundColor(.secondary)
                     .lineLimit(1)
                     .truncationMode(.middle)
