@@ -21,19 +21,43 @@ struct DayDetailsView: View {
     private let maxUpwardOffset: CGFloat = 150
     private let globalBottomOffset: CGFloat = 25
     
+    private var titleText: String {
+        let today = store.state.calendarState.todayDayStamp
+        let diff = dayStamp.rawValue - today.rawValue
+
+        switch diff {
+        case -2: return "Позавчера"
+        case -1: return "Вчера"
+        case 0: return "Сегодня"
+        case 1: return "Завтра"
+        case 2: return "Послезавтра"
+        default:
+            let calendar = Calendar.current
+            let date = dayStamp.toDate(calendar: calendar)
+            let todayDate = today.toDate(calendar: calendar)
+            let formatter = DateFormatter()
+            formatter.locale = Locale.current
+
+            let sameYear = calendar.component(.year, from: date) == calendar.component(.year, from: todayDate)
+            formatter.setLocalizedDateFormatFromTemplate(sameYear ? "MMMMd" : "yMMMMd")
+
+            return formatter.string(from: date)
+        }
+    }
+
     private func formattedDate(date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateStyle = .full
         formatter.locale = Locale.current
         return formatter.string(from: date)
     }
-    
+
     var body: some View {
         VStack(spacing: 20) {
             HStack {
-                Text("Детали дня")
-                    .font(.title2)
-                    .fontWeight(.semibold)
+                Text(titleText)
+                    .font(.title)
+                    .fontWeight(.bold)
                 
                 Spacer()
                 
