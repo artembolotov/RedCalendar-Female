@@ -50,7 +50,8 @@ Core/
   Constants.swift
   DI/         — ServiceLocator, @Injected
   Models/     — Daystamp, AuthenticationMethod, AuthenticationError,
-                 APNSToken, UserDetails
+                 APNSToken, UserDetails,
+                 CycleRecord, CommentRecord, UserTagRecord, DayTagsRecord
   Redux/
     Actions/  — AppAction
     Middleware/
@@ -67,7 +68,8 @@ Core/
     AppStore.swift       — typealias AppStore = Store<AppState, AppAction>
     Store.swift          — generic Store<State, Action>
   Services/   — APIService, KeychainService, AnalyticsService,
-                 PushPermissionService, TapticFeedbackService
+                 PushPermissionService, TapticFeedbackService,
+                 DatabaseService (GRDB)
   Utils/      — Logger (AppLogger)
 Common/
   Components/ — PrimaryButton, PhoneNumberKitField
@@ -163,6 +165,26 @@ Never compare calendar dates using `Date` directly — convert to `Daystamp` fir
 - Language header (`X-App-Language`) is added to endpoints that return localised messages.
 - `validateHTTPResponse(_:data:)` is the single error-handling choke point — do not duplicate HTTP status checking.
 
+### Database (GRDB)
+
+Local storage uses GRDB with `DatabaseQueue` (file in Application Support). All database access goes through `DatabaseServiceProtocol`.
+
+**Record types** (`Core/Models/`):
+- `CycleRecord` — cycle start days, period length, ovulation, flow levels
+- `CommentRecord` — per-day text comments
+- `UserTagRecord` — user-defined tags (symptoms, moods, etc.)
+- `DayTagsRecord` — which tags are assigned to which days
+
+All records conform to `Codable, FetchableRecord, PersistableRecord`. Column mapping uses `enum Columns: String, CodingKey, ColumnExpression` with `typealias CodingKeys = Columns` for snake_case column names.
+
+**Soft deletes:** records are not physically deleted. Instead, the main payload field is set to `nil` (`periodLength`, `comment`, `name`). Fetch methods filter out soft-deleted records (`WHERE field IS NOT NULL`).
+
+**Equatable** is implemented without `updatedAt` — used by `ValueObservation.removeDuplicates()` to avoid spurious UI updates. `DayTagsRecord` compares `tagIds` as `Set`.
+
+**Observations** return `AnyDatabaseCancellable` — the caller must retain the token to keep the observation alive.
+
+**Migrations** are in `DatabaseService.runMigrations(_:)`. Always append new migrations — never modify existing ones.
+
 ### Environments
 
 | Scheme | Config | API |
@@ -189,6 +211,7 @@ Never compare calendar dates using `Date` directly — convert to `Daystamp` fir
 
 - **AppMetrica** 5.11.1 — analytics & crash reporting. All analytics calls go through `AnalyticsServiceProtocol`.
 - **PhoneNumberKit** 4.1.1 — phone number formatting and validation.
+- **GRDB** 7.x — local SQLite database. All database calls go through `DatabaseServiceProtocol`.
 
 Do not add new SPM packages without a clear reason.
 

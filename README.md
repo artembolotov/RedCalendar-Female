@@ -34,7 +34,11 @@ RedCalendar-Female/
 │   │   ├── AuthenticationError.swift
 │   │   ├── APNSToken.swift
 │   │   ├── UserDetails.swift
-│   │   └── Daystamp.swift                  # Типобезопасный тип даты
+│   │   ├── Daystamp.swift                  # Типобезопасный тип даты
+│   │   ├── CycleRecord.swift               # GRDB-запись цикла
+│   │   ├── CommentRecord.swift             # GRDB-запись комментария
+│   │   ├── UserTagRecord.swift             # GRDB-запись пользовательского тега
+│   │   └── DayTagsRecord.swift             # GRDB-запись тегов дня
 │   ├── Redux/
 │   │   ├── Actions/
 │   │   │   └── AppAction.swift
@@ -59,6 +63,8 @@ RedCalendar-Female/
 │   │   └── Store.swift                     # Generic Store<State, Action>
 │   ├── Services/
 │   │   ├── APIService.swift                # REST API клиент
+│   │   ├── DatabaseService.swift           # GRDB локальная БД
+│   │   ├── DatabaseServiceProtocol.swift   # Протокол БД-сервиса
 │   │   ├── KeychainService.swift           # Keychain (deviceId)
 │   │   ├── AnalyticsService.swift          # AppMetrica обёртка
 │   │   ├── PushPermissionService.swift
@@ -128,6 +134,7 @@ RedCalendar-Female/
 ### Внешние библиотеки (SPM)
 - **AppMetrica** (5.11.1) - аналитика и crash reporting
 - **PhoneNumberKit** (4.1.1) - валидация и форматирование номеров
+- **GRDB** (7.x) - локальная SQLite база данных
 
 ### Кастомные типы данных
 - **Daystamp** - типобезопасная альтернатива Int для работы с календарными датами. Reference date — 1 января 2001 года. Поддерживает арифметику, сравнения, конвертацию с `Date` через `Calendar`, `Codable`.
@@ -191,4 +198,4 @@ RedCalendar-Female/
 ---
 
 **Разработчик:** Артём Болотов  
-**Архитектура:** SwiftUI + Redux + Keychain
+**Архитектура:** SwiftUI + Redux + GRDB + Keychain

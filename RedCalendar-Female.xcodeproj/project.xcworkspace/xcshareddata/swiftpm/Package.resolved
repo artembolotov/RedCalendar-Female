@@ -1,5 +1,5 @@
 {
-  "originHash" : "36124714fcabb95fcb4ba2a0f072f258c175f8fb3d643f9cdee2481b590ec2dc",
+  "originHash" : "b4187eaa3973452c76a9909b9cff792dd22d8e90e6e046c5a0aa8c570e37b0d4",
   "pins" : [
     {
       "identity" : "appmetrica-sdk-ios",
@@ -8,6 +8,15 @@
       "state" : {
         "revision" : "4d34ce36bc1fb1fb3a251255aedde3b1dc52e188",
         "version" : "5.12.1"
+      }
+    },
+    {
+      "identity" : "grdb.swift",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/groue/GRDB.swift.git",
+      "state" : {
+        "revision" : "36e30a6f1ef10e4194f6af0cff90888526f0c115",
+        "version" : "7.10.0"
       }
     },
     {

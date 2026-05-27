@@ -14,6 +14,7 @@ final class Configurator {
     
     func setup() {
         registerAnalyticsService()
+        registerDatabaseService()
         registerKeychainService()
         registerAPIService()
         registerPushPermissionsService()
@@ -27,6 +28,15 @@ final class Configurator {
         analytics.registerApp()
     }
     
+    private func registerDatabaseService() {
+        do {
+            let dbService: DatabaseServiceProtocol = try DatabaseService()
+            ServiceLocator.shared.addService(service: dbService)
+        } catch {
+            fatalError("Failed to initialize DatabaseService: \(error)")
+        }
+    }
+
     private func registerKeychainService() {
         let keychain: KeychainServiceProtocol = KeychainService()
         ServiceLocator.shared.addService(service: keychain)
