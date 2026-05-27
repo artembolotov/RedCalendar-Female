@@ -5,6 +5,9 @@
 //  Created by Артём Болотов on 04.06.2025.
 //
 
+// MARK: - Database Middleware Instance
+let databaseMiddleware = DatabaseMiddleware()
+
 // MARK: - Create App Middleware
 func combineAppMiddlewares() -> [Middleware<AppState, AppAction>] {
     return [
@@ -13,6 +16,7 @@ func combineAppMiddlewares() -> [Middleware<AppState, AppAction>] {
         migrationMiddleware,
         pushNotificationMiddleware,
         analyticsMiddleware,
-        feedbackMiddleware
+        feedbackMiddleware,
+        databaseMiddleware.handle
     ]
 }

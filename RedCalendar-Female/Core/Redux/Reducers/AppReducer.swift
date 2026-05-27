@@ -30,9 +30,33 @@ func appReducer(state: AppState, action: AppAction) -> AppState {
 
     case .updateTodayDayStamp:
         state.calendarState.todayDayStamp = Daystamp.today(calendar: .current)
+        state.calendarState.dayDisplayStates = computeDayDisplayStates(state.calendarState, cycleSettings: state.currentUser?.settings?.cycle)
 
     case .setSelectedDayStamp(let dayStamp):
         state.calendarState.selectedDayStamp = dayStamp
+
+    case .setCycles(let cycles):
+        state.calendarState.cycles = cycles
+        state.calendarState.dayDisplayStates = computeDayDisplayStates(state.calendarState, cycleSettings: state.currentUser?.settings?.cycle)
+
+    case .setUserTags(let tags):
+        state.calendarState.userTags = tags
+        state.calendarState.dayDisplayStates = computeDayDisplayStates(state.calendarState, cycleSettings: state.currentUser?.settings?.cycle)
+
+    case .setVisibleComments(let comments):
+        state.calendarState.visibleComments = comments
+        state.calendarState.dayDisplayStates = computeDayDisplayStates(state.calendarState, cycleSettings: state.currentUser?.settings?.cycle)
+
+    case .setVisibleDayTags(let dayTags):
+        state.calendarState.visibleDayTags = dayTags
+        state.calendarState.dayDisplayStates = computeDayDisplayStates(state.calendarState, cycleSettings: state.currentUser?.settings?.cycle)
+
+    case .setLoadedRange(let range):
+        state.calendarState.loadedRange = range
+        state.calendarState.dayDisplayStates = computeDayDisplayStates(state.calendarState, cycleSettings: state.currentUser?.settings?.cycle)
+
+    case .calendarScrolledTo:
+        break
 
     case .checkAnalyticsStatus:
         break

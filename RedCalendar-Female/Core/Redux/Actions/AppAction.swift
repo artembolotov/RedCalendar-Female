@@ -14,6 +14,16 @@ enum AppAction {
     // Calendar actions
     case updateTodayDayStamp
     case setSelectedDayStamp(_ dayStamp: Daystamp?)
+
+    // Database → Store
+    case setCycles(_ cycles: [CycleRecord])
+    case setUserTags(_ tags: [UserTagRecord])
+    case setVisibleComments(_ comments: [Daystamp: CommentRecord])
+    case setVisibleDayTags(_ dayTags: [Daystamp: [String]])
+    case setLoadedRange(_ range: ClosedRange<Daystamp>)
+
+    // CalendarView → DatabaseMiddleware
+    case calendarScrolledTo(center: Daystamp)
     
     // Push notification actions
     case setAPNSToken(_ token: APNSToken)
