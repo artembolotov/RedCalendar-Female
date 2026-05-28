@@ -346,46 +346,110 @@ struct CalendarView: View {
         )
         
         let selectedDayStamp = store.state.calendarState.selectedDayStamp
-        
+        let dayDisplayStates = store.state.calendarState.dayDisplayStates
+        let horizontalPadding = CalendarConstants.horizontalPadding
+        let dayWidth = (width - horizontalPadding) / 7
+
         return ZStack(alignment: .topLeading) {
             ForEach(dynamicViewport.visibleMonths.indices, id: \.self) { monthIndex in
                 let month = dynamicViewport.visibleMonths[monthIndex]
-                
+
                 Text(calculator.getMonthName(for: month.monthOffset))
                     .font(.title3)
                     .fontWeight(.heavy)
                     .foregroundColor(.secondary)
                     .frame(width: width, height: 60)
                     .position(x: width / 2, y: month.yPosition + 30)
-                
+
+                // MARK: - Layer 1: Period rectangles
                 ForEach(month.visibleDays.indices, id: \.self) { dayIndex in
                     let day = month.visibleDays[dayIndex]
-                    let horizontalPadding = CalendarConstants.horizontalPadding
-                    
+                    let dayScreenY = day.yPosition + scrollOffset
+                    if dayScreenY > -dayVisibilityBuffer && dayScreenY < height + dayVisibilityBuffer {
+                        if let daystamp = day.daystamp,
+                           let displayState = dayDisplayStates[daystamp],
+                           case .period(let position, let isPredicted) = displayState.cyclePhase {
+
+                            let corners: UIRectCorner = {
+                                switch position {
+                                case .start:  return [.topLeft, .bottomLeft]
+                                case .end:    return [.topRight, .bottomRight]
+                                case .middle: return []
+                                case .single: return .allCorners
+                                }
+                            }()
+
+                            RoundedCorners(radius: 10, corners: corners)
+                                .fill(Color.red.opacity(isPredicted ? 0.35 : 1.0))
+                                .frame(width: dayWidth, height: 36)
+                                .position(
+                                    x: day.xPosition + dayWidth / 2,
+                                    y: day.yPosition + calculator.weekHeight / 2
+                                )
+                        }
+                    }
+                }
+
+                // MARK: - Layer 2: Fertile / Ovulation lines
+                ForEach(month.visibleDays.indices, id: \.self) { dayIndex in
+                    let day = month.visibleDays[dayIndex]
+                    let dayScreenY = day.yPosition + scrollOffset
+                    if dayScreenY > -dayVisibilityBuffer && dayScreenY < height + dayVisibilityBuffer {
+                        if let daystamp = day.daystamp,
+                           let displayState = dayDisplayStates[daystamp],
+                           let fertilePhase = displayState.fertilePhase {
+
+                            let lineColor: Color = {
+                                switch fertilePhase {
+                                case .fertile:       return Color(red: 0.55, green: 0.40, blue: 0.85)
+                                case .ovulation(_):  return Color(red: 1.0, green: 0.65, blue: 0.0)
+                                }
+                            }()
+
+                            let lineY = day.yPosition + calculator.weekHeight - 4
+
+                            Path { path in
+                                path.move(to: CGPoint(x: day.xPosition, y: lineY))
+                                path.addLine(to: CGPoint(x: day.xPosition + dayWidth, y: lineY))
+                            }
+                            .stroke(lineColor, style: StrokeStyle(lineWidth: 2, dash: [5, 4]))
+                        }
+                    }
+                }
+
+                // MARK: - Layer 3: Day cells
+                ForEach(month.visibleDays.indices, id: \.self) { dayIndex in
+                    let day = month.visibleDays[dayIndex]
+
                     let dayScreenY = day.yPosition + scrollOffset
                     if dayScreenY > -dayVisibilityBuffer && dayScreenY < height + dayVisibilityBuffer {
                         let today = calendar.startOfDay(for: currentDate)
                         let dayDate = day.date != nil ? calendar.startOfDay(for: day.date!) : nil
                         let isFutureDay = dayDate != nil && dayDate! > today
-                        
-                        // Check if current day is selected
+
                         let isSelected: Bool = {
-                            guard let date = day.date, let selected = selectedDayStamp else {
+                            guard let selected = selectedDayStamp, let daystamp = day.daystamp else {
                                 return false
                             }
-                            let currentDayStamp = Daystamp(from: date, calendar: calendar)
-                            return currentDayStamp.rawValue == selected.rawValue
+                            return daystamp == selected
                         }()
-                        
+
+                        let displayState = day.daystamp.flatMap { dayDisplayStates[$0] }
+
+                        let isInPeriod: Bool = {
+                            guard let ds = displayState, case .period = ds.cyclePhase else { return false }
+                            return true
+                        }()
+
                         ZStack {
-                            // Today indicator - red filled circle
+                            // Today indicator
                             if day.isToday {
                                 Circle()
                                     .fill(Color.red)
                                     .frame(width: 32, height: 32)
                             }
-                            
-                            // Selected indicator - blue stroke circle
+
+                            // Selected indicator
                             if isSelected {
                                 Circle()
                                     .stroke(Color.blue, lineWidth: 2)
@@ -394,19 +458,50 @@ struct CalendarView: View {
                                         height: day.isToday ? 38 : 32
                                     )
                             }
-                            
-                            // Day number text
+
+                            // Day number
                             Text(day.dayNumber)
                                 .font(.system(size: 16, weight: day.isToday ? .bold : .medium))
                                 .foregroundColor(
                                     day.isToday ? .white :
                                     isSelected ? .blue :
+                                    isInPeriod ? .white :
                                     isFutureDay ? Color(UIColor.tertiaryLabel) :
                                     .primary
                                 )
+
+                            // Tag dots + comment dot
+                            if let ds = displayState,
+                               (!ds.tagCategories.isEmpty || ds.hasComment) {
+                                let dotSize: CGFloat = 6
+                                let dotSpacing: CGFloat = 3
+
+                                let tagColors: [Color] = ds.tagCategories.sorted().map { category in
+                                    switch category {
+                                    case 0: return .blue
+                                    case 1: return .green
+                                    case 2: return Color(red: 0.20, green: 0.73, blue: 0.68)
+                                    case 3: return .purple
+                                    default: return .gray
+                                    }
+                                }
+
+                                let allDots: [Color] = ds.hasComment
+                                    ? tagColors + [Color(UIColor.tertiaryLabel)]
+                                    : tagColors
+
+                                HStack(spacing: dotSpacing) {
+                                    ForEach(allDots.indices, id: \.self) { i in
+                                        Circle()
+                                            .fill(allDots[i])
+                                            .frame(width: dotSize, height: dotSize)
+                                    }
+                                }
+                                .offset(y: 14)
+                            }
                         }
                         .position(
-                            x: day.xPosition + (width - horizontalPadding) / 14,
+                            x: day.xPosition + dayWidth / 2,
                             y: day.yPosition + calculator.weekHeight / 2
                         )
                     }

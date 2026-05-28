@@ -24,4 +24,5 @@ struct VisibleDay {
     let xPosition: CGFloat
     let yPosition: CGFloat
     let dayNumber: String
+    let daystamp: Daystamp?
 }

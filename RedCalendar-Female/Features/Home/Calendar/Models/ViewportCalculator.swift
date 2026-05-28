@@ -127,15 +127,17 @@ class ViewportCalculator {
                 if cellIndex < monthDays.count, let date = monthDays[cellIndex] {
                     let dayX = 12 + CGFloat(dayIndex) * dayWidth
                     let dayNumber = String(calendar.component(.day, from: date))
-                    
+
                     let isToday = calendar.isDate(date, inSameDayAs: todayStartOfDay)
-                    
+                    let daystamp = Daystamp(from: date, calendar: calendar)
+
                     let visibleDay = VisibleDay(
                         date: date,
                         isToday: isToday,
                         xPosition: dayX,
                         yPosition: weekY,
-                        dayNumber: dayNumber
+                        dayNumber: dayNumber,
+                        daystamp: daystamp
                     )
                     visibleDays.append(visibleDay)
                 }
