@@ -45,11 +45,44 @@ struct DayDetailsView: View {
         }
     }
 
-    private func formattedDate(date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .full
-        formatter.locale = Locale.current
-        return formatter.string(from: date)
+    // MARK: - Day Data
+
+    private var displayState: DayDisplayState? {
+        store.state.calendarState.dayDisplayStates[dayStamp]
+    }
+
+    private var comment: String? {
+        store.state.calendarState.visibleComments[dayStamp]?.comment
+    }
+
+    private var resolvedTags: [UserTagRecord] {
+        let tagIds = store.state.calendarState.visibleDayTags[dayStamp] ?? []
+        let userTags = store.state.calendarState.userTags
+        return tagIds.compactMap { id in
+            userTags.first(where: { $0.id == id && $0.name != nil })
+        }
+    }
+
+    private var flowLevel: Int? {
+        let cycles = store.state.calendarState.cycles
+        guard let cycle = cycles.filter({ $0.startDay <= dayStamp.rawValue })
+                                .max(by: { $0.startDay < $1.startDay }) else { return nil }
+        return cycle.flowLevels[String(dayStamp.rawValue)]
+    }
+
+    private var isPeriodDay: Bool {
+        if case .period = displayState?.cyclePhase { return true }
+        return false
+    }
+
+    private var hasAnyContent: Bool {
+        if let displayState {
+            if case .period = displayState.cyclePhase { return true }
+            if displayState.fertilePhase != nil { return true }
+        }
+        if !resolvedTags.isEmpty { return true }
+        if comment != nil { return true }
+        return false
     }
 
     var body: some View {
@@ -58,9 +91,9 @@ struct DayDetailsView: View {
                 Text(titleText)
                     .font(.title)
                     .fontWeight(.bold)
-                
+
                 Spacer()
-                
+
                 Button(action: {
                     dismissView()
                 }) {
@@ -69,21 +102,11 @@ struct DayDetailsView: View {
                         .foregroundColor(.secondary)
                 }
             }
-            
+
             Divider()
-            
-            VStack(spacing: 12) {
-                Text(formattedDate(date: dayStamp.toDate(calendar: Calendar.current)))
-                    .font(.headline)
-                    .multilineTextAlignment(.center)
-                
-                Text("Daystamp: \(dayStamp.rawValue)")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                
-                Text(dayStamp.description)
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
+
+            ScrollView {
+                detailsContent
             }
             .frame(height: 250)
         }
@@ -186,6 +209,122 @@ struct DayDetailsView: View {
     
     private func dismissView() {
         store.send(.setSelectedDayStamp(nil))
+    }
+
+    // MARK: - Details Content
+
+    @ViewBuilder
+    private var detailsContent: some View {
+        if hasAnyContent {
+            VStack(alignment: .leading, spacing: 16) {
+                cyclePhaseRow
+                flowLevelRow
+                tagsRow
+                commentRow
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.top, 4)
+        } else {
+            Text("Нет записей")
+                .foregroundColor(.secondary)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.top, 20)
+        }
+    }
+
+    @ViewBuilder
+    private var cyclePhaseRow: some View {
+        if let displayState {
+            if case let .period(_, isPredicted) = displayState.cyclePhase {
+                HStack(spacing: 12) {
+                    Image(systemName: "drop.fill")
+                        .foregroundColor(.red)
+                        .frame(width: 20)
+                    Text(isPredicted ? "Менструация (прогноз)" : "Менструация")
+                        .font(.body)
+                }
+            } else if case let .ovulation(confirmed) = displayState.fertilePhase {
+                HStack(spacing: 12) {
+                    Image(systemName: "circle.fill")
+                        .foregroundColor(Color(red: 1.0, green: 0.65, blue: 0.0))
+                        .frame(width: 20)
+                    Text(confirmed ? "Овуляция (подтверждена)" : "Овуляция (прогноз)")
+                        .font(.body)
+                }
+            } else if case .fertile = displayState.fertilePhase {
+                HStack(spacing: 12) {
+                    Image(systemName: "leaf.fill")
+                        .foregroundColor(Color(red: 0.55, green: 0.40, blue: 0.85))
+                        .frame(width: 20)
+                    Text("Фертильное окно")
+                        .font(.body)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var flowLevelRow: some View {
+        if isPeriodDay, let level = flowLevel {
+            HStack(spacing: 12) {
+                Image(systemName: "drop.halffull")
+                    .foregroundColor(.secondary)
+                    .frame(width: 20)
+                Text(flowLevelText(level))
+                    .font(.body)
+                    .foregroundColor(.secondary)
+            }
+        }
+    }
+
+    private func flowLevelText(_ level: Int) -> String {
+        switch level {
+        case 1: return "Светлые выделения"
+        case 2: return "Умеренные выделения"
+        case 3: return "Обильные выделения"
+        default: return ""
+        }
+    }
+
+    @ViewBuilder
+    private var tagsRow: some View {
+        if !resolvedTags.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(resolvedTags, id: \.id) { tag in
+                    HStack(spacing: 10) {
+                        Circle()
+                            .fill(tagColor(for: tag.category))
+                            .frame(width: 10, height: 10)
+                        Text(tag.name ?? "")
+                            .font(.body)
+                    }
+                }
+            }
+        }
+    }
+
+    private func tagColor(for category: Int?) -> Color {
+        switch category {
+        case 0: return .blue
+        case 1: return .green
+        case 2: return Color(red: 0.20, green: 0.73, blue: 0.68)
+        case 3: return .purple
+        default: return .gray
+        }
+    }
+
+    @ViewBuilder
+    private var commentRow: some View {
+        if let comment {
+            HStack(alignment: .top, spacing: 12) {
+                Image(systemName: "text.bubble")
+                    .foregroundColor(.secondary)
+                    .frame(width: 20)
+                Text(comment)
+                    .font(.body)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
     }
 }
 
