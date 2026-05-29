@@ -126,6 +126,16 @@ final class DatabaseService: DatabaseServiceProtocol {
         }
     }
 
+    // MARK: - Delete
+
+    func deleteCycle(startDay: Int) throws {
+        _ = try dbQueue.write { db in
+            try CycleRecord
+                .filter(CycleRecord.Columns.startDay == startDay)
+                .deleteAll(db)
+        }
+    }
+
     // MARK: - Sync
 
     func lastSyncTimestamp() throws -> Int? {

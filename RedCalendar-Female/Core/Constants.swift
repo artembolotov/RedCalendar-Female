@@ -13,4 +13,11 @@ struct Constants {
             Bundle.main.object(forInfoDictionaryKey: "API_BASE_URL") as! String
         }
     }
+
+    struct Cycle {
+        static let minCycleLength = 20
+        static let maxCycleLength = 90
+        static let minPeriodLength = 1
+        static let maxPeriodLength = 14
+    }
 }

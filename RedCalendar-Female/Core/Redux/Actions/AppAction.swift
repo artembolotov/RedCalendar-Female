@@ -24,6 +24,14 @@ enum AppAction {
 
     // CalendarView → DatabaseMiddleware
     case calendarScrolledTo(center: Daystamp)
+
+    // Day editing
+    case markPeriodStart(_ dayStamp: Daystamp)
+    case markPeriodEnd(_ dayStamp: Daystamp)
+    case unmarkPeriodEnd(_ dayStamp: Daystamp)
+    case setFlowLevel(_ dayStamp: Daystamp, _ level: Int?)
+    case saveComment(_ dayStamp: Daystamp, _ text: String)
+    case setDayTags(_ dayStamp: Daystamp, _ tagIds: [String])
     
     // Push notification actions
     case setAPNSToken(_ token: APNSToken)

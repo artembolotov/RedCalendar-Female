@@ -3,24 +3,27 @@ import SwiftUI
 struct DayDetailsView: View {
     @EnvironmentObject var store: AppStore
     @Environment(\.colorScheme) var colorScheme
-    
+
     let dayStamp: Daystamp
-    
+
     @Binding var dragOffset: CGFloat
     @Binding var height: CGFloat
-    
+
     @State private var viewFrame: CGRect = .zero
-    
+    @State private var showFlowPicker = false
+    @State private var showTagsSheet = false
+    @State private var showCommentSheet = false
+
     private var isCurrentlySelected: Bool {
         store.state.calendarState.selectedDayStamp?.rawValue == dayStamp.rawValue
     }
-    
+
     private let velocityThreshold: CGFloat = 1200
     private let rubberBandFactor: CGFloat = 0.3
     private let bottomThreshold: CGFloat = 250
     private let maxUpwardOffset: CGFloat = 150
     private let globalBottomOffset: CGFloat = 25
-    
+
     private var titleText: String {
         let today = store.state.calendarState.todayDayStamp
         let diff = dayStamp.rawValue - today.rawValue
@@ -63,52 +66,149 @@ struct DayDetailsView: View {
         }
     }
 
-    private var flowLevel: Int? {
+    private var currentFlowLevel: Int? {
         let cycles = store.state.calendarState.cycles
         guard let cycle = cycles.filter({ $0.startDay <= dayStamp.rawValue })
                                 .max(by: { $0.startDay < $1.startDay }) else { return nil }
         return cycle.flowLevels[String(dayStamp.rawValue)]
     }
 
-    private var isPeriodDay: Bool {
-        if case .period = displayState?.cyclePhase { return true }
-        return false
+    private var flowLevelLabel: String {
+        switch currentFlowLevel {
+        case 1: return "Скудные"
+        case 2: return "Умеренные"
+        case 3: return "Обильные"
+        default: return "Не указано"
+        }
     }
 
-    private var hasAnyContent: Bool {
-        if let displayState {
-            if case .period = displayState.cyclePhase { return true }
-            if displayState.fertilePhase != nil { return true }
+    private let flowLevelOptions: [(Int?, String)] = [
+        (1, "Скудные"),
+        (2, "Умеренные"),
+        (3, "Обильные"),
+        (nil, "Не указано")
+    ]
+
+    // MARK: - Cycle subtitle
+
+    private var cycleSubtitleText: String {
+        let cycles = store.state.calendarState.cycles
+        guard let cycle = cycles.filter({ $0.startDay <= dayStamp.rawValue })
+                                .max(by: { $0.startDay < $1.startDay }) else { return "" }
+        let cycleDay = dayStamp.rawValue - cycle.startDay + 1
+
+        // Beyond max cycle length the user most likely forgot to log a new cycle —
+        // hide the day count rather than show unrealistic values.
+        guard cycleDay <= Constants.Cycle.maxCycleLength else { return "" }
+
+        // Once we've stepped past the first cycle from the last confirmed start, show
+        // both the running day count and the day within the current predicted cycle.
+        if let predictedStart = predictedCycleStart {
+            let predictedDay = dayStamp.rawValue - predictedStart + 1
+            return "\(cycleDay) (\(predictedDay)) день цикла"
         }
-        if !resolvedTags.isEmpty { return true }
-        if comment != nil { return true }
-        return false
+        return "\(cycleDay) день цикла"
     }
+
+    // Start of the predicted (extrapolated) cycle the day belongs to, or nil if the day
+    // is still within the first cycle following the last confirmed start.
+    private var predictedCycleStart: Int? {
+        let cycles = store.state.calendarState.cycles
+        let sorted = cycles.sorted { $0.startDay < $1.startDay }
+        let defaultLength = store.state.currentUser?.settings?.cycle?.defaultLength ?? 28
+
+        guard let lastReal = sorted.last(where: { $0.startDay <= dayStamp.rawValue }) else {
+            return nil
+        }
+        if dayStamp.rawValue < lastReal.startDay + defaultLength {
+            return nil
+        }
+
+        var predicted = lastReal.startDay + defaultLength
+        while predicted + defaultLength <= dayStamp.rawValue {
+            predicted += defaultLength
+        }
+        return predicted
+    }
+
+    // MARK: - Period button state
+
+    private enum PeriodButtonState {
+        case startOutline
+        case startFilled
+        case endOutline
+        case endFilled
+    }
+
+    private var periodButtonState: PeriodButtonState {
+        let cycles = store.state.calendarState.cycles
+
+        if cycles.contains(where: { $0.startDay == dayStamp.rawValue }) {
+            return .startFilled
+        }
+
+        if cycles.filter({ $0.startDay < dayStamp.rawValue && ($0.periodLength ?? -1) == 0 })
+                 .max(by: { $0.startDay < $1.startDay }) != nil {
+            return .endOutline
+        }
+
+        if let cycle = cycles.filter({ c in
+            guard let pl = c.periodLength, pl > 0 else { return false }
+            return c.startDay <= dayStamp.rawValue && dayStamp.rawValue <= c.startDay + pl - 1
+        }).max(by: { $0.startDay < $1.startDay }) {
+            let lastDay = cycle.startDay + (cycle.periodLength ?? 0) - 1
+            return dayStamp.rawValue == lastDay ? .endFilled : .endOutline
+        }
+
+        return .startOutline
+    }
+
+    // Hides the button when there's no meaningful action (middle of a completed period,
+    // or when the tap would violate cycle/period limits enforced by middleware).
+    private var isPeriodActionValid: Bool {
+        let cycles = store.state.calendarState.cycles
+        switch periodButtonState {
+        case .startFilled, .endFilled:
+            return true
+        case .startOutline:
+            let minGap = Constants.Cycle.minCycleLength
+            return !cycles.contains { abs($0.startDay - dayStamp.rawValue) < minGap }
+        case .endOutline:
+            // Inside a completed period (not the last day) — period is already closed, hide.
+            let insideCompleted = cycles.contains { c in
+                guard let pl = c.periodLength, pl > 0 else { return false }
+                return c.startDay < dayStamp.rawValue && dayStamp.rawValue < c.startDay + pl - 1
+            }
+            if insideCompleted { return false }
+            // Ongoing period — enforce max length.
+            guard let cycle = cycles.filter({ $0.startDay <= dayStamp.rawValue && ($0.periodLength ?? -1) == 0 })
+                                    .max(by: { $0.startDay < $1.startDay }) else { return true }
+            return dayStamp.rawValue - cycle.startDay + 1 <= Constants.Cycle.maxPeriodLength
+        }
+    }
+
+    // MARK: - Body
 
     var body: some View {
-        VStack(spacing: 20) {
-            HStack {
-                Text(titleText)
-                    .font(.title)
-                    .fontWeight(.bold)
-
-                Spacer()
-
-                Button(action: {
-                    dismissView()
-                }) {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.title2)
-                        .foregroundColor(.secondary)
-                }
+        VStack(alignment: .leading, spacing: 0) {
+            header
+            if isPeriodActionValid {
+                periodButtonRow
+                    .padding(.top, 12)
             }
-
-            Divider()
 
             ScrollView {
-                detailsContent
+                VStack(alignment: .leading, spacing: 0) {
+                    if case .period = displayState?.cyclePhase {
+                        periodSection
+                            .padding(.top, 16)
+                    }
+                    notesSection
+                        .padding(.top, 16)
+                }
             }
-            .frame(height: 250)
+            .frame(maxHeight: 320)
+            .padding(.top, 4)
         }
         .padding()
         .padding(.bottom, globalBottomOffset - dragOffset)
@@ -139,8 +239,204 @@ struct DayDetailsView: View {
                }
            )
         )
+        .sheet(isPresented: $showTagsSheet) {
+            TagsSheetView(dayStamp: dayStamp, isPresented: $showTagsSheet)
+                .environmentObject(store)
+        }
+        .sheet(isPresented: $showCommentSheet) {
+            CommentSheetView(dayStamp: dayStamp, isPresented: $showCommentSheet)
+                .environmentObject(store)
+        }
     }
-    
+
+    // MARK: - Header
+
+    private var header: some View {
+        HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(titleText)
+                    .font(.title)
+                    .fontWeight(.bold)
+                if !cycleSubtitleText.isEmpty {
+                    Text(cycleSubtitleText)
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+            }
+
+            Spacer()
+
+            Button(action: {
+                dismissView()
+            }) {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.title2)
+                    .foregroundColor(.secondary)
+            }
+        }
+    }
+
+    // MARK: - Period button
+
+    private var periodButtonRow: some View {
+        let state = periodButtonState
+        let isStart = state == .startOutline || state == .startFilled
+        let isFilled = state == .startFilled || state == .endFilled
+        let title = isStart ? "Начало месячных" : "Конец месячных"
+
+        return Button(action: handlePeriodButton) {
+            Text(title)
+                .font(.subheadline)
+                .fontWeight(.medium)
+                .foregroundColor(isFilled ? .white : .red)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(isFilled ? Color.red : Color.clear)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color.red, lineWidth: 1.5)
+                )
+        }
+    }
+
+    private func handlePeriodButton() {
+        switch periodButtonState {
+        case .startOutline, .startFilled:
+            store.send(.markPeriodStart(dayStamp))
+        case .endOutline:
+            store.send(.markPeriodEnd(dayStamp))
+        case .endFilled:
+            store.send(.unmarkPeriodEnd(dayStamp))
+        }
+    }
+
+    // MARK: - Sections
+
+    private func sectionHeader(_ title: String) -> some View {
+        VStack(spacing: 0) {
+            Text(title)
+                .font(.headline)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.bottom, 8)
+            Divider()
+        }
+    }
+
+    private var periodSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            sectionHeader("Менструация")
+            flowLevelRow
+        }
+    }
+
+    private var flowLevelRow: some View {
+        VStack(spacing: 0) {
+            Button(action: {
+                withAnimation(.easeInOut(duration: 0.15)) {
+                    showFlowPicker.toggle()
+                }
+            }) {
+                HStack {
+                    Text("Обильность")
+                        .foregroundColor(.primary)
+                    Spacer()
+                    Text(flowLevelLabel)
+                        .foregroundColor(.red)
+                }
+                .padding(.vertical, 12)
+            }
+
+            if showFlowPicker {
+                VStack(spacing: 0) {
+                    ForEach(flowLevelOptions, id: \.1) { level, label in
+                        Button(action: {
+                            store.send(.setFlowLevel(dayStamp, level))
+                            withAnimation(.easeInOut(duration: 0.15)) {
+                                showFlowPicker = false
+                            }
+                        }) {
+                            HStack {
+                                Text(label)
+                                    .foregroundColor(.primary)
+                                Spacer()
+                                if currentFlowLevel == level {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundColor(.red)
+                                } else {
+                                    Circle()
+                                        .stroke(Color.secondary, lineWidth: 1.5)
+                                        .frame(width: 22, height: 22)
+                                }
+                            }
+                            .padding(.vertical, 12)
+                            .padding(.leading, 16)
+                        }
+                    }
+                }
+                .transition(.opacity)
+            }
+        }
+    }
+
+    private var notesSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            sectionHeader("Заметки")
+
+            Button(action: { showTagsSheet = true }) {
+                tagsRowContent
+            }
+
+            Divider()
+
+            Button(action: { showCommentSheet = true }) {
+                commentRowContent
+            }
+        }
+    }
+
+    private var tagsRowContent: some View {
+        Group {
+            if resolvedTags.isEmpty {
+                Text("Теги")
+                    .foregroundColor(Color(UIColor.tertiaryLabel))
+            } else {
+                FlowLayout(data: resolvedTags, id: \.id, spacing: 6, rowSpacing: 6) { tag in
+                    Text(tag.name ?? "")
+                        .font(.caption)
+                        .foregroundColor(Color.tagColor(for: tag.category))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 6)
+                                .stroke(Color.tagColor(for: tag.category), lineWidth: 1)
+                        )
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, 12)
+    }
+
+    private var commentRowContent: some View {
+        Group {
+            if let comment = comment, !comment.isEmpty {
+                Text(comment)
+                    .foregroundColor(.primary)
+                    .multilineTextAlignment(.leading)
+            } else {
+                Text("Комментарий")
+                    .foregroundColor(Color(UIColor.tertiaryLabel))
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, 12)
+    }
+
+    // MARK: - Gesture & frame
+
     private func updateViewFrame(_ globalFrame: CGRect) {
         let fixedFrame = CGRect(
             x: globalFrame.minX,
@@ -148,11 +444,11 @@ struct DayDetailsView: View {
             width: globalFrame.width,
             height: globalFrame.height - globalBottomOffset
         )
-        
+
         viewFrame = fixedFrame
         height = fixedFrame.height
     }
-    
+
     private func handlePanGesture(translation: CGFloat, velocity: CGFloat, state: PanGestureState) {
         switch state {
         case .began:
@@ -167,23 +463,23 @@ struct DayDetailsView: View {
             }
         }
     }
-    
+
     private func handleDragChanged(translation: CGFloat) {
         if translation < 0 {
             let absTranslation = abs(translation)
             let initialVisualThreshold = maxUpwardOffset / 3
             let initialTranslationThreshold = initialVisualThreshold / rubberBandFactor
-            
+
             if absTranslation <= initialTranslationThreshold {
                 dragOffset = translation * rubberBandFactor
             } else {
                 let baseOffset = initialVisualThreshold
                 let excessTranslation = absTranslation - initialTranslationThreshold
-                
+
                 let remainingDistance = maxUpwardOffset - initialVisualThreshold
                 let resistanceFactor = 1.0 / (1.0 + excessTranslation / (remainingDistance * 2.0))
                 let excessOffset = excessTranslation * rubberBandFactor * resistanceFactor
-                
+
                 let totalOffset = baseOffset + excessOffset
                 dragOffset = -min(totalOffset, maxUpwardOffset)
             }
@@ -191,13 +487,13 @@ struct DayDetailsView: View {
             dragOffset = translation
         }
     }
-    
+
     private func handleDragEnded(velocity: CGFloat) {
         guard viewFrame.height > 0 else {
             withAnimation(.bouncy) { dragOffset = 0 }
             return
         }
-        
+
         if (viewFrame.height < bottomThreshold) && velocity >= -150  || velocity > velocityThreshold {
             dismissView()
         } else {
@@ -206,125 +502,9 @@ struct DayDetailsView: View {
             }
         }
     }
-    
+
     private func dismissView() {
         store.send(.setSelectedDayStamp(nil))
-    }
-
-    // MARK: - Details Content
-
-    @ViewBuilder
-    private var detailsContent: some View {
-        if hasAnyContent {
-            VStack(alignment: .leading, spacing: 16) {
-                cyclePhaseRow
-                flowLevelRow
-                tagsRow
-                commentRow
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.top, 4)
-        } else {
-            Text("Нет записей")
-                .foregroundColor(.secondary)
-                .frame(maxWidth: .infinity, alignment: .center)
-                .padding(.top, 20)
-        }
-    }
-
-    @ViewBuilder
-    private var cyclePhaseRow: some View {
-        if let displayState {
-            if case let .period(_, isPredicted) = displayState.cyclePhase {
-                HStack(spacing: 12) {
-                    Image(systemName: "drop.fill")
-                        .foregroundColor(.red)
-                        .frame(width: 20)
-                    Text(isPredicted ? "Менструация (прогноз)" : "Менструация")
-                        .font(.body)
-                }
-            } else if case let .ovulation(confirmed) = displayState.fertilePhase {
-                HStack(spacing: 12) {
-                    Image(systemName: "circle.fill")
-                        .foregroundColor(Color(red: 1.0, green: 0.65, blue: 0.0))
-                        .frame(width: 20)
-                    Text(confirmed ? "Овуляция (подтверждена)" : "Овуляция (прогноз)")
-                        .font(.body)
-                }
-            } else if case .fertile = displayState.fertilePhase {
-                HStack(spacing: 12) {
-                    Image(systemName: "leaf.fill")
-                        .foregroundColor(Color(red: 0.55, green: 0.40, blue: 0.85))
-                        .frame(width: 20)
-                    Text("Фертильное окно")
-                        .font(.body)
-                }
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var flowLevelRow: some View {
-        if isPeriodDay, let level = flowLevel {
-            HStack(spacing: 12) {
-                Image(systemName: "drop.halffull")
-                    .foregroundColor(.secondary)
-                    .frame(width: 20)
-                Text(flowLevelText(level))
-                    .font(.body)
-                    .foregroundColor(.secondary)
-            }
-        }
-    }
-
-    private func flowLevelText(_ level: Int) -> String {
-        switch level {
-        case 1: return "Светлые выделения"
-        case 2: return "Умеренные выделения"
-        case 3: return "Обильные выделения"
-        default: return ""
-        }
-    }
-
-    @ViewBuilder
-    private var tagsRow: some View {
-        if !resolvedTags.isEmpty {
-            VStack(alignment: .leading, spacing: 8) {
-                ForEach(resolvedTags, id: \.id) { tag in
-                    HStack(spacing: 10) {
-                        Circle()
-                            .fill(tagColor(for: tag.category))
-                            .frame(width: 10, height: 10)
-                        Text(tag.name ?? "")
-                            .font(.body)
-                    }
-                }
-            }
-        }
-    }
-
-    private func tagColor(for category: Int?) -> Color {
-        switch category {
-        case 0: return .blue
-        case 1: return .green
-        case 2: return Color(red: 0.20, green: 0.73, blue: 0.68)
-        case 3: return .purple
-        default: return .gray
-        }
-    }
-
-    @ViewBuilder
-    private var commentRow: some View {
-        if let comment {
-            HStack(alignment: .top, spacing: 12) {
-                Image(systemName: "text.bubble")
-                    .foregroundColor(.secondary)
-                    .frame(width: 20)
-                Text(comment)
-                    .font(.body)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
     }
 }
 
@@ -335,48 +515,48 @@ enum PanGestureState {
 struct WindowGestureHandler: UIViewRepresentable {
     let gestureFrame: CGRect
     let onGestureChange: (CGFloat, CGFloat, PanGestureState) -> Void
-    
+
     func makeUIView(context: Context) -> UIView {
         let view = UIView()
         view.backgroundColor = .clear
         view.isUserInteractionEnabled = false
-        
+
         setupGestureIfPossible(view: view, context: context)
-        
+
         return view
     }
-    
+
     func updateUIView(_ uiView: UIView, context: Context) {
         context.coordinator.onGestureChange = onGestureChange
         context.coordinator.gestureFrame = gestureFrame
-        
+
         if context.coordinator.gesture == nil {
             setupGestureIfPossible(view: uiView, context: context)
         }
     }
-    
+
     static func dismantleUIView(_ uiView: UIView, coordinator: Coordinator) {
         coordinator.cleanUp()
     }
-    
+
     func makeCoordinator() -> Coordinator {
         Coordinator(gestureFrame: gestureFrame)
     }
-    
+
     private func findWindow(from view: UIView) -> UIWindow? {
         return view.window ?? UIApplication.shared.connectedScenes
             .compactMap { $0 as? UIWindowScene }
             .first(where: { $0.activationState == .foregroundActive })?
             .windows.first(where: { $0.isKeyWindow })
     }
-    
+
     private func setupGestureIfPossible(view: UIView, context: Context) {
         guard let targetWindow = findWindow(from: view) else { return }
-        
+
         if let existingGesture = context.coordinator.gesture {
             existingGesture.view?.removeGestureRecognizer(existingGesture)
         }
-        
+
         let panGesture = UIPanGestureRecognizer(
             target: context.coordinator,
             action: #selector(Coordinator.handlePan(_:))
@@ -388,29 +568,29 @@ struct WindowGestureHandler: UIViewRepresentable {
         panGesture.delaysTouchesBegan = false
         panGesture.delaysTouchesEnded = false
         panGesture.name = "DayDetailsSwipeToDismiss"
-        
+
         targetWindow.addGestureRecognizer(panGesture)
         context.coordinator.gesture = panGesture
         context.coordinator.onGestureChange = onGestureChange
         context.coordinator.gestureFrame = gestureFrame
     }
-    
+
     class Coordinator: NSObject, UIGestureRecognizerDelegate {
         var onGestureChange: ((CGFloat, CGFloat, PanGestureState) -> Void)?
         var gestureFrame: CGRect
         weak var gesture: UIPanGestureRecognizer?
-        
+
         private enum GestureDirection {
             case undecided, vertical, horizontal
         }
-        
+
         private var gestureDirection: GestureDirection = .undecided
         private let gestureDetectionThreshold: CGFloat = 5
-        
+
         init(gestureFrame: CGRect) {
             self.gestureFrame = gestureFrame
         }
-        
+
         func cleanUp() {
             if let gesture = gesture, let view = gesture.view {
                 view.removeGestureRecognizer(gesture)
@@ -418,16 +598,16 @@ struct WindowGestureHandler: UIViewRepresentable {
             gesture = nil
             onGestureChange = nil
         }
-        
+
         @objc func handlePan(_ gesture: UIPanGestureRecognizer) {
             let translation = gesture.translation(in: gesture.view).y
             let velocity = gesture.velocity(in: gesture.view).y
-            
+
             switch gesture.state {
             case .began:
                 gestureDirection = .undecided
                 onGestureChange?(0, 0, .began)
-                
+
             case .changed:
                 if gestureDirection == .undecided {
                     let translation2D = gesture.translation(in: gesture.view)
@@ -435,35 +615,35 @@ struct WindowGestureHandler: UIViewRepresentable {
                         gestureDirection = abs(translation2D.y) >= abs(translation2D.x) ? .vertical : .horizontal
                     }
                 }
-                
+
                 if gestureDirection != .horizontal {
                     onGestureChange?(translation, velocity, .changed)
                 }
-                
+
             case .ended:
                 if gestureDirection != .horizontal {
                     onGestureChange?(translation, velocity, .ended)
                 }
                 gestureDirection = .undecided
-                
+
             case .cancelled, .failed:
                 onGestureChange?(translation, velocity, .cancelled)
                 gestureDirection = .undecided
-                
+
             default:
                 break
             }
         }
-        
+
         func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
             return true
         }
-        
+
         func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer,
                               shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
             return false
         }
-        
+
         func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer,
                               shouldBeRequiredToFailBy otherGestureRecognizer: UIGestureRecognizer) -> Bool {
             return false
@@ -475,7 +655,7 @@ struct WindowGestureHandler: UIViewRepresentable {
     ZStack {
         Color.gray.opacity(0.3)
             .ignoresSafeArea()
-        
+
         DayDetailsView(
             dayStamp: 2000,
             dragOffset: .constant(0),

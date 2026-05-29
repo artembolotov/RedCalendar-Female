@@ -68,10 +68,13 @@ func computeDayDisplayStates(
 
         // Effective period length
         let effectivePeriodLength: Int
+        let isOngoing: Bool
         if let pl = cycle.periodLength, pl > 0 {
             effectivePeriodLength = pl
+            isOngoing = false
         } else {
             effectivePeriodLength = defaultPeriodLength
+            isOngoing = true
         }
 
         let periodEnd = cycle.startDay + effectivePeriodLength - 1
@@ -79,7 +82,19 @@ func computeDayDisplayStates(
         // CyclePhase
         let cyclePhase: CyclePhase
         if dayRaw >= cycle.startDay && dayRaw <= periodEnd {
-            let isPredicted = dayRaw >= todayRaw
+            // Synthesized predicted cycles always render as predictions, even if their
+            // days are now in the past. For real ongoing periods only the start is
+            // confirmed; for real completed periods, past days are real and future days
+            // remain predictions.
+            let isCyclePredicted = cycle.startDay > lastStartDay
+            let isPredicted: Bool
+            if isCyclePredicted {
+                isPredicted = true
+            } else if isOngoing {
+                isPredicted = dayRaw != cycle.startDay
+            } else {
+                isPredicted = dayRaw >= todayRaw
+            }
             let position: PeriodPosition
             if effectivePeriodLength == 1 {
                 position = .single
@@ -95,18 +110,32 @@ func computeDayDisplayStates(
             cyclePhase = .none
         }
 
-        // FertilePhase
-        let fertilePhase: FertilePhase?
-        if let ovDay = cycle.ovulation?.day {
-            let fertileStart = ovDay - 3
-            let fertileEnd = ovDay + 1
-            if dayRaw == ovDay {
-                fertilePhase = .ovulation(confirmed: cycle.ovulation?.confirmed ?? false)
-            } else if dayRaw >= fertileStart && dayRaw <= fertileEnd {
-                fertilePhase = .fertile
+        // FertilePhase — derive predicted ovulation when the cycle has no explicit data
+        // so that user-created (real) cycles also show a fertile window / ovulation.
+        // If a confirmed next cycle exists, anchor ovulation off its start (luteal phase
+        // before it) so the previous cycle's prediction reflects actual cycle length.
+        let ovDay: Int
+        let ovConfirmed: Bool
+        if let ov = cycle.ovulation {
+            ovDay = ov.day
+            ovConfirmed = ov.confirmed
+        } else {
+            let nextRealStart = sortedCycles.first { $0.startDay > cycle.startDay }?.startDay
+            if let nextStart = nextRealStart {
+                ovDay = nextStart - lutealPhaseLength
             } else {
-                fertilePhase = nil
+                ovDay = cycle.startDay + (defaultLength - lutealPhaseLength)
             }
+            ovConfirmed = false
+        }
+
+        let fertileStart = ovDay - 3
+        let fertileEnd = ovDay + 1
+        let fertilePhase: FertilePhase?
+        if dayRaw == ovDay {
+            fertilePhase = .ovulation(confirmed: ovConfirmed)
+        } else if dayRaw >= fertileStart && dayRaw <= fertileEnd {
+            fertilePhase = .fertile
         } else {
             fertilePhase = nil
         }

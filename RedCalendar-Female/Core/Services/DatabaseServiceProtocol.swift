@@ -14,6 +14,9 @@ protocol DatabaseServiceProtocol {
     func upsert(_ userTags: [UserTagRecord]) throws
     func upsert(_ dayTags: [DayTagsRecord]) throws
 
+    // Delete
+    func deleteCycle(startDay: Int) throws
+
     // Sync
     func lastSyncTimestamp() throws -> Int?
 

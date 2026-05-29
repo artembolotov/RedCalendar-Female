@@ -58,6 +58,14 @@ func appReducer(state: AppState, action: AppAction) -> AppState {
     case .calendarScrolledTo:
         break
 
+    case .markPeriodStart,
+         .markPeriodEnd,
+         .unmarkPeriodEnd,
+         .setFlowLevel,
+         .saveComment,
+         .setDayTags:
+        break
+
     case .checkAnalyticsStatus:
         break
 
