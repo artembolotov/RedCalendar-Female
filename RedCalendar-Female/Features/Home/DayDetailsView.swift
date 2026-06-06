@@ -242,10 +242,12 @@ struct DayDetailsView: View {
         .sheet(isPresented: $showTagsSheet) {
             TagsSheetView(dayStamp: dayStamp, isPresented: $showTagsSheet)
                 .environmentObject(store)
+                .tint(.accent)
         }
         .sheet(isPresented: $showCommentSheet) {
             CommentSheetView(dayStamp: dayStamp, isPresented: $showCommentSheet)
                 .environmentObject(store)
+                .tint(.accent)
         }
     }
 

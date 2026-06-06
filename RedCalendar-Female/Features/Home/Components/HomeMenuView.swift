@@ -37,9 +37,11 @@ struct HomeMenuView: View {
         }
         .sheet(isPresented: $showSettings) {
             SettingsView()
+                .tint(.accent)
         }
         .sheet(isPresented: $showStatistics) {
             StatisticsView()
+                .tint(.accent)
         }
     }
 }

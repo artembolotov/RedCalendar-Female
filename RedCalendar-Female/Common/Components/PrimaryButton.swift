@@ -22,8 +22,8 @@ struct PrimaryButton<Content: View>: View {
             .background(
                 RadialGradient(
                     gradient: Gradient(colors: [
-                        Color.accentColor.opacity(0.9),
-                        Color.accentColor
+                        Color.accent.opacity(0.9),
+                        Color.accent
                     ]),
                     center: .center,
                     startRadius: 5,

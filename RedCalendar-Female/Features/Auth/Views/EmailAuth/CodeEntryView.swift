@@ -54,7 +54,7 @@ struct CodeEntryView: View {
                         Button(action: { goBackToWelcome(email: email) }) {
                             Image(systemName: "arrow.left")
                                 .font(.system(size: 20, weight: .medium))
-                                .foregroundColor(.accentColor)
+                                .foregroundColor(.accent)
                         }
                         .offset(x: -10)
                         

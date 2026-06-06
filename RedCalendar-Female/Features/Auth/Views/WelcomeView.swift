@@ -118,6 +118,7 @@ struct WelcomeView: View {
         .sheet(isPresented: showLoginSheet) {
             LoginView()
                 .environmentObject(store)
+                .tint(.accent)
         }
     }
 }

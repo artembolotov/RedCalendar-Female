@@ -77,7 +77,7 @@ struct FlashCallCodeEntryView: View {
                         Button(action: { goBackToPhoneEntry(prettyPhoneNumber: prettyPhoneNumber) }) {
                             Image(systemName: "arrow.left")
                                 .font(.system(size: 20, weight: .medium))
-                                .foregroundColor(.accentColor)
+                                .foregroundColor(.accent)
                         }
                         .offset(x: -10)
                         

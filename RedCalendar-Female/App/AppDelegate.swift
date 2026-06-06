@@ -8,10 +8,20 @@
 import UIKit
 
 class AppDelegate: NSObject, UIApplicationDelegate {
-    
+
     // Store reference to dispatch actions
     var appStore: AppStore?
-    
+
+    func application(
+        _ application: UIApplication,
+        didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
+    ) -> Bool {
+        if let accent = UIColor(named: "AccentColor") {
+            UIWindow.appearance().tintColor = accent
+        }
+        return true
+    }
+
     // Called when APNs registration succeeds
     func application(
         _ application: UIApplication,

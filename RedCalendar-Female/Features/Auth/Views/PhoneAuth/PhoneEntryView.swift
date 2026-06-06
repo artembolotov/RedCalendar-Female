@@ -42,7 +42,7 @@ struct PhoneEntryView: View {
                             Button(action: { goBackToEmail() }) {
                                 Image(systemName: "arrow.left")
                                     .font(.system(size: 20, weight: .medium))
-                                    .foregroundColor(.accentColor)
+                                    .foregroundColor(.accent)
                             }
                             .offset(x: -10)
                             

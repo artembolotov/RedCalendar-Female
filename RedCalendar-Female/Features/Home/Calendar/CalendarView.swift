@@ -379,9 +379,9 @@ struct CalendarView: View {
                                 }
                             }()
 
-                            RoundedCorners(radius: 10, corners: corners)
+                            RoundedCorners(radius: 8, corners: corners)
                                 .fill(Color.red.opacity(isPredicted ? 0.35 : 1.0))
-                                .frame(width: dayWidth, height: 36)
+                                .frame(width: dayWidth, height: 26)
                                 .position(
                                     x: day.xPosition + dayWidth / 2,
                                     y: day.yPosition + calculator.weekHeight / 2
@@ -452,10 +452,11 @@ struct CalendarView: View {
                             // Selected indicator
                             if isSelected {
                                 Circle()
-                                    .stroke(Color.blue, lineWidth: 2)
-                                    .frame(
-                                        width: day.isToday ? 38 : 32,
-                                        height: day.isToday ? 38 : 32
+                                    .fill(Color("SelectedDayColor"))
+                                    .frame(width: 32, height: 32)
+                                    .overlay(
+                                        Circle()
+                                            .stroke(Color(UIColor.systemBackground), lineWidth: 2)
                                     )
                             }
 
@@ -463,8 +464,8 @@ struct CalendarView: View {
                             Text(day.dayNumber)
                                 .font(.system(size: 16, weight: day.isToday ? .bold : .medium))
                                 .foregroundColor(
+                                    isSelected ? Color(UIColor.systemBackground) :
                                     day.isToday ? .white :
-                                    isSelected ? .blue :
                                     isInPeriod ? .white :
                                     isFutureDay ? Color(UIColor.tertiaryLabel) :
                                     .primary

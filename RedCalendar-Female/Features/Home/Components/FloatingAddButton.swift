@@ -33,16 +33,16 @@ struct FloatingAddButton: View {
                 .background(
                     LinearGradient(
                         gradient: Gradient(colors: [
-                            Color.accentColor.opacity(0.8),
-                            Color.accentColor,
-                            Color.accentColor.opacity(0.9)
+                            Color.accent.opacity(0.8),
+                            Color.accent,
+                            Color.accent.opacity(0.9)
                         ]),
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )
                 )
                 .clipShape(Circle())
-                .shadow(color: Color.accentColor.opacity(0.4), radius: 12, x: 0, y: 6)
+                .shadow(color: Color.accent.opacity(0.4), radius: 12, x: 0, y: 6)
         }
     }
     
