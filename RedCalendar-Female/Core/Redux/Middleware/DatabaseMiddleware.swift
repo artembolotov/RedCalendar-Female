@@ -24,6 +24,8 @@ final class DatabaseMiddleware {
         switch action {
         case .setAuthState(let authState):
             if case .authenticated = authState {
+                // userDetails updates re-dispatch .authenticated — don't recreate observations
+                guard currentLoadedRange == nil else { break }
                 startPermanentObservations(dispatch: dispatch)
                 let initialRange = state.calendarState.loadedRange
                 startRangeObservations(for: initialRange, dispatch: dispatch)
@@ -114,16 +116,13 @@ final class DatabaseMiddleware {
                 var deleted = existing
                 deleted.periodLength = nil
                 deleted.updatedAt = nil
-                try? dbService.upsert([deleted])
+                write("markPeriodStart soft delete") { try dbService.upsert([deleted]) }
             } else {
-                try? dbService.deleteCycle(startDay: stamp.rawValue)
+                write("markPeriodStart delete") { try dbService.deleteCycle(startDay: stamp.rawValue) }
             }
         } else {
-            // Reject if too close to another real cycle's start (min cycle length).
-            let minGap = Constants.Cycle.minCycleLength
-            let conflicts = cycles.contains { abs($0.startDay - stamp.rawValue) < minGap }
-            if conflicts {
-                AppLogger.warn("markPeriodStart rejected: closer than \(minGap) days to existing cycle")
+            guard cycles.canStartPeriod(at: stamp.rawValue) else {
+                AppLogger.warn("markPeriodStart rejected: closer than \(Constants.Cycle.minCycleLength) days to existing cycle")
                 return
             }
             let newCycle = CycleRecord(
@@ -133,58 +132,37 @@ final class DatabaseMiddleware {
                 flowLevels: [:],
                 updatedAt: nil
             )
-            try? dbService.upsert([newCycle])
+            write("markPeriodStart insert") { try dbService.upsert([newCycle]) }
         }
     }
 
     private func handleMarkPeriodEnd(stamp: Daystamp, cycles: [CycleRecord]) {
-        let maxLen = Constants.Cycle.maxPeriodLength
-        let minLen = Constants.Cycle.minPeriodLength
+        // Prefer the ongoing (open) period; fall back to adjusting a completed one.
+        guard let cycle = cycles.ongoingCycle(atOrBefore: stamp.rawValue)
+                ?? cycles.completedCycle(covering: stamp.rawValue) else { return }
 
-        // Prefer the ongoing (open) period; fall back to closing a completed one.
-        if let cycle = cycles.filter({ $0.startDay <= stamp.rawValue && ($0.periodLength ?? -1) == 0 })
-                             .max(by: { $0.startDay < $1.startDay }) {
-            let raw = stamp.rawValue - cycle.startDay + 1
-            var updated = cycle
-            updated.periodLength = max(minLen, min(maxLen, raw))
-            updated.updatedAt = nil
-            try? dbService.upsert([updated])
-            return
-        }
-
-        if let cycle = cycles.filter({ c in
-            guard let pl = c.periodLength, pl > 0 else { return false }
-            return c.startDay <= stamp.rawValue && stamp.rawValue <= c.startDay + pl - 1
-        }).max(by: { $0.startDay < $1.startDay }) {
-            let raw = stamp.rawValue - cycle.startDay + 1
-            var updated = cycle
-            updated.periodLength = max(minLen, min(maxLen, raw))
-            updated.updatedAt = nil
-            try? dbService.upsert([updated])
-        }
+        let raw = stamp.rawValue - cycle.startDay + 1
+        var updated = cycle
+        updated.periodLength = max(Constants.Cycle.minPeriodLength, min(Constants.Cycle.maxPeriodLength, raw))
+        updated.updatedAt = nil
+        write("markPeriodEnd") { try dbService.upsert([updated]) }
     }
 
     private func handleUnmarkPeriodEnd(stamp: Daystamp, cycles: [CycleRecord]) {
-        guard let cycle = cycles.first(where: { c in
-            guard let pl = c.periodLength, pl > 0 else { return false }
-            return c.startDay + pl - 1 == stamp.rawValue
-        }) else { return }
+        guard let cycle = cycles.completedCycle(covering: stamp.rawValue),
+              let periodLength = cycle.periodLength,
+              cycle.startDay + periodLength - 1 == stamp.rawValue else { return }
         var updated = cycle
         updated.periodLength = 0
         updated.updatedAt = nil
-        try? dbService.upsert([updated])
+        write("unmarkPeriodEnd") { try dbService.upsert([updated]) }
     }
 
     private func handleSetFlowLevel(stamp: Daystamp, level: Int?, cycles: [CycleRecord]) {
-        guard var cycle = cycles.filter({ $0.startDay <= stamp.rawValue })
-                                .max(by: { $0.startDay < $1.startDay }) else { return }
-        if let level = level {
-            cycle.flowLevels[String(stamp.rawValue)] = level
-        } else {
-            cycle.flowLevels.removeValue(forKey: String(stamp.rawValue))
-        }
+        guard var cycle = cycles.owningCycle(for: stamp.rawValue) else { return }
+        cycle.setFlowLevel(level, on: stamp)
         cycle.updatedAt = nil
-        try? dbService.upsert([cycle])
+        write("setFlowLevel") { try dbService.upsert([cycle]) }
     }
 
     private func handleSaveComment(stamp: Daystamp, text: String) {
@@ -193,7 +171,7 @@ final class DatabaseMiddleware {
             comment: text.isEmpty ? nil : text,
             updatedAt: nil
         )
-        try? dbService.upsert([record])
+        write("saveComment") { try dbService.upsert([record]) }
     }
 
     private func handleSetDayTags(stamp: Daystamp, tagIds: [String]) {
@@ -202,6 +180,15 @@ final class DatabaseMiddleware {
             tagIds: tagIds,
             updatedAt: nil
         )
-        try? dbService.upsert([record])
+        write("setDayTags") { try dbService.upsert([record]) }
+    }
+
+    // User edits must not fail silently in production data flows — at minimum leave a trace.
+    private func write(_ operation: String, _ work: () throws -> Void) {
+        do {
+            try work()
+        } catch {
+            AppLogger.error("Database write failed: \(operation)", error: error)
+        }
     }
 }

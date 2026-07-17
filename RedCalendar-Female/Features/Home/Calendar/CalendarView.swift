@@ -477,15 +477,7 @@ struct CalendarView: View {
                                 let dotSize: CGFloat = 6
                                 let dotSpacing: CGFloat = 3
 
-                                let tagColors: [Color] = ds.tagCategories.sorted().map { category in
-                                    switch category {
-                                    case 0: return .blue
-                                    case 1: return .green
-                                    case 2: return Color(red: 0.20, green: 0.73, blue: 0.68)
-                                    case 3: return .purple
-                                    default: return .gray
-                                    }
-                                }
+                                let tagColors: [Color] = ds.tagCategories.sorted().map { Color.tagColor(for: $0) }
 
                                 let allDots: [Color] = ds.hasComment
                                     ? tagColors + [Color(UIColor.tertiaryLabel)]

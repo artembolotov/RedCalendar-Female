@@ -9,6 +9,7 @@ import UIKit
 
 func appReducer(state: AppState, action: AppAction) -> AppState {
     var state = state
+    var recomputeDayDisplayStates = false
 
     switch action {
 
@@ -30,30 +31,30 @@ func appReducer(state: AppState, action: AppAction) -> AppState {
 
     case .updateTodayDayStamp:
         state.calendarState.todayDayStamp = Daystamp.today(calendar: .current)
-        state.calendarState.dayDisplayStates = computeDayDisplayStates(state.calendarState, cycleSettings: state.currentUser?.settings?.cycle)
+        recomputeDayDisplayStates = true
 
     case .setSelectedDayStamp(let dayStamp):
         state.calendarState.selectedDayStamp = dayStamp
 
     case .setCycles(let cycles):
         state.calendarState.cycles = cycles
-        state.calendarState.dayDisplayStates = computeDayDisplayStates(state.calendarState, cycleSettings: state.currentUser?.settings?.cycle)
+        recomputeDayDisplayStates = true
 
     case .setUserTags(let tags):
         state.calendarState.userTags = tags
-        state.calendarState.dayDisplayStates = computeDayDisplayStates(state.calendarState, cycleSettings: state.currentUser?.settings?.cycle)
+        recomputeDayDisplayStates = true
 
     case .setVisibleComments(let comments):
         state.calendarState.visibleComments = comments
-        state.calendarState.dayDisplayStates = computeDayDisplayStates(state.calendarState, cycleSettings: state.currentUser?.settings?.cycle)
+        recomputeDayDisplayStates = true
 
     case .setVisibleDayTags(let dayTags):
         state.calendarState.visibleDayTags = dayTags
-        state.calendarState.dayDisplayStates = computeDayDisplayStates(state.calendarState, cycleSettings: state.currentUser?.settings?.cycle)
+        recomputeDayDisplayStates = true
 
     case .setLoadedRange(let range):
         state.calendarState.loadedRange = range
-        state.calendarState.dayDisplayStates = computeDayDisplayStates(state.calendarState, cycleSettings: state.currentUser?.settings?.cycle)
+        recomputeDayDisplayStates = true
 
     case .calendarScrolledTo:
         break
@@ -77,6 +78,13 @@ func appReducer(state: AppState, action: AppAction) -> AppState {
 
     case .logout:
         break
+    }
+
+    if recomputeDayDisplayStates {
+        state.calendarState.dayDisplayStates = computeDayDisplayStates(
+            state.calendarState,
+            cycleSettings: state.currentUser?.settings?.cycle
+        )
     }
 
     return state

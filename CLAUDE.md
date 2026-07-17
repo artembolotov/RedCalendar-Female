@@ -50,18 +50,20 @@ Core/
   Constants.swift
   DI/         — ServiceLocator, @Injected
   Models/     — Daystamp, AuthenticationMethod, AuthenticationError,
-                 APNSToken, UserDetails,
-                 CycleRecord, CommentRecord, UserTagRecord, DayTagsRecord
+                 APNSToken, UserDetails, DayDisplayState,
+                 CycleRecord, CycleRecord+Queries,
+                 CommentRecord, UserTagRecord, DayTagsRecord
   Redux/
     Actions/  — AppAction
     Middleware/
       AuthMiddleware.swift
       MigrationMiddleware.swift
+      DatabaseMiddleware.swift
       PushNotificationsMiddleware.swift
       AnalyticsMiddleware.swift
       FeedbackMiddleware.swift
       LoggerMiddleware.swift
-    Reducers/ — AppReducer
+    Reducers/ — AppReducer, DayDisplayStateComputer
     States/   — AppState, AuthState, CalendarState,
                  EmailAuthState, PhoneAuthState, NotificationState
     AppMiddleware.swift  — combineAppMiddlewares()
@@ -72,7 +74,7 @@ Core/
                  DatabaseService (GRDB)
   Utils/      — Logger (AppLogger)
 Common/
-  Components/ — PrimaryButton, PhoneNumberKitField
+  Components/ — PrimaryButton, PhoneNumberKitField, FlowLayout
   Extensions/ — Bundle+AppInfo, String+Validation, View+AdaptiveShadow, …
   Modifiers/  — FormFieldStyle
   Views/      — RootView, WaitingView
@@ -89,7 +91,8 @@ Features/
       Models/     — CalendarModels, CalendarConstants,
                      MonthCalculator, ScrollCommand, ViewportCalculator
     Components/   — FloatingAddButton, HomeMenuView
-    HomeView, DayDetailsView, FloatingButtonState
+    HomeView, DayDetailsView, FloatingButtonState,
+    CommentSheetView, TagsSheetView
   Settings/   — SettingsView
   Statistics/ — StatisticsView
 ```
@@ -155,6 +158,22 @@ let date = today.toDate(calendar: .current)
 ```
 
 Never compare calendar dates using `Date` directly — convert to `Daystamp` first.
+
+### Cycle Domain Logic
+
+All cycle queries live in `Core/Models/CycleRecord+Queries.swift` as an extension on `[CycleRecord]`:
+`owningCycle(for:)`, `ongoingCycle(atOrBefore:)`, `completedCycle(covering:)`, `canStartPeriod(at:)`,
+`predictedCycleStart(for:defaultLength:)`, plus `flowLevel(on:)` / `setFlowLevel(_:on:)` on `CycleRecord`.
+**Never re-implement these searches inline** (in views, middleware, or reducers) — validation and
+display must always agree.
+
+Fallback cycle settings (cycle length 28, period 5, luteal phase 14) are in `Constants.Cycle` — do not
+hardcode the numbers.
+
+`CalendarState.dayDisplayStates` is **sparse**: it is recomputed by `computeDayDisplayStates`
+(`Core/Redux/Reducers/DayDisplayStateComputer.swift`) in the reducer whenever cycle/tag/comment/range
+state changes, and only days with content get an entry. A missing key means `DayDisplayState.empty` —
+readers must treat absence as "nothing to show", never assume every day in `loadedRange` has an entry.
 
 ### API Service
 

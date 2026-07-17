@@ -10,6 +10,13 @@ struct DayDisplayState {
     var fertilePhase: FertilePhase?
     var hasComment: Bool
     var tagCategories: Set<Int>
+
+    static let empty = DayDisplayState(
+        cyclePhase: .none,
+        fertilePhase: nil,
+        hasComment: false,
+        tagCategories: []
+    )
 }
 
 // MARK: - CyclePhase

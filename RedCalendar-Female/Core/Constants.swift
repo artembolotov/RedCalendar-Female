@@ -19,5 +19,10 @@ struct Constants {
         static let maxCycleLength = 90
         static let minPeriodLength = 1
         static let maxPeriodLength = 14
+
+        // Fallbacks when the user has no cycle settings yet
+        static let defaultCycleLength = 28
+        static let defaultPeriodLength = 5
+        static let defaultLutealPhaseLength = 14
     }
 }

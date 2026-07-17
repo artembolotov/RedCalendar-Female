@@ -67,10 +67,9 @@ struct DayDetailsView: View {
     }
 
     private var currentFlowLevel: Int? {
-        let cycles = store.state.calendarState.cycles
-        guard let cycle = cycles.filter({ $0.startDay <= dayStamp.rawValue })
-                                .max(by: { $0.startDay < $1.startDay }) else { return nil }
-        return cycle.flowLevels[String(dayStamp.rawValue)]
+        store.state.calendarState.cycles
+            .owningCycle(for: dayStamp.rawValue)?
+            .flowLevel(on: dayStamp)
     }
 
     private var flowLevelLabel: String {
@@ -92,9 +91,7 @@ struct DayDetailsView: View {
     // MARK: - Cycle subtitle
 
     private var cycleSubtitleText: String {
-        let cycles = store.state.calendarState.cycles
-        guard let cycle = cycles.filter({ $0.startDay <= dayStamp.rawValue })
-                                .max(by: { $0.startDay < $1.startDay }) else { return "" }
+        guard let cycle = store.state.calendarState.cycles.owningCycle(for: dayStamp.rawValue) else { return "" }
         let cycleDay = dayStamp.rawValue - cycle.startDay + 1
 
         // Beyond max cycle length the user most likely forgot to log a new cycle —
@@ -110,25 +107,11 @@ struct DayDetailsView: View {
         return "\(cycleDay) день цикла"
     }
 
-    // Start of the predicted (extrapolated) cycle the day belongs to, or nil if the day
-    // is still within the first cycle following the last confirmed start.
     private var predictedCycleStart: Int? {
-        let cycles = store.state.calendarState.cycles
-        let sorted = cycles.sorted { $0.startDay < $1.startDay }
-        let defaultLength = store.state.currentUser?.settings?.cycle?.defaultLength ?? 28
-
-        guard let lastReal = sorted.last(where: { $0.startDay <= dayStamp.rawValue }) else {
-            return nil
-        }
-        if dayStamp.rawValue < lastReal.startDay + defaultLength {
-            return nil
-        }
-
-        var predicted = lastReal.startDay + defaultLength
-        while predicted + defaultLength <= dayStamp.rawValue {
-            predicted += defaultLength
-        }
-        return predicted
+        let defaultLength = store.state.currentUser?.settings?.cycle?.defaultLength
+            ?? Constants.Cycle.defaultCycleLength
+        return store.state.calendarState.cycles
+            .predictedCycleStart(for: dayStamp.rawValue, defaultLength: defaultLength)
     }
 
     // MARK: - Period button state
@@ -147,15 +130,11 @@ struct DayDetailsView: View {
             return .startFilled
         }
 
-        if cycles.filter({ $0.startDay < dayStamp.rawValue && ($0.periodLength ?? -1) == 0 })
-                 .max(by: { $0.startDay < $1.startDay }) != nil {
+        if cycles.ongoingCycle(atOrBefore: dayStamp.rawValue) != nil {
             return .endOutline
         }
 
-        if let cycle = cycles.filter({ c in
-            guard let pl = c.periodLength, pl > 0 else { return false }
-            return c.startDay <= dayStamp.rawValue && dayStamp.rawValue <= c.startDay + pl - 1
-        }).max(by: { $0.startDay < $1.startDay }) {
+        if let cycle = cycles.completedCycle(covering: dayStamp.rawValue) {
             let lastDay = cycle.startDay + (cycle.periodLength ?? 0) - 1
             return dayStamp.rawValue == lastDay ? .endFilled : .endOutline
         }
@@ -171,18 +150,16 @@ struct DayDetailsView: View {
         case .startFilled, .endFilled:
             return true
         case .startOutline:
-            let minGap = Constants.Cycle.minCycleLength
-            return !cycles.contains { abs($0.startDay - dayStamp.rawValue) < minGap }
+            return cycles.canStartPeriod(at: dayStamp.rawValue)
         case .endOutline:
             // Inside a completed period (not the last day) — period is already closed, hide.
-            let insideCompleted = cycles.contains { c in
-                guard let pl = c.periodLength, pl > 0 else { return false }
-                return c.startDay < dayStamp.rawValue && dayStamp.rawValue < c.startDay + pl - 1
+            if let completed = cycles.completedCycle(covering: dayStamp.rawValue),
+               completed.startDay < dayStamp.rawValue,
+               dayStamp.rawValue < completed.startDay + (completed.periodLength ?? 0) - 1 {
+                return false
             }
-            if insideCompleted { return false }
             // Ongoing period — enforce max length.
-            guard let cycle = cycles.filter({ $0.startDay <= dayStamp.rawValue && ($0.periodLength ?? -1) == 0 })
-                                    .max(by: { $0.startDay < $1.startDay }) else { return true }
+            guard let cycle = cycles.ongoingCycle(atOrBefore: dayStamp.rawValue) else { return true }
             return dayStamp.rawValue - cycle.startDay + 1 <= Constants.Cycle.maxPeriodLength
         }
     }
