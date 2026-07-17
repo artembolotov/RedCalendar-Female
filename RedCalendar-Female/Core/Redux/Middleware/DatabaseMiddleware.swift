@@ -16,7 +16,7 @@ final class DatabaseMiddleware {
     private var commentsToken: AnyDatabaseCancellable?
     private var dayTagsToken: AnyDatabaseCancellable?
 
-    private var currentLoadedRange: ClosedRange<Daystamp>?
+    private var observationsActive: Bool { cyclesToken != nil }
 
     // MARK: - Handle
 
@@ -25,23 +25,22 @@ final class DatabaseMiddleware {
         case .setAuthState(let authState):
             if case .authenticated = authState {
                 // userDetails updates re-dispatch .authenticated — don't recreate observations
-                guard currentLoadedRange == nil else { break }
+                guard !observationsActive else { break }
                 startPermanentObservations(dispatch: dispatch)
-                let initialRange = state.calendarState.loadedRange
-                startRangeObservations(for: initialRange, dispatch: dispatch)
-                currentLoadedRange = initialRange
+                startRangeObservations(for: state.calendarState.loadedRange, dispatch: dispatch)
             } else if case .notAuthenticated = authState {
                 cancelAll()
             }
 
         case .calendarScrolledTo(let center):
-            let buffer = 180
-            let newRange = (center - buffer)...(center + buffer)
-            guard let loaded = currentLoadedRange else { break }
-            let needsExpansion = center.rawValue - loaded.lowerBound.rawValue < 30
-                              || loaded.upperBound.rawValue - center.rawValue < 30
+            guard observationsActive else { break }
+            let loaded = state.calendarState.loadedRange
+            let threshold = Constants.Calendar.rangeExpansionThreshold
+            let needsExpansion = center.rawValue - loaded.lowerBound.rawValue < threshold
+                              || loaded.upperBound.rawValue - center.rawValue < threshold
             if needsExpansion {
-                currentLoadedRange = newRange
+                let buffer = Constants.Calendar.loadedRangeBuffer
+                let newRange = (center - buffer)...(center + buffer)
                 startRangeObservations(for: newRange, dispatch: dispatch)
                 return [.setLoadedRange(newRange)]
             }
@@ -85,8 +84,8 @@ final class DatabaseMiddleware {
         let intRange = range.lowerBound.rawValue...range.upperBound.rawValue
 
         commentsToken = dbService.observeComments(in: intRange) { records in
-            let dict = Dictionary(uniqueKeysWithValues: records.map {
-                (Daystamp(rawValue: $0.dayNumber), $0)
+            let dict = Dictionary(uniqueKeysWithValues: records.compactMap { record in
+                record.comment.map { (Daystamp(rawValue: record.dayNumber), $0) }
             })
             dispatch(.setVisibleComments(dict))
         }
@@ -104,7 +103,6 @@ final class DatabaseMiddleware {
         userTagsToken = nil
         commentsToken = nil
         dayTagsToken = nil
-        currentLoadedRange = nil
     }
 
     // MARK: - Day editing handlers

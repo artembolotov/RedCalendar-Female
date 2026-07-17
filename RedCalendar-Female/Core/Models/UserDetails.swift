@@ -8,7 +8,7 @@
 import Foundation
 
 // MARK: - User Details
-struct UserDetails: Codable {
+struct UserDetails: Codable, Equatable {
     let userId: String          // Firebase UID - always present (keeping original field)
     let name: String?           // User name
     let email: String?          // User email
@@ -26,12 +26,12 @@ struct UserDetails: Codable {
 }
 
 // MARK: - User Settings
-struct UserSettings: Codable {
+struct UserSettings: Codable, Equatable {
     let cycle: CycleSettings?
     let predictions: PredictionSettings?
     let notifications: NotificationSettings?
-    
-    struct CycleSettings: Codable {
+
+    struct CycleSettings: Codable, Equatable {
         let defaultLength: Int?
         let defaultPeriodLength: Int?
         let lutealPhaseLength: Int?
@@ -43,7 +43,7 @@ struct UserSettings: Codable {
         }
     }
     
-    struct PredictionSettings: Codable {
+    struct PredictionSettings: Codable, Equatable {
         let enablePeriod: Bool?
         let enableFertile: Bool?
         
@@ -53,7 +53,7 @@ struct UserSettings: Codable {
         }
     }
     
-    struct NotificationSettings: Codable {
+    struct NotificationSettings: Codable, Equatable {
         let muted: Bool?
     }
 }

@@ -37,7 +37,9 @@ func appReducer(state: AppState, action: AppAction) -> AppState {
         state.calendarState.selectedDayStamp = dayStamp
 
     case .setCycles(let cycles):
-        state.calendarState.cycles = cycles
+        // Sorted-by-startDay invariant: cycle queries and the display computer
+        // rely on this order (see CycleRecord+Queries).
+        state.calendarState.cycles = cycles.sorted { $0.startDay < $1.startDay }
         recomputeDayDisplayStates = true
 
     case .setUserTags(let tags):

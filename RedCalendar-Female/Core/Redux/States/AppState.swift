@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct AppState {
+struct AppState: Equatable {
     var authState: AuthState?
     var calendarState: CalendarState = CalendarState()
     var notifications: NotificationState = NotificationState()

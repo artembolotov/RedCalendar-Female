@@ -5,7 +5,7 @@
 
 // MARK: - DayDisplayState
 
-struct DayDisplayState {
+struct DayDisplayState: Equatable {
     var cyclePhase: CyclePhase
     var fertilePhase: FertilePhase?
     var hasComment: Bool

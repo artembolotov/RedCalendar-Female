@@ -20,6 +20,7 @@ enum CalendarConstants {
     // MARK: - Viewport
     static let viewportUpdateThreshold: CGFloat = 30
     static let dayVisibilityBuffer: CGFloat = 100
+    static let averageMonthHeight: CGFloat = 290
     
     // MARK: - Month limits for infinite scroll
     static let minMonthOffset: Int = -2400

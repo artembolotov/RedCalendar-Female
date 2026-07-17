@@ -34,7 +34,8 @@ struct TagsSheetView: View {
             Text("Теги").font(.headline)
             Spacer()
             Button(action: {
-                store.send(.setDayTags(dayStamp, Array(selectedIds)))
+                // Sorted for deterministic storage — Set iteration order is random
+                store.send(.setDayTags(dayStamp, selectedIds.sorted()))
                 isPresented = false
             }) {
                 Text("Готово")

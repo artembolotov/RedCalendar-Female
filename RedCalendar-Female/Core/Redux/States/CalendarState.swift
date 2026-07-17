@@ -5,20 +5,21 @@
 //  Created by Артём Болотов on 12.08.2025.
 //
 
-struct CalendarState {
+struct CalendarState: Equatable {
     var todayDayStamp: Daystamp = Daystamp.today(calendar: .current)
     var selectedDayStamp: Daystamp?
 
-    // Loaded range (center of calendar ± 6 months buffer)
+    // Loaded range (center of calendar ± buffer)
     var loadedRange: ClosedRange<Daystamp> = {
         let today = Daystamp.today(calendar: .current)
-        return (today - 180)...(today + 180)
+        let buffer = Constants.Calendar.loadedRangeBuffer
+        return (today - buffer)...(today + buffer)
     }()
 
     // Raw data from GRDB
     var cycles: [CycleRecord] = []
     var userTags: [UserTagRecord] = []
-    var visibleComments: [Daystamp: CommentRecord] = [:]
+    var visibleComments: [Daystamp: String] = [:]
     var visibleDayTags: [Daystamp: [String]] = [:]
 
     // Computed from raw data — never set directly via action

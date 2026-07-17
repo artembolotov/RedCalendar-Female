@@ -14,6 +14,13 @@ struct Constants {
         }
     }
 
+    struct Calendar {
+        // Days loaded around the calendar center (comments/tags observations + display range)
+        static let loadedRangeBuffer = 180
+        // Re-center the loaded range when the viewport gets this close to its edge
+        static let rangeExpansionThreshold = 30
+    }
+
     struct Cycle {
         static let minCycleLength = 20
         static let maxCycleLength = 90

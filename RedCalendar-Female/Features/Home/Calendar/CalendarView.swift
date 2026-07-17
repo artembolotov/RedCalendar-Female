@@ -29,6 +29,7 @@ struct CalendarView: View {
     @State private var scrollOffset: CGFloat = 0
     @State private var isDragging = false
     @State private var lastViewportUpdateScroll: CGFloat = 0
+    @State private var lastDispatchedCenter: Daystamp?
     
     // MARK: - State: Offset Components
     @State private var todayWeekCenterY: CGFloat = 0
@@ -347,12 +348,21 @@ struct CalendarView: View {
         
         let selectedDayStamp = store.state.calendarState.selectedDayStamp
         let dayDisplayStates = store.state.calendarState.dayDisplayStates
+        let todayRawValue = store.state.calendarState.todayDayStamp.rawValue
         let horizontalPadding = CalendarConstants.horizontalPadding
         let dayWidth = (width - horizontalPadding) / 7
 
         return ZStack(alignment: .topLeading) {
-            ForEach(dynamicViewport.visibleMonths.indices, id: \.self) { monthIndex in
-                let month = dynamicViewport.visibleMonths[monthIndex]
+            ForEach(dynamicViewport.visibleMonths, id: \.monthOffset) { month in
+                // On-screen days with their display state, resolved in one pass per month
+                let renderDays: [RenderDay] = month.visibleDays.compactMap { day in
+                    guard let daystamp = day.daystamp else { return nil }
+                    let dayScreenY = day.yPosition + scrollOffset
+                    guard dayScreenY > -dayVisibilityBuffer && dayScreenY < height + dayVisibilityBuffer else {
+                        return nil
+                    }
+                    return RenderDay(base: day, daystamp: daystamp, displayState: dayDisplayStates[daystamp])
+                }
 
                 Text(calculator.getMonthName(for: month.monthOffset))
                     .font(.title3)
@@ -362,142 +372,113 @@ struct CalendarView: View {
                     .position(x: width / 2, y: month.yPosition + 30)
 
                 // MARK: - Layer 1: Period rectangles
-                ForEach(month.visibleDays.indices, id: \.self) { dayIndex in
-                    let day = month.visibleDays[dayIndex]
-                    let dayScreenY = day.yPosition + scrollOffset
-                    if dayScreenY > -dayVisibilityBuffer && dayScreenY < height + dayVisibilityBuffer {
-                        if let daystamp = day.daystamp,
-                           let displayState = dayDisplayStates[daystamp],
-                           case .period(let position, let isPredicted) = displayState.cyclePhase {
+                ForEach(renderDays) { day in
+                    if case .period(let position, let isPredicted) = day.displayState?.cyclePhase {
+                        let corners: UIRectCorner = {
+                            switch position {
+                            case .start:  return [.topLeft, .bottomLeft]
+                            case .end:    return [.topRight, .bottomRight]
+                            case .middle: return []
+                            case .single: return .allCorners
+                            }
+                        }()
 
-                            let corners: UIRectCorner = {
-                                switch position {
-                                case .start:  return [.topLeft, .bottomLeft]
-                                case .end:    return [.topRight, .bottomRight]
-                                case .middle: return []
-                                case .single: return .allCorners
-                                }
-                            }()
-
-                            RoundedCorners(radius: 8, corners: corners)
-                                .fill(Color.red.opacity(isPredicted ? 0.35 : 1.0))
-                                .frame(width: dayWidth, height: 26)
-                                .position(
-                                    x: day.xPosition + dayWidth / 2,
-                                    y: day.yPosition + calculator.weekHeight / 2
-                                )
-                        }
+                        RoundedCorners(radius: 8, corners: corners)
+                            .fill(Color.red.opacity(isPredicted ? 0.35 : 1.0))
+                            .frame(width: dayWidth, height: 26)
+                            .position(
+                                x: day.base.xPosition + dayWidth / 2,
+                                y: day.base.yPosition + calculator.weekHeight / 2
+                            )
                     }
                 }
 
                 // MARK: - Layer 2: Fertile / Ovulation lines
-                ForEach(month.visibleDays.indices, id: \.self) { dayIndex in
-                    let day = month.visibleDays[dayIndex]
-                    let dayScreenY = day.yPosition + scrollOffset
-                    if dayScreenY > -dayVisibilityBuffer && dayScreenY < height + dayVisibilityBuffer {
-                        if let daystamp = day.daystamp,
-                           let displayState = dayDisplayStates[daystamp],
-                           let fertilePhase = displayState.fertilePhase {
-
-                            let lineColor: Color = {
-                                switch fertilePhase {
-                                case .fertile:       return Color(red: 0.55, green: 0.40, blue: 0.85)
-                                case .ovulation(_):  return Color(red: 1.0, green: 0.65, blue: 0.0)
-                                }
-                            }()
-
-                            let lineY = day.yPosition + calculator.weekHeight - 4
-
-                            Path { path in
-                                path.move(to: CGPoint(x: day.xPosition, y: lineY))
-                                path.addLine(to: CGPoint(x: day.xPosition + dayWidth, y: lineY))
+                ForEach(renderDays) { day in
+                    if let fertilePhase = day.displayState?.fertilePhase {
+                        let lineColor: Color = {
+                            switch fertilePhase {
+                            case .fertile:       return Color(red: 0.55, green: 0.40, blue: 0.85)
+                            case .ovulation(_):  return Color(red: 1.0, green: 0.65, blue: 0.0)
                             }
-                            .stroke(lineColor, style: StrokeStyle(lineWidth: 2, dash: [5, 4]))
+                        }()
+
+                        let lineY = day.base.yPosition + calculator.weekHeight - 4
+
+                        Path { path in
+                            path.move(to: CGPoint(x: day.base.xPosition, y: lineY))
+                            path.addLine(to: CGPoint(x: day.base.xPosition + dayWidth, y: lineY))
                         }
+                        .stroke(lineColor, style: StrokeStyle(lineWidth: 2, dash: [5, 4]))
                     }
                 }
 
                 // MARK: - Layer 3: Day cells
-                ForEach(month.visibleDays.indices, id: \.self) { dayIndex in
-                    let day = month.visibleDays[dayIndex]
+                ForEach(renderDays) { day in
+                    let isFutureDay = day.daystamp.rawValue > todayRawValue
+                    let isSelected = selectedDayStamp == day.daystamp
 
-                    let dayScreenY = day.yPosition + scrollOffset
-                    if dayScreenY > -dayVisibilityBuffer && dayScreenY < height + dayVisibilityBuffer {
-                        let today = calendar.startOfDay(for: currentDate)
-                        let dayDate = day.date != nil ? calendar.startOfDay(for: day.date!) : nil
-                        let isFutureDay = dayDate != nil && dayDate! > today
+                    let isInPeriod: Bool = {
+                        if case .period = day.displayState?.cyclePhase { return true }
+                        return false
+                    }()
 
-                        let isSelected: Bool = {
-                            guard let selected = selectedDayStamp, let daystamp = day.daystamp else {
-                                return false
-                            }
-                            return daystamp == selected
-                        }()
-
-                        let displayState = day.daystamp.flatMap { dayDisplayStates[$0] }
-
-                        let isInPeriod: Bool = {
-                            guard let ds = displayState, case .period = ds.cyclePhase else { return false }
-                            return true
-                        }()
-
-                        ZStack {
-                            // Today indicator
-                            if day.isToday {
-                                Circle()
-                                    .fill(Color.red)
-                                    .frame(width: 32, height: 32)
-                            }
-
-                            // Selected indicator
-                            if isSelected {
-                                Circle()
-                                    .fill(Color("SelectedDayColor"))
-                                    .frame(width: 32, height: 32)
-                                    .overlay(
-                                        Circle()
-                                            .stroke(Color(UIColor.systemBackground), lineWidth: 2)
-                                    )
-                            }
-
-                            // Day number
-                            Text(day.dayNumber)
-                                .font(.system(size: 16, weight: day.isToday ? .bold : .medium))
-                                .foregroundColor(
-                                    isSelected ? Color(UIColor.systemBackground) :
-                                    day.isToday ? .white :
-                                    isInPeriod ? .white :
-                                    isFutureDay ? Color(UIColor.tertiaryLabel) :
-                                    .primary
-                                )
-
-                            // Tag dots + comment dot
-                            if let ds = displayState,
-                               (!ds.tagCategories.isEmpty || ds.hasComment) {
-                                let dotSize: CGFloat = 6
-                                let dotSpacing: CGFloat = 3
-
-                                let tagColors: [Color] = ds.tagCategories.sorted().map { Color.tagColor(for: $0) }
-
-                                let allDots: [Color] = ds.hasComment
-                                    ? tagColors + [Color(UIColor.tertiaryLabel)]
-                                    : tagColors
-
-                                HStack(spacing: dotSpacing) {
-                                    ForEach(allDots.indices, id: \.self) { i in
-                                        Circle()
-                                            .fill(allDots[i])
-                                            .frame(width: dotSize, height: dotSize)
-                                    }
-                                }
-                                .offset(y: 14)
-                            }
+                    ZStack {
+                        // Today indicator
+                        if day.base.isToday {
+                            Circle()
+                                .fill(Color.red)
+                                .frame(width: 32, height: 32)
                         }
-                        .position(
-                            x: day.xPosition + dayWidth / 2,
-                            y: day.yPosition + calculator.weekHeight / 2
-                        )
+
+                        // Selected indicator
+                        if isSelected {
+                            Circle()
+                                .fill(Color("SelectedDayColor"))
+                                .frame(width: 32, height: 32)
+                                .overlay(
+                                    Circle()
+                                        .stroke(Color(UIColor.systemBackground), lineWidth: 2)
+                                )
+                        }
+
+                        // Day number
+                        Text(day.base.dayNumber)
+                            .font(.system(size: 16, weight: day.base.isToday ? .bold : .medium))
+                            .foregroundColor(
+                                isSelected ? Color(UIColor.systemBackground) :
+                                day.base.isToday ? .white :
+                                isInPeriod ? .white :
+                                isFutureDay ? Color(UIColor.tertiaryLabel) :
+                                .primary
+                            )
+
+                        // Tag dots + comment dot
+                        if let ds = day.displayState,
+                           (!ds.tagCategories.isEmpty || ds.hasComment) {
+                            let dotSize: CGFloat = 6
+                            let dotSpacing: CGFloat = 3
+
+                            let tagColors: [Color] = ds.tagCategories.sorted().map { Color.tagColor(for: $0) }
+
+                            let allDots: [Color] = ds.hasComment
+                                ? tagColors + [Color(UIColor.tertiaryLabel)]
+                                : tagColors
+
+                            HStack(spacing: dotSpacing) {
+                                ForEach(allDots.indices, id: \.self) { i in
+                                    Circle()
+                                        .fill(allDots[i])
+                                        .frame(width: dotSize, height: dotSize)
+                                }
+                            }
+                            .offset(y: 14)
+                        }
                     }
+                    .position(
+                        x: day.base.xPosition + dayWidth / 2,
+                        y: day.base.yPosition + calculator.weekHeight / 2
+                    )
                 }
             }
         }
@@ -510,13 +491,60 @@ struct CalendarView: View {
     private func updateViewportTracking() {
         let baseThreshold = viewportUpdateThreshold
         let adaptiveThreshold = isDragging ? baseThreshold * 0.5 : baseThreshold
-        
+
         let shouldUpdate = abs(scrollOffset - lastViewportUpdateScroll) > adaptiveThreshold
-        
+
         if shouldUpdate {
             lastViewportUpdateScroll = scrollOffset
+            dispatchScrollCenterIfNeeded()
         }
     }
+
+    // Lets DatabaseMiddleware re-center the loaded range (DB observations + display)
+    // when the user scrolls near its edge. Dispatched only when the viewport center
+    // moved far enough since the last dispatch, so scrolling doesn't spam the store.
+    private func dispatchScrollCenterIfNeeded() {
+        guard let calc = calculator else { return }
+
+        let center = centerDaystamp(calculator: calc)
+        if let last = lastDispatchedCenter,
+           abs(center.rawValue - last.rawValue) < Constants.Calendar.rangeExpansionThreshold {
+            return
+        }
+
+        lastDispatchedCenter = center
+        store.send(.calendarScrolledTo(center: center))
+    }
+
+    private func centerDaystamp(calculator: MonthCalculator) -> Daystamp {
+        // Content-space Y at the vertical screen center (days render at yPosition + scrollOffset)
+        let centerY = calendarHeight / 2 - scrollOffset
+
+        var offset = Int(centerY / CalendarConstants.averageMonthHeight)
+        offset = min(max(offset, CalendarConstants.minMonthOffset), CalendarConstants.maxMonthOffset)
+
+        while offset > CalendarConstants.minMonthOffset && calculator.getYPosition(for: offset) > centerY {
+            offset -= 1
+        }
+        while offset < CalendarConstants.maxMonthOffset && calculator.getYPosition(for: offset + 1) <= centerY {
+            offset += 1
+        }
+
+        // Month precision is enough for range management — take the month's middle.
+        let monthDate = calculator.getMonthDate(for: offset)
+        return Daystamp(from: monthDate, calendar: calendar)
+    }
+}
+
+// MARK: - RenderDay
+
+// Stable identity (daystamp) keeps SwiftUI diffing cheap while the viewport shifts.
+private struct RenderDay: Identifiable {
+    let base: VisibleDay
+    let daystamp: Daystamp
+    let displayState: DayDisplayState?
+
+    var id: Int { daystamp.rawValue }
 }
 
 #Preview {

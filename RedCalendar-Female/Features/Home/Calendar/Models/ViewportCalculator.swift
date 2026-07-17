@@ -20,8 +20,7 @@ class ViewportCalculator {
         let viewportTop = -scrollOffset - bufferHeight
         let viewportBottom = -scrollOffset + screenHeight + bufferHeight
         
-        let averageMonthHeight: CGFloat = 290
-        let estimatedMonthOffset = Int(scrollOffset / averageMonthHeight)
+        let estimatedMonthOffset = Int(scrollOffset / CalendarConstants.averageMonthHeight)
         
         var monthOffset = findOptimalStartMonth(
             estimatedOffset: estimatedMonthOffset,
