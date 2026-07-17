@@ -18,7 +18,7 @@ enum AppAction {
     // Database → Store
     case setCycles(_ cycles: [CycleRecord])
     case setUserTags(_ tags: [UserTagRecord])
-    case setVisibleComments(_ comments: [Daystamp: CommentRecord])
+    case setVisibleComments(_ comments: [Daystamp: String])
     case setVisibleDayTags(_ dayTags: [Daystamp: [String]])
     case setLoadedRange(_ range: ClosedRange<Daystamp>)
 

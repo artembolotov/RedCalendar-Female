@@ -36,11 +36,12 @@ func computeDayDisplayStates(
         }
     }
 
-    let sortedCycles = calendarState.cycles.sorted { $0.startDay < $1.startDay }
-    guard let lastStartDay = sortedCycles.last?.startDay else { return result }
+    // Sorted by startDay — reducer invariant (see CycleRecord+Queries)
+    let realCycles = calendarState.cycles
+    guard let lastStartDay = realCycles.last?.startDay else { return result }
 
     // Build full cycle list: real + predicted forward
-    var allCycles = sortedCycles
+    var allCycles = realCycles
     var predictedStart = lastStartDay + defaultLength
     while predictedStart <= upperBound {
         let ovulationDay = predictedStart + (defaultLength - lutealPhaseLength)
@@ -118,7 +119,7 @@ func computeDayDisplayStates(
             ovulationDay = ovulation.day
             ovulationConfirmed = ovulation.confirmed
         } else {
-            let nextRealStart = index + 1 < sortedCycles.count ? sortedCycles[index + 1].startDay : nil
+            let nextRealStart = index + 1 < realCycles.count ? realCycles[index + 1].startDay : nil
             ovulationDay = nextRealStart.map { $0 - lutealPhaseLength }
                 ?? cycle.startDay + (defaultLength - lutealPhaseLength)
             ovulationConfirmed = false

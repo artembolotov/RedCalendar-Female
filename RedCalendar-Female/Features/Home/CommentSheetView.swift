@@ -36,7 +36,7 @@ struct CommentSheetView: View {
                 .padding()
         }
         .onAppear {
-            text = store.state.calendarState.visibleComments[dayStamp]?.comment ?? ""
+            text = store.state.calendarState.visibleComments[dayStamp] ?? ""
             isFocused = true
         }
     }

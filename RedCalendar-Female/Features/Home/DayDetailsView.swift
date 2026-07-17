@@ -50,30 +50,29 @@ struct DayDetailsView: View {
 
     // MARK: - Day Data
 
+    private var cycles: [CycleRecord] {
+        store.state.calendarState.cycles
+    }
+
     private var displayState: DayDisplayState? {
         store.state.calendarState.dayDisplayStates[dayStamp]
     }
 
     private var comment: String? {
-        store.state.calendarState.visibleComments[dayStamp]?.comment
+        store.state.calendarState.visibleComments[dayStamp]
     }
 
     private var resolvedTags: [UserTagRecord] {
         let tagIds = store.state.calendarState.visibleDayTags[dayStamp] ?? []
-        let userTags = store.state.calendarState.userTags
-        return tagIds.compactMap { id in
-            userTags.first(where: { $0.id == id && $0.name != nil })
-        }
+        let tagsById = Dictionary(uniqueKeysWithValues: store.state.calendarState.userTags.map { ($0.id, $0) })
+        return tagIds
+            .compactMap { tagsById[$0] }
+            .filter { $0.name != nil }
+            .sorted { ($0.category ?? 0, $0.name ?? "") < ($1.category ?? 0, $1.name ?? "") }
     }
 
-    private var currentFlowLevel: Int? {
-        store.state.calendarState.cycles
-            .owningCycle(for: dayStamp.rawValue)?
-            .flowLevel(on: dayStamp)
-    }
-
-    private var flowLevelLabel: String {
-        switch currentFlowLevel {
+    private func flowLevelLabel(for level: Int?) -> String {
+        switch level {
         case 1: return "Скудные"
         case 2: return "Умеренные"
         case 3: return "Обильные"
@@ -90,8 +89,8 @@ struct DayDetailsView: View {
 
     // MARK: - Cycle subtitle
 
-    private var cycleSubtitleText: String {
-        guard let cycle = store.state.calendarState.cycles.owningCycle(for: dayStamp.rawValue) else { return "" }
+    private func cycleSubtitleText(context: CycleDayContext) -> String {
+        guard let cycle = context.owning else { return "" }
         let cycleDay = dayStamp.rawValue - cycle.startDay + 1
 
         // Beyond max cycle length the user most likely forgot to log a new cycle —
@@ -100,18 +99,13 @@ struct DayDetailsView: View {
 
         // Once we've stepped past the first cycle from the last confirmed start, show
         // both the running day count and the day within the current predicted cycle.
-        if let predictedStart = predictedCycleStart {
+        let defaultLength = store.state.currentUser?.settings?.cycle?.defaultLength
+            ?? Constants.Cycle.defaultCycleLength
+        if let predictedStart = cycle.predictedCycleStart(for: dayStamp.rawValue, defaultLength: defaultLength) {
             let predictedDay = dayStamp.rawValue - predictedStart + 1
             return "\(cycleDay) (\(predictedDay)) день цикла"
         }
         return "\(cycleDay) день цикла"
-    }
-
-    private var predictedCycleStart: Int? {
-        let defaultLength = store.state.currentUser?.settings?.cycle?.defaultLength
-            ?? Constants.Cycle.defaultCycleLength
-        return store.state.calendarState.cycles
-            .predictedCycleStart(for: dayStamp.rawValue, defaultLength: defaultLength)
     }
 
     // MARK: - Period button state
@@ -123,18 +117,16 @@ struct DayDetailsView: View {
         case endFilled
     }
 
-    private var periodButtonState: PeriodButtonState {
-        let cycles = store.state.calendarState.cycles
-
-        if cycles.contains(where: { $0.startDay == dayStamp.rawValue }) {
+    private func periodButtonState(context: CycleDayContext) -> PeriodButtonState {
+        if context.owning?.startDay == dayStamp.rawValue {
             return .startFilled
         }
 
-        if cycles.ongoingCycle(atOrBefore: dayStamp.rawValue) != nil {
+        if context.ongoing != nil {
             return .endOutline
         }
 
-        if let cycle = cycles.completedCycle(covering: dayStamp.rawValue) {
+        if let cycle = context.completed {
             let lastDay = cycle.startDay + (cycle.periodLength ?? 0) - 1
             return dayStamp.rawValue == lastDay ? .endFilled : .endOutline
         }
@@ -144,22 +136,21 @@ struct DayDetailsView: View {
 
     // Hides the button when there's no meaningful action (middle of a completed period,
     // or when the tap would violate cycle/period limits enforced by middleware).
-    private var isPeriodActionValid: Bool {
-        let cycles = store.state.calendarState.cycles
-        switch periodButtonState {
+    private func isPeriodActionValid(context: CycleDayContext, buttonState: PeriodButtonState) -> Bool {
+        switch buttonState {
         case .startFilled, .endFilled:
             return true
         case .startOutline:
             return cycles.canStartPeriod(at: dayStamp.rawValue)
         case .endOutline:
             // Inside a completed period (not the last day) — period is already closed, hide.
-            if let completed = cycles.completedCycle(covering: dayStamp.rawValue),
+            if let completed = context.completed,
                completed.startDay < dayStamp.rawValue,
                dayStamp.rawValue < completed.startDay + (completed.periodLength ?? 0) - 1 {
                 return false
             }
             // Ongoing period — enforce max length.
-            guard let cycle = cycles.ongoingCycle(atOrBefore: dayStamp.rawValue) else { return true }
+            guard let cycle = context.ongoing else { return true }
             return dayStamp.rawValue - cycle.startDay + 1 <= Constants.Cycle.maxPeriodLength
         }
     }
@@ -167,17 +158,21 @@ struct DayDetailsView: View {
     // MARK: - Body
 
     var body: some View {
+        // All cycle lookups for this day resolved once per render
+        let context = cycles.dayContext(for: dayStamp.rawValue)
+        let buttonState = periodButtonState(context: context)
+
         VStack(alignment: .leading, spacing: 0) {
-            header
-            if isPeriodActionValid {
-                periodButtonRow
+            header(subtitle: cycleSubtitleText(context: context))
+            if isPeriodActionValid(context: context, buttonState: buttonState) {
+                periodButtonRow(buttonState: buttonState)
                     .padding(.top, 12)
             }
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     if case .period = displayState?.cyclePhase {
-                        periodSection
+                        periodSection(currentLevel: context.owning?.flowLevel(on: dayStamp))
                             .padding(.top, 16)
                     }
                     notesSection
@@ -230,14 +225,14 @@ struct DayDetailsView: View {
 
     // MARK: - Header
 
-    private var header: some View {
+    private func header(subtitle: String) -> some View {
         HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(titleText)
                     .font(.title)
                     .fontWeight(.bold)
-                if !cycleSubtitleText.isEmpty {
-                    Text(cycleSubtitleText)
+                if !subtitle.isEmpty {
+                    Text(subtitle)
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }
@@ -257,10 +252,9 @@ struct DayDetailsView: View {
 
     // MARK: - Period button
 
-    private var periodButtonRow: some View {
-        let state = periodButtonState
-        let isStart = state == .startOutline || state == .startFilled
-        let isFilled = state == .startFilled || state == .endFilled
+    private func periodButtonRow(buttonState: PeriodButtonState) -> some View {
+        let isStart = buttonState == .startOutline || buttonState == .startFilled
+        let isFilled = buttonState == .startFilled || buttonState == .endFilled
         let title = isStart ? "Начало месячных" : "Конец месячных"
 
         return Button(action: handlePeriodButton) {
@@ -282,7 +276,7 @@ struct DayDetailsView: View {
     }
 
     private func handlePeriodButton() {
-        switch periodButtonState {
+        switch periodButtonState(context: cycles.dayContext(for: dayStamp.rawValue)) {
         case .startOutline, .startFilled:
             store.send(.markPeriodStart(dayStamp))
         case .endOutline:
@@ -304,14 +298,14 @@ struct DayDetailsView: View {
         }
     }
 
-    private var periodSection: some View {
+    private func periodSection(currentLevel: Int?) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             sectionHeader("Менструация")
-            flowLevelRow
+            flowLevelRow(currentLevel: currentLevel)
         }
     }
 
-    private var flowLevelRow: some View {
+    private func flowLevelRow(currentLevel: Int?) -> some View {
         VStack(spacing: 0) {
             Button(action: {
                 withAnimation(.easeInOut(duration: 0.15)) {
@@ -322,7 +316,7 @@ struct DayDetailsView: View {
                     Text("Обильность")
                         .foregroundColor(.primary)
                     Spacer()
-                    Text(flowLevelLabel)
+                    Text(flowLevelLabel(for: currentLevel))
                         .foregroundColor(.red)
                 }
                 .padding(.vertical, 12)
@@ -341,7 +335,7 @@ struct DayDetailsView: View {
                                 Text(label)
                                     .foregroundColor(.primary)
                                 Spacer()
-                                if currentFlowLevel == level {
+                                if currentLevel == level {
                                     Image(systemName: "checkmark.circle.fill")
                                         .foregroundColor(.red)
                                 } else {

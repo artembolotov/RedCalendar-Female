@@ -21,6 +21,11 @@ typealias Middleware<State, Action> = (State, Action, @escaping (Action) -> Void
 - Middleware returns `[Action]` for synchronous follow-up actions; use the `dispatch` closure for actions dispatched from within an async `Task`.
 - State is always mutated by returning a modified copy from the reducer — never mutate state directly.
 - All app state lives in `AppState`. Do not store state in views or view models.
+- `AppState` is `Equatable`; the store skips the `@Published` write when the reducer
+  returns an identical state (`isDuplicate: (==)` in the app entry point), so no-op
+  actions don't invalidate views. Keep new state types `Equatable`. Untyped `Error`
+  payloads (`AuthState.migrating`, `EmailAuthState.entry`) compare by
+  `localizedDescription` — that's the observable identity for the UI.
 
 **Adding a new action:** add a case to `AppAction`, handle it in `appReducer`, handle side effects in the relevant middleware file.
 
@@ -163,9 +168,18 @@ Never compare calendar dates using `Date` directly — convert to `Daystamp` fir
 
 All cycle queries live in `Core/Models/CycleRecord+Queries.swift` as an extension on `[CycleRecord]`:
 `owningCycle(for:)`, `ongoingCycle(atOrBefore:)`, `completedCycle(covering:)`, `canStartPeriod(at:)`,
-`predictedCycleStart(for:defaultLength:)`, plus `flowLevel(on:)` / `setFlowLevel(_:on:)` on `CycleRecord`.
+`predictedCycleStart(for:defaultLength:)`, plus `flowLevel(on:)` / `setFlowLevel(_:on:)` and
+`predictedCycleStart(for:defaultLength:)` on `CycleRecord`.
 **Never re-implement these searches inline** (in views, middleware, or reducers) — validation and
 display must always agree.
+
+**Sorted invariant:** `CalendarState.cycles` is sorted by `startDay` ascending — the reducer sorts
+once in `.setCycles`, and the queries are early-exiting backward scans that rely on that order.
+Never store an unsorted cycle array in state.
+
+When a view needs several lookups for one day, resolve them once per render with
+`cycles.dayContext(for:)` (`CycleDayContext`) instead of calling the individual queries from
+multiple computed properties.
 
 Fallback cycle settings (cycle length 28, period 5, luteal phase 14) are in `Constants.Cycle` — do not
 hardcode the numbers.
@@ -174,6 +188,11 @@ hardcode the numbers.
 (`Core/Redux/Reducers/DayDisplayStateComputer.swift`) in the reducer whenever cycle/tag/comment/range
 state changes, and only days with content get an entry. A missing key means `DayDisplayState.empty` —
 readers must treat absence as "nothing to show", never assume every day in `loadedRange` has an entry.
+
+`CalendarState.loadedRange` is centered on the viewport: `CalendarView` dispatches
+`.calendarScrolledTo(center:)` as the user scrolls, and `DatabaseMiddleware` re-centers the range
+(and its comment/tag observations) when the center gets close to an edge. Buffer and threshold live
+in `Constants.Calendar` — do not hardcode them.
 
 ### API Service
 

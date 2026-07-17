@@ -7,7 +7,7 @@
 
 import Foundation
 
-enum AuthenticationError: Error, LocalizedError {
+enum AuthenticationError: Error, LocalizedError, Equatable {
     // Phone errors
     case phoneNotRegistered                        // Not a RedCalendar 2.0 user
     case phoneCallFailed                          // Flash call request failed

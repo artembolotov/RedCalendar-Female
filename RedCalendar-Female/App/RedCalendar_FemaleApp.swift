@@ -15,7 +15,8 @@ struct RedCalendarApp: App {
     @StateObject private var store = AppStore(
         initialState: AppState(),
         reducer: appReducer,
-        middlewares: combineAppMiddlewares()
+        middlewares: combineAppMiddlewares(),
+        isDuplicate: (==)
     )
 
     init() {
