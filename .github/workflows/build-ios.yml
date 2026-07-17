@@ -36,6 +36,9 @@ jobs:
           cp profile.mobileprovision \
             ~/Library/MobileDevice/Provisioning\ Profiles/
 
+      - name: Create empty Secrets.xcconfig
+        run: touch RedCalendar-Female/Secrets.xcconfig
+
       - name: Build archive
         run: |
           xcodebuild archive \
