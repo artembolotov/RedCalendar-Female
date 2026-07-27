@@ -94,19 +94,19 @@ final class DatabaseMiddleware {
     }
 
     private func startRangeObservations(for range: ClosedRange<Daystamp>, dispatch: @escaping (AppAction) -> Void) {
-        let intRange = range.lowerBound.rawValue...range.upperBound.rawValue
-
-        commentsToken = dbService.observeComments(in: intRange) { records in
-            let dict = Dictionary(uniqueKeysWithValues: records.compactMap { record in
-                record.comment.map { (Daystamp(rawValue: record.dayNumber), $0) }
-            })
+        commentsToken = dbService.observeComments(in: range) { records in
+            let dict = Dictionary(
+                records.compactMap { record in record.comment.map { (record.dayNumber, $0) } },
+                uniquingKeysWith: { $1 }
+            )
             dispatch(.setVisibleComments(dict))
         }
 
-        dayTagsToken = dbService.observeDayTags(in: intRange) { records in
-            let dict = Dictionary(uniqueKeysWithValues: records.map {
-                (Daystamp(rawValue: $0.dayNumber), $0.tagIds)
-            })
+        dayTagsToken = dbService.observeDayTags(in: range) { records in
+            let dict = Dictionary(
+                records.map { ($0.dayNumber, $0.tagIds) },
+                uniquingKeysWith: { $1 }
+            )
             dispatch(.setVisibleDayTags(dict))
         }
     }
@@ -121,7 +121,7 @@ final class DatabaseMiddleware {
     // MARK: - Day editing handlers
 
     private func handleMarkPeriodStart(stamp: Daystamp, today: Daystamp, cycles: [CycleRecord]) {
-        if let existing = cycles.first(where: { $0.startDay == stamp.rawValue }) {
+        if let existing = cycles.first(where: { $0.startDay == stamp }) {
             // Toggle off: soft delete if synced, physical delete if not
             if existing.updatedAt != nil {
                 var deleted = existing
@@ -129,15 +129,15 @@ final class DatabaseMiddleware {
                 deleted.updatedAt = nil
                 write("markPeriodStart soft delete") { try dbService.upsert([deleted]) }
             } else {
-                write("markPeriodStart delete") { try dbService.deleteCycle(startDay: stamp.rawValue) }
+                write("markPeriodStart delete") { try dbService.deleteCycle(startDay: stamp) }
             }
         } else {
-            guard cycles.canStartPeriod(at: stamp.rawValue, today: today.rawValue) else {
+            guard cycles.canStartPeriod(at: stamp, today: today) else {
                 AppLogger.warn("markPeriodStart rejected for \(stamp): in the future, or closer than \(Constants.Cycle.minCycleLength) days to an existing cycle")
                 return
             }
             let newCycle = CycleRecord(
-                startDay: stamp.rawValue,
+                startDay: stamp,
                 periodLength: 0,
                 ovulation: nil,
                 flowLevels: [:],
@@ -148,14 +148,12 @@ final class DatabaseMiddleware {
     }
 
     private func handleMarkPeriodEnd(stamp: Daystamp, today: Daystamp, cycles: [CycleRecord]) {
-        guard cycles.canEndPeriod(at: stamp.rawValue, today: today.rawValue) else {
+        guard stamp <= today, let cycle = cycles.recordedPeriodCycle(covering: stamp) else {
             AppLogger.warn("markPeriodEnd rejected for \(stamp): in the future, or no period covers the day")
             return
         }
 
-        guard let cycle = cycles.recordedPeriodCycle(covering: stamp.rawValue) else { return }
-
-        let raw = stamp.rawValue - cycle.startDay + 1
+        let raw = stamp - cycle.startDay + 1
         var updated = cycle
         updated.periodLength = max(Constants.Cycle.minPeriodLength, min(Constants.Cycle.maxPeriodLength, raw))
         updated.updatedAt = nil
@@ -163,9 +161,9 @@ final class DatabaseMiddleware {
     }
 
     private func handleUnmarkPeriodEnd(stamp: Daystamp, cycles: [CycleRecord]) {
-        guard let cycle = cycles.completedCycle(covering: stamp.rawValue),
+        guard let cycle = cycles.completedCycle(covering: stamp),
               let periodLength = cycle.periodLength,
-              cycle.startDay + periodLength - 1 == stamp.rawValue else { return }
+              cycle.startDay.advanced(by: periodLength - 1) == stamp else { return }
         var updated = cycle
         updated.periodLength = 0
         updated.updatedAt = nil
@@ -173,12 +171,10 @@ final class DatabaseMiddleware {
     }
 
     private func handleSetFlowLevel(stamp: Daystamp, level: Int?, today: Daystamp, cycles: [CycleRecord]) {
-        guard cycles.canSetFlowLevel(at: stamp.rawValue, today: today.rawValue) else {
+        guard stamp <= today, var cycle = cycles.recordedPeriodCycle(covering: stamp) else {
             AppLogger.warn("setFlowLevel rejected for \(stamp): in the future, or no recorded period covers the day")
             return
         }
-
-        guard var cycle = cycles.recordedPeriodCycle(covering: stamp.rawValue) else { return }
         cycle.setFlowLevel(level, on: stamp)
         cycle.updatedAt = nil
         write("setFlowLevel") { try dbService.upsert([cycle]) }
@@ -186,7 +182,7 @@ final class DatabaseMiddleware {
 
     private func handleSaveComment(stamp: Daystamp, text: String) {
         let record = CommentRecord(
-            dayNumber: stamp.rawValue,
+            dayNumber: stamp,
             comment: text.isEmpty ? nil : text,
             updatedAt: nil
         )
@@ -195,7 +191,7 @@ final class DatabaseMiddleware {
 
     private func handleSetDayTags(stamp: Daystamp, tagIds: [String]) {
         let record = DayTagsRecord(
-            dayNumber: stamp.rawValue,
+            dayNumber: stamp,
             tagIds: tagIds,
             updatedAt: nil
         )

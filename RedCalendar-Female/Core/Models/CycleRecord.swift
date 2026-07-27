@@ -2,7 +2,7 @@ import Foundation
 import GRDB
 
 struct CycleRecord: Codable, FetchableRecord, PersistableRecord {
-    var startDay: Int
+    var startDay: Daystamp
     var periodLength: Int?
     var ovulation: OvulationData?
     var flowLevels: [String: Int]
@@ -33,17 +33,17 @@ extension CycleRecord: Equatable {
 // MARK: - OvulationData
 
 struct OvulationData: Codable, Equatable {
-    var day: Int
+    var day: Daystamp
     var confirmed: Bool
 
-    init(day: Int, confirmed: Bool = false) {
+    init(day: Daystamp, confirmed: Bool = false) {
         self.day = day
         self.confirmed = confirmed
     }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        day = try container.decode(Int.self, forKey: .day)
+        day = try container.decode(Daystamp.self, forKey: .day)
         confirmed = try container.decodeIfPresent(Bool.self, forKey: .confirmed) ?? false
     }
 }

@@ -31,5 +31,9 @@ struct Constants {
         static let defaultCycleLength = 28
         static let defaultPeriodLength = 5
         static let defaultLutealPhaseLength = 14
+
+        // Fertile window drawn around ovulation
+        static let fertileWindowDaysBefore = 3
+        static let fertileWindowDaysAfter = 1
     }
 }

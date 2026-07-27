@@ -54,8 +54,8 @@ App/          — entry point, AppDelegate, Configurator
 Core/
   Constants.swift
   DI/         — ServiceLocator, @Injected
-  Models/     — Daystamp, AuthenticationMethod, AuthenticationError,
-                 APNSToken, UserDetails, DayDisplayState,
+  Models/     — Daystamp, Daystamp+GRDB, AuthenticationMethod, AuthenticationError,
+                 APNSToken, UserDetails, ResolvedCycleSettings, DayDisplayState,
                  CycleRecord, CycleRecord+Queries,
                  CommentRecord, UserTagRecord, DayTagsRecord
   Redux/
@@ -159,20 +159,37 @@ case .setSelectedDayStamp(let dayStamp):
 let today = Daystamp.today(calendar: .current)
 let tomorrow = today + 1
 let range = today...(today + 30)
+let daysApart = tomorrow - today        // Int, not Daystamp
+for day in range { … }                  // ranges are iterable
 let date = today.toDate(calendar: .current)
 ```
 
 Never compare calendar dates using `Date` directly — convert to `Daystamp` first.
+
+`Daystamp` is `Strideable` (stride `Int`), **not** `AdditiveArithmetic`: `day + Int` and
+`day - Int` give a `Daystamp`, `day - day` gives a day count, and adding two daystamps is
+deliberately not expressible. It is also `DatabaseValueConvertible`
+(`Core/Models/Daystamp+GRDB.swift`), so day columns stay INTEGER and GRDB range filters
+(`range.contains(Columns.dayNumber)`) work directly on `ClosedRange<Daystamp>`. Every day-typed
+field — `CycleRecord.startDay`, `OvulationData.day`, `CommentRecord.dayNumber`,
+`DayTagsRecord.dayNumber` — and every `DatabaseServiceProtocol` day range is a `Daystamp`.
+Reach for `.rawValue` only for display or dictionary keys, never to do day arithmetic.
 
 ### Cycle Domain Logic
 
 All cycle queries live in `Core/Models/CycleRecord+Queries.swift` as an extension on `[CycleRecord]`:
 `owningCycle(for:)`, `ongoingCycle(covering:)`, `completedCycle(covering:)`,
 `recordedPeriodCycle(covering:)`, `canStartPeriod(at:today:)`, `canEndPeriod(at:today:)`,
-`canSetFlowLevel(at:today:)`, `predictedCycleStart(for:defaultLength:)`, plus `flowLevel(on:)` /
-`setFlowLevel(_:on:)` and `predictedCycleStart(for:defaultLength:)` on `CycleRecord`.
+`canSetFlowLevel(at:today:)`, `predictedCycleStart(for:cycleLength:)`, plus `periodCoverage(of:)`,
+`flowLevel(on:)` / `setFlowLevel(_:on:)`, `lastFlowDay(notAfter:)` and
+`predictedCycleStart(for:cycleLength:)` on `CycleRecord`.
 **Never re-implement these searches inline** (in views, middleware, or reducers) — validation and
 display must always agree.
+
+**One scan per day:** a day's period data always lives on the cycle that owns the day — no earlier
+cycle can reach past a later cycle's start — so `owningCycle(for:)` plus
+`CycleRecord.periodCoverage(of:)` answers every coverage question. Build new coverage queries on
+those two; do not add another full-array scan.
 
 **No editing the future:** a period can be started, ended, or given a flow level only on a day that
 has already come — `canStartPeriod`, `canEndPeriod` and `canSetFlowLevel` all reject `day > today`.
@@ -187,9 +204,12 @@ cycle, so the write would land on whichever real cycle came last.
 **An open period is never confirmed:** for a cycle with `periodLength == 0` only the start day
 renders confirmed — every later day stays predicted, because nothing except `markPeriodEnd` ends a
 period. Logged flow only *lengthens* the forecast: the drawn length is
-`max(defaultPeriodLength, lastFlowDay(notAfter:) - startDay + 1)`, so flow on day 6 stretches the
+`max(periodLength, lastFlowDay(notAfter:) - startDay + 1)`, so flow on day 6 stretches the
 bar to six days while flow on day 3 leaves the five-day forecast alone. Never shorten an open
 period to its flow data or mark those days confirmed — that reads as a period the user finished.
+
+A **completed** period is the opposite: every one of its days up to and including today renders
+confirmed. Only days genuinely in the future stay faded.
 
 **Sorted invariant:** `CalendarState.cycles` is sorted by `startDay` ascending — the reducer sorts
 once in `.setCycles`, and the queries are early-exiting backward scans that rely on that order.
@@ -199,8 +219,17 @@ When a view needs several lookups for one day, resolve them once per render with
 `cycles.dayContext(for:)` (`CycleDayContext`) instead of calling the individual queries from
 multiple computed properties.
 
-Fallback cycle settings (cycle length 28, period 5, luteal phase 14) are in `Constants.Cycle` — do not
-hardcode the numbers.
+**Cycle settings are never read raw.** `UserSettings.CycleSettings` carries unvalidated optional
+integers straight from the API — a zero cycle length there divides by zero in `predictedCycleStart`
+and never terminates the prediction loop in `computeDayDisplayStates`. Always go through
+`ResolvedCycleSettings(_:)` (`Core/Models/ResolvedCycleSettings.swift`), which clamps into the
+`Constants.Cycle` bounds and fills the fallbacks (cycle length 28, period 5, luteal phase 14).
+Fertile-window width also lives in `Constants.Cycle` — do not hardcode any of these numbers.
+
+**Positions come from the drawn segment.** `computeDayDisplayStates` clips a period to the loaded
+range and to the next cycle's start, then derives `PeriodPosition` from that clipped range — so the
+last visible day always caps with `.end` (or `.single`). Deriving positions from the period's full
+extent leaves clipped bars without their rounded edge.
 
 `CalendarState.dayDisplayStates` is **sparse**: it is recomputed by `computeDayDisplayStates`
 (`Core/Redux/Reducers/DayDisplayStateComputer.swift`) in the reducer whenever cycle/tag/comment/range

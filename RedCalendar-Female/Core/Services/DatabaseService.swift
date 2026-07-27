@@ -75,7 +75,7 @@ final class DatabaseService: DatabaseServiceProtocol {
         }
     }
 
-    func fetchComments(in range: ClosedRange<Int>) throws -> [CommentRecord] {
+    func fetchComments(in range: ClosedRange<Daystamp>) throws -> [CommentRecord] {
         try dbQueue.read { db in
             try CommentRecord
                 .filter(range.contains(CommentRecord.Columns.dayNumber))
@@ -84,7 +84,7 @@ final class DatabaseService: DatabaseServiceProtocol {
         }
     }
 
-    func fetchDayTags(in range: ClosedRange<Int>) throws -> [DayTagsRecord] {
+    func fetchDayTags(in range: ClosedRange<Daystamp>) throws -> [DayTagsRecord] {
         try dbQueue.read { db in
             try DayTagsRecord
                 .filter(range.contains(DayTagsRecord.Columns.dayNumber))
@@ -128,7 +128,7 @@ final class DatabaseService: DatabaseServiceProtocol {
 
     // MARK: - Delete
 
-    func deleteCycle(startDay: Int) throws {
+    func deleteCycle(startDay: Daystamp) throws {
         _ = try dbQueue.write { db in
             try CycleRecord
                 .filter(CycleRecord.Columns.startDay == startDay)
@@ -184,7 +184,7 @@ final class DatabaseService: DatabaseServiceProtocol {
         )
     }
 
-    func observeComments(in range: ClosedRange<Int>, onChange: @escaping ([CommentRecord]) -> Void) -> AnyDatabaseCancellable {
+    func observeComments(in range: ClosedRange<Daystamp>, onChange: @escaping ([CommentRecord]) -> Void) -> AnyDatabaseCancellable {
         let observation = ValueObservation.tracking { db in
             try CommentRecord
                 .filter(range.contains(CommentRecord.Columns.dayNumber))
@@ -202,7 +202,7 @@ final class DatabaseService: DatabaseServiceProtocol {
         )
     }
 
-    func observeDayTags(in range: ClosedRange<Int>, onChange: @escaping ([DayTagsRecord]) -> Void) -> AnyDatabaseCancellable {
+    func observeDayTags(in range: ClosedRange<Daystamp>, onChange: @escaping ([DayTagsRecord]) -> Void) -> AnyDatabaseCancellable {
         let observation = ValueObservation.tracking { db in
             try DayTagsRecord
                 .filter(range.contains(DayTagsRecord.Columns.dayNumber))
