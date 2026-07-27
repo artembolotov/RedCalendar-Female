@@ -23,6 +23,7 @@ struct DayDetailsView: View {
     private let bottomThreshold: CGFloat = 250
     private let maxUpwardOffset: CGFloat = 150
     private let globalBottomOffset: CGFloat = 25
+    private let cardPadding: CGFloat = 16
 
     private var titleText: String {
         let today = store.state.calendarState.todayDayStamp
@@ -172,6 +173,9 @@ struct DayDetailsView: View {
                     .padding(.top, 12)
             }
 
+            // The scroll view spans the full card width so its indicator rides in the
+            // card's own padding instead of on top of the trailing controls; the inset
+            // is handed back to the content.
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     if cycles.canSetFlowLevel(at: dayStamp.rawValue, today: todayRaw) {
@@ -181,11 +185,13 @@ struct DayDetailsView: View {
                     notesSection
                         .padding(.top, 16)
                 }
+                .padding(.horizontal, cardPadding)
             }
             .frame(maxHeight: 320)
+            .padding(.horizontal, -cardPadding)
             .padding(.top, 4)
         }
-        .padding()
+        .padding(cardPadding)
         .padding(.bottom, globalBottomOffset - dragOffset)
         .background(
             RoundedRectangle(cornerRadius: 16)
@@ -339,8 +345,8 @@ struct DayDetailsView: View {
                                     .foregroundColor(.primary)
                                 Spacer()
                                 ZStack {
-                                    // strokeBorder keeps the line inside the frame — a centered
-                                    // stroke would spill past the ScrollView's trailing edge and clip.
+                                    // strokeBorder keeps the outline inside the 22pt box, so the
+                                    // circle draws exactly as wide as it measures.
                                     Circle()
                                         .strokeBorder(currentLevel == level ? Color.red : Color.secondary, lineWidth: 1.5)
                                         .frame(width: 22, height: 22)
