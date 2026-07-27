@@ -9,27 +9,25 @@
 // entry at all — a missing key means DayDisplayState.empty.
 func computeDayDisplayStates(
     _ calendarState: CalendarState,
-    cycleSettings: UserSettings.CycleSettings?
+    cycleSettings: ResolvedCycleSettings
 ) -> [Daystamp: DayDisplayState] {
 
-    let defaultLength = cycleSettings?.defaultLength ?? Constants.Cycle.defaultCycleLength
-    let defaultPeriodLength = cycleSettings?.defaultPeriodLength ?? Constants.Cycle.defaultPeriodLength
-    let lutealPhaseLength = cycleSettings?.lutealPhaseLength ?? Constants.Cycle.defaultLutealPhaseLength
-
-    let lowerBound = calendarState.loadedRange.lowerBound.rawValue
-    let upperBound = calendarState.loadedRange.upperBound.rawValue
-    let todayRaw = calendarState.todayDayStamp.rawValue
+    let loadedRange = calendarState.loadedRange
+    let lowerBound = loadedRange.lowerBound
+    let upperBound = loadedRange.upperBound
+    let today = calendarState.todayDayStamp
 
     var result: [Daystamp: DayDisplayState] = [:]
 
-    for daystamp in calendarState.visibleComments.keys where calendarState.loadedRange.contains(daystamp) {
+    for daystamp in calendarState.visibleComments.keys where loadedRange.contains(daystamp) {
         result[daystamp, default: .empty].hasComment = true
     }
 
-    let categoryByTagId = Dictionary(uniqueKeysWithValues: calendarState.userTags.compactMap { tag in
-        tag.category.map { (tag.id, $0) }
-    })
-    for (daystamp, tagIds) in calendarState.visibleDayTags where calendarState.loadedRange.contains(daystamp) {
+    let categoryByTagId = Dictionary(
+        calendarState.userTags.compactMap { tag in tag.category.map { (tag.id, $0) } },
+        uniquingKeysWith: { $1 }
+    )
+    for (daystamp, tagIds) in calendarState.visibleDayTags where loadedRange.contains(daystamp) {
         let categories = Set(tagIds.compactMap { categoryByTagId[$0] })
         if !categories.isEmpty {
             result[daystamp, default: .empty].tagCategories = categories
@@ -42,25 +40,25 @@ func computeDayDisplayStates(
 
     // Build full cycle list: real + predicted forward
     var allCycles = realCycles
-    var predictedStart = lastStartDay + defaultLength
+    var predictedStart = lastStartDay.advanced(by: cycleSettings.cycleLength)
     while predictedStart <= upperBound {
-        let ovulationDay = predictedStart + (defaultLength - lutealPhaseLength)
+        let ovulationDay = predictedStart.advanced(by: cycleSettings.cycleLength - cycleSettings.lutealPhaseLength)
         let predicted = CycleRecord(
             startDay: predictedStart,
-            periodLength: defaultPeriodLength,
+            periodLength: cycleSettings.periodLength,
             ovulation: OvulationData(day: ovulationDay, confirmed: false),
             flowLevels: [:]
         )
         allCycles.append(predicted)
-        predictedStart += defaultLength
+        predictedStart = predictedStart.advanced(by: cycleSettings.cycleLength)
     }
 
     for (index, cycle) in allCycles.enumerated() {
         // Days this cycle owns: from its start up to (not including) the next cycle's
         // start, clipped to the loaded range.
-        let nextStart = index + 1 < allCycles.count ? allCycles[index + 1].startDay : Int.max
+        let nextStart: Daystamp? = index + 1 < allCycles.count ? allCycles[index + 1].startDay : nil
         let segmentStart = max(cycle.startDay, lowerBound)
-        let segmentEnd = min(nextStart - 1, upperBound)
+        let segmentEnd = nextStart.map { min($0.advanced(by: -1), upperBound) } ?? upperBound
         guard segmentStart <= segmentEnd else { continue }
 
         let isPredictedCycle = cycle.startDay > lastStartDay
@@ -68,42 +66,49 @@ func computeDayDisplayStates(
         // Effective period length, plus the last day of it that is confirmed rather than
         // predicted — days past it render faded.
         let effectivePeriodLength: Int
-        let lastConfirmedDay: Int
+        let lastConfirmedDay: Daystamp
         if let periodLength = cycle.periodLength, periodLength > 0 {
             effectivePeriodLength = periodLength
-            lastConfirmedDay = todayRaw - 1
+            lastConfirmedDay = today
         } else {
             // Open period. Logged flow shows the period was still running that day, so the
             // forecast stretches to cover it — but it never shortens the forecast, and only
             // the start stays confirmed: nothing but markPeriodEnd can end a period, so
             // everything after the start keeps rendering as a prediction.
-            let flowLength = cycle.lastFlowDay(notAfter: todayRaw)
+            let flowLength = cycle.lastFlowDay(notAfter: today)
                 .map { $0 - cycle.startDay + 1 } ?? 0
-            effectivePeriodLength = max(defaultPeriodLength, flowLength)
+            effectivePeriodLength = max(cycleSettings.periodLength, flowLength)
             lastConfirmedDay = cycle.startDay
         }
 
-        let periodEnd = cycle.startDay + effectivePeriodLength - 1
-        let periodUpper = min(periodEnd, segmentEnd)
-        if segmentStart <= periodUpper {
-            for dayRaw in segmentStart...periodUpper {
+        // Where the bar genuinely ends: the period's own last day, cut short only when the
+        // next cycle starts inside it — positions are derived from that, so a truncated
+        // period still caps with `.end` instead of trailing off as `.middle`.
+        //
+        // The loaded range is a viewport, not a boundary: a period running past it is
+        // clipped for drawing but keeps its square edge, which reads as continuing offscreen.
+        let periodEnd = cycle.startDay.advanced(by: effectivePeriodLength - 1)
+        let barEnd = nextStart.map { min(periodEnd, $0.advanced(by: -1)) } ?? periodEnd
+
+        let drawEnd = min(barEnd, upperBound)
+        if segmentStart <= drawEnd {
+            for day in segmentStart...drawEnd {
                 // Synthesized predicted cycles always render as predictions, even if their
                 // days are now in the past.
-                let isPredicted = isPredictedCycle || dayRaw > lastConfirmedDay
+                let isPredicted = isPredictedCycle || day > lastConfirmedDay
 
                 let position: PeriodPosition
-                if effectivePeriodLength == 1 {
+                if cycle.startDay == barEnd {
                     position = .single
-                } else if dayRaw == cycle.startDay {
+                } else if day == cycle.startDay {
                     position = .start
-                } else if dayRaw == periodEnd {
+                } else if day == barEnd {
                     position = .end
                 } else {
                     position = .middle
                 }
 
-                result[Daystamp(rawValue: dayRaw), default: .empty].cyclePhase =
-                    .period(position: position, isPredicted: isPredicted)
+                result[day, default: .empty].cyclePhase = .period(position: position, isPredicted: isPredicted)
             }
         }
 
@@ -111,24 +116,26 @@ func computeDayDisplayStates(
         // so that user-created (real) cycles also show a fertile window / ovulation.
         // If a confirmed next cycle exists, anchor ovulation off its start (luteal phase
         // before it) so the previous cycle's prediction reflects actual cycle length.
-        let ovulationDay: Int
+        let ovulationDay: Daystamp
         let ovulationConfirmed: Bool
         if let ovulation = cycle.ovulation {
             ovulationDay = ovulation.day
             ovulationConfirmed = ovulation.confirmed
         } else {
             let nextRealStart = index + 1 < realCycles.count ? realCycles[index + 1].startDay : nil
-            ovulationDay = nextRealStart.map { $0 - lutealPhaseLength }
-                ?? cycle.startDay + (defaultLength - lutealPhaseLength)
+            ovulationDay = nextRealStart?.advanced(by: -cycleSettings.lutealPhaseLength)
+                ?? cycle.startDay.advanced(by: cycleSettings.cycleLength - cycleSettings.lutealPhaseLength)
             ovulationConfirmed = false
         }
 
-        let fertileLower = max(ovulationDay - 3, segmentStart)
-        let fertileUpper = min(ovulationDay + 1, segmentEnd)
+        // Clipped to the segment: a cycle only ever paints the days it owns, so a stray
+        // ovulation date can't reach into the next cycle's window.
+        let fertileLower = max(ovulationDay.advanced(by: -Constants.Cycle.fertileWindowDaysBefore), segmentStart)
+        let fertileUpper = min(ovulationDay.advanced(by: Constants.Cycle.fertileWindowDaysAfter), segmentEnd)
         if fertileLower <= fertileUpper {
-            for dayRaw in fertileLower...fertileUpper {
-                result[Daystamp(rawValue: dayRaw), default: .empty].fertilePhase =
-                    dayRaw == ovulationDay ? .ovulation(confirmed: ovulationConfirmed) : .fertile
+            for day in fertileLower...fertileUpper {
+                result[day, default: .empty].fertilePhase =
+                    day == ovulationDay ? .ovulation(confirmed: ovulationConfirmed) : .fertile
             }
         }
     }

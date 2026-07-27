@@ -29,10 +29,7 @@ struct DayDetailsView: View {
     private let trailingControlWidth: CGFloat = 28
 
     private var titleText: String {
-        let today = store.state.calendarState.todayDayStamp
-        let diff = dayStamp.rawValue - today.rawValue
-
-        switch diff {
+        switch dayStamp - today {
         case -2: return "Позавчера"
         case -1: return "Вчера"
         case 0: return "Сегодня"
@@ -58,8 +55,8 @@ struct DayDetailsView: View {
         store.state.calendarState.cycles
     }
 
-    private var todayRaw: Int {
-        store.state.calendarState.todayDayStamp.rawValue
+    private var today: Daystamp {
+        store.state.calendarState.todayDayStamp
     }
 
     private var comment: String? {
@@ -68,7 +65,10 @@ struct DayDetailsView: View {
 
     private var resolvedTags: [UserTagRecord] {
         let tagIds = store.state.calendarState.visibleDayTags[dayStamp] ?? []
-        let tagsById = Dictionary(uniqueKeysWithValues: store.state.calendarState.userTags.map { ($0.id, $0) })
+        let tagsById = Dictionary(
+            store.state.calendarState.userTags.map { ($0.id, $0) },
+            uniquingKeysWith: { $1 }
+        )
         return tagIds
             .compactMap { tagsById[$0] }
             .filter { $0.name != nil }
@@ -95,7 +95,7 @@ struct DayDetailsView: View {
 
     private func cycleSubtitleText(context: CycleDayContext) -> String {
         guard let cycle = context.owning else { return "" }
-        let cycleDay = dayStamp.rawValue - cycle.startDay + 1
+        let cycleDay = dayStamp - cycle.startDay + 1
 
         // Beyond max cycle length the user most likely forgot to log a new cycle —
         // hide the day count rather than show unrealistic values.
@@ -103,10 +103,9 @@ struct DayDetailsView: View {
 
         // Once we've stepped past the first cycle from the last confirmed start, show
         // both the running day count and the day within the current predicted cycle.
-        let defaultLength = store.state.currentUser?.settings?.cycle?.defaultLength
-            ?? Constants.Cycle.defaultCycleLength
-        if let predictedStart = cycle.predictedCycleStart(for: dayStamp.rawValue, defaultLength: defaultLength) {
-            let predictedDay = dayStamp.rawValue - predictedStart + 1
+        let cycleLength = ResolvedCycleSettings(store.state.currentUser?.settings?.cycle).cycleLength
+        if let predictedStart = cycle.predictedCycleStart(for: dayStamp, cycleLength: cycleLength) {
+            let predictedDay = dayStamp - predictedStart + 1
             return "\(cycleDay) (\(predictedDay)) день цикла"
         }
         return "\(cycleDay) день цикла"
@@ -122,7 +121,7 @@ struct DayDetailsView: View {
     }
 
     private func periodButtonState(context: CycleDayContext) -> PeriodButtonState {
-        if context.owning?.startDay == dayStamp.rawValue {
+        if context.owning?.startDay == dayStamp {
             return .startFilled
         }
 
@@ -131,8 +130,8 @@ struct DayDetailsView: View {
         }
 
         if let cycle = context.completed {
-            let lastDay = cycle.startDay + (cycle.periodLength ?? 0) - 1
-            return dayStamp.rawValue == lastDay ? .endFilled : .endOutline
+            let lastDay = cycle.startDay.advanced(by: (cycle.periodLength ?? 0) - 1)
+            return dayStamp == lastDay ? .endFilled : .endOutline
         }
 
         return .startOutline
@@ -149,13 +148,13 @@ struct DayDetailsView: View {
         case .startFilled, .endFilled:
             return true
         case .startOutline:
-            return cycles.canStartPeriod(at: dayStamp.rawValue, today: todayRaw)
+            return cycles.canStartPeriod(at: dayStamp, today: today)
         case .endOutline:
-            guard cycles.canEndPeriod(at: dayStamp.rawValue, today: todayRaw) else { return false }
+            guard context.canEndPeriod(today: today) else { return false }
             // Inside a completed period (not the last day) — period is already closed, hide.
             if let completed = context.completed,
-               completed.startDay < dayStamp.rawValue,
-               dayStamp.rawValue < completed.startDay + (completed.periodLength ?? 0) - 1 {
+               completed.startDay < dayStamp,
+               dayStamp < completed.startDay.advanced(by: (completed.periodLength ?? 0) - 1) {
                 return false
             }
             return true
@@ -166,7 +165,7 @@ struct DayDetailsView: View {
 
     var body: some View {
         // All cycle lookups for this day resolved once per render
-        let context = cycles.dayContext(for: dayStamp.rawValue)
+        let context = cycles.dayContext(for: dayStamp)
         let buttonState = periodButtonState(context: context)
 
         VStack(alignment: .leading, spacing: 0) {
@@ -181,7 +180,7 @@ struct DayDetailsView: View {
             // is handed back to the content.
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
-                    if cycles.canSetFlowLevel(at: dayStamp.rawValue, today: todayRaw) {
+                    if context.canSetFlowLevel(today: today) {
                         periodSection(currentLevel: context.recorded?.flowLevel(on: dayStamp))
                             .padding(.top, 16)
                     }
@@ -288,8 +287,11 @@ struct DayDetailsView: View {
         }
     }
 
+    // Resolved here rather than handed down from `body`: this runs once per tap, and a
+    // database observation landing between the last render and the tap would leave a
+    // captured context stale.
     private func handlePeriodButton() {
-        switch periodButtonState(context: cycles.dayContext(for: dayStamp.rawValue)) {
+        switch periodButtonState(context: cycles.dayContext(for: dayStamp)) {
         case .startOutline, .startFilled:
             store.send(.markPeriodStart(dayStamp))
         case .endOutline:

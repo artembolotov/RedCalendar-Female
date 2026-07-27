@@ -18,30 +18,55 @@ extension DateComponents {
     }
 }
 
+// MARK: - Reference Date Cache
+
+// Resolving 2001-01-01 in a calendar is a full date computation, and the calendar
+// conversions below run per visible day while the calendar scrolls. The calendar
+// only changes when the user's region does, so one memoized slot covers every call.
+private enum ReferenceDate {
+    private static let lock = NSLock()
+    private static var cachedCalendar: Calendar?
+    private static var cachedDate: Date?
+
+    private static let components = DateComponents.componentsForReferenceDate()
+
+    static func resolved(for calendar: Calendar) -> Date {
+        lock.lock()
+        defer { lock.unlock() }
+
+        if let cached = cachedDate, cachedCalendar == calendar {
+            return cached
+        }
+
+        let date = calendar.date(from: components)!
+        cachedCalendar = calendar
+        cachedDate = date
+        return date
+    }
+}
+
 // MARK: - Daystamp Structure
 struct Daystamp {
     let rawValue: Int
-    
+
     // MARK: - Initializers
     init(rawValue: Int) {
         self.rawValue = rawValue
     }
-    
+
     init(from date: Date, calendar: Calendar) {
-        let components = DateComponents.componentsForReferenceDate()
-        let referenceDate = calendar.date(from: components)!
-        
+        let referenceDate = ReferenceDate.resolved(for: calendar)
+
         self.rawValue = calendar.dateComponents([.day], from: referenceDate, to: date).day!
     }
-    
+
     // MARK: - Conversion Methods
     func toDate(calendar: Calendar) -> Date {
-        let components = DateComponents.componentsForReferenceDate()
-        let referenceDate = calendar.date(from: components)!
-        
+        let referenceDate = ReferenceDate.resolved(for: calendar)
+
         return calendar.date(byAdding: .day, value: rawValue, to: referenceDate)!
     }
-    
+
     static func today(calendar: Calendar) -> Daystamp {
         return Daystamp(from: Date(), calendar: calendar)
     }
@@ -54,54 +79,26 @@ extension Daystamp: ExpressibleByIntegerLiteral {
     }
 }
 
-// MARK: - Comparable
-extension Daystamp: Comparable {
+// MARK: - Strideable
+
+// Strideable — not AdditiveArithmetic: the distance between two days is a count of
+// days, not a day, and adding two daystamps together is meaningless. It also makes
+// `ClosedRange<Daystamp>` iterable, so day loops stay in Daystamp throughout.
+extension Daystamp: Strideable {
+    func advanced(by n: Int) -> Daystamp {
+        return Daystamp(rawValue: rawValue + n)
+    }
+
+    func distance(to other: Daystamp) -> Int {
+        return other.rawValue - rawValue
+    }
+
     static func < (lhs: Daystamp, rhs: Daystamp) -> Bool {
         return lhs.rawValue < rhs.rawValue
     }
-    
+
     static func == (lhs: Daystamp, rhs: Daystamp) -> Bool {
         return lhs.rawValue == rhs.rawValue
-    }
-}
-
-// MARK: - AdditiveArithmetic
-extension Daystamp: AdditiveArithmetic {
-    static var zero: Daystamp {
-        return Daystamp(rawValue: 0)
-    }
-    
-    static func + (lhs: Daystamp, rhs: Daystamp) -> Daystamp {
-        return Daystamp(rawValue: lhs.rawValue + rhs.rawValue)
-    }
-    
-    static func - (lhs: Daystamp, rhs: Daystamp) -> Daystamp {
-        return Daystamp(rawValue: lhs.rawValue - rhs.rawValue)
-    }
-    
-    // Additional convenience operators for Int
-    static func + (lhs: Daystamp, rhs: Int) -> Daystamp {
-        return Daystamp(rawValue: lhs.rawValue + rhs)
-    }
-    
-    static func - (lhs: Daystamp, rhs: Int) -> Daystamp {
-        return Daystamp(rawValue: lhs.rawValue - rhs)
-    }
-    
-    static func += (lhs: inout Daystamp, rhs: Int) {
-        lhs = lhs + rhs
-    }
-    
-    static func -= (lhs: inout Daystamp, rhs: Int) {
-        lhs = lhs - rhs
-    }
-    
-    static func += (lhs: inout Daystamp, rhs: Daystamp) {
-        lhs = lhs + rhs
-    }
-    
-    static func -= (lhs: inout Daystamp, rhs: Daystamp) {
-        lhs = lhs - rhs
     }
 }
 
@@ -111,7 +108,7 @@ extension Daystamp: Codable {
         let container = try decoder.singleValueContainer()
         self.rawValue = try container.decode(Int.self)
     }
-    
+
     func encode(to encoder: Encoder) throws {
         var container = encoder.singleValueContainer()
         try container.encode(rawValue)
@@ -123,11 +120,14 @@ extension Daystamp: CustomStringConvertible {
     var description: String {
         // Use current calendar for display purposes
         let calendar = Calendar.current
-        let date = toDate(calendar: calendar)
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        let dateString = formatter.string(from: date)
-        
+        let components = calendar.dateComponents([.year, .month, .day], from: toDate(calendar: calendar))
+        let dateString = String(
+            format: "%04ld-%02ld-%02ld",
+            components.year ?? 0,
+            components.month ?? 0,
+            components.day ?? 0
+        )
+
         return "Daystamp(\(rawValue) -> \(dateString))"
     }
 }

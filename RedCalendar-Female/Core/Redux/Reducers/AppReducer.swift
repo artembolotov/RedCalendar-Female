@@ -22,6 +22,13 @@ func appReducer(state: AppState, action: AppAction) -> AppState {
             state.notifications.apnsToken = nil
             state.calendarState = CalendarState()
         }
+        // Cycle settings ride along with the user details, so display states have to be
+        // rebuilt here too — otherwise settings changed on the server only take effect
+        // at the next unrelated cycle/tag/comment change. Only the authenticated case
+        // carries settings; the auth screens dispatch .authenticating on every step.
+        if case .authenticated = authState {
+            recomputeDayDisplayStates = true
+        }
 
     case .setAPNSToken(let token):
         state.notifications.apnsToken = token
@@ -85,7 +92,7 @@ func appReducer(state: AppState, action: AppAction) -> AppState {
     if recomputeDayDisplayStates {
         state.calendarState.dayDisplayStates = computeDayDisplayStates(
             state.calendarState,
-            cycleSettings: state.currentUser?.settings?.cycle
+            cycleSettings: ResolvedCycleSettings(state.currentUser?.settings?.cycle)
         )
     }
 
