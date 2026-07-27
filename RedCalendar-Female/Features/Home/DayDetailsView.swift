@@ -338,14 +338,15 @@ struct DayDetailsView: View {
                                 Text(label)
                                     .foregroundColor(.primary)
                                 Spacer()
-                                if currentLevel == level {
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .font(.system(size: 22))
-                                        .foregroundColor(.red)
-                                } else {
+                                ZStack {
                                     Circle()
-                                        .stroke(Color.secondary, lineWidth: 1.5)
+                                        .stroke(currentLevel == level ? Color.red : Color.secondary, lineWidth: 1.5)
                                         .frame(width: 22, height: 22)
+                                    if currentLevel == level {
+                                        Circle()
+                                            .fill(Color.red)
+                                            .frame(width: 12, height: 12)
+                                    }
                                 }
                             }
                             .padding(.vertical, 12)
