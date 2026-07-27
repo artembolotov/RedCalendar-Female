@@ -226,10 +226,13 @@ and never terminates the prediction loop in `computeDayDisplayStates`. Always go
 `Constants.Cycle` bounds and fills the fallbacks (cycle length 28, period 5, luteal phase 14).
 Fertile-window width also lives in `Constants.Cycle` — do not hardcode any of these numbers.
 
-**Positions come from the drawn segment.** `computeDayDisplayStates` clips a period to the loaded
-range and to the next cycle's start, then derives `PeriodPosition` from that clipped range — so the
-last visible day always caps with `.end` (or `.single`). Deriving positions from the period's full
-extent leaves clipped bars without their rounded edge.
+**Two clips, and only one of them caps the bar.** In `computeDayDisplayStates` a period cut short by
+the next cycle's start really does end there, so `PeriodPosition` is derived from that cut and the
+last day caps with `.end` (or `.single`). `loadedRange` is a viewport, not a boundary: a period
+running past it is clipped for drawing but keeps `.middle` at the edge, so the square end reads as
+continuing offscreen. Never derive positions from the drawn range — that rounds off bars that merely
+scrolled out of the loaded window. Fertile windows, by contrast, are clipped to the cycle's own
+segment: a cycle paints only the days it owns.
 
 `CalendarState.dayDisplayStates` is **sparse**: it is recomputed by `computeDayDisplayStates`
 (`Core/Redux/Reducers/DayDisplayStateComputer.swift`) in the reducer whenever cycle/tag/comment/range

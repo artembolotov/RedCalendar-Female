@@ -171,7 +171,7 @@ struct DayDetailsView: View {
         VStack(alignment: .leading, spacing: 0) {
             header(subtitle: cycleSubtitleText(context: context))
             if isPeriodActionValid(context: context, buttonState: buttonState) {
-                periodButtonRow(context: context, buttonState: buttonState)
+                periodButtonRow(buttonState: buttonState)
                     .padding(.top, 12)
             }
 
@@ -264,12 +264,12 @@ struct DayDetailsView: View {
 
     // MARK: - Period button
 
-    private func periodButtonRow(context: CycleDayContext, buttonState: PeriodButtonState) -> some View {
+    private func periodButtonRow(buttonState: PeriodButtonState) -> some View {
         let isStart = buttonState == .startOutline || buttonState == .startFilled
         let isFilled = buttonState == .startFilled || buttonState == .endFilled
         let title = isStart ? "Начало месячных" : "Конец месячных"
 
-        return Button(action: { handlePeriodButton(context: context) }) {
+        return Button(action: handlePeriodButton) {
             Text(title)
                 .font(.subheadline)
                 .fontWeight(.medium)
@@ -287,8 +287,11 @@ struct DayDetailsView: View {
         }
     }
 
-    private func handlePeriodButton(context: CycleDayContext) {
-        switch periodButtonState(context: context) {
+    // Resolved here rather than handed down from `body`: this runs once per tap, and a
+    // database observation landing between the last render and the tap would leave a
+    // captured context stale.
+    private func handlePeriodButton() {
+        switch periodButtonState(context: cycles.dayContext(for: dayStamp)) {
         case .startOutline, .startFilled:
             store.send(.markPeriodStart(dayStamp))
         case .endOutline:

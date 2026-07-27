@@ -122,7 +122,7 @@ extension Daystamp: CustomStringConvertible {
         let calendar = Calendar.current
         let components = calendar.dateComponents([.year, .month, .day], from: toDate(calendar: calendar))
         let dateString = String(
-            format: "%04d-%02d-%02d",
+            format: "%04ld-%02ld-%02ld",
             components.year ?? 0,
             components.month ?? 0,
             components.day ?? 0

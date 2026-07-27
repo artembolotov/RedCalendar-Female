@@ -81,22 +81,28 @@ func computeDayDisplayStates(
             lastConfirmedDay = cycle.startDay
         }
 
-        // Positions come from the range actually drawn, not from the period's full extent:
-        // a period clipped by the loaded range or by the next cycle's start must still cap
-        // its last visible day with `.end`, or the bar renders without its rounded edge.
-        let renderedEnd = min(cycle.startDay.advanced(by: effectivePeriodLength - 1), segmentEnd)
-        if segmentStart <= renderedEnd {
-            for day in segmentStart...renderedEnd {
+        // Where the bar genuinely ends: the period's own last day, cut short only when the
+        // next cycle starts inside it — positions are derived from that, so a truncated
+        // period still caps with `.end` instead of trailing off as `.middle`.
+        //
+        // The loaded range is a viewport, not a boundary: a period running past it is
+        // clipped for drawing but keeps its square edge, which reads as continuing offscreen.
+        let periodEnd = cycle.startDay.advanced(by: effectivePeriodLength - 1)
+        let barEnd = nextStart.map { min(periodEnd, $0.advanced(by: -1)) } ?? periodEnd
+
+        let drawEnd = min(barEnd, upperBound)
+        if segmentStart <= drawEnd {
+            for day in segmentStart...drawEnd {
                 // Synthesized predicted cycles always render as predictions, even if their
                 // days are now in the past.
                 let isPredicted = isPredictedCycle || day > lastConfirmedDay
 
                 let position: PeriodPosition
-                if segmentStart == renderedEnd {
+                if cycle.startDay == barEnd {
                     position = .single
-                } else if day == segmentStart {
+                } else if day == cycle.startDay {
                     position = .start
-                } else if day == renderedEnd {
+                } else if day == barEnd {
                     position = .end
                 } else {
                     position = .middle
@@ -122,11 +128,10 @@ func computeDayDisplayStates(
             ovulationConfirmed = false
         }
 
-        // Clipped to the loaded range rather than to the segment: an explicit ovulation
-        // date can sit outside its own cycle's segment, and losing half the window there
-        // would drop days the user should still see.
-        let fertileLower = max(ovulationDay.advanced(by: -Constants.Cycle.fertileWindowDaysBefore), lowerBound)
-        let fertileUpper = min(ovulationDay.advanced(by: Constants.Cycle.fertileWindowDaysAfter), upperBound)
+        // Clipped to the segment: a cycle only ever paints the days it owns, so a stray
+        // ovulation date can't reach into the next cycle's window.
+        let fertileLower = max(ovulationDay.advanced(by: -Constants.Cycle.fertileWindowDaysBefore), segmentStart)
+        let fertileUpper = min(ovulationDay.advanced(by: Constants.Cycle.fertileWindowDaysAfter), segmentEnd)
         if fertileLower <= fertileUpper {
             for day in fertileLower...fertileUpper {
                 result[day, default: .empty].fertilePhase =
