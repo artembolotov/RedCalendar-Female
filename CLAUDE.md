@@ -184,6 +184,12 @@ records synced from another device can be undone.
 owning cycle also matches days long after its period ended and days inside a merely predicted
 cycle, so the write would land on whichever real cycle came last.
 
+**Length of an open period:** a period with `periodLength == 0` is drawn up to
+`lastFlowDay(notAfter:)` when any flow is logged, and only falls back to the default period length
+when none is. Logged flow is evidence the period was still running that day, so those days render
+confirmed (solid) rather than predicted — closing the period with `markPeriodEnd` is still what
+sets `periodLength`.
+
 **Sorted invariant:** `CalendarState.cycles` is sorted by `startDay` ascending — the reducer sorts
 once in `.setCycles`, and the queries are early-exiting backward scans that rely on that order.
 Never store an unsorted cycle array in state.

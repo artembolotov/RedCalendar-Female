@@ -116,6 +116,22 @@ extension CycleRecord {
         }
     }
 
+    /// Last day of this cycle the user reported flow for — how far the period is known to
+    /// have actually run. Nil when no flow is logged inside the period window.
+    ///
+    /// Only days from the start up to `maxPeriodLength`, and not past `today`, count. Flow
+    /// levels used to be written against the day's *owning* cycle, so a record can carry
+    /// keys far outside its own period; without the window one of those would stretch the
+    /// period across the whole calendar.
+    func lastFlowDay(notAfter today: Int) -> Int? {
+        let windowEnd = min(today, startDay + Constants.Cycle.maxPeriodLength - 1)
+        guard startDay <= windowEnd else { return nil }
+        return flowLevels.keys
+            .compactMap { Int($0) }
+            .filter { $0 >= startDay && $0 <= windowEnd }
+            .max()
+    }
+
     /// Start of the predicted cycle the day falls into, extrapolated from this cycle's
     /// start, or nil while the day is still within the first extrapolated cycle.
     func predictedCycleStart(for day: Int, defaultLength: Int) -> Int? {
