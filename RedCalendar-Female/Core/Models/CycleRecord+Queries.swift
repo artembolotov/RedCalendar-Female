@@ -51,9 +51,18 @@ extension Array where Element == CycleRecord {
         }
     }
 
-    /// A period may start only if no other cycle starts closer than the minimum cycle length.
-    func canStartPeriod(at day: Int) -> Bool {
-        !contains { abs($0.startDay - day) < Constants.Cycle.minCycleLength }
+    /// A period may start only on a day that has already come, and only if no other cycle
+    /// starts closer than the minimum cycle length.
+    func canStartPeriod(at day: Int, today: Int) -> Bool {
+        guard day <= today else { return false }
+        return !contains { abs($0.startDay - day) < Constants.Cycle.minCycleLength }
+    }
+
+    /// A period may end only on a day that has already come and that belongs to a period
+    /// which is still open or long enough to be shortened to that day.
+    func canEndPeriod(at day: Int, today: Int) -> Bool {
+        guard day <= today else { return false }
+        return ongoingCycle(covering: day) != nil || completedCycle(covering: day) != nil
     }
 
     /// Start of the predicted (extrapolated) cycle the day falls into, or nil while the day

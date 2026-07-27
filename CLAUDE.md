@@ -167,11 +167,17 @@ Never compare calendar dates using `Date` directly — convert to `Daystamp` fir
 ### Cycle Domain Logic
 
 All cycle queries live in `Core/Models/CycleRecord+Queries.swift` as an extension on `[CycleRecord]`:
-`owningCycle(for:)`, `ongoingCycle(covering:)`, `completedCycle(covering:)`, `canStartPeriod(at:)`,
-`predictedCycleStart(for:defaultLength:)`, plus `flowLevel(on:)` / `setFlowLevel(_:on:)` and
-`predictedCycleStart(for:defaultLength:)` on `CycleRecord`.
+`owningCycle(for:)`, `ongoingCycle(covering:)`, `completedCycle(covering:)`,
+`canStartPeriod(at:today:)`, `canEndPeriod(at:today:)`, `predictedCycleStart(for:defaultLength:)`,
+plus `flowLevel(on:)` / `setFlowLevel(_:on:)` and `predictedCycleStart(for:defaultLength:)` on
+`CycleRecord`.
 **Never re-implement these searches inline** (in views, middleware, or reducers) — validation and
 display must always agree.
+
+**No editing the future:** a period can be started or ended only on a day that has already come —
+both `canStartPeriod` and `canEndPeriod` reject `day > today`. Actions that *clear* data
+(toggling a start off, `unmarkPeriodEnd`) stay allowed for future days so records synced from
+another device can be undone.
 
 **Sorted invariant:** `CalendarState.cycles` is sorted by `startDay` ascending — the reducer sorts
 once in `.setCycles`, and the queries are early-exiting backward scans that rely on that order.

@@ -46,10 +46,18 @@ final class DatabaseMiddleware {
             }
 
         case .markPeriodStart(let stamp):
-            handleMarkPeriodStart(stamp: stamp, cycles: state.calendarState.cycles)
+            handleMarkPeriodStart(
+                stamp: stamp,
+                today: state.calendarState.todayDayStamp,
+                cycles: state.calendarState.cycles
+            )
 
         case .markPeriodEnd(let stamp):
-            handleMarkPeriodEnd(stamp: stamp, cycles: state.calendarState.cycles)
+            handleMarkPeriodEnd(
+                stamp: stamp,
+                today: state.calendarState.todayDayStamp,
+                cycles: state.calendarState.cycles
+            )
 
         case .unmarkPeriodEnd(let stamp):
             handleUnmarkPeriodEnd(stamp: stamp, cycles: state.calendarState.cycles)
@@ -107,7 +115,7 @@ final class DatabaseMiddleware {
 
     // MARK: - Day editing handlers
 
-    private func handleMarkPeriodStart(stamp: Daystamp, cycles: [CycleRecord]) {
+    private func handleMarkPeriodStart(stamp: Daystamp, today: Daystamp, cycles: [CycleRecord]) {
         if let existing = cycles.first(where: { $0.startDay == stamp.rawValue }) {
             // Toggle off: soft delete if synced, physical delete if not
             if existing.updatedAt != nil {
@@ -119,8 +127,8 @@ final class DatabaseMiddleware {
                 write("markPeriodStart delete") { try dbService.deleteCycle(startDay: stamp.rawValue) }
             }
         } else {
-            guard cycles.canStartPeriod(at: stamp.rawValue) else {
-                AppLogger.warn("markPeriodStart rejected: closer than \(Constants.Cycle.minCycleLength) days to existing cycle")
+            guard cycles.canStartPeriod(at: stamp.rawValue, today: today.rawValue) else {
+                AppLogger.warn("markPeriodStart rejected for \(stamp): in the future, or closer than \(Constants.Cycle.minCycleLength) days to an existing cycle")
                 return
             }
             let newCycle = CycleRecord(
@@ -134,7 +142,12 @@ final class DatabaseMiddleware {
         }
     }
 
-    private func handleMarkPeriodEnd(stamp: Daystamp, cycles: [CycleRecord]) {
+    private func handleMarkPeriodEnd(stamp: Daystamp, today: Daystamp, cycles: [CycleRecord]) {
+        guard cycles.canEndPeriod(at: stamp.rawValue, today: today.rawValue) else {
+            AppLogger.warn("markPeriodEnd rejected for \(stamp): in the future, or no period covers the day")
+            return
+        }
+
         // Prefer the ongoing (open) period; fall back to adjusting a completed one.
         guard let cycle = cycles.ongoingCycle(covering: stamp.rawValue)
                 ?? cycles.completedCycle(covering: stamp.rawValue) else { return }

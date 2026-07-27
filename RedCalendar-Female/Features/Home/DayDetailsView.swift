@@ -136,13 +136,20 @@ struct DayDetailsView: View {
 
     // Hides the button when there's no meaningful action (middle of a completed period,
     // or when the tap would violate cycle/period limits enforced by middleware).
+    //
+    // `.startFilled` / `.endFilled` clear existing data, so they stay available even for a
+    // future day — otherwise a start or end that arrived from another device could never
+    // be undone.
     private func isPeriodActionValid(context: CycleDayContext, buttonState: PeriodButtonState) -> Bool {
+        let today = store.state.calendarState.todayDayStamp.rawValue
+
         switch buttonState {
         case .startFilled, .endFilled:
             return true
         case .startOutline:
-            return cycles.canStartPeriod(at: dayStamp.rawValue)
+            return cycles.canStartPeriod(at: dayStamp.rawValue, today: today)
         case .endOutline:
+            guard cycles.canEndPeriod(at: dayStamp.rawValue, today: today) else { return false }
             // Inside a completed period (not the last day) — period is already closed, hide.
             if let completed = context.completed,
                completed.startDay < dayStamp.rawValue,
