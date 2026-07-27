@@ -72,13 +72,14 @@ func computeDayDisplayStates(
         if let periodLength = cycle.periodLength, periodLength > 0 {
             effectivePeriodLength = periodLength
             lastConfirmedDay = todayRaw - 1
-        } else if let lastFlowDay = cycle.lastFlowDay(notAfter: todayRaw) {
-            // Open period with logged flow: it is known to have run through the last day the
-            // user reported flow for, so show exactly that instead of the default guess.
-            effectivePeriodLength = lastFlowDay - cycle.startDay + 1
-            lastConfirmedDay = lastFlowDay
         } else {
-            effectivePeriodLength = defaultPeriodLength
+            // Open period. Logged flow shows the period was still running that day, so the
+            // forecast stretches to cover it — but it never shortens the forecast, and only
+            // the start stays confirmed: nothing but markPeriodEnd can end a period, so
+            // everything after the start keeps rendering as a prediction.
+            let flowLength = cycle.lastFlowDay(notAfter: todayRaw)
+                .map { $0 - cycle.startDay + 1 } ?? 0
+            effectivePeriodLength = max(defaultPeriodLength, flowLength)
             lastConfirmedDay = cycle.startDay
         }
 
