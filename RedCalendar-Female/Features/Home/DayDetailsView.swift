@@ -340,6 +340,7 @@ struct DayDetailsView: View {
                                 Spacer()
                                 if currentLevel == level {
                                     Image(systemName: "checkmark.circle.fill")
+                                        .font(.system(size: 22))
                                         .foregroundColor(.red)
                                 } else {
                                     Circle()
