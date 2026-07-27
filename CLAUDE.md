@@ -167,11 +167,28 @@ Never compare calendar dates using `Date` directly — convert to `Daystamp` fir
 ### Cycle Domain Logic
 
 All cycle queries live in `Core/Models/CycleRecord+Queries.swift` as an extension on `[CycleRecord]`:
-`owningCycle(for:)`, `ongoingCycle(covering:)`, `completedCycle(covering:)`, `canStartPeriod(at:)`,
-`predictedCycleStart(for:defaultLength:)`, plus `flowLevel(on:)` / `setFlowLevel(_:on:)` and
-`predictedCycleStart(for:defaultLength:)` on `CycleRecord`.
+`owningCycle(for:)`, `ongoingCycle(covering:)`, `completedCycle(covering:)`,
+`recordedPeriodCycle(covering:)`, `canStartPeriod(at:today:)`, `canEndPeriod(at:today:)`,
+`canSetFlowLevel(at:today:)`, `predictedCycleStart(for:defaultLength:)`, plus `flowLevel(on:)` /
+`setFlowLevel(_:on:)` and `predictedCycleStart(for:defaultLength:)` on `CycleRecord`.
 **Never re-implement these searches inline** (in views, middleware, or reducers) — validation and
 display must always agree.
+
+**No editing the future:** a period can be started, ended, or given a flow level only on a day that
+has already come — `canStartPeriod`, `canEndPeriod` and `canSetFlowLevel` all reject `day > today`.
+Actions that *clear* data (toggling a start off, `unmarkPeriodEnd`) stay allowed for future days so
+records synced from another device can be undone.
+
+**Period data belongs to the recorded cycle:** write a day's end day or flow level against
+`recordedPeriodCycle(covering:)` (`CycleDayContext.recorded`), never `owningCycle(for:)` — the
+owning cycle also matches days long after its period ended and days inside a merely predicted
+cycle, so the write would land on whichever real cycle came last.
+
+**Length of an open period:** a period with `periodLength == 0` is drawn up to
+`lastFlowDay(notAfter:)` when any flow is logged, and only falls back to the default period length
+when none is. Logged flow is evidence the period was still running that day, so those days render
+confirmed (solid) rather than predicted — closing the period with `markPeriodEnd` is still what
+sets `periodLength`.
 
 **Sorted invariant:** `CalendarState.cycles` is sorted by `startDay` ascending — the reducer sorts
 once in `.setCycles`, and the queries are early-exiting backward scans that rely on that order.

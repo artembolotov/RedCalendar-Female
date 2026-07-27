@@ -65,15 +65,21 @@ func computeDayDisplayStates(
 
         let isPredictedCycle = cycle.startDay > lastStartDay
 
-        // Effective period length
+        // Effective period length, plus the last day of it that is confirmed rather than
+        // predicted — days past it render faded.
         let effectivePeriodLength: Int
-        let isOngoing: Bool
+        let lastConfirmedDay: Int
         if let periodLength = cycle.periodLength, periodLength > 0 {
             effectivePeriodLength = periodLength
-            isOngoing = false
+            lastConfirmedDay = todayRaw - 1
+        } else if let lastFlowDay = cycle.lastFlowDay(notAfter: todayRaw) {
+            // Open period with logged flow: it is known to have run through the last day the
+            // user reported flow for, so show exactly that instead of the default guess.
+            effectivePeriodLength = lastFlowDay - cycle.startDay + 1
+            lastConfirmedDay = lastFlowDay
         } else {
             effectivePeriodLength = defaultPeriodLength
-            isOngoing = true
+            lastConfirmedDay = cycle.startDay
         }
 
         let periodEnd = cycle.startDay + effectivePeriodLength - 1
@@ -81,17 +87,8 @@ func computeDayDisplayStates(
         if segmentStart <= periodUpper {
             for dayRaw in segmentStart...periodUpper {
                 // Synthesized predicted cycles always render as predictions, even if their
-                // days are now in the past. For real ongoing periods only the start is
-                // confirmed; for real completed periods, past days are real and future days
-                // remain predictions.
-                let isPredicted: Bool
-                if isPredictedCycle {
-                    isPredicted = true
-                } else if isOngoing {
-                    isPredicted = dayRaw != cycle.startDay
-                } else {
-                    isPredicted = dayRaw >= todayRaw
-                }
+                // days are now in the past.
+                let isPredicted = isPredictedCycle || dayRaw > lastConfirmedDay
 
                 let position: PeriodPosition
                 if effectivePeriodLength == 1 {
