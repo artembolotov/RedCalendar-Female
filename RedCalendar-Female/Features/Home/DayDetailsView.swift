@@ -24,6 +24,9 @@ struct DayDetailsView: View {
     private let maxUpwardOffset: CGFloat = 150
     private let globalBottomOffset: CGFloat = 25
     private let cardPadding: CGFloat = 16
+    // Shared box for the close button and the flow level circles so both sit
+    // trailing-aligned to the same edge and share a centre line.
+    private let trailingControlWidth: CGFloat = 28
 
     private var titleText: String {
         let today = store.state.calendarState.todayDayStamp
@@ -255,6 +258,7 @@ struct DayDetailsView: View {
                 Image(systemName: "xmark.circle.fill")
                     .font(.title2)
                     .foregroundColor(.secondary)
+                    .frame(width: trailingControlWidth, height: trailingControlWidth)
             }
         }
     }
@@ -356,6 +360,7 @@ struct DayDetailsView: View {
                                             .frame(width: 12, height: 12)
                                     }
                                 }
+                                .frame(width: trailingControlWidth)
                             }
                             .padding(.vertical, 12)
                             .padding(.leading, 16)
