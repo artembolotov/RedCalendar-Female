@@ -29,9 +29,18 @@ extension Array where Element == CycleRecord {
         last { $0.startDay <= day }
     }
 
-    /// Most recent period that was started but not finished yet (`periodLength == 0`).
-    func ongoingCycle(atOrBefore day: Int) -> CycleRecord? {
-        last { $0.startDay <= day && ($0.periodLength ?? -1) == 0 }
+    /// Period that was started but not finished yet (`periodLength == 0`) and that still
+    /// covers the given day — the day's owning cycle, no further from its start than the
+    /// maximum period length.
+    ///
+    /// The window matters: an open period the user never closed must not capture days far
+    /// beyond it, otherwise those days offer "end period" forever and the next cycle can
+    /// never be started.
+    func ongoingCycle(covering day: Int) -> CycleRecord? {
+        guard let cycle = owningCycle(for: day),
+              (cycle.periodLength ?? -1) == 0,
+              day - cycle.startDay + 1 <= Constants.Cycle.maxPeriodLength else { return nil }
+        return cycle
     }
 
     /// Cycle whose completed period covers the given day.
@@ -56,7 +65,7 @@ extension Array where Element == CycleRecord {
     func dayContext(for day: Int) -> CycleDayContext {
         CycleDayContext(
             owning: owningCycle(for: day),
-            ongoing: ongoingCycle(atOrBefore: day),
+            ongoing: ongoingCycle(covering: day),
             completed: completedCycle(covering: day)
         )
     }

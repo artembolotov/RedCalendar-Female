@@ -167,7 +167,7 @@ Never compare calendar dates using `Date` directly — convert to `Daystamp` fir
 ### Cycle Domain Logic
 
 All cycle queries live in `Core/Models/CycleRecord+Queries.swift` as an extension on `[CycleRecord]`:
-`owningCycle(for:)`, `ongoingCycle(atOrBefore:)`, `completedCycle(covering:)`, `canStartPeriod(at:)`,
+`owningCycle(for:)`, `ongoingCycle(covering:)`, `completedCycle(covering:)`, `canStartPeriod(at:)`,
 `predictedCycleStart(for:defaultLength:)`, plus `flowLevel(on:)` / `setFlowLevel(_:on:)` and
 `predictedCycleStart(for:defaultLength:)` on `CycleRecord`.
 **Never re-implement these searches inline** (in views, middleware, or reducers) — validation and

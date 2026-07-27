@@ -136,7 +136,7 @@ final class DatabaseMiddleware {
 
     private func handleMarkPeriodEnd(stamp: Daystamp, cycles: [CycleRecord]) {
         // Prefer the ongoing (open) period; fall back to adjusting a completed one.
-        guard let cycle = cycles.ongoingCycle(atOrBefore: stamp.rawValue)
+        guard let cycle = cycles.ongoingCycle(covering: stamp.rawValue)
                 ?? cycles.completedCycle(covering: stamp.rawValue) else { return }
 
         let raw = stamp.rawValue - cycle.startDay + 1
