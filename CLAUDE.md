@@ -184,11 +184,12 @@ records synced from another device can be undone.
 owning cycle also matches days long after its period ended and days inside a merely predicted
 cycle, so the write would land on whichever real cycle came last.
 
-**Length of an open period:** a period with `periodLength == 0` is drawn up to
-`lastFlowDay(notAfter:)` when any flow is logged, and only falls back to the default period length
-when none is. Logged flow is evidence the period was still running that day, so those days render
-confirmed (solid) rather than predicted — closing the period with `markPeriodEnd` is still what
-sets `periodLength`.
+**An open period is never confirmed:** for a cycle with `periodLength == 0` only the start day
+renders confirmed — every later day stays predicted, because nothing except `markPeriodEnd` ends a
+period. Logged flow only *lengthens* the forecast: the drawn length is
+`max(defaultPeriodLength, lastFlowDay(notAfter:) - startDay + 1)`, so flow on day 6 stretches the
+bar to six days while flow on day 3 leaves the five-day forecast alone. Never shorten an open
+period to its flow data or mark those days confirmed — that reads as a period the user finished.
 
 **Sorted invariant:** `CalendarState.cycles` is sorted by `startDay` ascending — the reducer sorts
 once in `.setCycles`, and the queries are early-exiting backward scans that rely on that order.
