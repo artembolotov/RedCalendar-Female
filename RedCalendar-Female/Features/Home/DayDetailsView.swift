@@ -339,8 +339,10 @@ struct DayDetailsView: View {
                                     .foregroundColor(.primary)
                                 Spacer()
                                 ZStack {
+                                    // strokeBorder keeps the line inside the frame — a centered
+                                    // stroke would spill past the ScrollView's trailing edge and clip.
                                     Circle()
-                                        .stroke(currentLevel == level ? Color.red : Color.secondary, lineWidth: 1.5)
+                                        .strokeBorder(currentLevel == level ? Color.red : Color.secondary, lineWidth: 1.5)
                                         .frame(width: 22, height: 22)
                                     if currentLevel == level {
                                         Circle()
@@ -389,7 +391,7 @@ struct DayDetailsView: View {
                         .padding(.vertical, 4)
                         .overlay(
                             RoundedRectangle(cornerRadius: 6)
-                                .stroke(Color.tagColor(for: tag.category), lineWidth: 1)
+                                .strokeBorder(Color.tagColor(for: tag.category), lineWidth: 1)
                         )
                 }
             }
