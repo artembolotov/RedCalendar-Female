@@ -102,6 +102,26 @@ extension Daystamp: Strideable {
     }
 }
 
+// MARK: - Day Arithmetic
+
+// Spelled out rather than inherited: `Strideable` supplies `advanced(by:)` /
+// `distance(to:)` and makes `ClosedRange<Daystamp>` iterable, but the standard library
+// vends `+` / `-` only for concrete stridable types, not for the protocol itself.
+extension Daystamp {
+    static func + (lhs: Daystamp, rhs: Int) -> Daystamp {
+        return Daystamp(rawValue: lhs.rawValue + rhs)
+    }
+
+    static func - (lhs: Daystamp, rhs: Int) -> Daystamp {
+        return Daystamp(rawValue: lhs.rawValue - rhs)
+    }
+
+    /// Days between two daystamps — a count, not a day.
+    static func - (lhs: Daystamp, rhs: Daystamp) -> Int {
+        return lhs.rawValue - rhs.rawValue
+    }
+}
+
 // MARK: - Codable
 extension Daystamp: Codable {
     init(from decoder: Decoder) throws {
