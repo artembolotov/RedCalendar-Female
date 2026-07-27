@@ -149,9 +149,7 @@ struct DayDetailsView: View {
                dayStamp.rawValue < completed.startDay + (completed.periodLength ?? 0) - 1 {
                 return false
             }
-            // Ongoing period — enforce max length.
-            guard let cycle = context.ongoing else { return true }
-            return dayStamp.rawValue - cycle.startDay + 1 <= Constants.Cycle.maxPeriodLength
+            return true
         }
     }
 
