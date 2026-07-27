@@ -391,7 +391,7 @@ struct DayDetailsView: View {
                         .padding(.vertical, 4)
                         .overlay(
                             RoundedRectangle(cornerRadius: 6)
-                                .stroke(Color.tagColor(for: tag.category), lineWidth: 1)
+                                .strokeBorder(Color.tagColor(for: tag.category), lineWidth: 1)
                         )
                 }
             }
