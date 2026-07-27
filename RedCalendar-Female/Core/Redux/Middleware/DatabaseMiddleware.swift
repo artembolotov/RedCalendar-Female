@@ -63,7 +63,12 @@ final class DatabaseMiddleware {
             handleUnmarkPeriodEnd(stamp: stamp, cycles: state.calendarState.cycles)
 
         case .setFlowLevel(let stamp, let level):
-            handleSetFlowLevel(stamp: stamp, level: level, cycles: state.calendarState.cycles)
+            handleSetFlowLevel(
+                stamp: stamp,
+                level: level,
+                today: state.calendarState.todayDayStamp,
+                cycles: state.calendarState.cycles
+            )
 
         case .saveComment(let stamp, let text):
             handleSaveComment(stamp: stamp, text: text)
@@ -148,9 +153,7 @@ final class DatabaseMiddleware {
             return
         }
 
-        // Prefer the ongoing (open) period; fall back to adjusting a completed one.
-        guard let cycle = cycles.ongoingCycle(covering: stamp.rawValue)
-                ?? cycles.completedCycle(covering: stamp.rawValue) else { return }
+        guard let cycle = cycles.recordedPeriodCycle(covering: stamp.rawValue) else { return }
 
         let raw = stamp.rawValue - cycle.startDay + 1
         var updated = cycle
@@ -169,8 +172,13 @@ final class DatabaseMiddleware {
         write("unmarkPeriodEnd") { try dbService.upsert([updated]) }
     }
 
-    private func handleSetFlowLevel(stamp: Daystamp, level: Int?, cycles: [CycleRecord]) {
-        guard var cycle = cycles.owningCycle(for: stamp.rawValue) else { return }
+    private func handleSetFlowLevel(stamp: Daystamp, level: Int?, today: Daystamp, cycles: [CycleRecord]) {
+        guard cycles.canSetFlowLevel(at: stamp.rawValue, today: today.rawValue) else {
+            AppLogger.warn("setFlowLevel rejected for \(stamp): in the future, or no recorded period covers the day")
+            return
+        }
+
+        guard var cycle = cycles.recordedPeriodCycle(covering: stamp.rawValue) else { return }
         cycle.setFlowLevel(level, on: stamp)
         cycle.updatedAt = nil
         write("setFlowLevel") { try dbService.upsert([cycle]) }

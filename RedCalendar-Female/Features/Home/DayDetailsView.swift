@@ -54,8 +54,8 @@ struct DayDetailsView: View {
         store.state.calendarState.cycles
     }
 
-    private var displayState: DayDisplayState? {
-        store.state.calendarState.dayDisplayStates[dayStamp]
+    private var todayRaw: Int {
+        store.state.calendarState.todayDayStamp.rawValue
     }
 
     private var comment: String? {
@@ -141,15 +141,13 @@ struct DayDetailsView: View {
     // future day — otherwise a start or end that arrived from another device could never
     // be undone.
     private func isPeriodActionValid(context: CycleDayContext, buttonState: PeriodButtonState) -> Bool {
-        let today = store.state.calendarState.todayDayStamp.rawValue
-
         switch buttonState {
         case .startFilled, .endFilled:
             return true
         case .startOutline:
-            return cycles.canStartPeriod(at: dayStamp.rawValue, today: today)
+            return cycles.canStartPeriod(at: dayStamp.rawValue, today: todayRaw)
         case .endOutline:
-            guard cycles.canEndPeriod(at: dayStamp.rawValue, today: today) else { return false }
+            guard cycles.canEndPeriod(at: dayStamp.rawValue, today: todayRaw) else { return false }
             // Inside a completed period (not the last day) — period is already closed, hide.
             if let completed = context.completed,
                completed.startDay < dayStamp.rawValue,
@@ -176,8 +174,8 @@ struct DayDetailsView: View {
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
-                    if case .period = displayState?.cyclePhase {
-                        periodSection(currentLevel: context.owning?.flowLevel(on: dayStamp))
+                    if cycles.canSetFlowLevel(at: dayStamp.rawValue, today: todayRaw) {
+                        periodSection(currentLevel: context.recorded?.flowLevel(on: dayStamp))
                             .padding(.top, 16)
                     }
                     notesSection

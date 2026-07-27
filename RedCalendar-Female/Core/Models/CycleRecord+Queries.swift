@@ -11,6 +11,10 @@ struct CycleDayContext {
     let owning: CycleRecord?
     let ongoing: CycleRecord?
     let completed: CycleRecord?
+
+    /// Cycle whose recorded period covers the day, open or closed — the one that owns the
+    /// day's period data. See `recordedPeriodCycle(covering:)`.
+    var recorded: CycleRecord? { ongoing ?? completed }
 }
 
 // MARK: - Cycle Queries
@@ -58,11 +62,28 @@ extension Array where Element == CycleRecord {
         return !contains { abs($0.startDay - day) < Constants.Cycle.minCycleLength }
     }
 
+    /// Cycle whose recorded period covers the day, open or closed — the cycle a day's period
+    /// data (end day, flow level) belongs to.
+    ///
+    /// Not the same as `owningCycle(for:)`, which also matches days long after the period
+    /// ended and days inside a merely predicted cycle. Period data written against the
+    /// owning cycle would land on whichever real cycle came last, not on the day's own.
+    func recordedPeriodCycle(covering day: Int) -> CycleRecord? {
+        ongoingCycle(covering: day) ?? completedCycle(covering: day)
+    }
+
     /// A period may end only on a day that has already come and that belongs to a period
     /// which is still open or long enough to be shortened to that day.
     func canEndPeriod(at day: Int, today: Int) -> Bool {
         guard day <= today else { return false }
-        return ongoingCycle(covering: day) != nil || completedCycle(covering: day) != nil
+        return recordedPeriodCycle(covering: day) != nil
+    }
+
+    /// Flow level may be set only on a recorded period day that has already come — a
+    /// predicted day has no flow to report yet and no cycle of its own to store it on.
+    func canSetFlowLevel(at day: Int, today: Int) -> Bool {
+        guard day <= today else { return false }
+        return recordedPeriodCycle(covering: day) != nil
     }
 
     /// Start of the predicted (extrapolated) cycle the day falls into, or nil while the day
