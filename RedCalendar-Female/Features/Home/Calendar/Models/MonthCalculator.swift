@@ -27,7 +27,8 @@ final class MonthCalculator: ObservableObject {
         
     private var weekCountCache: [Int: Int] = [:]
     private var monthHeightCache: [Int: CGFloat] = [:]
-    private var monthDaysCache: [Int: [Date?]] = [:]
+    private var monthCellsCache: [Int: [MonthCell?]] = [:]
+    private var monthNameCache: [Int: String] = [:]
     private var cumulativePositionCache: [Int: CGFloat] = [0: 0]
     
     private(set) var cachedLocaleIdentifier: String
@@ -53,7 +54,8 @@ final class MonthCalculator: ObservableObject {
         if currentLocale != cachedLocaleIdentifier || currentFirstWeekday != cachedFirstWeekday {
             weekCountCache.removeAll()
             monthHeightCache.removeAll()
-            monthDaysCache.removeAll()
+            monthCellsCache.removeAll()
+            monthNameCache.removeAll()
             cumulativePositionCache = [0: 0]
             
             dateFormatter.locale = Locale.current
@@ -93,18 +95,11 @@ final class MonthCalculator: ObservableObject {
         return totalHeight
     }
     
-    func getMonthDays(for monthOffset: Int) -> [Date?] {
-        checkAndInvalidateCacheIfNeeded()
-        
-        if let cached = monthDaysCache[monthOffset] {
-            return cached
-        }
-        
+    private func buildMonthDays(for monthOffset: Int) -> [Date?] {
         let monthDate = getMonthDate(for: monthOffset)
-        
+
         guard let monthRange = calendar.range(of: .day, in: .month, for: monthDate),
               let firstOfMonth = calendar.dateInterval(of: .month, for: monthDate)?.start else {
-            monthDaysCache[monthOffset] = []
             return []
         }
         
@@ -121,8 +116,28 @@ final class MonthCalculator: ObservableObject {
             }
         }
         
-        monthDaysCache[monthOffset] = days
         return days
+    }
+
+    // Per-day calendar work (day number, daystamp) is the same for every viewport rebuild,
+    // so it is paid once per month instead of on every scroll step.
+    func getMonthCells(for monthOffset: Int) -> [MonthCell?] {
+        checkAndInvalidateCacheIfNeeded()
+
+        if let cached = monthCellsCache[monthOffset] {
+            return cached
+        }
+
+        let cells: [MonthCell?] = buildMonthDays(for: monthOffset).map { date in
+            guard let date = date else { return nil }
+            return MonthCell(
+                daystamp: Daystamp(from: date, calendar: calendar),
+                dayNumber: String(calendar.component(.day, from: date))
+            )
+        }
+
+        monthCellsCache[monthOffset] = cells
+        return cells
     }
     
     func getYPosition(for monthOffset: Int) -> CGFloat {
@@ -165,12 +180,20 @@ final class MonthCalculator: ObservableObject {
     }
     
     func getMonthName(for monthOffset: Int) -> String {
+        checkAndInvalidateCacheIfNeeded()
+
+        if let cached = monthNameCache[monthOffset] {
+            return cached
+        }
+
         let monthDate = getMonthDate(for: monthOffset)
         let monthYear = calendar.component(.year, from: monthDate)
-        
+
         dateFormatter.dateFormat = monthYear == currentYear ? "LLLL" : "LLLL yyyy"
-        
-        return dateFormatter.string(from: monthDate).capitalized
+
+        let name = dateFormatter.string(from: monthDate).capitalized
+        monthNameCache[monthOffset] = name
+        return name
     }
     
     func getLocalizedWeekdays() -> [String] {
@@ -205,7 +228,8 @@ final class MonthCalculator: ObservableObject {
             for key in keysToRemove {
                 weekCountCache.removeValue(forKey: key)
                 monthHeightCache.removeValue(forKey: key)
-                monthDaysCache.removeValue(forKey: key)
+                monthCellsCache.removeValue(forKey: key)
+                monthNameCache.removeValue(forKey: key)
             }
         }
     }
