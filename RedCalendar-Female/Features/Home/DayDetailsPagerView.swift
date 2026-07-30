@@ -48,6 +48,11 @@ struct DayDetailsPagerView: View {
     // The day the level currently belongs to, so a card standing at its own height keeps
     // following its content while one that merely inherited a level does not.
     @State private var settledDay: Daystamp?
+    // A day picked in the calendar rather than paged to: it takes its own height on the first
+    // measurement instead of standing out the dwell. Held as a day and not a flag because a day
+    // whose height matches the level changes no preference and so is never collected — a flag
+    // would stay raised and hand the next swipe the wrong behaviour.
+    @State private var immediateLevelDay: Daystamp?
     @State private var levelSettleTask: Task<Void, Never>?
 
     private let velocityThreshold: CGFloat = 1200
@@ -145,16 +150,27 @@ struct DayDetailsPagerView: View {
             shiftInFlight = 0
             isPaging = false
             animator.setOffset(0)
+            // Reachable only while nothing of ours is in flight, so this day was chosen in the
+            // calendar. Picking a date is never a run of dates: there is nothing to hold a
+            // borrowed level for, and the card takes its own as soon as it is measured.
+            immediateLevelDay = newValue
         }
-        .onChange(of: activeDay) { _ in
+        .onChange(of: activeDay) { newValue in
             // The level belonged to the day we just left. `reanchor()` moves `anchor` and
             // `shiftInFlight` together, so it does not reach this.
             cancelLevelSettle()
             settledDay = nil
 
-            // A tap puts the new card on screen at rest, so its dwell starts here. A swipe
-            // arrives mid-settle instead, and is armed by that settle's completion — arming
-            // here would only be cancelled by the next frame of it.
+            if immediateLevelDay != newValue {
+                immediateLevelDay = nil
+            }
+
+            // A day chosen in the calendar is not waiting on anything.
+            guard immediateLevelDay == nil else { return }
+
+            // A swipe arrives mid-settle, and is armed by that settle's arrival — arming here
+            // would only be cancelled by the next frame of it. Everything else is already at
+            // rest by now.
             if !isPaging && !isDraggingHorizontally {
                 scheduleLevelSettle()
             }
@@ -172,10 +188,15 @@ struct DayDetailsPagerView: View {
             guard measured > 0, dragOffset == 0 else { return }
             naturalHeight = measured
 
-            // The first card of an opening has no level to inherit, and a card already
-            // standing at its own keeps following its content: adding a comment or a tag
-            // resizes it there and then, as it always has.
-            if levelHeight == nil || settledDay == activeDay {
+            if levelHeight == nil {
+                // The first card of an opening has no level to inherit.
+                applyLevel(measured, animated: false)
+            } else if immediateLevelDay == activeDay {
+                immediateLevelDay = nil
+                applyLevel(measured, animated: true)
+            } else if settledDay == activeDay {
+                // Already standing at its own height, so it keeps following its content:
+                // adding a comment or a tag resizes it there and then, as it always has.
                 applyLevel(measured, animated: false)
             }
         }
