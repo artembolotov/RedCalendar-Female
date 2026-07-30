@@ -39,6 +39,17 @@ struct DayDetailsPagerView: View {
     // one arriving back must not drag the pager backwards.
     @State private var pendingSelection: Daystamp?
 
+    // The level: the height every mounted card is drawn at, whatever its own content asks for.
+    // A day arriving by swipe or by tap inherits the level of the one before it and only moves
+    // to its own once it has stayed put — see `scheduleLevelSettle()`. `nil` until the first
+    // card of an opening has been measured.
+    @State private var levelHeight: CGFloat?
+    @State private var naturalHeight: CGFloat = 0
+    // The day the level currently belongs to, so a card standing at its own height keeps
+    // following its content while one that merely inherited a level does not.
+    @State private var settledDay: Daystamp?
+    @State private var levelSettleTask: Task<Void, Never>?
+
     private let velocityThreshold: CGFloat = 1200
     private let rubberBandFactor: CGFloat = 0.3
     // How much of its own height the card has to be pulled down by to close. A share rather
@@ -56,6 +67,10 @@ struct DayDetailsPagerView: View {
     // the same shape the calendar's own scroll animation uses.
     private let settleDuration: TimeInterval = 0.55
     private let settleDamping: Double = 0.85
+    // How long a card has to stand still before it is allowed to leave the level it inherited.
+    // Timed from the moment the card comes to rest, so a run of quick swipes never reaches it
+    // and every day in that run is drawn at the same level.
+    private let levelDwellDelay: TimeInterval = 0.3
 
     init(
         dayStamp: Daystamp,
@@ -97,7 +112,8 @@ struct DayDetailsPagerView: View {
                 DayDetailsView(
                     dayStamp: day,
                     isActive: day == activeDay,
-                    dragOffset: day == activeDay ? dragOffset : 0
+                    dragOffset: day == activeDay ? dragOffset : 0,
+                    levelHeight: levelHeight
                 )
                 .offset(x: CGFloat(day - anchor) * pageStride + animator.offset)
             }
@@ -108,12 +124,6 @@ struct DayDetailsPagerView: View {
             }
         )
         .onChange(of: dayStamp) { newValue in
-            // Only a card that is still the selected one is re-evaluated, so this is the
-            // moment a day committed by a swipe becomes the one the calendar should follow.
-            if cardFrame != .zero {
-                height = cardFrame.height
-            }
-
             // While our own selection is still in flight the store is behind us; only a day
             // that came from somewhere else (a calendar tap) re-centers the pager.
             if let pending = pendingSelection {
@@ -129,21 +139,102 @@ struct DayDetailsPagerView: View {
             isPaging = false
             animator.setOffset(0)
         }
-        .onPreferenceChange(DayCardFrameKey.self) { frame in
-            guard frame != .zero else { return }
-            cardFrame = frame
+        .onChange(of: activeDay) { _ in
+            // The level belonged to the day we just left. `reanchor()` moves `anchor` and
+            // `shiftInFlight` together, so it does not reach this.
+            cancelLevelSettle()
+            settledDay = nil
 
-            // A card closed while another is opened keeps reporting all the way through its
-            // exit animation. Its day is no longer the selected one, and the calendar must
-            // not centre on a card that is leaving.
-            guard store.state.calendarState.selectedDayStamp == dayStamp else { return }
-            // `.move` changes the reported origin on every frame of the entrance while the
-            // height stays put, so this fires ~60 times with the same value — and it writes
-            // into HomeView's state, rebuilding the calendar with it.
-            if height != frame.height {
-                height = frame.height
+            // A tap puts the new card on screen at rest, so its dwell starts here. A swipe
+            // arrives mid-settle instead, and is armed by that settle's completion — arming
+            // here would only be cancelled by the next frame of it.
+            if !isPaging && !isDraggingHorizontally {
+                scheduleLevelSettle()
             }
         }
+        .onPreferenceChange(DayCardFrameKey.self) { frame in
+            // Only the gesture geometry comes from here — the calendar's height is written
+            // from the level, which is a value this view already knows and changes once per
+            // transition rather than once per frame of one.
+            guard frame != .zero else { return }
+            cardFrame = frame
+        }
+        .onPreferenceChange(DayCardNaturalHeightKey.self) { measured in
+            // A downward drag shortens the card, and the measurement shortens with it — that
+            // is the drag, not the day's own height.
+            guard measured > 0, dragOffset == 0 else { return }
+            naturalHeight = measured
+
+            // The first card of an opening has no level to inherit, and a card already
+            // standing at its own keeps following its content: adding a comment or a tag
+            // resizes it there and then, as it always has.
+            if levelHeight == nil || settledDay == activeDay {
+                applyLevel(measured, animated: false)
+            }
+        }
+        .onDisappear {
+            cancelLevelSettle()
+        }
+    }
+
+    // MARK: - Level
+
+    private func applyLevel(_ newHeight: CGFloat, animated: Bool) {
+        guard newHeight > 0 else { return }
+        // A card closed while another is opened lives on through its exit animation, and its
+        // dwell can still be pending; only the pager showing the selected day may write the
+        // height the calendar centres against. The store trails `activeDay` for a run loop
+        // after a swipe commits, but nothing applies a level inside that window.
+        guard store.state.calendarState.selectedDayStamp == activeDay else { return }
+
+        // Recorded before the early exit below: a day whose own height happens to equal the
+        // level it inherited is still standing at its own, and has to keep following its
+        // content from here on.
+        settledDay = activeDay
+        guard levelHeight != newHeight else { return }
+
+        if animated {
+            withAnimation(.cardLevelChange) {
+                levelHeight = newHeight
+            }
+        } else {
+            var transaction = Transaction()
+            transaction.disablesAnimations = true
+            withTransaction(transaction) {
+                levelHeight = newHeight
+            }
+        }
+
+        // Outside the animation: this lands in HomeView's state and feeds the calendar's own
+        // spring, which must not be re-driven frame by frame from here. One write per level
+        // change is one correction there.
+        var plain = Transaction()
+        plain.disablesAnimations = true
+        withTransaction(plain) {
+            height = newHeight
+        }
+    }
+
+    // Armed where the card comes to rest, so the level never moves under a finger or midway
+    // through a settle.
+    private func scheduleLevelSettle() {
+        cancelLevelSettle()
+
+        let day = activeDay
+        levelSettleTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: UInt64(levelDwellDelay * 1_000_000_000))
+            guard !Task.isCancelled else { return }
+            guard day == activeDay, !isDraggingHorizontally, dragOffset == 0 else { return }
+            applyLevel(naturalHeight, animated: true)
+        }
+    }
+
+    private func cancelLevelSettle() {
+        // The vertical drag calls this on every frame; without the guard each one would be a
+        // state write, and the card is already rebuilding on the drag offset alone.
+        guard let task = levelSettleTask else { return }
+        task.cancel()
+        levelSettleTask = nil
     }
 
     // MARK: - Gesture routing
@@ -172,6 +263,7 @@ struct DayDetailsPagerView: View {
             } else {
                 isDraggingHorizontally = true
                 isPaging = true
+                cancelLevelSettle()
                 // Take the card over exactly where the settle had got to, and rebase onto the
                 // day the user is actually looking at.
                 animator.cancel()
@@ -245,6 +337,9 @@ struct DayDetailsPagerView: View {
         ) {
             reanchor()
             isPaging = false
+            // The card has stopped: from here it either stays long enough to take its own
+            // height, or the next swipe cancels the dwell and it keeps this level.
+            scheduleLevelSettle()
         }
     }
 
@@ -279,10 +374,14 @@ struct DayDetailsPagerView: View {
             withAnimation(.cardEntrance) {
                 dragOffset = 0
             }
+            scheduleLevelSettle()
         }
     }
 
     private func handleDragChanged(translation: CGFloat) {
+        // The card is being resized by the finger; a level change on top of that would fight it.
+        cancelLevelSettle()
+
         if translation < 0 {
             let absTranslation = abs(translation)
             let initialVisualThreshold = maxUpwardOffset / 3
@@ -313,17 +412,20 @@ struct DayDetailsPagerView: View {
 
         guard restingHeight > 0 else {
             withAnimation(.cardEntrance) { dragOffset = 0 }
+            scheduleLevelSettle()
             return
         }
 
         let pulledFarEnough = dragOffset > restingHeight * dismissHeightFraction
 
         if (pulledFarEnough && velocity >= -150) || velocity > velocityThreshold {
+            cancelLevelSettle()
             store.send(.setSelectedDayStamp(nil))
         } else {
             withAnimation(.cardEntrance) {
                 dragOffset = 0
             }
+            scheduleLevelSettle()
         }
     }
 }

@@ -51,6 +51,19 @@ private struct FlowPickerHeightKey: PreferenceKey {
     }
 }
 
+// Height the active card's content asks for, reported from inside the card's own layout so the
+// pager can decide when to move every card to it. Inactive cards contribute `0`.
+struct DayCardNaturalHeightKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        let next = nextValue()
+        if next > 0 {
+            value = next
+        }
+    }
+}
+
 // The active card's box, reported up to the pager: it drives the calendar's centering and
 // the dismiss gesture's hit test. Inactive cards contribute `.zero`.
 struct DayCardFrameKey: PreferenceKey {
@@ -73,6 +86,9 @@ struct DayDetailsView: View {
     // Every input here is a plain value so that sliding the pager doesn't re-run this body.
     let isActive: Bool
     let dragOffset: CGFloat
+    // The level every card in the pager is drawn at, in the same units `reportedFrame` uses.
+    // `nil` means "your own content decides" — the state of the very first card of an opening.
+    let levelHeight: CGFloat?
 
     @State private var showFlowPicker = false
     @State private var showTagsSheet = false
@@ -254,6 +270,20 @@ struct DayDetailsView: View {
         }
         .padding(cardPadding)
         .padding(.bottom, globalBottomOffset - dragOffset)
+        // Keeps the content at the height it asks for so that a level shorter than the content
+        // spills past the bottom edge and is cut, rather than squeezing the rows into the box.
+        .fixedSize(horizontal: false, vertical: true)
+        .background(
+            GeometryReader { geometry in
+                Color.clear
+                    .preference(
+                        key: DayCardNaturalHeightKey.self,
+                        value: isActive ? reportedHeight(boxHeight: geometry.size.height) : 0
+                    )
+            }
+        )
+        // A `nil` height is the natural one, so the two cases need no branch here.
+        .frame(height: drawnBoxHeight, alignment: .top)
         // The card is a fixed box: the open flow picker and the notes it pushes down run past
         // the bottom edge and are cut there instead of making the card taller.
         .clipShape(RoundedRectangle(cornerRadius: cardCornerRadius))
@@ -512,6 +542,18 @@ struct DayDetailsView: View {
 
     // MARK: - Frame reporting
 
+    // The level the pager works in is the reported height — the box plus the inset above it, less
+    // the bottom offset that hangs off the screen. Both conversions live here so the pager only
+    // ever handles one unit.
+    private func reportedHeight(boxHeight: CGFloat) -> CGFloat {
+        boxHeight + DayDetailsMetrics.screenInset - globalBottomOffset
+    }
+
+    private var drawnBoxHeight: CGFloat? {
+        guard let levelHeight = levelHeight else { return nil }
+        return max(0, levelHeight - DayDetailsMetrics.screenInset + globalBottomOffset - dragOffset)
+    }
+
     // The pager slides the card with `.offset`, so the reported global frame moves sideways
     // on every drag frame. The card spans the full width at rest, so the horizontal position
     // is dropped rather than reported — otherwise every frame of a swipe would look like a
@@ -540,7 +582,8 @@ struct DayDetailsView: View {
         DayDetailsView(
             dayStamp: 2000,
             isActive: true,
-            dragOffset: 0
+            dragOffset: 0,
+            levelHeight: nil
         )
     }
     .environmentObject(
