@@ -39,7 +39,14 @@ struct CalendarView: View {
     @State private var todayWeekCenterY: CGFloat = 0
     @State private var uiOffset: CGFloat = 0
     @State private var selectionOffset: CGFloat = 0
-    
+
+    // MARK: - State: Card Height Prediction
+    // The card's measured height arrives a moment after the selection does. Re-centring has
+    // to start on the same frame as the card, so it starts against the last height seen (or a
+    // default before there is one) and is corrected only if the guess turns out to be off.
+    @State private var assumedCardHeight: CGFloat = CalendarConstants.assumedCardHeight
+    @State private var commandBottomOffset: CGFloat = 0
+
     // MARK: - State: Debouncer
     @State private var bottomOffsetDebouncer = PassthroughSubject<CGFloat, Never>()
     
@@ -49,18 +56,26 @@ struct CalendarView: View {
         store.state.calendarState.todayDayStamp.toDate(calendar: calendar)
     }
 
+    /// The height the panel is going to have, which is its measured height once one exists and
+    /// the previous card's height until then.
+    private var pendingBottomOffset: CGFloat {
+        if bottomCenterOffset > 0 { return bottomCenterOffset }
+        return store.state.calendarState.selectedDayStamp != nil ? assumedCardHeight : 0
+    }
+
     /// Adjusts calendar position when DayDetailsView is shown
     /// Returns offset to center selected date within visible area above the panel
     private var selectionUIOffset: CGFloat {
-        bottomCenterOffset > 0 ? (bottomCenterOffset - globalTopOffset) / 2 : 0
+        let panelHeight = pendingBottomOffset
+        return panelHeight > 0 ? (panelHeight - globalTopOffset) / 2 : 0
     }
-    
+
     /// Main offset that determines calendar scroll position
     /// - When DayDetails closed: centers on today's week
     /// - When DayDetails open: centers on selected date with panel adjustment
     private var effectiveOffset: CGFloat {
         let baseOffset = uiOffset - todayWeekCenterY
-        return bottomCenterOffset > 0 ? baseOffset - selectionOffset - selectionUIOffset : baseOffset
+        return pendingBottomOffset > 0 ? baseOffset - selectionOffset - selectionUIOffset : baseOffset
     }
     
     // MARK: - Constants
@@ -95,7 +110,7 @@ struct CalendarView: View {
                     if let calc = calculator {
                         InfiniteScrollContainer(
                             scrollOffset: $scrollOffset,
-                            scrollCommand: $scrollCommand,
+                            scrollCommand: scrollCommand,
                             onScrollChanged: { newOffset in
                                 // Read the calculator from state, not from the captured `calc`:
                                 // the container keeps the first callback it was given.
@@ -165,10 +180,16 @@ struct CalendarView: View {
                 bottomOffsetDebouncer
                     .debounce(for: .seconds(bottomOffsetDebounceDelay), scheduler: DispatchQueue.main)
             ) { newValue in
-                // Only animate when DayDetails is opening (not closing)
-                if newValue > 0 && store.state.calendarState.selectedDayStamp != nil {
-                    scrollCommand = .animateToCenter
-                }
+                // The measured height only corrects a re-centring that is already under way —
+                // launching one from here would restart the spring from rest a moment after
+                // the card started moving, which is the stop-and-go this used to produce.
+                guard newValue > 0, store.state.calendarState.selectedDayStamp != nil else { return }
+
+                assumedCardHeight = newValue
+
+                guard abs(newValue - commandBottomOffset) > CalendarConstants.cardHeightTolerance else { return }
+                commandBottomOffset = newValue
+                scrollCommand.request()
             }
             .onChange(of: store.state.calendarState.selectedDayStamp) { newValue in
                 guard let calc = calculator else { return }
@@ -193,10 +214,11 @@ struct CalendarView: View {
         if let selectedDayStamp = selectedDayStamp {
             selectionOffset = calculateSelectionOffset(for: selectedDayStamp, calculator: calculator)
 
-            // Animate only if DayDetails is already open
-            if bottomCenterOffset > 0 {
-                scrollCommand = .animateToCenter
-            }
+            // Both the offset and the command are set here, so the render pass that reaches
+            // updateUIView computes its target with the new selection already in it — the
+            // calendar leaves on the same frame as the card rather than a debounce later.
+            commandBottomOffset = pendingBottomOffset
+            scrollCommand.request()
         } else {
             selectionOffset = 0
             updateFloatingButtonState(scrollOffset: scrollOffset)
@@ -341,18 +363,22 @@ struct CalendarView: View {
     }
     
     private func updateFloatingButtonState(scrollOffset: CGFloat) {
+        // The button is only mounted while nothing is selected, and the state lives in
+        // HomeView — writing it under an open card would rebuild the card and the calendar
+        // on every frame of a scroll nobody can see the button during. The closing path
+        // recomputes it from handleDaySelection(nil,…), by which point this guard passes.
+        guard store.state.calendarState.selectedDayStamp == nil else { return }
+
         let headerHeight: CGFloat = CalendarConstants.weekdaysHeaderHeight
-        
+
         let fullScreenHeight = calendarHeight + CalendarConstants.weekdaysHeaderHeight + globalTopOffset
-        
+
         let baseThreshold = fullScreenHeight / 2
-        
-        // When no day is selected the panel is closed (or closing), so compare against
-        // today's base position directly — effectiveOffset still includes the panel
-        // adjustment for one render cycle after selectedDayStamp becomes nil.
-        let reference = store.state.calendarState.selectedDayStamp == nil
-            ? uiOffset - todayWeekCenterY
-            : effectiveOffset
+
+        // The panel is closed (or closing), so compare against today's base position
+        // directly — effectiveOffset still includes the panel adjustment for one render
+        // cycle after selectedDayStamp becomes nil.
+        let reference = uiOffset - todayWeekCenterY
         let deviation = scrollOffset - reference
         
         let downThreshold = baseThreshold

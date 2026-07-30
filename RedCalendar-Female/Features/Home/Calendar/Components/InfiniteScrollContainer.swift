@@ -9,8 +9,11 @@ import SwiftUI
 
 struct InfiniteScrollContainer: UIViewRepresentable {
     @Binding var scrollOffset: CGFloat
-    @Binding var scrollCommand: ScrollCommand
-    
+    // Read-only: the container acknowledges a command by remembering its id, not by writing
+    // the command back.
+    let scrollCommand: ScrollCommand
+
+
     let onScrollChanged: (CGFloat) -> Void
     let onDragStateChanged: (Bool) -> Void
     let onDayTapped: (Daystamp) -> Void
@@ -50,41 +53,57 @@ struct InfiniteScrollContainer: UIViewRepresentable {
         context.coordinator.updateCalculator(calculator)
         context.coordinator.updateScrollOffset(scrollOffset)
         
-        if scrollCommand == .animateToCenter {
+        // The command carries an id rather than being reset to `.none` afterwards: a reset is
+        // an extra state write, and a late one would swallow a command issued in between.
+        if case .animateToCenter(let id) = scrollCommand,
+           id != context.coordinator.lastHandledCommandId {
+            context.coordinator.lastHandledCommandId = id
+
             let targetY = centerY - initialCenterOffset
-            let currentY = uiView.contentOffset.y
-            let distance = abs(targetY - currentY)
-            
-            // Calculate optimal duration and damping based on distance
-            let (duration, damping): (TimeInterval, Double) = {
-                switch distance {
-                case 0..<1400: return (0.65, 0.78) // Less bounce for long
-                default: return (0.75, 0.95)        // Minimal bounce for very long
-                }
-            }()
-            
-            // Start smooth animation using CADisplayLink
+
+            // The card's measured height lands a moment after the selection, so a correction
+            // usually arrives mid-flight. Bend the flight rather than start it over.
+            if context.coordinator.retarget(to: targetY) { return }
+
+            let distance = abs(targetY - uiView.contentOffset.y)
+
+            // Re-selecting the day already centred has nowhere to travel; running the display
+            // link over it would still hold the scroll view for the whole duration.
+            guard distance > 0.5 else { return }
+
+            let (duration, damping) = Self.spring(forDistance: distance)
             context.coordinator.startAnimation(to: targetY, in: uiView, duration: duration, damping: damping)
-            
-            DispatchQueue.main.async {
-                scrollCommand = .none
-            }
             return
         }
-        
+
         // While the display link drives the offset itself, `scrollOffset` is always a frame
         // behind it — writing it back here would drag the animation backwards every frame.
-        if !context.coordinator.isDragging && !context.coordinator.isAnimating {
+        // The same is true for the moment between the last frame and the report it scheduled:
+        // `isAnimating` is already false there, but `scrollOffset` still holds the older
+        // value, and correcting from it would snap the calendar back and then have that stale
+        // value written in as the truth. A genuine offset written by SwiftUI moves away from
+        // what was last delivered, so it still passes.
+        let isStale = context.coordinator.isSyncingOffset
+            && abs(scrollOffset - context.coordinator.lastDeliveredOffset) < 1
+
+        if !context.coordinator.isDragging && !context.coordinator.isAnimating && !isStale {
             let targetY = centerY - scrollOffset
             let currentY = uiView.contentOffset.y
             let difference = abs(currentY - targetY)
-            
+
             if difference > 1 {
                 uiView.contentOffset.y = targetY
             }
         }
     }
-    
+
+    /// Damping never decreases with distance: a short hop that overshoots reads as a wobble,
+    /// and it is slow enough for the overshoot to be watchable. The short duration also lands
+    /// the re-centring together with the card's own entrance.
+    static func spring(forDistance distance: CGFloat) -> (TimeInterval, Double) {
+        distance < 1400 ? (0.5, 0.90) : (0.75, 0.95)
+    }
+
     func makeCoordinator() -> Coordinator {
         Coordinator(self)
     }
@@ -106,7 +125,18 @@ struct InfiniteScrollContainer: UIViewRepresentable {
         private weak var animatingScrollView: UIScrollView?
 
         var isAnimating: Bool { displayLink != nil }
-        
+
+        // The last scroll command acted on. Acknowledging by id is what lets the sender leave
+        // the command in place instead of writing a reset back.
+        var lastHandledCommandId: Int = 0
+
+        // Offset reporting back to SwiftUI
+        private var pendingReport: CGFloat?
+        private(set) var lastDeliveredOffset: CGFloat = 0
+
+        /// True while an offset has been observed but not yet handed to SwiftUI.
+        var isSyncingOffset: Bool { pendingReport != nil }
+
         init(_ parent: InfiniteScrollContainer) {
             self.parent = parent
             self.today = parent.today
@@ -128,7 +158,27 @@ struct InfiniteScrollContainer: UIViewRepresentable {
         func updateScrollOffset(_ offset: CGFloat) {
             self.currentScrollOffset = offset
         }
-        
+
+        // MARK: - Offset Reporting
+
+        /// Hands the offset to SwiftUI one run loop turn later, coalescing everything the
+        /// scroll view observed in between. Both readers take the latest value, so dropping
+        /// intermediate ones is free — and `isSyncingOffset` tells `updateUIView` that the
+        /// `scrollOffset` it can see is not the truth yet.
+        private func report(_ offset: CGFloat) {
+            let alreadyScheduled = pendingReport != nil
+            pendingReport = offset
+            guard !alreadyScheduled else { return }
+
+            DispatchQueue.main.async {
+                guard let value = self.pendingReport else { return }
+                self.pendingReport = nil
+                self.lastDeliveredOffset = value
+                self.parent.scrollOffset = value
+                self.parent.onScrollChanged(value)
+            }
+        }
+
         // MARK: - Animation Methods
         
         func startAnimation(to targetY: CGFloat, in scrollView: UIScrollView, duration: TimeInterval, damping: Double = 0.68) {
@@ -144,10 +194,38 @@ struct InfiniteScrollContainer: UIViewRepresentable {
             animationStartTime = CACurrentMediaTime()
             animatingScrollView = scrollView
             
-            displayLink = CADisplayLink(target: self, selector: #selector(updateAnimation))
-            displayLink?.add(to: .main, forMode: .common)
+            let link = CADisplayLink(target: self, selector: #selector(updateAnimation))
+            link.preferredFrameRateRange = CAFrameRateRange(minimum: 60, maximum: 120, preferred: 120)
+            link.add(to: .main, forMode: .common)
+            displayLink = link
         }
         
+        /// Bends a flight already under way onto a new target instead of restarting it.
+        ///
+        /// Starting over would re-seed the curve at rest, and the visible result of dropping
+        /// the calendar's speed to zero halfway is exactly the stop-and-go this animation is
+        /// meant not to have. Rebasing the start so the curve still evaluates to where the
+        /// calendar currently is keeps position continuous; only the velocity takes a step,
+        /// proportional to how far the target moved.
+        ///
+        /// - Returns: false when there is nothing to bend or it is too late to bend it, in
+        ///   which case the caller should start a fresh animation.
+        func retarget(to newTarget: CGFloat) -> Bool {
+            guard isAnimating, let scrollView = animatingScrollView else { return false }
+
+            let elapsed = CACurrentMediaTime() - animationStartTime
+            let travelled = SpringInterpolation.progress(elapsed / animationDuration, damping: animationDamping)
+
+            // Near the end the rebase divides by almost nothing and the correction would be
+            // a jump; let the current flight land and leave the rest to the caller.
+            guard travelled < 0.9 else { return false }
+
+            let current = scrollView.contentOffset.y
+            animationStartOffset = (current - newTarget * travelled) / (1 - travelled)
+            animationTargetOffset = newTarget
+            return true
+        }
+
         func stopAnimation() {
             displayLink?.invalidate()
             displayLink = nil
@@ -264,18 +342,9 @@ struct InfiniteScrollContainer: UIViewRepresentable {
             if originalOffset != calendarOffset {
                 let correctedPhysicalY = self.parent.centerY - calendarOffset
                 scrollView.contentOffset.y = correctedPhysicalY
-                
-                DispatchQueue.main.async {
-                    self.parent.scrollOffset = calendarOffset
-                    self.parent.onScrollChanged(calendarOffset)
-                }
-                return
             }
-            
-            DispatchQueue.main.async {
-                self.parent.scrollOffset = calendarOffset
-                self.parent.onScrollChanged(calendarOffset)
-            }
+
+            report(calendarOffset)
         }
         
         func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
@@ -301,14 +370,11 @@ struct InfiniteScrollContainer: UIViewRepresentable {
                     calendarOffset = correctedOffset
                 }
                 
-                DispatchQueue.main.async {
-                    self.parent.scrollOffset = calendarOffset
-                    self.parent.onScrollChanged(calendarOffset)
-                    self.parent.onDragStateChanged(false)
-                }
+                report(calendarOffset)
+                DispatchQueue.main.async { self.parent.onDragStateChanged(false) }
             }
         }
-        
+
         func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
             isDragging = false
             
@@ -323,13 +389,10 @@ struct InfiniteScrollContainer: UIViewRepresentable {
                 calendarOffset = correctedOffset
             }
             
-            DispatchQueue.main.async {
-                self.parent.scrollOffset = calendarOffset
-                self.parent.onScrollChanged(calendarOffset)
-                self.parent.onDragStateChanged(false)
-            }
+            report(calendarOffset)
+            DispatchQueue.main.async { self.parent.onDragStateChanged(false) }
         }
-        
+
         func scrollViewWillEndDragging(_ scrollView: UIScrollView, withVelocity velocity: CGPoint, targetContentOffset: UnsafeMutablePointer<CGPoint>) {
             let targetPhysicalY = targetContentOffset.pointee.y
             let targetCalendarOffset = parent.centerY - targetPhysicalY
