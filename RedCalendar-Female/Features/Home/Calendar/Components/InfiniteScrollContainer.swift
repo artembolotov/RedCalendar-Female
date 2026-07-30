@@ -172,42 +172,12 @@ struct InfiniteScrollContainer: UIViewRepresentable {
             
             // Spring physics with natural bounce
             let progress = elapsed / animationDuration
-            let springProgress = springInterpolation(progress, damping: animationDamping)
+            let springProgress = SpringInterpolation.progress(progress, damping: animationDamping)
             
             let delta = animationTargetOffset - animationStartOffset
             let newOffset = animationStartOffset + (delta * springProgress)
             
             scrollView.contentOffset.y = newOffset
-        }
-        
-        // Underdamped spring interpolation (iOS-like)
-        private func springInterpolation(_ t: Double, damping: Double) -> Double {
-            guard t > 0 else { return 0 }
-            guard t < 1 else { return 1 }
-            
-            // Spring parameters - damping is now adaptive
-            let mass: Double = 1.0
-            let stiffness: Double = 100.0
-            let velocity: Double = 0.0
-            
-            let c = damping * 2.0 * sqrt(mass * stiffness)
-            let omega = sqrt(stiffness / mass)
-            let zeta = c / (2.0 * sqrt(stiffness * mass))
-            
-            // Underdamped case (zeta < 1)
-            if zeta < 1.0 {
-                let omegaD = omega * sqrt(1.0 - zeta * zeta)
-                let exponential = exp(-zeta * omega * t)
-                let cosine = cos(omegaD * t)
-                let sine = sin(omegaD * t)
-                let A = 1.0
-                let B = (zeta * omega + velocity) / omegaD
-                
-                return 1.0 - exponential * (A * cosine + B * sine)
-            }
-            
-            // Fallback to critically damped
-            return 1.0 - exp(-omega * t) * (1.0 + omega * t)
         }
         
         // MARK: - Tap Handler
