@@ -68,8 +68,9 @@ struct DayDetailsPagerView: View {
     private let settleDuration: TimeInterval = 0.55
     private let settleDamping: Double = 0.85
     // How long a card has to stand still before it is allowed to leave the level it inherited.
-    // Timed from the moment the card comes to rest, so a run of quick swipes never reaches it
-    // and every day in that run is drawn at the same level.
+    // Timed from the moment the card arrives — not from the end of the settle's curve, which
+    // runs on well past that — so a run of quick swipes never reaches it and every day in that
+    // run is drawn at the same level.
     private let levelDwellDelay: TimeInterval = 0.3
 
     init(
@@ -333,13 +334,15 @@ struct DayDetailsPagerView: View {
             to: target,
             duration: settleDuration,
             damping: settleDamping,
-            velocity: velocity
+            velocity: velocity,
+            // The card has stopped: from here it either stays long enough to take its own
+            // height, or the next swipe cancels the dwell and it keeps this level. Timed
+            // against arrival rather than the completion below, which waits out a tail of the
+            // curve that is far too small to see — the dwell would read as twice its length.
+            onArrival: { scheduleLevelSettle() }
         ) {
             reanchor()
             isPaging = false
-            // The card has stopped: from here it either stays long enough to take its own
-            // height, or the next swipe cancels the dwell and it keeps this level.
-            scheduleLevelSettle()
         }
     }
 
