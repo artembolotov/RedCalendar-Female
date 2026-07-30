@@ -435,6 +435,13 @@ struct DayDetailsView: View {
         .padding(.vertical, 12)
     }
 
+    // The row reads as a writing area rather than a one-line strip, so it keeps a floor of
+    // four text lines. Derived from the body font so it grows with Dynamic Type instead of
+    // clipping a taller line height.
+    private var commentRowMinimumHeight: CGFloat {
+        UIFont.preferredFont(forTextStyle: .body).lineHeight * 4
+    }
+
     private var commentRowContent: some View {
         Group {
             if let comment = comment, !comment.isEmpty {
@@ -446,7 +453,7 @@ struct DayDetailsView: View {
                     .foregroundColor(Color(UIColor.tertiaryLabel))
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, minHeight: commentRowMinimumHeight, alignment: .topLeading)
         .padding(.vertical, 12)
     }
 
