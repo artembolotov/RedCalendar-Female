@@ -9,7 +9,7 @@ import SwiftUI
 // one day at a time, dragging it down dismisses it. Both come from the same window pan
 // recognizer, which decides the axis once per gesture.
 //
-// Cards are laid out against `anchorDay` and moved by a single offset that `CardPagingAnimator`
+// Cards are laid out against `anchor` and moved by a single offset that `CardPagingAnimator`
 // drives frame by frame. Because that offset can always be read, re-basing (`reanchor()`)
 // works at any moment — it moves the anchor and the offset by the same slot, which draws
 // exactly the same pixels — so a swipe can take the card over mid-settle without a jump.
@@ -25,8 +25,9 @@ struct DayDetailsPagerView: View {
     @StateObject private var animator = CardPagingAnimator()
 
     // The visual state leads the store: `Store.send` lands a run loop later, so paging has to
-    // be driven locally and let the selection catch up.
-    @State private var anchorDay: Daystamp?
+    // be driven locally and let the selection catch up. The anchor is therefore seeded once,
+    // in `init`, and never derived from `dayStamp` — see the note there.
+    @State private var anchor: Daystamp
     @State private var shiftInFlight = 0
     @State private var cardFrame: CGRect = .zero
     @State private var isPaging = false
@@ -53,8 +54,20 @@ struct DayDetailsPagerView: View {
     private let settleDuration: TimeInterval = 0.55
     private let settleDamping: Double = 0.85
 
-    private var anchor: Daystamp {
-        anchorDay ?? dayStamp
+    init(
+        dayStamp: Daystamp,
+        width: CGFloat,
+        dragOffset: Binding<CGFloat>,
+        height: Binding<CGFloat>
+    ) {
+        self.dayStamp = dayStamp
+        self.width = width
+        self._dragOffset = dragOffset
+        self._height = height
+        // Fixed when the card opens. The anchor must not follow `dayStamp`: that moves under
+        // the pager exactly when the store catches up with a page the pager has already
+        // committed, which would carry `activeDay` a further day along with it.
+        self._anchor = State(initialValue: dayStamp)
     }
 
     private var activeDay: Daystamp {
@@ -108,7 +121,7 @@ struct DayDetailsPagerView: View {
             }
 
             guard newValue != activeDay else { return }
-            anchorDay = newValue
+            anchor = newValue
             shiftInFlight = 0
             isPaging = false
             animator.setOffset(0)
@@ -204,10 +217,13 @@ struct DayDetailsPagerView: View {
     }
 
     private func commit(shift: Int, velocity: CGFloat) {
+        // Read off the anchor before settling: a settle with nothing left to travel finishes
+        // synchronously, and its completion re-anchors.
+        let newSelection = anchor + shift
+
         shiftInFlight = shift
         settle(to: CGFloat(-shift) * pageStride, velocity: velocity)
 
-        let newSelection = anchor + shift
         pendingSelection = newSelection
         store.send(.setSelectedDayStamp(newSelection))
     }
@@ -235,7 +251,7 @@ struct DayDetailsPagerView: View {
         var transaction = Transaction()
         transaction.disablesAnimations = true
         withTransaction(transaction) {
-            anchorDay = newAnchor
+            anchor = newAnchor
             shiftInFlight = 0
             animator.setOffset(compensated)
         }
