@@ -71,7 +71,13 @@ struct DayDetailsPagerView: View {
     // Timed from the moment the card arrives — not from the end of the settle's curve, which
     // runs on well past that — so a run of quick swipes never reaches it and every day in that
     // run is drawn at the same level.
-    private let levelDwellDelay: TimeInterval = 0.3
+    //
+    // The two directions are not worth the same wait. A card that has to grow is clipping rows
+    // the user cannot even tap, so holding the level costs them the day's contents; one that has
+    // to shrink is only carrying blank space below its last row, which costs nothing and is
+    // worth keeping for longer.
+    private let levelGrowDwellDelay: TimeInterval = 0.3
+    private let levelShrinkDwellDelay: TimeInterval = 0.6
 
     init(
         dayStamp: Daystamp,
@@ -223,11 +229,27 @@ struct DayDetailsPagerView: View {
 
         let day = activeDay
         levelSettleTask = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: UInt64(levelDwellDelay * 1_000_000_000))
-            guard !Task.isCancelled else { return }
-            guard day == activeDay, !isDraggingHorizontally, dragOffset == 0 else { return }
+            guard await sleepUnlessCancelled(levelGrowDwellDelay), isResting(on: day) else { return }
+
+            // Which way the card is about to go can only be read here: a calendar tap arms the
+            // dwell before the new card has been measured, so at that point `naturalHeight`
+            // still belongs to the day being left.
+            if let level = levelHeight, naturalHeight < level {
+                let remainder = max(0, levelShrinkDwellDelay - levelGrowDwellDelay)
+                guard await sleepUnlessCancelled(remainder), isResting(on: day) else { return }
+            }
+
             applyLevel(naturalHeight, animated: true)
         }
+    }
+
+    private func sleepUnlessCancelled(_ delay: TimeInterval) async -> Bool {
+        try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+        return !Task.isCancelled
+    }
+
+    private func isResting(on day: Daystamp) -> Bool {
+        day == activeDay && !isDraggingHorizontally && dragOffset == 0
     }
 
     private func cancelLevelSettle() {
