@@ -72,7 +72,9 @@ struct InfiniteScrollContainer: UIViewRepresentable {
             return
         }
         
-        if !context.coordinator.isDragging {
+        // While the display link drives the offset itself, `scrollOffset` is always a frame
+        // behind it — writing it back here would drag the animation backwards every frame.
+        if !context.coordinator.isDragging && !context.coordinator.isAnimating {
             let targetY = centerY - scrollOffset
             let currentY = uiView.contentOffset.y
             let difference = abs(currentY - targetY)
@@ -102,6 +104,8 @@ struct InfiniteScrollContainer: UIViewRepresentable {
         private var animationTargetOffset: CGFloat = 0
         private var animationDamping: Double = 0.68
         private weak var animatingScrollView: UIScrollView?
+
+        var isAnimating: Bool { displayLink != nil }
         
         init(_ parent: InfiniteScrollContainer) {
             self.parent = parent
