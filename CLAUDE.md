@@ -219,6 +219,13 @@ When a view needs several lookups for one day, resolve them once per render with
 `cycles.dayContext(for:)` (`CycleDayContext`) instead of calling the individual queries from
 multiple computed properties.
 
+**A recorded cycle is never predicted over.** Extrapolation from the default cycle length only
+applies past the *last* recorded start: once the next cycle is marked, that cycle's real length is
+the distance between the two starts, so `CycleDayContext.predictedCycleStart(cycleLength:)` returns
+nil for its days and the day-details subtitle shows the plain actual day ("30 день цикла", never
+"30 (2)"). `computeDayDisplayStates` follows the same rule by construction — it synthesizes
+predicted cycles only after `lastStartDay` and clips every cycle's segment at the next start.
+
 **Cycle settings are never read raw.** `UserSettings.CycleSettings` carries unvalidated optional
 integers straight from the API — a zero cycle length there divides by zero in `predictedCycleStart`
 and never terminates the prediction loop in `computeDayDisplayStates`. Always go through

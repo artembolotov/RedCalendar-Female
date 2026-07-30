@@ -143,10 +143,12 @@ struct DayDetailsView: View {
         // hide the day count rather than show unrealistic values.
         guard cycleDay <= Constants.Cycle.maxCycleLength else { return "" }
 
-        // Once we've stepped past the first cycle from the last confirmed start, show
-        // both the running day count and the day within the current predicted cycle.
+        // Once we've stepped past the first cycle from the last confirmed start, show both
+        // the running day count and the day within the current predicted cycle. The context
+        // drops the prediction as soon as the next cycle is recorded — the cycle's real
+        // length is known then, so a day inside it is only ever its actual day.
         let cycleLength = ResolvedCycleSettings(store.state.currentUser?.settings?.cycle).cycleLength
-        if let predictedStart = cycle.predictedCycleStart(for: dayStamp, cycleLength: cycleLength) {
+        if let predictedStart = context.predictedCycleStart(cycleLength: cycleLength) {
             let predictedDay = dayStamp - predictedStart + 1
             return "\(cycleDay) (\(predictedDay)) день цикла"
         }

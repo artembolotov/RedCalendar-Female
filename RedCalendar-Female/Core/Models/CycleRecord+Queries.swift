@@ -23,12 +23,25 @@ enum PeriodCoverage: Equatable {
 struct CycleDayContext {
     let day: Daystamp
     let owning: CycleRecord?
+
+    /// Next recorded cycle after `owning` — nil means `owning` is the latest one and the
+    /// real length of the day's cycle is still unknown.
+    let following: CycleRecord?
     let ongoing: CycleRecord?
     let completed: CycleRecord?
 
     /// Cycle whose recorded period covers the day, open or closed — the one that owns the
     /// day's period data. See `recordedPeriodCycle(covering:)`.
     var recorded: CycleRecord? { ongoing ?? completed }
+
+    /// Start of the predicted (extrapolated) cycle the day falls into.
+    ///
+    /// Nil once the next cycle is recorded: the cycle's length is then a known fact — the
+    /// distance to that start — and extrapolating the default length would contradict it.
+    func predictedCycleStart(cycleLength: Int) -> Daystamp? {
+        guard following == nil else { return nil }
+        return owning?.predictedCycleStart(for: day, cycleLength: cycleLength)
+    }
 
     /// See `canEndPeriod(at:today:)` — answered from the already-resolved context.
     func canEndPeriod(today: Daystamp) -> Bool {
@@ -106,18 +119,24 @@ extension Array where Element == CycleRecord {
     }
 
     /// Start of the predicted (extrapolated) cycle the day falls into, or nil while the day
-    /// is still within the first cycle after the last real start on or before it.
+    /// is still within the first cycle after the last real start on or before it — and nil
+    /// as well once the next cycle is recorded. See `CycleDayContext.predictedCycleStart`.
     func predictedCycleStart(for day: Daystamp, cycleLength: Int) -> Daystamp? {
-        owningCycle(for: day)?.predictedCycleStart(for: day, cycleLength: cycleLength)
+        dayContext(for: day).predictedCycleStart(cycleLength: cycleLength)
     }
 
     func dayContext(for day: Daystamp) -> CycleDayContext {
-        let owning = owningCycle(for: day)
+        let owningIndex = lastIndex { $0.startDay <= day }
+        let owning = owningIndex.map { self[$0] }
+        let following = owningIndex.flatMap { index -> CycleRecord? in
+            index + 1 < count ? self[index + 1] : nil
+        }
         let coverage: PeriodCoverage = owning?.periodCoverage(of: day) ?? .outside
 
         return CycleDayContext(
             day: day,
             owning: owning,
+            following: following,
             ongoing: coverage == .ongoing ? owning : nil,
             completed: coverage == .completed ? owning : nil
         )
