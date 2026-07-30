@@ -180,6 +180,11 @@ struct CalendarView: View {
             .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
                 updateCalendarAndCalculatorIfNeeded()
             }
+            // A day rollover or a time zone change only updates `todayDayStamp` in the store;
+            // the calendar this view draws with is a snapshot and has to be re-read too.
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.significantTimeChangeNotification)) { _ in
+                updateCalendarAndCalculatorIfNeeded()
+            }
         }
     }
     
@@ -252,15 +257,15 @@ struct CalendarView: View {
     }
     
     private func updateCalendarAndCalculatorIfNeeded() {
+        // Compared whole rather than field by field: the time zone matters as much as the
+        // locale and the first weekday, and a stale zone leaves the grid measuring days in
+        // one zone while the store computes today in another.
         let newCalendar = Calendar.current
-        
-        let localeChanged = newCalendar.locale?.identifier != calendar.locale?.identifier
-        let firstWeekdayChanged = newCalendar.firstWeekday != calendar.firstWeekday
-        
-        if localeChanged || firstWeekdayChanged {
+
+        if newCalendar != calendar {
             calendar = newCalendar
         }
-        
+
         updateCalculatorIfNeeded()
     }
     
@@ -293,27 +298,46 @@ struct CalendarView: View {
         guard let currentCalculator = calculator else {
             return
         }
-        
+
         let currentLocale = Locale.current.identifier
         let currentFirstWeekday = calendar.firstWeekday
-        
+
         let localeChanged = currentLocale != currentCalculator.cachedLocaleIdentifier
         let firstWeekdayChanged = currentFirstWeekday != currentCalculator.cachedFirstWeekday
-        
+
         let dateChanged = !calendar.isDate(currentDate, inSameDayAs: currentCalculator.currentDate)
-        
+
         if localeChanged || firstWeekdayChanged || dateChanged {
             let newCalculator = MonthCalculator(currentDate: currentDate, screenHeight: calendarHeight, calendar: calendar)
             localizedWeekdays = newCalculator.getLocalizedWeekdays()
-            
+
             calculator = newCalculator
-            
+
+            scrollOffset -= originShift(from: currentCalculator, to: newCalculator)
+
             // Recalculate all offsets when calculator changes
             recalculateOffsets(calculator: newCalculator)
 
             rebuildViewport(for: scrollOffset, calculator: newCalculator)
             updateFloatingButtonState(scrollOffset: scrollOffset)
         }
+    }
+
+    /// How far the content moved when the calculator was replaced.
+    ///
+    /// Every Y position is measured from the top of the month holding the calculator's
+    /// `currentDate`, so a today that crossed into a new month re-origins the whole
+    /// coordinate space. Without cancelling that out of `scrollOffset`, the day the user
+    /// was looking at slides a month's height away at midnight on the 1st.
+    private func originShift(from old: MonthCalculator, to new: MonthCalculator) -> CGFloat {
+        guard let oldMonthStart = calendar.dateInterval(of: .month, for: old.currentDate)?.start,
+              let newMonthStart = calendar.dateInterval(of: .month, for: new.currentDate)?.start,
+              let monthOffset = calendar.dateComponents([.month], from: newMonthStart, to: oldMonthStart).month
+        else {
+            return 0
+        }
+
+        return new.getYPosition(for: monthOffset)
     }
     
     private func updateFloatingButtonState(scrollOffset: CGFloat) {
