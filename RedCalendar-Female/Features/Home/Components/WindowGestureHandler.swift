@@ -97,6 +97,9 @@ struct WindowGestureHandler: UIViewRepresentable {
 
         private var gestureDirection: GestureDirection = .undecided
         private var beganInsideFrame = false
+        // Whether the vertical branch has been told that the gesture it was receiving turned out
+        // to be a horizontal one. Sent once per gesture.
+        private var endedVerticalPhase = false
         private let gestureDetectionThreshold: CGFloat = 5
 
         init(gestureFrame: CGRect) {
@@ -124,6 +127,7 @@ struct WindowGestureHandler: UIViewRepresentable {
             switch gesture.state {
             case .began:
                 gestureDirection = .undecided
+                endedVerticalPhase = false
                 beganInsideFrame = gestureFrame.contains(gesture.location(in: gesture.view))
                 onGestureChange?(0, 0, .began, .vertical)
 
@@ -154,6 +158,15 @@ struct WindowGestureHandler: UIViewRepresentable {
         private func emit(translation: CGPoint, velocity: CGPoint, state: PanGestureState) {
             switch gestureDirection {
             case .horizontal:
+                // Until the axis was settled this gesture was going to the vertical branch, which
+                // has been following it with the card. That phase is over whichever way it goes
+                // from here — including a drag that started outside the card and is about to be
+                // dropped, which would otherwise leave the card held a few points down for good.
+                if !endedVerticalPhase {
+                    endedVerticalPhase = true
+                    onGestureChange?(0, 0, .cancelled, .vertical)
+                }
+
                 guard beganInsideFrame else { return }
                 onGestureChange?(translation.x, velocity.x, state, .horizontal)
             case .vertical, .undecided:
