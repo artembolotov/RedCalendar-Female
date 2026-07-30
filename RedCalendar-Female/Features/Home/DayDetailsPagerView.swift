@@ -4,16 +4,15 @@
 //
 
 import SwiftUI
-import Combine
 
 // Horizontal pager around `DayDetailsView`: dragging the card sideways moves the selection
 // one day at a time, dragging it down dismisses it. Both come from the same window pan
 // recognizer, which decides the axis once per gesture.
 //
-// Cards are laid out against `anchorDay` and moved with a single continuous `pageOffset`,
-// never re-based mid-flight: a commit only animates that offset one slot further. Re-basing
-// (`reanchor()`) happens once the card is at rest, where swapping the anchor for a zero
-// offset draws exactly the same pixels.
+// Cards are laid out against `anchorDay` and moved by a single offset that `CardPagingAnimator`
+// drives frame by frame. Because that offset can always be read, re-basing (`reanchor()`)
+// works at any moment — it moves the anchor and the offset by the same slot, which draws
+// exactly the same pixels — so a swipe can take the card over mid-settle without a jump.
 struct DayDetailsPagerView: View {
     @EnvironmentObject var store: AppStore
 
@@ -23,17 +22,18 @@ struct DayDetailsPagerView: View {
     @Binding var dragOffset: CGFloat
     @Binding var height: CGFloat
 
+    @StateObject private var animator = CardPagingAnimator()
+
     // The visual state leads the store: `Store.send` lands a run loop later, so paging has to
     // be driven locally and let the selection catch up.
     @State private var anchorDay: Daystamp?
     @State private var shiftInFlight = 0
-    @State private var pageOffset: CGFloat = 0
     @State private var cardFrame: CGRect = .zero
     @State private var isPaging = false
     @State private var isDraggingHorizontally = false
-    // Fires once the last settle has landed; debounce keeps a superseded settle from
-    // re-anchoring in the middle of the next one.
-    @State private var settleDebouncer = PassthroughSubject<Void, Never>()
+    // Offset the current drag started from, so the card follows the finger from wherever it
+    // was rather than from wherever the last gesture left the model.
+    @State private var dragStartOffset: CGFloat = 0
     // Day we last dispatched. Two quick swipes put two selections in flight, and the first
     // one arriving back must not drag the pager backwards.
     @State private var pendingSelection: Daystamp?
@@ -44,12 +44,14 @@ struct DayDetailsPagerView: View {
     private let maxUpwardOffset: CGFloat = 150
 
     private let pageCommitRatio: CGFloat = 0.25
+    // Share of a slot the finger moves one-to-one before the drag starts resisting.
+    private let dragFreeRatio: CGFloat = 0.85
     // How far ahead a flick is projected when deciding whether it committed a page.
     private let pageVelocityProjection: CGFloat = 0.15
-    private let settleDuration: TimeInterval = 0.28
-    // Re-anchoring after the settle has landed is invisible; doing it early is not, so the
-    // timer deliberately trails the animation.
-    private let settleMargin: TimeInterval = 0.06
+    // The spring covers most of this in its first third — the rest is the tail settling, in
+    // the same shape the calendar's own scroll animation uses.
+    private let settleDuration: TimeInterval = 0.55
+    private let settleDamping: Double = 0.85
 
     private var anchor: Daystamp {
         anchorDay ?? dayStamp
@@ -81,7 +83,7 @@ struct DayDetailsPagerView: View {
                     isActive: day == activeDay,
                     dragOffset: day == activeDay ? dragOffset : 0
                 )
-                .offset(x: CGFloat(day - anchor) * pageStride + pageOffset)
+                .offset(x: CGFloat(day - anchor) * pageStride + animator.offset)
             }
         }
         .background(
@@ -102,23 +104,13 @@ struct DayDetailsPagerView: View {
             guard newValue != activeDay else { return }
             anchorDay = newValue
             shiftInFlight = 0
-            pageOffset = 0
             isPaging = false
+            animator.setOffset(0)
         }
         .onPreferenceChange(DayCardFrameKey.self) { frame in
             guard frame != .zero else { return }
             cardFrame = frame
             height = frame.height
-        }
-        .onReceive(
-            settleDebouncer.debounce(
-                for: .seconds(settleDuration + settleMargin),
-                scheduler: DispatchQueue.main
-            )
-        ) { _ in
-            guard !isDraggingHorizontally else { return }
-            reanchor()
-            isPaging = false
         }
     }
 
@@ -141,67 +133,100 @@ struct DayDetailsPagerView: View {
             break
 
         case .changed:
-            if !isPaging {
+            let start: CGFloat
+
+            if isDraggingHorizontally {
+                start = dragStartOffset
+            } else {
+                isDraggingHorizontally = true
                 isPaging = true
-            }
-            isDraggingHorizontally = true
-            // Grabbing the card mid-settle: finish the pending page first so the drag is
-            // measured from the day the user is actually looking at.
-            if shiftInFlight != 0 {
+                // Take the card over exactly where the settle had got to, and rebase onto the
+                // day the user is actually looking at.
+                animator.cancel()
                 reanchor()
+                // The pan is already a few points along by the time its axis is settled;
+                // anchoring to that keeps the first frame of the drag from stepping.
+                start = animator.offset - translation
+                dragStartOffset = start
             }
-            pageOffset = translation
+
+            animator.setOffset(resisted(start + translation))
 
         case .ended:
-            let projected = translation + velocity * pageVelocityProjection
+            isDraggingHorizontally = false
+
+            // Measured from the anchor rather than from the drag, so a card taken over
+            // half-way to the next day is judged on where it actually sits.
+            let projected = animator.offset + velocity * pageVelocityProjection
             let commitDistance = pageStride * pageCommitRatio
 
             // Dragging left brings in the card on the right — the next day.
             if projected < -commitDistance {
-                commit(shift: 1)
+                commit(shift: 1, velocity: velocity)
             } else if projected > commitDistance {
-                commit(shift: -1)
+                commit(shift: -1, velocity: velocity)
             } else {
-                settle(to: 0)
+                settle(to: 0, velocity: velocity)
             }
 
         case .cancelled, .failed:
-            settle(to: shiftInFlight == 0 ? 0 : CGFloat(-shiftInFlight) * pageStride)
+            isDraggingHorizontally = false
+            settle(to: 0, velocity: 0)
         }
     }
 
-    private func commit(shift: Int) {
+    // A gesture moves the card by at most one day, and only the two neighbours are mounted —
+    // so past most of a slot the drag stiffens and comes to rest at exactly one, instead of
+    // pulling an unmounted third card's empty space onto the screen.
+    private func resisted(_ offset: CGFloat) -> CGFloat {
+        let limit = pageStride
+        let free = limit * dragFreeRatio
+        let magnitude = abs(offset)
+
+        guard magnitude > free else { return offset }
+
+        let remaining = limit - free
+        let overshoot = magnitude - free
+        let damped = remaining * (1 - 1 / (overshoot / remaining + 1))
+
+        return (offset < 0 ? -1 : 1) * (free + damped)
+    }
+
+    private func commit(shift: Int, velocity: CGFloat) {
         shiftInFlight = shift
-        settle(to: CGFloat(-shift) * pageStride)
+        settle(to: CGFloat(-shift) * pageStride, velocity: velocity)
 
         let newSelection = anchor + shift
         pendingSelection = newSelection
         store.send(.setSelectedDayStamp(newSelection))
     }
 
-    private func settle(to target: CGFloat) {
-        isDraggingHorizontally = false
-
-        withAnimation(.easeOut(duration: settleDuration)) {
-            pageOffset = target
+    private func settle(to target: CGFloat, velocity: CGFloat) {
+        animator.animate(
+            to: target,
+            duration: settleDuration,
+            damping: settleDamping,
+            velocity: velocity
+        ) {
+            reanchor()
+            isPaging = false
         }
-
-        settleDebouncer.send(())
     }
 
-    // Swaps the slot the offsets are measured from for an offset of zero — the same picture,
-    // so it must only ever run while the card is at rest.
+    // Moves the slot the offsets are measured from and the offset itself by the same page,
+    // which draws exactly the same pixels — so this is safe at any point in a settle.
     private func reanchor() {
-        guard shiftInFlight != 0 || pageOffset != 0 else { return }
+        guard shiftInFlight != 0 else { return }
 
         let newAnchor = activeDay
+        let compensated = animator.offset + CGFloat(shiftInFlight) * pageStride
 
         var transaction = Transaction()
         transaction.disablesAnimations = true
         withTransaction(transaction) {
             anchorDay = newAnchor
             shiftInFlight = 0
-            pageOffset = 0
+            animator.setOffset(compensated)
         }
     }
 
