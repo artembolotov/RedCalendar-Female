@@ -134,7 +134,12 @@ struct DayDetailsPagerView: View {
             // exit animation. Its day is no longer the selected one, and the calendar must
             // not centre on a card that is leaving.
             guard store.state.calendarState.selectedDayStamp == dayStamp else { return }
-            height = frame.height
+            // `.move` changes the reported origin on every frame of the entrance while the
+            // height stays put, so this fires ~60 times with the same value — and it writes
+            // into HomeView's state, rebuilding the calendar with it.
+            if height != frame.height {
+                height = frame.height
+            }
         }
     }
 
@@ -268,7 +273,7 @@ struct DayDetailsPagerView: View {
         case .ended:
             handleDragEnded(velocity: velocity)
         case .cancelled, .failed:
-            withAnimation(.bouncy) {
+            withAnimation(.cardEntrance) {
                 dragOffset = 0
             }
         }
@@ -300,14 +305,14 @@ struct DayDetailsPagerView: View {
 
     private func handleDragEnded(velocity: CGFloat) {
         guard cardFrame.height > 0 else {
-            withAnimation(.bouncy) { dragOffset = 0 }
+            withAnimation(.cardEntrance) { dragOffset = 0 }
             return
         }
 
         if (cardFrame.height < bottomThreshold) && velocity >= -150 || velocity > velocityThreshold {
             store.send(.setSelectedDayStamp(nil))
         } else {
-            withAnimation(.bouncy) {
+            withAnimation(.cardEntrance) {
                 dragOffset = 0
             }
         }

@@ -52,7 +52,7 @@ struct FloatingAddButton: View {
             onPlusTapped?()
             
         case .arrowUp, .arrowDown:
-            scrollCommand = .animateToCenter
+            scrollCommand.request()
         }
     }
 }
