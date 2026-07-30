@@ -41,7 +41,10 @@ struct DayDetailsPagerView: View {
 
     private let velocityThreshold: CGFloat = 1200
     private let rubberBandFactor: CGFloat = 0.3
-    private let bottomThreshold: CGFloat = 250
+    // How much of its own height the card has to be pulled down by to close. A share rather
+    // than a distance: the card is sized by its content, so days differ by hundreds of points
+    // and any fixed number would be past a short card's whole height.
+    private let dismissHeightFraction: CGFloat = 0.35
     private let maxUpwardOffset: CGFloat = 150
 
     private let pageCommitRatio: CGFloat = 0.25
@@ -304,12 +307,18 @@ struct DayDetailsPagerView: View {
     }
 
     private func handleDragEnded(velocity: CGFloat) {
-        guard cardFrame.height > 0 else {
+        // Dragging down by d shortens the card by exactly d, so the measured frame plus the
+        // drag gives back the height the card rests at — no separate state for it.
+        let restingHeight = cardFrame.height + dragOffset
+
+        guard restingHeight > 0 else {
             withAnimation(.cardEntrance) { dragOffset = 0 }
             return
         }
 
-        if (cardFrame.height < bottomThreshold) && velocity >= -150 || velocity > velocityThreshold {
+        let pulledFarEnough = dragOffset > restingHeight * dismissHeightFraction
+
+        if (pulledFarEnough && velocity >= -150) || velocity > velocityThreshold {
             store.send(.setSelectedDayStamp(nil))
         } else {
             withAnimation(.cardEntrance) {

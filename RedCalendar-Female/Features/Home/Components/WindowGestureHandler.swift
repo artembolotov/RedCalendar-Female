@@ -14,9 +14,9 @@ enum PanGestureAxis {
 }
 
 // A pan recognizer attached to the key window rather than to a SwiftUI view: the day card
-// has to answer drags that start anywhere over it, including on top of its own scrollable
-// content. The axis is decided once per gesture, so the vertical dismiss and the horizontal
-// day paging never fight each other.
+// has to answer drags that start anywhere over it, including on top of its buttons and rows,
+// which would otherwise swallow the touch. The axis is decided once per gesture, so the
+// vertical dismiss and the horizontal day paging never fight each other.
 struct WindowGestureHandler: UIViewRepresentable {
     let gestureFrame: CGRect
     let onGestureChange: (CGFloat, CGFloat, PanGestureState, PanGestureAxis) -> Void

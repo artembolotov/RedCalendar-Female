@@ -41,7 +41,7 @@ enum CalendarConstants {
     // MARK: - Day card
     // What the day card's height is taken to be before one has been measured. Only the very
     // first opening of a session uses it; afterwards the previous card's height is the guess.
-    static let assumedCardHeight: CGFloat = 300
+    static let assumedCardHeight: CGFloat = 260
     // A height that differs from the assumed one by less than this is not worth a correction:
     // the error moves the scroll target by half of it.
     static let cardHeightTolerance: CGFloat = 12
