@@ -38,6 +38,19 @@ private enum DayTitleFormatters {
     }
 }
 
+// Natural height of the flow level options, reported from outside the card's layout so the
+// card can slide the notes down by exactly that much.
+private struct FlowPickerHeightKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        let next = nextValue()
+        if next > 0 {
+            value = next
+        }
+    }
+}
+
 // The active card's box, reported up to the pager: it drives the calendar's centering and
 // the dismiss gesture's hit test. Inactive cards contribute `.zero`.
 struct DayCardFrameKey: PreferenceKey {
@@ -64,9 +77,14 @@ struct DayDetailsView: View {
     @State private var showFlowPicker = false
     @State private var showTagsSheet = false
     @State private var showCommentSheet = false
+    // Measured from the options themselves rather than assumed, so the notes travel the right
+    // distance at any Dynamic Type size.
+    @State private var flowPickerHeight: CGFloat = 0
 
     private let globalBottomOffset: CGFloat = 25
     private let cardPadding: CGFloat = 16
+    private let cardCornerRadius: CGFloat = 16
+    private let flowPickerDuration: TimeInterval = 0.15
     // Shared box for the close button and the flow level circles so both sit
     // trailing-aligned to the same edge and share a centre line.
     private let trailingControlWidth: CGFloat = 28
@@ -223,16 +241,27 @@ struct DayDetailsView: View {
                 if context.canSetFlowLevel(today: today) {
                     periodSection(currentLevel: context.recorded?.flowLevel(on: dayStamp))
                         .padding(.top, 16)
+                        // The options hang out of the section's box, so the section has to draw
+                        // over the notes it pushes down rather than under them.
+                        .zIndex(1)
                 }
                 notesSection
                     .padding(.top, 16)
+                    .offset(y: notesOffset)
+                    .animation(.easeInOut(duration: flowPickerDuration), value: notesOffset)
             }
             .padding(.top, 4)
         }
         .padding(cardPadding)
         .padding(.bottom, globalBottomOffset - dragOffset)
+        // The card is a fixed box: the open flow picker and the notes it pushes down run past
+        // the bottom edge and are cut there instead of making the card taller.
+        .clipShape(RoundedRectangle(cornerRadius: cardCornerRadius))
+        // Clipping hides the rows pushed past the edge but still lets them take a tap, so the
+        // hit area is cut back to the card as well.
+        .contentShape(RoundedRectangle(cornerRadius: cardCornerRadius))
         .background(
-            RoundedRectangle(cornerRadius: 16)
+            RoundedRectangle(cornerRadius: cardCornerRadius)
                 .adaptiveBackground(colorScheme: colorScheme)
                 .adaptiveShadow(colorScheme: colorScheme)
         )
@@ -254,6 +283,16 @@ struct DayDetailsView: View {
                 .environmentObject(store)
                 .tint(.accent)
         }
+        .onPreferenceChange(FlowPickerHeightKey.self) { height in
+            // The options report nothing while they're closed — keeping the last measurement
+            // means the notes have a distance to travel on the very first frame of an opening.
+            guard height > 0 else { return }
+            flowPickerHeight = height
+        }
+    }
+
+    private var notesOffset: CGFloat {
+        showFlowPicker ? flowPickerHeight : 0
     }
 
     // MARK: - Header
@@ -339,61 +378,75 @@ struct DayDetailsView: View {
         VStack(alignment: .leading, spacing: 0) {
             sectionHeader("Менструация")
             flowLevelRow(currentLevel: currentLevel)
+            if showFlowPicker {
+                flowLevelPicker(currentLevel: currentLevel)
+            }
         }
     }
 
     private func flowLevelRow(currentLevel: Int?) -> some View {
-        VStack(spacing: 0) {
-            Button(action: {
-                withAnimation(.easeInOut(duration: 0.15)) {
-                    showFlowPicker.toggle()
-                }
-            }) {
-                HStack {
-                    Text("Обильность")
-                        .foregroundColor(.primary)
-                    Spacer()
-                    Text(flowLevelLabel(for: currentLevel))
-                        .foregroundColor(.red)
-                }
-                .padding(.vertical, 12)
+        Button(action: {
+            withAnimation(.easeInOut(duration: flowPickerDuration)) {
+                showFlowPicker.toggle()
             }
+        }) {
+            HStack {
+                Text("Обильность")
+                    .foregroundColor(.primary)
+                Spacer()
+                Text(flowLevelLabel(for: currentLevel))
+                    .foregroundColor(.red)
+            }
+            .padding(.vertical, 12)
+        }
+    }
 
-            if showFlowPicker {
-                VStack(spacing: 0) {
-                    ForEach(flowLevelOptions, id: \.1) { level, label in
-                        Button(action: {
-                            store.send(.setFlowLevel(dayStamp, level))
-                            withAnimation(.easeInOut(duration: 0.15)) {
-                                showFlowPicker = false
-                            }
-                        }) {
-                            HStack {
-                                Text(label)
-                                    .foregroundColor(.primary)
-                                Spacer()
-                                ZStack {
-                                    // strokeBorder keeps the outline inside the 22pt box, so the
-                                    // drawn circle matches the box the centring below aligns.
-                                    Circle()
-                                        .strokeBorder(currentLevel == level ? Color.red : Color.secondary, lineWidth: 1.5)
-                                        .frame(width: 22, height: 22)
-                                    if currentLevel == level {
-                                        Circle()
-                                            .fill(Color.red)
-                                            .frame(width: 12, height: 12)
-                                    }
-                                }
-                                .frame(width: trailingControlWidth)
-                            }
-                            .padding(.vertical, 12)
-                            .padding(.leading, 16)
-                        }
+    // Opening the picker must not resize the card — the calendar centres on the card's box, so
+    // a card that grew would drag the month under it. The options are therefore laid out at
+    // their natural height inside a zero-height frame: they hang below the row without the
+    // section ever measuring taller, and `notesOffset` slides the notes down by the same
+    // distance so the two don't overlap once the animation has settled.
+    private func flowLevelPicker(currentLevel: Int?) -> some View {
+        VStack(spacing: 0) {
+            ForEach(flowLevelOptions, id: \.1) { level, label in
+                Button(action: {
+                    store.send(.setFlowLevel(dayStamp, level))
+                    withAnimation(.easeInOut(duration: flowPickerDuration)) {
+                        showFlowPicker = false
                     }
+                }) {
+                    HStack {
+                        Text(label)
+                            .foregroundColor(.primary)
+                        Spacer()
+                        ZStack {
+                            // strokeBorder keeps the outline inside the 22pt box, so the
+                            // drawn circle matches the box the centring below aligns.
+                            Circle()
+                                .strokeBorder(currentLevel == level ? Color.red : Color.secondary, lineWidth: 1.5)
+                                .frame(width: 22, height: 22)
+                            if currentLevel == level {
+                                Circle()
+                                    .fill(Color.red)
+                                    .frame(width: 12, height: 12)
+                            }
+                        }
+                        .frame(width: trailingControlWidth)
+                    }
+                    .padding(.vertical, 12)
+                    .padding(.leading, 16)
                 }
-                .transition(.opacity)
             }
         }
+        .fixedSize(horizontal: false, vertical: true)
+        .background(
+            GeometryReader { geometry in
+                Color.clear
+                    .preference(key: FlowPickerHeightKey.self, value: geometry.size.height)
+            }
+        )
+        .frame(height: 0, alignment: .top)
+        .transition(.opacity)
     }
 
     private var notesSection: some View {
