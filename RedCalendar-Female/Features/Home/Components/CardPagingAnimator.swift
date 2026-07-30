@@ -66,6 +66,7 @@ final class CardPagingAnimator: ObservableObject {
         initialVelocity = min(max(normalized, -maxInitialVelocity), maxInitialVelocity)
 
         let link = CADisplayLink(target: self, selector: #selector(step))
+        link.preferredFrameRateRange = CAFrameRateRange(minimum: 60, maximum: 120, preferred: 120)
         link.add(to: .main, forMode: .common)
         displayLink = link
     }

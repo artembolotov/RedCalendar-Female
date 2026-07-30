@@ -194,8 +194,10 @@ struct InfiniteScrollContainer: UIViewRepresentable {
             animationStartTime = CACurrentMediaTime()
             animatingScrollView = scrollView
             
-            displayLink = CADisplayLink(target: self, selector: #selector(updateAnimation))
-            displayLink?.add(to: .main, forMode: .common)
+            let link = CADisplayLink(target: self, selector: #selector(updateAnimation))
+            link.preferredFrameRateRange = CAFrameRateRange(minimum: 60, maximum: 120, preferred: 120)
+            link.add(to: .main, forMode: .common)
+            displayLink = link
         }
         
         /// Bends a flight already under way onto a new target instead of restarting it.
