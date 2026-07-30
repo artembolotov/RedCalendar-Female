@@ -219,22 +219,14 @@ struct DayDetailsView: View {
                     .padding(.top, 12)
             }
 
-            // The scroll view spans the full card width so its indicator rides in the
-            // card's own padding instead of on top of the trailing controls; the inset
-            // is handed back to the content.
-            ScrollView {
-                VStack(alignment: .leading, spacing: 0) {
-                    if context.canSetFlowLevel(today: today) {
-                        periodSection(currentLevel: context.recorded?.flowLevel(on: dayStamp))
-                            .padding(.top, 16)
-                    }
-                    notesSection
+            VStack(alignment: .leading, spacing: 0) {
+                if context.canSetFlowLevel(today: today) {
+                    periodSection(currentLevel: context.recorded?.flowLevel(on: dayStamp))
                         .padding(.top, 16)
                 }
-                .padding(.horizontal, cardPadding)
+                notesSection
+                    .padding(.top, 16)
             }
-            .frame(maxHeight: 320)
-            .padding(.horizontal, -cardPadding)
             .padding(.top, 4)
         }
         .padding(cardPadding)
