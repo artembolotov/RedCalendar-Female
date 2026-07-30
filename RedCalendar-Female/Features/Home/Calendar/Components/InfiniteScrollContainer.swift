@@ -13,10 +13,10 @@ struct InfiniteScrollContainer: UIViewRepresentable {
     
     let onScrollChanged: (CGFloat) -> Void
     let onDragStateChanged: (Bool) -> Void
-    let onDayTapped: (Date) -> Void
+    let onDayTapped: (Daystamp) -> Void
     let initialCenterOffset: CGFloat
     let calculator: MonthCalculator
-    let currentDate: Date
+    let today: Daystamp
     
     private let contentHeight: CGFloat = 8000000
     private let centerY: CGFloat = 4000000
@@ -46,7 +46,7 @@ struct InfiniteScrollContainer: UIViewRepresentable {
     }
     
     func updateUIView(_ uiView: UIScrollView, context: Context) {
-        context.coordinator.updateCurrentDate(currentDate)
+        context.coordinator.updateToday(today)
         context.coordinator.updateCalculator(calculator)
         context.coordinator.updateScrollOffset(scrollOffset)
         
@@ -72,7 +72,9 @@ struct InfiniteScrollContainer: UIViewRepresentable {
             return
         }
         
-        if !context.coordinator.isDragging {
+        // While the display link drives the offset itself, `scrollOffset` is always a frame
+        // behind it — writing it back here would drag the animation backwards every frame.
+        if !context.coordinator.isDragging && !context.coordinator.isAnimating {
             let targetY = centerY - scrollOffset
             let currentY = uiView.contentOffset.y
             let difference = abs(currentY - targetY)
@@ -90,8 +92,7 @@ struct InfiniteScrollContainer: UIViewRepresentable {
     class Coordinator: NSObject, UIScrollViewDelegate, UIGestureRecognizerDelegate {
         let parent: InfiniteScrollContainer
         var isDragging = false
-        var lastRecenter = Date()
-        private var currentDate: Date
+        private var today: Daystamp
         private var calculator: MonthCalculator
         private var currentScrollOffset: CGFloat = 0
         
@@ -103,10 +104,12 @@ struct InfiniteScrollContainer: UIViewRepresentable {
         private var animationTargetOffset: CGFloat = 0
         private var animationDamping: Double = 0.68
         private weak var animatingScrollView: UIScrollView?
+
+        var isAnimating: Bool { displayLink != nil }
         
         init(_ parent: InfiniteScrollContainer) {
             self.parent = parent
-            self.currentDate = parent.currentDate
+            self.today = parent.today
             self.calculator = parent.calculator
         }
         
@@ -114,8 +117,8 @@ struct InfiniteScrollContainer: UIViewRepresentable {
             stopAnimation()
         }
         
-        func updateCurrentDate(_ date: Date) {
-            self.currentDate = date
+        func updateToday(_ today: Daystamp) {
+            self.today = today
         }
         
         func updateCalculator(_ calc: MonthCalculator) {
@@ -211,41 +214,37 @@ struct InfiniteScrollContainer: UIViewRepresentable {
         
         @objc func handleTap(_ gesture: UITapGestureRecognizer) {
             guard let scrollView = gesture.view as? UIScrollView else { return }
-            
+
             let tapLocation = gesture.location(in: scrollView)
-            
-            // Calculate calendar coordinates
-            let calendarY = tapLocation.y - parent.centerY + currentScrollOffset
-            
-            // Find which day was tapped using ViewportCalculator
-            if let tappedDate = findDayAt(calendarY: calendarY, tapX: tapLocation.x, scrollView: scrollView) {
-                parent.onDayTapped(tappedDate)
+
+            // Content-space Y: the scroll view is anchored at centerY, days sit at yPosition
+            let tapCalendarY = tapLocation.y - parent.centerY
+
+            if let tappedDay = findDayAt(calendarY: tapCalendarY, tapX: tapLocation.x, scrollView: scrollView) {
+                parent.onDayTapped(tappedDay)
             }
         }
-        
-        private func findDayAt(calendarY: CGFloat, tapX: CGFloat, scrollView: UIScrollView) -> Date? {
+
+        private func findDayAt(calendarY tapCalendarY: CGFloat, tapX: CGFloat, scrollView: UIScrollView) -> Daystamp? {
             let screenWidth = scrollView.bounds.width
             let screenHeight = scrollView.bounds.height
-            
+
             // Keep original coordinate system logic
             let dynamicViewport = ViewportCalculator.calculateDynamicViewport(
                 scrollOffset: currentScrollOffset,
                 screenHeight: screenHeight,
                 screenWidth: screenWidth,
                 calculator: calculator,
-                currentDate: currentDate,
-                calendar: Calendar.current
+                today: today
             )
-            
+
             let horizontalPadding = CalendarConstants.horizontalPadding
             let dayWidth = (screenWidth - horizontalPadding) / 7
-            
+
             // Calculate day of week once (0-6)
             let dayOfWeek = Int(tapX / dayWidth)
             guard dayOfWeek >= 0 && dayOfWeek < 7 else { return nil }
-            
-            let tapCalendarY = calendarY - currentScrollOffset
-            
+
             // Optimize: find month first, then calculate day mathematically
             for month in dynamicViewport.visibleMonths {
                 let weeksCount = calculator.getWeeksCount(for: month.monthOffset)
@@ -265,13 +264,13 @@ struct InfiniteScrollContainer: UIViewRepresentable {
                     let relativeY = tapCalendarY - gridStartY
                     let weekIndex = Int(relativeY / (calculator.weekHeight + weekSpacing))
                     
-                    // Get the specific day directly from month days array
-                    let monthDays = calculator.getMonthDays(for: month.monthOffset)
+                    // Get the specific day directly from month cells array
+                    let monthCells = calculator.getMonthCells(for: month.monthOffset)
                     let dayIndex = weekIndex * 7 + dayOfWeek
-                    
-                    guard dayIndex >= 0 && dayIndex < monthDays.count else { return nil }
-                    
-                    return monthDays[dayIndex]
+
+                    guard dayIndex >= 0 && dayIndex < monthCells.count else { return nil }
+
+                    return monthCells[dayIndex]?.daystamp
                 }
             }
             
@@ -288,7 +287,7 @@ struct InfiniteScrollContainer: UIViewRepresentable {
             let physicalY = scrollView.contentOffset.y
             var calendarOffset = self.parent.centerY - physicalY
             
-            let limits = self.parent.calculator.getScrollLimits()
+            let limits = self.calculator.getScrollLimits()
             let originalOffset = calendarOffset
             calendarOffset = max(limits.min, min(limits.max, calendarOffset))
             
@@ -301,15 +300,6 @@ struct InfiniteScrollContainer: UIViewRepresentable {
                     self.parent.onScrollChanged(calendarOffset)
                 }
                 return
-            }
-            
-            if !isDragging && currentDate.timeIntervalSince(lastRecenter) > 5.0 {
-                let correctedPhysicalY = self.parent.centerY - calendarOffset
-                let distanceFromEdge = min(correctedPhysicalY, self.parent.contentHeight - correctedPhysicalY)
-                if distanceFromEdge < 100000 {
-                    scrollView.contentOffset.y = self.parent.centerY - calendarOffset
-                    lastRecenter = currentDate
-                }
             }
             
             DispatchQueue.main.async {
@@ -332,7 +322,7 @@ struct InfiniteScrollContainer: UIViewRepresentable {
                 
                 let physicalY = scrollView.contentOffset.y
                 var calendarOffset = self.parent.centerY - physicalY
-                let limits = self.parent.calculator.getScrollLimits()
+                let limits = self.calculator.getScrollLimits()
                 let correctedOffset = max(limits.min, min(limits.max, calendarOffset))
                 
                 if abs(correctedOffset - calendarOffset) > 0.1 {
@@ -354,7 +344,7 @@ struct InfiniteScrollContainer: UIViewRepresentable {
             
             let physicalY = scrollView.contentOffset.y
             var calendarOffset = self.parent.centerY - physicalY
-            let limits = self.parent.calculator.getScrollLimits()
+            let limits = self.calculator.getScrollLimits()
             let correctedOffset = max(limits.min, min(limits.max, calendarOffset))
             
             if abs(correctedOffset - calendarOffset) > 0.1 {
@@ -374,7 +364,7 @@ struct InfiniteScrollContainer: UIViewRepresentable {
             let targetPhysicalY = targetContentOffset.pointee.y
             let targetCalendarOffset = parent.centerY - targetPhysicalY
             
-            let limits = parent.calculator.getScrollLimits()
+            let limits = self.calculator.getScrollLimits()
             
             let boundaryBuffer: CGFloat = 200
             let isApproachingTop = targetCalendarOffset > (limits.max - boundaryBuffer)

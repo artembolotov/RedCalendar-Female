@@ -242,7 +242,19 @@ readers must treat absence as "nothing to show", never assume every day in `load
 `CalendarState.loadedRange` is centered on the viewport: `CalendarView` dispatches
 `.calendarScrolledTo(center:)` as the user scrolls, and `DatabaseMiddleware` re-centers the range
 (and its comment/tag observations) when the center gets close to an edge. Buffer and threshold live
-in `Constants.Calendar` — do not hardcode them.
+in `Constants.Calendar` — do not hardcode them. **The loaded range must stay wider than what the
+calendar draws around the center** (a rendered viewport reaches roughly four months either way): a
+day scrolled into view before its range is loaded has no `DayDisplayState`, so its bars, dots and
+comments visibly draw themselves in a moment later.
+
+**Scrolling must not rebuild day cells.** The grid (`CalendarGridView`) is `Equatable` and is drawn
+for a fixed *anchor* offset; a scroll frame only slides that layer with `.offset`, and
+`CalendarView.rebuildViewport` re-anchors it once the scroll has travelled
+`CalendarConstants.viewportUpdateThreshold`. Everything the grid needs must therefore be a plain
+value input — no store reads inside it — and the off-screen cull uses `anchorOffset`, never the live
+scroll offset. The cull's buffer (`dayVisibilityBufferRatio`) is what covers the drift between two
+anchors, so the two constants move together. Per-day calendar work (daystamp, day number) belongs in
+`MonthCalculator.getMonthCells(for:)`, which caches it per month; never recompute it per frame.
 
 ### API Service
 
