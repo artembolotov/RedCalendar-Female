@@ -26,12 +26,12 @@ struct HomeView: View {
                         )
 
                         if let dayStamp = store.state.calendarState.selectedDayStamp {
-                            DayDetailsView(
+                            DayDetailsPagerView(
                                 dayStamp: dayStamp,
+                                width: geometry.size.width,
                                 dragOffset: $dragOffset,
                                 height: $dayDetailsHeight
                             )
-                            .id(dayStamp.rawValue)
                             .transition(.move(edge: .bottom))
                             .zIndex(1)
                         } else {
