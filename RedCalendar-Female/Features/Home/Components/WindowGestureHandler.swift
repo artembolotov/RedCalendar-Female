@@ -78,9 +78,15 @@ struct WindowGestureHandler: UIViewRepresentable {
         context.coordinator.gesture = panGesture
         context.coordinator.onGestureChange = onGestureChange
         context.coordinator.gestureFrame = gestureFrame
+        Coordinator.current = context.coordinator
     }
 
     class Coordinator: NSObject, UIGestureRecognizerDelegate {
+        // A card that is transitioning out keeps its recognizer on the window until the
+        // animation ends, and being the older one it would recognize first and answer for the
+        // card that replaced it. Only the most recently installed one acts.
+        static weak var current: Coordinator?
+
         var onGestureChange: ((CGFloat, CGFloat, PanGestureState, PanGestureAxis) -> Void)?
         var gestureFrame: CGRect
         weak var gesture: UIPanGestureRecognizer?
@@ -103,9 +109,15 @@ struct WindowGestureHandler: UIViewRepresentable {
             }
             gesture = nil
             onGestureChange = nil
+
+            if Coordinator.current === self {
+                Coordinator.current = nil
+            }
         }
 
         @objc func handlePan(_ gesture: UIPanGestureRecognizer) {
+            guard Coordinator.current === self else { return }
+
             let translation = gesture.translation(in: gesture.view)
             let velocity = gesture.velocity(in: gesture.view)
 

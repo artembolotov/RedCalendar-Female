@@ -92,6 +92,12 @@ struct DayDetailsPagerView: View {
             }
         )
         .onChange(of: dayStamp) { newValue in
+            // Only a card that is still the selected one is re-evaluated, so this is the
+            // moment a day committed by a swipe becomes the one the calendar should follow.
+            if cardFrame != .zero {
+                height = cardFrame.height
+            }
+
             // While our own selection is still in flight the store is behind us; only a day
             // that came from somewhere else (a calendar tap) re-centers the pager.
             if let pending = pendingSelection {
@@ -110,6 +116,11 @@ struct DayDetailsPagerView: View {
         .onPreferenceChange(DayCardFrameKey.self) { frame in
             guard frame != .zero else { return }
             cardFrame = frame
+
+            // A card closed while another is opened keeps reporting all the way through its
+            // exit animation. Its day is no longer the selected one, and the calendar must
+            // not centre on a card that is leaving.
+            guard store.state.calendarState.selectedDayStamp == dayStamp else { return }
             height = frame.height
         }
     }

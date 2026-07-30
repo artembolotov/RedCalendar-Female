@@ -13,6 +13,9 @@ struct HomeView: View {
     @State private var floatingButtonState: FloatingButtonState = .plus
     @State private var scrollCommand: ScrollCommand = .none
     @State private var dragOffset: CGFloat = 0
+    // Bumped every time the card closes, so the next one is a new view rather than the one
+    // still on its way out.
+    @State private var detailsPresentation = 0
     
     var body: some View {
         NavigationView {
@@ -32,6 +35,10 @@ struct HomeView: View {
                                 dragOffset: $dragOffset,
                                 height: $dayDetailsHeight
                             )
+                            // Reopening while the previous card is still transitioning out
+                            // would revive that one, and a revived view keeps the position it
+                            // had rather than sliding in.
+                            .id(detailsPresentation)
                             .transition(.move(edge: .bottom))
                             .zIndex(1)
                         } else {
@@ -50,6 +57,7 @@ struct HomeView: View {
                         if newValue == nil {
                             dragOffset = 0
                             dayDetailsHeight = 0
+                            detailsPresentation += 1
                         }
                     }
                     .ignoresSafeArea(edges: .bottom)
