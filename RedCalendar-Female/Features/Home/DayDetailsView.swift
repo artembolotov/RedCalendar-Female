@@ -51,14 +51,28 @@ private struct FlowPickerHeightKey: PreferenceKey {
     }
 }
 
-// Height the active card's content asks for, reported from inside the card's own layout so the
-// pager can decide when to move every card to it. Inactive cards contribute `0`.
-struct DayCardNaturalHeightKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
+/// A card height together with the day it belongs to.
+///
+/// The calendar centres the selected day in the space above the card, so it cannot leave until
+/// it knows how tall the card for *that* day is. The day travels with the number because the
+/// number alone is not the signal: a card keeping its level across a day change reports the same
+/// height for a new day, and a new day whose content happens to measure the same as the last
+/// one's would otherwise never be reported at all.
+struct DayCardHeight: Equatable {
+    var day: Daystamp?
+    var height: CGFloat
 
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+    static let none = DayCardHeight(day: nil, height: 0)
+}
+
+// Height the active card's content asks for, reported from inside the card's own layout so the
+// pager can decide when to move every card to it. Inactive cards contribute `.none`.
+struct DayCardNaturalHeightKey: PreferenceKey {
+    static var defaultValue: DayCardHeight = .none
+
+    static func reduce(value: inout DayCardHeight, nextValue: () -> DayCardHeight) {
         let next = nextValue()
-        if next > 0 {
+        if next.height > 0 {
             value = next
         }
     }
@@ -278,7 +292,9 @@ struct DayDetailsView: View {
                 Color.clear
                     .preference(
                         key: DayCardNaturalHeightKey.self,
-                        value: isActive ? reportedHeight(boxHeight: geometry.size.height) : 0
+                        value: isActive
+                            ? DayCardHeight(day: dayStamp, height: reportedHeight(boxHeight: geometry.size.height))
+                            : .none
                     )
             }
         )

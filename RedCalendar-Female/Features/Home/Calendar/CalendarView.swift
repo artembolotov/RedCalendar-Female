@@ -6,12 +6,11 @@
 //
 
 import SwiftUI
-import Combine
 
 // MARK: - Main Calendar View
 struct CalendarView: View {
     @EnvironmentObject var store: AppStore
-    @Binding var bottomCenterOffset: CGFloat
+    @Binding var cardHeight: DayCardHeight
     @Binding var floatingButtonState: FloatingButtonState
     @Binding var scrollCommand: ScrollCommand
     
@@ -40,27 +39,29 @@ struct CalendarView: View {
     @State private var uiOffset: CGFloat = 0
     @State private var selectionOffset: CGFloat = 0
 
-    // MARK: - State: Card Height Prediction
-    // The card's measured height arrives a moment after the selection does. Re-centring has
-    // to start on the same frame as the card, so it starts against the last height seen (or a
-    // default before there is one) and is corrected only if the guess turns out to be off.
+    // MARK: - State: Card Height
+    // A selection re-centres the day in the space above the card, so the flight cannot start
+    // until the card's height for that day is known — see `awaitingHeightFor`. The last height
+    // seen is kept only for the fallback below, and for the very first opening of a session.
     @State private var assumedCardHeight: CGFloat = CalendarConstants.assumedCardHeight
     @State private var commandBottomOffset: CGFloat = 0
+    @State private var awaitingHeightFor: Daystamp?
+    @State private var heightWaitTask: Task<Void, Never>?
 
-    // MARK: - State: Debouncer
-    @State private var bottomOffsetDebouncer = PassthroughSubject<CGFloat, Never>()
-    
     // MARK: - Computed Properties
 
     private var currentDate: Date {
         store.state.calendarState.todayDayStamp.toDate(calendar: calendar)
     }
 
-    /// The height the panel is going to have, which is its measured height once one exists and
-    /// the previous card's height until then.
+    /// The height of the card for the day currently selected — the panel the calendar has to
+    /// centre above. Falls back to the last height seen only while the card for that day has
+    /// not reported yet, which is a window nothing normally scrolls in.
     private var pendingBottomOffset: CGFloat {
-        if bottomCenterOffset > 0 { return bottomCenterOffset }
-        return store.state.calendarState.selectedDayStamp != nil ? assumedCardHeight : 0
+        guard let selected = store.state.calendarState.selectedDayStamp else { return 0 }
+
+        if cardHeight.day == selected, cardHeight.height > 0 { return cardHeight.height }
+        return assumedCardHeight
     }
 
     /// Adjusts calendar position when DayDetailsView is shown
@@ -82,14 +83,17 @@ struct CalendarView: View {
     private let viewportUpdateThreshold: CGFloat = CalendarConstants.viewportUpdateThreshold
     private let monthHeaderHeight: CGFloat = CalendarConstants.monthHeaderHeight
     private let headerHeight: CGFloat = CalendarConstants.weekdaysHeaderHeight
-    private let bottomOffsetDebounceDelay: TimeInterval = 0.1
-    
+    // How long a selection waits for its card's height before leaving on the last one seen.
+    // A measurement takes a frame or two; this is the guard against a card that never reports,
+    // not the path a selection normally takes.
+    private let cardHeightWaitLimit: TimeInterval = 0.05
+
     init(
-        prefferedBottomOffset: Binding<CGFloat> = .constant(0),
+        cardHeight: Binding<DayCardHeight> = .constant(.none),
         floatingButtonState: Binding<FloatingButtonState>,
         scrollCommand: Binding<ScrollCommand>
     ) {
-        self._bottomCenterOffset = prefferedBottomOffset
+        self._cardHeight = cardHeight
         self._floatingButtonState = floatingButtonState
         self._scrollCommand = scrollCommand
     }
@@ -179,27 +183,15 @@ struct CalendarView: View {
 
                 updateFloatingButtonState(scrollOffset: scrollOffset)
             }
-            .onChange(of: bottomCenterOffset) { newValue in
-                bottomOffsetDebouncer.send(newValue)
-            }
-            .onReceive(
-                bottomOffsetDebouncer
-                    .debounce(for: .seconds(bottomOffsetDebounceDelay), scheduler: DispatchQueue.main)
-            ) { newValue in
-                // The measured height only corrects a re-centring that is already under way —
-                // launching one from here would restart the spring from rest a moment after
-                // the card started moving, which is the stop-and-go this used to produce.
-                guard newValue > 0, store.state.calendarState.selectedDayStamp != nil else { return }
-
-                assumedCardHeight = newValue
-
-                guard abs(newValue - commandBottomOffset) > CalendarConstants.cardHeightTolerance else { return }
-                commandBottomOffset = newValue
-                scrollCommand.request()
-            }
+            // Ahead of the height handler below: when a selection and a height land in the
+            // same pass, the selection is what decides whether the height is the one being
+            // waited for.
             .onChange(of: store.state.calendarState.selectedDayStamp) { newValue in
                 guard let calc = calculator else { return }
                 handleDaySelection(newValue, calculator: calc)
+            }
+            .onChange(of: cardHeight) { newValue in
+                handleCardHeight(newValue)
             }
             .onChange(of: store.state.calendarState.todayDayStamp) { _ in
                 updateCalculatorIfNeeded()
@@ -211,6 +203,9 @@ struct CalendarView: View {
             // the calendar this view draws with is a snapshot and has to be re-read too.
             .onReceive(NotificationCenter.default.publisher(for: UIApplication.significantTimeChangeNotification)) { _ in
                 updateCalendarAndCalculatorIfNeeded()
+            }
+            .onDisappear {
+                cancelHeightWait()
             }
         }
     }
@@ -226,20 +221,80 @@ struct CalendarView: View {
 
     // MARK: - Day Selection Handler
     private func handleDaySelection(_ selectedDayStamp: Daystamp?, calculator: MonthCalculator) {
-        if let selectedDayStamp = selectedDayStamp {
-            selectionOffset = calculateSelectionOffset(for: selectedDayStamp, calculator: calculator)
+        cancelHeightWait()
 
-            // Both the offset and the command are set here, so the render pass that reaches
-            // updateUIView computes its target with the new selection already in it — the
-            // calendar leaves on the same frame as the card rather than a debounce later.
-            commandBottomOffset = pendingBottomOffset
-            scrollCommand.request()
-        } else {
+        guard let selectedDayStamp = selectedDayStamp else {
             selectionOffset = 0
             updateFloatingButtonState(scrollOffset: scrollOffset)
+            return
+        }
+
+        selectionOffset = calculateSelectionOffset(for: selectedDayStamp, calculator: calculator)
+
+        // The target is the day's row plus half the card's height, so a card of the wrong
+        // height aims the flight somewhere the calendar then has to come back from. The card
+        // reports its height a frame or two after the selection; waiting for it costs less
+        // than the correction does, and a card that keeps its level across the day change
+        // reports on the same frame, so a swipe waits for nothing at all.
+        if cardHeight.day == selectedDayStamp, cardHeight.height > 0 {
+            launchRecentring(against: pendingBottomOffset)
+        } else {
+            awaitingHeightFor = selectedDayStamp
+            startHeightWait(for: selectedDayStamp)
         }
     }
-    
+
+    // MARK: - Card Height Handler
+
+    private func handleCardHeight(_ newValue: DayCardHeight) {
+        guard newValue.height > 0,
+              let day = newValue.day,
+              day == store.state.calendarState.selectedDayStamp else { return }
+
+        assumedCardHeight = newValue.height
+
+        if awaitingHeightFor == day {
+            cancelHeightWait()
+            launchRecentring(against: newValue.height)
+            return
+        }
+
+        // The card can still change height after the flight has left — a swiped card taking
+        // its own height once it has stood still, or a day growing a comment or a tag. That
+        // moves the visible area, so the centring follows it.
+        guard abs(newValue.height - commandBottomOffset) > CalendarConstants.cardHeightTolerance else { return }
+        launchRecentring(against: newValue.height)
+    }
+
+    /// Sends the calendar to the day currently selected. The target itself is read off
+    /// `effectiveOffset` by the render pass that reaches `updateUIView`; the height the flight
+    /// was aimed with is recorded here, so a card that changes size afterwards can be judged
+    /// worth a correction.
+    private func launchRecentring(against panelHeight: CGFloat) {
+        commandBottomOffset = panelHeight
+        scrollCommand.request()
+    }
+
+    /// Leaves anyway if the card never reports. A selection always re-centres — a day left
+    /// sitting under the card would be a worse failure than a target that is slightly off.
+    private func startHeightWait(for day: Daystamp) {
+        heightWaitTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: UInt64(cardHeightWaitLimit * 1_000_000_000))
+            guard !Task.isCancelled, awaitingHeightFor == day else { return }
+
+            awaitingHeightFor = nil
+            heightWaitTask = nil
+            launchRecentring(against: pendingBottomOffset)
+        }
+    }
+
+    private func cancelHeightWait() {
+        awaitingHeightFor = nil
+        guard let task = heightWaitTask else { return }
+        task.cancel()
+        heightWaitTask = nil
+    }
+
     // MARK: - Week Center Y Calculation (renamed from calculateWeekCenterY)
     private func weekCenterY(for daystamp: Daystamp, calculator: MonthCalculator) -> CGFloat {
         let targetDate = daystamp.toDate(calendar: calendar)

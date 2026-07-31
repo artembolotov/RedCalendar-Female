@@ -20,7 +20,9 @@ struct DayDetailsPagerView: View {
     let width: CGFloat
 
     @Binding var dragOffset: CGFloat
-    @Binding var height: CGFloat
+    // The height the calendar centres against, published for the day it belongs to — see
+    // `DayCardHeight`. Every path that settles what height a day's card stands at writes it.
+    @Binding var height: DayCardHeight
 
     @StateObject private var animator = CardPagingAnimator()
 
@@ -88,7 +90,7 @@ struct DayDetailsPagerView: View {
         dayStamp: Daystamp,
         width: CGFloat,
         dragOffset: Binding<CGFloat>,
-        height: Binding<CGFloat>
+        height: Binding<DayCardHeight>
     ) {
         self.dayStamp = dayStamp
         self.width = width
@@ -168,6 +170,15 @@ struct DayDetailsPagerView: View {
             // A day chosen in the calendar is not waiting on anything.
             guard immediateLevelDay == nil else { return }
 
+            // This day is keeping the level it inherited, so its card's height is already
+            // known and the calendar has nothing to wait for. A day chosen in the calendar
+            // returns above instead: its own height arrives with the next measurement, and
+            // publishing the level it is about to leave would send the calendar to the wrong
+            // place first.
+            if let level = levelHeight {
+                publish(level, for: newValue)
+            }
+
             // A swipe arrives mid-settle, and is armed by that settle's arrival — arming here
             // would only be cancelled by the next frame of it. Everything else is already at
             // rest by now.
@@ -182,10 +193,12 @@ struct DayDetailsPagerView: View {
             guard frame != .zero else { return }
             cardFrame = frame
         }
-        .onPreferenceChange(DayCardNaturalHeightKey.self) { measured in
+        .onPreferenceChange(DayCardNaturalHeightKey.self) { measurement in
             // A downward drag shortens the card, and the measurement shortens with it — that
-            // is the drag, not the day's own height.
-            guard measured > 0, dragOffset == 0 else { return }
+            // is the drag, not the day's own height. A measurement from a card that is no
+            // longer the active one belongs to the day being left.
+            guard measurement.height > 0, measurement.day == activeDay, dragOffset == 0 else { return }
+            let measured = measurement.height
             naturalHeight = measured
 
             if levelHeight == nil {
@@ -219,6 +232,11 @@ struct DayDetailsPagerView: View {
         // level it inherited is still standing at its own, and has to keep following its
         // content from here on.
         settledDay = activeDay
+
+        // Published before that exit as well: the number may be unchanged while the day it
+        // belongs to is not, and the calendar is waiting on the day.
+        publish(newHeight, for: activeDay)
+
         guard levelHeight != newHeight else { return }
 
         if animated {
@@ -232,14 +250,21 @@ struct DayDetailsPagerView: View {
                 levelHeight = newHeight
             }
         }
+    }
 
-        // Outside the animation: this lands in HomeView's state and feeds the calendar's own
-        // spring, which must not be re-driven frame by frame from here. One write per level
-        // change is one correction there.
+    /// Hands a day's card height to the calendar, which centres the day in the space above it.
+    ///
+    /// Outside any animation: this lands in HomeView's state and feeds the calendar's own
+    /// spring, which must not be re-driven frame by frame from here. One write per level
+    /// change is one flight there.
+    private func publish(_ newHeight: CGFloat, for day: Daystamp) {
+        let published = DayCardHeight(day: day, height: newHeight)
+        guard height != published else { return }
+
         var plain = Transaction()
         plain.disablesAnimations = true
         withTransaction(plain) {
-            height = newHeight
+            height = published
         }
     }
 
