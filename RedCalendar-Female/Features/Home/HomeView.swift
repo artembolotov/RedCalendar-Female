@@ -9,7 +9,7 @@ import SwiftUI
 
 struct HomeView: View {
     @EnvironmentObject var store: AppStore
-    @State private var dayDetailsHeight: CGFloat = 0
+    @State private var dayCardHeight: DayCardHeight = .none
     @State private var floatingButtonState: FloatingButtonState = .plus
     @State private var scrollCommand: ScrollCommand = .none
     @State private var dragOffset: CGFloat = 0
@@ -23,7 +23,7 @@ struct HomeView: View {
                 GeometryReader { geometry in
                     ZStack(alignment: .bottomLeading) {
                         CalendarView(
-                            prefferedBottomOffset: $dayDetailsHeight,
+                            cardHeight: $dayCardHeight,
                             floatingButtonState: $floatingButtonState,
                             scrollCommand: $scrollCommand
                         )
@@ -37,7 +37,7 @@ struct HomeView: View {
                                     dayStamp: dayStamp,
                                     width: geometry.size.width,
                                     dragOffset: $dragOffset,
-                                    height: $dayDetailsHeight
+                                    height: $dayCardHeight
                                 )
                                 // Reopening while the previous card is still transitioning out
                                 // would revive that one, and a revived view keeps the position it
@@ -64,7 +64,7 @@ struct HomeView: View {
                     .onChange(of: store.state.calendarState.selectedDayStamp) { newValue in
                         if newValue == nil {
                             dragOffset = 0
-                            dayDetailsHeight = 0
+                            dayCardHeight = .none
                             detailsPresentation += 1
                         }
                     }
