@@ -105,7 +105,11 @@ struct CalendarView: View {
                     width: calendarWidth,
                     height: CalendarConstants.weekdaysHeaderHeight
                 )
-                
+                // The strip sits above the scroll view rather than inside it, so the tap that
+                // dismisses the card from free calendar space has to be added separately here.
+                .contentShape(Rectangle())
+                .onTapGesture { dismissDayDetails() }
+
                 ZStack {
                     if let calc = calculator {
                         InfiniteScrollContainer(
@@ -123,8 +127,10 @@ struct CalendarView: View {
                                 self.isDragging = dragging
                             },
                             onDayTapped: { dayStamp in
-                                store.send(.setSelectedDayStamp(dayStamp))
+                                let current = store.state.calendarState.selectedDayStamp
+                                store.send(.setSelectedDayStamp(current == dayStamp ? nil : dayStamp))
                             },
+                            onEmptyAreaTapped: { dismissDayDetails() },
                             initialCenterOffset: effectiveOffset,
                             calculator: calc,
                             today: store.state.calendarState.todayDayStamp
@@ -209,6 +215,15 @@ struct CalendarView: View {
         }
     }
     
+    // MARK: - Dismiss Handler
+
+    // Guarded rather than dispatched blindly: the store drops the duplicate state either way,
+    // but every tap on empty space would still be logged and reported as an action.
+    private func dismissDayDetails() {
+        guard store.state.calendarState.selectedDayStamp != nil else { return }
+        store.send(.setSelectedDayStamp(nil))
+    }
+
     // MARK: - Day Selection Handler
     private func handleDaySelection(_ selectedDayStamp: Daystamp?, calculator: MonthCalculator) {
         if let selectedDayStamp = selectedDayStamp {
