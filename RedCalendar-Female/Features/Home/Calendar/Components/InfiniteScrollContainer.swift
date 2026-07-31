@@ -17,6 +17,7 @@ struct InfiniteScrollContainer: UIViewRepresentable {
     let onScrollChanged: (CGFloat) -> Void
     let onDragStateChanged: (Bool) -> Void
     let onDayTapped: (Daystamp) -> Void
+    let onEmptyAreaTapped: () -> Void
     let initialCenterOffset: CGFloat
     let calculator: MonthCalculator
     let today: Daystamp
@@ -270,6 +271,8 @@ struct InfiniteScrollContainer: UIViewRepresentable {
 
             if let tappedDay = findDayAt(calendarY: tapCalendarY, tapX: tapLocation.x, scrollView: scrollView) {
                 parent.onDayTapped(tappedDay)
+            } else {
+                parent.onEmptyAreaTapped()
             }
         }
 
@@ -289,29 +292,36 @@ struct InfiniteScrollContainer: UIViewRepresentable {
             let horizontalPadding = CalendarConstants.horizontalPadding
             let dayWidth = (screenWidth - horizontalPadding) / 7
 
-            // Calculate day of week once (0-6)
-            let dayOfWeek = Int(tapX / dayWidth)
-            guard dayOfWeek >= 0 && dayOfWeek < 7 else { return nil }
+            // Columns are measured from the grid's own leading edge: cells are drawn from
+            // horizontalPadding / 2 (ViewportCalculator.createVisibleMonth), so the padding on
+            // either side belongs to no day and reads as free space.
+            let gridX = tapX - horizontalPadding / 2
+            guard gridX >= 0 else { return nil }
+
+            let dayOfWeek = Int(gridX / dayWidth)
+            guard dayOfWeek < 7 else { return nil }
 
             // Optimize: find month first, then calculate day mathematically
             for month in dynamicViewport.visibleMonths {
                 let weeksCount = calculator.getWeeksCount(for: month.monthOffset)
-                
+
                 // Use proper constants instead of magic numbers
                 let headerHeight = CalendarConstants.monthHeaderHeight
                 let weekSpacing = CalendarConstants.gridVerticalSpacing
-                
+
                 let gridStartY = month.yPosition + headerHeight
                 let gridEndY = gridStartY + CGFloat(weeksCount) * (calculator.weekHeight + weekSpacing)
-                
-                // Check if tap is within the month grid area
-                if tapCalendarY >= gridStartY - calculator.weekHeight / 2 &&
-                   tapCalendarY <= gridEndY + calculator.weekHeight / 2 {
-                    
+
+                // The band is the drawn grid and nothing more — the month title and the gap
+                // below the last week are free space, and tapping them dismisses the day card.
+                // The spacing between two weeks stays with the week above it: a tap a couple of
+                // points off should still pick a day rather than dismiss.
+                if tapCalendarY >= gridStartY && tapCalendarY < gridEndY {
+
                     // Calculate which week was tapped using same formula as ViewportCalculator
                     let relativeY = tapCalendarY - gridStartY
                     let weekIndex = Int(relativeY / (calculator.weekHeight + weekSpacing))
-                    
+
                     // Get the specific day directly from month cells array
                     let monthCells = calculator.getMonthCells(for: month.monthOffset)
                     let dayIndex = weekIndex * 7 + dayOfWeek
