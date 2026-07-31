@@ -33,7 +33,7 @@ enum CalendarConstants {
     // (half of the smallest week height), so the four values below only move together: shrink
     // the gaps and the dots end up inside the selected day's circle or under the dashed line.
     // Current split: circle -15…+15, dots +16.5…+21.5, fertile line +23…+25.
-    static let periodBarHeight: CGFloat = 26
+    static let periodBarHeight: CGFloat = 22
     static let periodBarCornerRadius: CGFloat = 8
     static let dayIndicatorSize: CGFloat = 28
     static let fertileLineBottomInset: CGFloat = 1
