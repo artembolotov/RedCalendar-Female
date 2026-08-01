@@ -63,18 +63,12 @@ struct CalendarGridView: View, Equatable {
 
         // MARK: - Layer 1: Fertile window lines
         ForEach(content.fertileLines) { line in
-            RoundedCorners(radius: CalendarConstants.fertileLineHeight / 2, corners: line.corners)
-                .fill(line.color)
-                .frame(width: dayWidth, height: CalendarConstants.fertileLineHeight)
-                .position(x: line.centerX, y: line.centerY)
+            fertileLine(line)
         }
 
         // MARK: - Layer 2: Period rectangles
         ForEach(content.periodBars) { bar in
-            RoundedCorners(radius: CalendarConstants.periodBarCornerRadius, corners: bar.corners)
-                .fill(Palette.period.opacity(bar.isPredicted ? 0.35 : 1.0))
-                .frame(width: dayWidth, height: CalendarConstants.periodBarHeight)
-                .position(x: bar.centerX, y: bar.centerY)
+            periodBar(bar)
         }
 
         // MARK: - Layer 3: Day cells
@@ -84,14 +78,72 @@ struct CalendarGridView: View, Equatable {
     }
 
     @ViewBuilder
+    private func fertileLine(_ line: FertileLine) -> some View {
+        Group {
+            if case .ovulation(let confirmed) = line.phase, !confirmed {
+                // Same language as the period bar: a prediction is drawn as an outline, never
+                // as a faded version of the confirmed colour.
+                HorizontalRule()
+                    .stroke(
+                        Palette.ovulationLine,
+                        style: StrokeStyle(
+                            lineWidth: CalendarConstants.fertileLineHeight,
+                            dash: CalendarConstants.predictedOvulationDash
+                        )
+                    )
+            } else {
+                RoundedCorners(radius: CalendarConstants.fertileLineHeight / 2, corners: line.corners)
+                    .fill(line.phase.lineColor)
+            }
+        }
+        .frame(width: dayWidth, height: CalendarConstants.fertileLineHeight)
+        .position(x: line.centerX, y: line.centerY)
+    }
+
+    @ViewBuilder
+    private func periodBar(_ bar: PeriodBar) -> some View {
+        let shape = RoundedCorners(radius: CalendarConstants.periodBarCornerRadius, corners: bar.corners)
+
+        if bar.isPredicted {
+            // The bar is built one rectangle per day, so stroking it as drawn would put a
+            // vertical edge on every internal day boundary. The path is widened past the cell
+            // on each side where the run continues and then clipped back to the cell: the
+            // vertical strokes land outside the clip and the horizontal ones meet flush.
+            let overhang = CalendarConstants.predictedBarStrokeWidth * 2
+            let lead = bar.corners.contains(.topLeft) ? 0 : overhang
+            let trail = bar.corners.contains(.topRight) ? 0 : overhang
+
+            shape
+                .strokeBorder(Palette.predictedStroke, lineWidth: CalendarConstants.predictedBarStrokeWidth)
+                .background(shape.fill(Palette.predictedFill))
+                .frame(width: dayWidth + lead + trail, height: CalendarConstants.periodBarHeight)
+                .offset(x: (trail - lead) / 2)
+                .frame(width: dayWidth, height: CalendarConstants.periodBarHeight)
+                .clipped()
+                .position(x: bar.centerX, y: bar.centerY)
+        } else {
+            shape
+                .fill(Palette.period)
+                .frame(width: dayWidth, height: CalendarConstants.periodBarHeight)
+                .position(x: bar.centerX, y: bar.centerY)
+        }
+    }
+
+    @ViewBuilder
     private func dayCell(_ cell: RenderDay) -> some View {
         let isSelected = selectedDayStamp == cell.daystamp
 
         ZStack {
             if cell.isToday {
+                // The ring is what keeps the marker readable on a solid period bar — without
+                // it a red circle on red simply disappears.
                 Circle()
                     .fill(Palette.today)
                     .frame(width: CalendarConstants.dayIndicatorSize, height: CalendarConstants.dayIndicatorSize)
+                    .overlay(
+                        Circle()
+                            .stroke(Palette.background, lineWidth: 2)
+                    )
             }
 
             if isSelected {
@@ -109,6 +161,7 @@ struct CalendarGridView: View, Equatable {
                 .foregroundColor(
                     isSelected ? Palette.background :
                     cell.isToday ? .white :
+                    cell.isPredictedPeriod ? Palette.predictedText :
                     cell.isInPeriod ? .white :
                     cell.daystamp > today ? Palette.futureDay :
                     .primary
@@ -148,8 +201,10 @@ struct CalendarGridView: View, Equatable {
             let state = dayDisplayStates[day.daystamp]
 
             var isInPeriod = false
+            var isPredictedPeriod = false
             if case .period(let position, let isPredicted) = state?.cyclePhase {
                 isInPeriod = true
+                isPredictedPeriod = isPredicted
                 content.periodBars.append(
                     PeriodBar(
                         id: day.daystamp.rawValue,
@@ -168,7 +223,7 @@ struct CalendarGridView: View, Equatable {
                         centerX: centerX,
                         centerY: centerY + CalendarConstants.fertileLineOffset,
                         corners: fertileWindow.position.corners,
-                        color: fertileWindow.phase.lineColor
+                        phase: fertileWindow.phase
                     )
                 )
             }
@@ -179,6 +234,7 @@ struct CalendarGridView: View, Equatable {
                     dayNumber: day.dayNumber,
                     isToday: day.isToday,
                     isInPeriod: isInPeriod,
+                    isPredictedPeriod: isPredictedPeriod,
                     centerX: centerX,
                     centerY: centerY,
                     dotColors: dotColors(for: state)
@@ -214,6 +270,7 @@ private struct RenderDay: Identifiable {
     let dayNumber: String
     let isToday: Bool
     let isInPeriod: Bool
+    let isPredictedPeriod: Bool
     let centerX: CGFloat
     let centerY: CGFloat
     let dotColors: [Color]
@@ -234,7 +291,18 @@ private struct FertileLine: Identifiable {
     let centerX: CGFloat
     let centerY: CGFloat
     let corners: UIRectCorner
-    let color: Color
+    let phase: FertilePhase
+}
+
+// A single horizontal rule across the rect, so the ovulation day can be stroked (and dashed)
+// rather than filled.
+private struct HorizontalRule: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: rect.minX, y: rect.midY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.midY))
+        return path
+    }
 }
 
 // MARK: - Palette
@@ -242,15 +310,22 @@ private struct FertileLine: Identifiable {
 // Resolved once instead of per day cell — named assets and UIColor bridging are lookups,
 // not literals. Dynamic colors still resolve against the current trait collection.
 private enum Palette {
-    static let period = Color.red
-    static let today = Color.red
+    // The accent asset rather than the system red: the floating button, the tint and the bar
+    // are the same red to the eye, so they must be the same red in code too.
+    static let period = Color.accent
+    static let today = Color.accent
+    // A prediction is an outline, not a faded fill — see the stroke in `periodBar(_:)`. The
+    // fill behind it only groups the run and never has to carry the distinction on its own.
+    static let predictedFill = Color("PredictedPeriodFillColor")
+    static let predictedStroke = Color.accent
+    static let predictedText = Color("PredictedDayTextColor")
     static let selected = Color("SelectedDayColor")
-    static let background = Color(UIColor.systemBackground)
-    static let futureDay = Color(UIColor.tertiaryLabel)
-    static let commentDot = Color(UIColor.tertiaryLabel)
-    // An asset rather than a literal: the fertile line's weight comes from its alpha, and one
-    // alpha reads very differently against white and against black, so it carries a light/dark
-    // variant. The ovulation orange is full strength and needs no such split.
+    static let background = Color("AppBackgroundColor")
+    static let futureDay = Color(UIColor.secondaryLabel)
+    static let commentDot = Color(UIColor.secondaryLabel)
+    // Assets rather than literals: these carry their weight in a 2pt line, and both the
+    // fertile line's alpha and the ovulation orange read very differently against white and
+    // against a near-black background, so each needs its own light/dark variant.
     static let fertileLine = Color("FertileLineColor")
     static let ovulationLine = Color("OvulationLineColor")
 }

@@ -251,6 +251,26 @@ day is a full-strength orange — a different hue, not a denser lilac. That dist
 carried by alpha alone, which worked while the window was a 26pt fill and stopped working the
 moment it became a 2pt line: a step in density needs area to read, and a line has none.
 
+**A prediction differs in form, not in density.** A predicted period is a *hollow* bar — a
+`predictedBarStrokeWidth` outline in the accent red over a faint grouping fill — where a confirmed
+one is solid; a predicted ovulation day is a dashed rule where a confirmed one is solid. Never go
+back to drawing either as an alpha of the confirmed colour: alpha over a background is a step in
+lightness, and on a near-black background the only red dimmer than the confirmed red is a brown.
+The outline carries the same meaning against white and against black. The day number follows the
+bar — `Palette.predictedText` inside a hollow bar, white only inside a solid one; white on the old
+faded fill was unreadable in the light theme.
+
+Two construction consequences. The bar is drawn one rectangle per day, so the outline's path is
+widened by `predictedBarStrokeWidth * 2` on every side where the run continues (no corner to
+round there) and then clipped back to the cell: the vertical strokes fall outside the clip and the
+horizontal ones meet flush, so a multi-day run has no internal seams. And `RoundedCorners` is
+`InsettableShape` for exactly this — `strokeBorder` keeps the outline inside `periodBarHeight`,
+where a plain `stroke` would straddle the edge and lose half its weight to the clip.
+
+**Two reds would be one red too many.** The period bar, the today marker, the floating button and
+the app tint are all `Color.accent` (the `AccentColor` asset). The calendar used to draw with the
+system `Color.red` instead, and the two were visibly different next to each other.
+
 Three things are stacked below a cell's centre, in this order and no other: the day indicator
 (⌀28, and ⌀28 + a 2pt outward ring when selected, so −15…+15), the fertile line (+18…+20) and the
 dot row (+23…+29). The next week's own indicator starts at +39. The line sits *below* where the

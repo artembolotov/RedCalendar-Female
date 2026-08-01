@@ -52,7 +52,7 @@ struct RootView: View {
                 }
                 .padding()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(Color(.systemBackground))
+                .background(Color("AppBackgroundColor"))
             }
         } else {
             WaitingView("Проверка авторизации")

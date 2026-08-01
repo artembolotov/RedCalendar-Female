@@ -61,6 +61,7 @@ struct HomeView: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
                         .animation(.cardEntrance, value: store.state.calendarState.selectedDayStamp != nil)
                     }
+                    .background(Color("AppBackgroundColor").ignoresSafeArea())
                     .onChange(of: store.state.calendarState.selectedDayStamp) { newValue in
                         if newValue == nil {
                             dragOffset = 0
