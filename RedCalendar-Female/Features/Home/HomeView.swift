@@ -81,14 +81,21 @@ struct HomeView: View {
                             detailsPresentation += 1
                         }
                     }
-                    .ignoresSafeArea(edges: .bottom)
                     .navigationBarTitleDisplayMode(.inline)
                     .toolbar {
                         ToolbarItem(placement: .navigationBarTrailing) {
                             HomeMenuView(accent: store.state.accentTheme.accent)
                         }
                     }
+                    // Otherwise the bar's own background sits on top of the calendar's band
+                    // and there is nothing left to see through.
+                    .transparentNavigationBarBackground()
                 }
+                // On the reader itself, not on the stack inside it. That is what makes
+                // `geometry.safeAreaInsets.top` report the inset it stopped honouring — the
+                // height of the navigation bar the grid now runs under, which is exactly what
+                // `CalendarView` centres against and sizes its top band with.
+                .ignoresSafeArea(edges: [.top, .bottom])
             }
         }
     }
