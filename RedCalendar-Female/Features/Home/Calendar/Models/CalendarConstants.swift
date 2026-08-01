@@ -13,9 +13,19 @@ enum CalendarConstants {
     // MARK: - Top chrome
     // The band the grid scrolls under: the navigation bar's own height plus the weekday
     // strip. Below it the blur dissolves over `topChromeFadeHeight` instead of ending on a
-    // line — that fade is what the strip's divider used to be, and it hangs *below* the
+    // line — that dissolve is what the strip's divider used to be, and it hangs *below* the
     // band rather than inside it, so it never crosses the weekday labels.
-    static let topChromeFadeHeight: CGFloat = 16
+    //
+    // Long, and it can afford to be. While the band was a material the dissolve faded paint,
+    // which erased what lay under it — a row of numerals at the edge came out cut in half, so
+    // the ramp had to stay short enough to fall between rows. It now crossfades a blurred copy
+    // of the calendar into the sharp one, which only ever trades softness for focus, and the
+    // length is what makes that trade read as depth instead of as an edge.
+    static let topChromeFadeHeight: CGFloat = 40
+    // How hard the calendar is blurred where it passes under the band. The one dial worth
+    // turning here: higher and the numerals become anonymous smears, lower and the band stops
+    // registering as anything at all.
+    static let topChromeBlurRadius: CGFloat = 12
 
     // MARK: - Month Header
     static let monthHeaderHeight: CGFloat = 60

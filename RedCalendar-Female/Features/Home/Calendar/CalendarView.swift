@@ -68,7 +68,13 @@ struct CalendarView: View {
     /// the weekday strip. The calendar's own coordinate space starts at the top of the screen
     /// now, so this is the offset at which the area a user can actually read begins.
     private var chromeHeight: CGFloat {
-        topInset + CalendarConstants.weekdaysHeaderHeight
+        band.barHeight
+    }
+
+    /// Shared with `CalendarTopChrome`, so the blur and the weekday labels standing on it are
+    /// measured from one place.
+    private var band: CalendarBandGeometry {
+        CalendarBandGeometry(topInset: topInset)
     }
 
     /// The height left under the bar. This is what a *week* is sized against — the calendar
@@ -179,21 +185,13 @@ struct CalendarView: View {
                             today: store.state.calendarState.todayDayStamp
                         )
 
-                        CalendarGridView(
-                            viewport: viewport,
-                            anchorOffset: viewportAnchor,
-                            calculator: calc,
-                            dayDisplayStates: store.state.calendarState.dayDisplayStates,
-                            selectedDayStamp: store.state.calendarState.selectedDayStamp,
-                            today: store.state.calendarState.todayDayStamp,
-                            width: calendarWidth,
-                            height: calendarHeight,
-                            theme: store.state.accentTheme
-                        )
-                        .equatable()
-                        .offset(y: scrollOffset)
-                        .clipped()
-                        .allowsHitTesting(false)
+                        // Erased where the blurred copy below takes over, rather than left to
+                        // show through it.
+                        gridLayer(calc)
+                            .mask { band.inverseMask }
+                            .clipped()
+
+                        blurredBandLayer(calc)
                     }
                 }
 
@@ -245,6 +243,48 @@ struct CalendarView: View {
         }
     }
     
+    // MARK: - Grid Layers
+
+    /// The calendar's drawn layer. Built in one place because it is drawn twice, and the two
+    /// copies must be handed *identical* inputs: `CalendarGridView` is `Equatable`, so each
+    /// copy skips its own body on any frame its inputs did not change, and scrolling only
+    /// slides them. Let the two argument lists drift and the second copy would rebuild its day
+    /// cells on frames the first one sat still for, doubling the work this whole design exists
+    /// to avoid.
+    private func gridLayer(_ calc: MonthCalculator) -> some View {
+        CalendarGridView(
+            viewport: viewport,
+            anchorOffset: viewportAnchor,
+            calculator: calc,
+            dayDisplayStates: store.state.calendarState.dayDisplayStates,
+            selectedDayStamp: store.state.calendarState.selectedDayStamp,
+            today: store.state.calendarState.todayDayStamp,
+            width: calendarWidth,
+            height: calendarHeight,
+            theme: store.state.accentTheme
+        )
+        .equatable()
+        .offset(y: scrollOffset)
+        .allowsHitTesting(false)
+    }
+
+    /// The band itself: the calendar again, blurred, showing only where the bar is.
+    ///
+    /// This is what a `Material` could not do here. A material over this calendar is mostly a
+    /// material over empty page — the grid is sparse, and with nothing behind it to diffuse a
+    /// material can only show its own grey, which is a plate by another name. Blurring the
+    /// content has nothing to show when there is no content, so over empty page the band is
+    /// simply absent and the page stays a page.
+    ///
+    /// The mask is applied after `.offset`, which is what puts it in screen space: `.offset`
+    /// moves the rendering without touching the layout frame the mask is sized against, so the
+    /// band holds still at the top of the screen while the calendar slides underneath it.
+    private func blurredBandLayer(_ calc: MonthCalculator) -> some View {
+        gridLayer(calc)
+            .blur(radius: CalendarConstants.topChromeBlurRadius)
+            .mask { band.mask }
+    }
+
     // MARK: - Dismiss Handler
 
     // Guarded rather than dispatched blindly: the store drops the duplicate state either way,
