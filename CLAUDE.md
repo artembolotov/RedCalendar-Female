@@ -283,6 +283,27 @@ meant to read as round.
 **Two reds would be one red too many.** The period bar, the today marker, the floating button and
 the app tint are all `Color.accent` (the `AccentColor` asset). The calendar used to draw with the
 system `Color.red` instead, and the two were visibly different next to each other.
+`PredictedDayTextColor` is part of the same decision and moves with it: it is the day number inside
+a hollow bar, so a hue that drifts from the accent puts the digit out of key with the outline it
+sits in.
+
+**The accent is a coral red, and it is the closest thing on screen to the ovulation orange.**
+`#D84831` / `#E46B58` sits at ~6°, off the 0–1° of the fire-engine red it replaced, and the dark
+variant drops from a fully saturated 100% to 78% — that saturation was what made the old bar burn
+on the near-black page. The cost of the warmth is hue clearance: the gap to `OvulationLineColor`
+is 29°, down from 36°, and it is the tightest pairing in the palette. Anything new that wants a
+warm hue has to fit outside those two, and moving either one toward the other needs a check that
+the bar and the ovulation rule still read as different colours side by side.
+
+**White numerals on the bar are the ceiling on how bright the accent may go.** A day inside a solid
+period renders `.white` in both themes, so the accent's luminance is squeezed from two sides:
+contrast with that white text pulls it darker, separation from the near-black page pulls it
+lighter. The trade is strict and hue-independent — at 5.0 against the dark page, 3.74 against white
+is the most any hue can reach. The current pair measures 4.29/3.21 against white (light/dark) and
+4.09/5.83 against the page, which is essentially where the Material red sat: this accent was chosen
+on hue, not on contrast. Do not brighten the dark accent to make the bar pop without checking what
+it costs the numerals, and note that the dark end does not reach the 4.5:1 that 16pt text formally
+wants — the honest fix for that is the numeral, not the red.
 
 **The page background falls, and the indicator ring cannot follow it.** `HomeView` fills the screen
 with a `AppBackgroundColor` → `AppBackgroundEdgeColor` vertical gradient, so the page does not read
@@ -292,12 +313,6 @@ under it. That only works because the two stops are about four 8-bit levels apar
 whole screen, invisible across a 2pt ring. Widening that gap puts a halo around every marked day at
 the bottom of the calendar; if the gradient ever needs real range, the ring has to become a mask
 rather than a colour.
-
-**The day numbers are rounded and monospaced, and the plain weight is load-bearing.** Proportional
-digits gave each week column a slightly different optical centre, so a scrolling grid visibly
-drifted; `design: .rounded` matches the bar's continuous corners. Every day used to be `.medium`,
-which left no quiet level for today and the selection to rise from — they are `.semibold` against a
-`.regular` field, and that contrast is the only thing marking them in the type.
 
 Three things are stacked below a cell's centre, in this order and no other: the day indicator
 (⌀28, and ⌀28 + a 2pt outward ring when selected, so −15…+15), the fertile line (+18…+20) and the

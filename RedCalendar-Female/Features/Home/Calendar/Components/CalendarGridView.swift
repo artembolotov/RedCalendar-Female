@@ -161,18 +161,7 @@ struct CalendarGridView: View, Equatable {
             }
 
             Text(cell.dayNumber)
-                // Rounded to match the bar's continuous corners, and monospaced so a column of
-                // "1"s and "8"s keeps one optical centre — proportional digits let the week
-                // columns visibly drift. Plain weight is the resting state: with every day at
-                // `.medium` the grid had no quiet level for today and the selection to rise from.
-                .font(
-                    .system(
-                        size: 16,
-                        weight: (cell.isToday || isSelected) ? .semibold : .regular,
-                        design: .rounded
-                    )
-                    .monospacedDigit()
-                )
+                .font(.system(size: 16, weight: cell.isToday ? .bold : .medium))
                 .foregroundColor(
                     isSelected ? Palette.background :
                     cell.isToday ? .white :
