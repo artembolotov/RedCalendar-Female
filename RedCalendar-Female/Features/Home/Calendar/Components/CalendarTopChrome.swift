@@ -15,8 +15,8 @@ import SwiftUI
 // with `.offset`. There is nothing for the system effect to find, let alone blur.
 //
 // So the band is drawn here, and that is what makes the answer for older systems trivial:
-// `.ultraThinMaterial` behind a gradient mask is iOS 15 API, one implementation with no
-// version branch at all.
+// a `Material` behind a gradient mask is iOS 15 API, one implementation with no version
+// branch at all.
 struct CalendarTopChrome: View {
     let weekdays: [String]
     var weekendIndices: Set<Int> = []
@@ -66,20 +66,28 @@ struct CalendarTopChrome: View {
 
     // MARK: - Private Views
 
+    // `.bar` is `systemChromeMaterial` — what UIKit fills a navigation bar with. This band
+    // stands in for that bar, so it is made of the same thing.
+    //
+    // Nothing is painted over it. A flat colour laid on the material for extra density is the
+    // one thing that turns glass back into a plate: a material's density arrives *with*
+    // diffusion, so shapes and colour still come through it, while paint's density arrives
+    // with nothing and simply flattens the contrast. Half a wash of the page colour used to
+    // sit here for the sake of the weekday labels, and it read as white board — the period bar
+    // passing underneath disappeared instead of blurring.
     private var backdrop: some View {
         Rectangle()
-            .fill(.ultraThinMaterial)
-            // Blur alone does not reliably separate the labels from a solid period bar
-            // passing under them: the material takes its lightness from whatever is behind it,
-            // and a full-strength accent red is not light. The page colour over it fixes the
-            // density the labels sit on.
-            .overlay(Color("AppBackgroundColor").opacity(CalendarConstants.topChromeTintOpacity))
+            .fill(.bar)
             .mask { fadeMask }
     }
 
     // Masking a material fades its *alpha*, not its blur radius — a radius that ramps down
-    // the gradient would need a private `CAFilter`, which cannot ship. Over a grid that is
-    // moving anyway the two are hard to tell apart, and this one costs nothing.
+    // the gradient would need a private `CAFilter`, which cannot ship.
+    //
+    // With nothing painted over the material, the two are close: what fades out along the
+    // gradient is the frosting itself, so a day passing through simply sharpens. It was the
+    // paint that made the difference visible, because fading paint *erases* rather than
+    // clarifies — the row of numerals at the edge came out cut in half.
     private var fadeMask: some View {
         LinearGradient(
             stops: [

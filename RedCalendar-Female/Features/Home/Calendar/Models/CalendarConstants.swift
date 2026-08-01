@@ -16,10 +16,6 @@ enum CalendarConstants {
     // line — that fade is what the strip's divider used to be, and it hangs *below* the
     // band rather than inside it, so it never crosses the weekday labels.
     static let topChromeFadeHeight: CGFloat = 16
-    // The blur alone does not always separate the labels from a solid period bar passing
-    // under them; this is the page colour laid over it, uniform across the whole band so
-    // the labels sit on the same density wherever the fade starts.
-    static let topChromeTintOpacity: Double = 0.5
 
     // MARK: - Month Header
     static let monthHeaderHeight: CGFloat = 60
