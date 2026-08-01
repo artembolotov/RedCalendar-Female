@@ -11,9 +11,11 @@ import SwiftUI
 // reach. A `Material` here only ever became a plate, because a material over this calendar is
 // mostly a material over *empty page* — the grid is sparse, one row of days and a lot of air,
 // and with nothing behind it to diffuse a material can show only its own grey. The band is
-// made instead by blurring the calendar itself, in `CalendarView.blurredBandLayer` — where
-// there is no content there is nothing to blur, so over empty page the band simply is not
-// there. See `CalendarBandGeometry` for the measurements the two share.
+// made instead out of the calendar itself: blurred in `CalendarView.blurredBandLayer`, then
+// washed toward the page colour by `CalendarBandGeometry.scrim`. Neither has anything to act
+// on where there is no content, so over empty page the band simply is not there — which is the
+// one thing a material could never manage. See `CalendarBandGeometry` for the measurements the
+// three of them share.
 //
 // iOS 26 would do all of this for us — `.scrollEdgeEffectStyle(.soft, for: .top)` over a bar
 // in `.safeAreaBar(edge: .top)` — but neither reaches us: both attach to a SwiftUI
@@ -79,6 +81,10 @@ struct CalendarTopChrome: View {
         }
         .padding(.horizontal, CalendarConstants.horizontalPadding / 2)
         .padding(.top, 60)
+
+        // Stood in for the layers `CalendarView` puts under the strip, so the labels are
+        // previewed against something like the ground they actually stand on.
+        CalendarBandGeometry(topInset: 100).scrim
 
         CalendarTopChrome(
             weekdays: ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"],
