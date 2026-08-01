@@ -35,7 +35,11 @@ enum CalendarConstants {
     // Current split: circle -15…+15, fertile line +18…+20, dots +23…+29, and the next week's
     // own indicator starts at +39.
     static let periodBarHeight: CGFloat = 22
-    static let periodBarCornerRadius: CGFloat = 6
+    // Drawn `.continuous` rather than circular: at this radius the corner curve reaches about
+    // 1.5x the radius along each edge, which is what stops the bar reading as a stamped
+    // rectangle. Kept well under half the height — a capsule would turn the bar into a pill
+    // and start competing with the day indicator's circle.
+    static let periodBarCornerRadius: CGFloat = 8
     // A predicted period is drawn as an outline rather than a faded fill, so its weight is a
     // stroke width and not an opacity. Drawn inward — the bar's own height is unchanged.
     static let predictedBarStrokeWidth: CGFloat = 1.5

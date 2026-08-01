@@ -243,10 +243,12 @@ segment as its real boundary: a cycle paints only the days it owns, so the windo
 cycle does — but a window running past `loadedRange` still keeps its square edge there.
 
 **The fertile window is a line under the day, and it has a lane of its own.** It is a 2pt lilac
-rule (`FertileWindow` → `CalendarGridView`'s Layer 1), drawn with the same `RoundedCorners`
-per-day construction as the period bar so caps and row wraps follow identical rules — only
-genuine window caps round, a run continuing onto the next calendar row is `.middle` there and
-stays flush. Its radius is half its height, so the window's ends read as a capsule. The ovulation
+rule (`FertileWindow` → `CalendarGridView`'s Layer 1), drawn per day from `SegmentPosition` like
+the period bar, so caps and row wraps follow identical rules — only genuine window caps round, a
+run continuing onto the next calendar row is `.middle` there and stays flush. It keeps the
+`RoundedCorners` per-corner shape where the bar has moved to a clipped `RoundedRectangle`: at a
+1pt radius a continuous corner and a circular one are the same pixels, so the simpler construction
+wins. Its radius is half its height, so the window's ends read as a capsule. The ovulation
 day is a full-strength orange — a different hue, not a denser lilac. That distinction was once
 carried by alpha alone, which worked while the window was a 26pt fill and stopped working the
 moment it became a 2pt line: a step in density needs area to read, and a line has none.
@@ -262,16 +264,40 @@ The outline carries the same meaning against white and against black. The day nu
 bar — `Palette.predictedText` inside a hollow bar, white only inside a solid one; white on the old
 faded fill was unreadable in the light theme.
 
-Two construction consequences. The bar is drawn one rectangle per day, so the outline's path is
-widened by `predictedBarStrokeWidth * 2` on every side where the run continues (no corner to
-round there) and then clipped back to the cell: the vertical strokes fall outside the clip and the
-horizontal ones meet flush, so a multi-day run has no internal seams. And `RoundedCorners` is
-`InsettableShape` for exactly this — `strokeBorder` keeps the outline inside `periodBarHeight`,
-where a plain `stroke` would straddle the edge and lose half its weight to the clip.
+**The bar's corners are `.continuous`, and that dictates how it is built.** A circular corner at
+`periodBarCornerRadius` reads as a stamped rectangle; the continuous curve is what makes the bar
+look drawn rather than cut. But continuous corners exist only on `RoundedRectangle`, which rounds
+all four and has no per-corner API — so the bar cannot use `RoundedCorners`. Instead **both** the
+solid and the hollow bar are drawn as one whole rounded rectangle, widened by
+`periodBarCornerRadius * 2` on every side where the run continues and then clipped back to the
+cell. The corners that must stay square land outside the clip, neighbouring days meet flush, and a
+multi-day run has no internal seams. The overhang is sized off the radius, not the stroke width:
+it has to clear the corner's full reach (~1.5x the radius), which also carries the predicted bar's
+vertical stroke out of the clip. `strokeBorder` rather than `stroke` keeps that outline inside
+`periodBarHeight`, where a plain `stroke` would straddle the edge and lose half its weight.
+
+Do not raise the radius to half the height. At `periodBarHeight / 2` the bar becomes a pill and
+starts competing with the day indicator's ⌀28 circle, which is the one shape in the cell that is
+meant to read as round.
 
 **Two reds would be one red too many.** The period bar, the today marker, the floating button and
 the app tint are all `Color.accent` (the `AccentColor` asset). The calendar used to draw with the
 system `Color.red` instead, and the two were visibly different next to each other.
+
+**The page background falls, and the indicator ring cannot follow it.** `HomeView` fills the screen
+with a `AppBackgroundColor` → `AppBackgroundEdgeColor` vertical gradient, so the page does not read
+as a flat sheet. The ring around the today/selected circle is what punches those circles out of a
+solid period bar, and it is drawn in the flat `AppBackgroundColor` — it cannot sample the gradient
+under it. That only works because the two stops are about four 8-bit levels apart: gradual across a
+whole screen, invisible across a 2pt ring. Widening that gap puts a halo around every marked day at
+the bottom of the calendar; if the gradient ever needs real range, the ring has to become a mask
+rather than a colour.
+
+**The day numbers are rounded and monospaced, and the plain weight is load-bearing.** Proportional
+digits gave each week column a slightly different optical centre, so a scrolling grid visibly
+drifted; `design: .rounded` matches the bar's continuous corners. Every day used to be `.medium`,
+which left no quiet level for today and the selection to rise from — they are `.semibold` against a
+`.regular` field, and that contrast is the only thing marking them in the type.
 
 Three things are stacked below a cell's centre, in this order and no other: the day indicator
 (⌀28, and ⌀28 + a 2pt outward ring when selected, so −15…+15), the fertile line (+18…+20) and the

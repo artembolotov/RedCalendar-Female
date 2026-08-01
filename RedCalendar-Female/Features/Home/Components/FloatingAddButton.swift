@@ -30,18 +30,23 @@ struct FloatingAddButton: View {
                 .frame(width: 28, height: 28)
                 .foregroundColor(.white)
                 .frame(width: 64, height: 64)
+                // A light falling on a solid colour, not a wash of transparency. The gradient
+                // this replaces was the accent at 0.8 and 0.9 alpha, so the background showed
+                // through its own button — on the dark theme the top corner went visibly grey.
                 .background(
-                    LinearGradient(
-                        gradient: Gradient(colors: [
-                            Color.accent.opacity(0.8),
-                            Color.accent,
-                            Color.accent.opacity(0.9)
-                        ]),
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
+                    Circle()
+                        .fill(Color.accent)
+                        .overlay(
+                            Circle()
+                                .fill(
+                                    LinearGradient(
+                                        colors: [Color.white.opacity(0.22), Color.white.opacity(0)],
+                                        startPoint: .top,
+                                        endPoint: .center
+                                    )
+                                )
+                        )
                 )
-                .clipShape(Circle())
                 .shadow(color: Color.accent.opacity(0.4), radius: 12, x: 0, y: 6)
         }
     }

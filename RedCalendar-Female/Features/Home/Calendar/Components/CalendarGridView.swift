@@ -102,30 +102,35 @@ struct CalendarGridView: View, Equatable {
 
     @ViewBuilder
     private func periodBar(_ bar: PeriodBar) -> some View {
-        let shape = RoundedCorners(radius: CalendarConstants.periodBarCornerRadius, corners: bar.corners)
+        // Continuous corners exist only on `RoundedRectangle`, which rounds all four — there is
+        // no per-corner API to match `RoundedCorners`. So the bar is drawn as a whole rounded
+        // rectangle widened past the cell on every side where the run continues, then clipped
+        // back to the cell: the corners that must stay square fall outside the clip and
+        // neighbouring days meet flush. The overhang clears the corner's full reach (~1.5x the
+        // radius) and, for the predicted bar, takes its vertical stroke out with it.
+        let radius = CalendarConstants.periodBarCornerRadius
+        let overhang = radius * 2
+        let lead = bar.corners.contains(.topLeft) ? 0 : overhang
+        let trail = bar.corners.contains(.topRight) ? 0 : overhang
+        let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
 
-        if bar.isPredicted {
-            // The bar is built one rectangle per day, so stroking it as drawn would put a
-            // vertical edge on every internal day boundary. The path is widened past the cell
-            // on each side where the run continues and then clipped back to the cell: the
-            // vertical strokes land outside the clip and the horizontal ones meet flush.
-            let overhang = CalendarConstants.predictedBarStrokeWidth * 2
-            let lead = bar.corners.contains(.topLeft) ? 0 : overhang
-            let trail = bar.corners.contains(.topRight) ? 0 : overhang
-
-            shape
-                .strokeBorder(Palette.predictedStroke, lineWidth: CalendarConstants.predictedBarStrokeWidth)
-                .frame(width: dayWidth + lead + trail, height: CalendarConstants.periodBarHeight)
-                .offset(x: (trail - lead) / 2)
-                .frame(width: dayWidth, height: CalendarConstants.periodBarHeight)
-                .clipped()
-                .position(x: bar.centerX, y: bar.centerY)
-        } else {
-            shape
-                .fill(Palette.period)
-                .frame(width: dayWidth, height: CalendarConstants.periodBarHeight)
-                .position(x: bar.centerX, y: bar.centerY)
+        Group {
+            if bar.isPredicted {
+                // `strokeBorder`, not `stroke`: the outline stays inside `periodBarHeight`
+                // instead of straddling the edge and losing half its weight to the clip.
+                shape.strokeBorder(
+                    Palette.predictedStroke,
+                    lineWidth: CalendarConstants.predictedBarStrokeWidth
+                )
+            } else {
+                shape.fill(Palette.period)
+            }
         }
+        .frame(width: dayWidth + lead + trail, height: CalendarConstants.periodBarHeight)
+        .offset(x: (trail - lead) / 2)
+        .frame(width: dayWidth, height: CalendarConstants.periodBarHeight)
+        .clipped()
+        .position(x: bar.centerX, y: bar.centerY)
     }
 
     @ViewBuilder
@@ -156,7 +161,18 @@ struct CalendarGridView: View, Equatable {
             }
 
             Text(cell.dayNumber)
-                .font(.system(size: 16, weight: cell.isToday ? .bold : .medium))
+                // Rounded to match the bar's continuous corners, and monospaced so a column of
+                // "1"s and "8"s keeps one optical centre — proportional digits let the week
+                // columns visibly drift. Plain weight is the resting state: with every day at
+                // `.medium` the grid had no quiet level for today and the selection to rise from.
+                .font(
+                    .system(
+                        size: 16,
+                        weight: (cell.isToday || isSelected) ? .semibold : .regular,
+                        design: .rounded
+                    )
+                    .monospacedDigit()
+                )
                 .foregroundColor(
                     isSelected ? Palette.background :
                     cell.isToday ? .white :
