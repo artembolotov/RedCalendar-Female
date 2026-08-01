@@ -36,8 +36,13 @@ enum CalendarConstants {
     // own indicator starts at +39.
     static let periodBarHeight: CGFloat = 22
     static let periodBarCornerRadius: CGFloat = 6
+    // A predicted period is drawn as an outline rather than a faded fill, so its weight is a
+    // stroke width and not an opacity. Drawn inward — the bar's own height is unchanged.
+    static let predictedBarStrokeWidth: CGFloat = 1.5
     static let fertileLineHeight: CGFloat = 2
     static let fertileLineOffset: CGFloat = 19
+    // A predicted ovulation day is dashed where a confirmed one is solid.
+    static let predictedOvulationDash: [CGFloat] = [4, 3]
     static let dayIndicatorSize: CGFloat = 28
     static let tagDotSize: CGFloat = 6
     static let tagDotSpacing: CGFloat = 3
