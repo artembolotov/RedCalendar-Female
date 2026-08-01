@@ -19,6 +19,7 @@ struct StatisticsView: View {
             .padding()
             .navigationTitle("Статистика")
             .navigationBarTitleDisplayMode(.inline)
+            .closeButtonToolbar()
         }
     }
 }

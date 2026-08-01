@@ -15,6 +15,7 @@ struct SettingsView: View {
     @State private var lastVersionTapTime: CFTimeInterval?
 
     private let devModeTapThreshold: CFTimeInterval = 0.5
+    private let swatchSize: CGFloat = 22
 
     var body: some View {
         NavigationView {
@@ -45,6 +46,7 @@ struct SettingsView: View {
                 }
                 .navigationTitle("Настройки")
                 .navigationBarTitleDisplayMode(.inline)
+                .closeButtonToolbar()
             }
         }
     }
@@ -57,27 +59,34 @@ struct SettingsView: View {
     private var accentThemeSection: some View {
         Section("Оформление") {
             ForEach(AccentTheme.allCases) { theme in
+                let isSelected = store.state.accentTheme == theme
+
                 Button {
                     store.send(.setAccentTheme(theme))
                 } label: {
                     HStack(spacing: 12) {
                         Circle()
                             .fill(theme.accent)
-                            .frame(width: 22, height: 22)
+                            .frame(width: swatchSize, height: swatchSize)
 
                         Text(theme.title)
                             .foregroundColor(.primary)
 
                         Spacer()
 
-                        if store.state.accentTheme == theme {
-                            Image(systemName: "checkmark")
-                                .font(.body.weight(.semibold))
-                                .foregroundColor(theme.accent)
-                        }
+                        // Always laid out, only faded: inserting and removing the glyph made the
+                        // row taller the moment a theme was picked. Boxed to the swatch's size so
+                        // it never drives the row height either — a checkmark's ascender is
+                        // taller than the text line it sits next to.
+                        Image(systemName: "checkmark")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundColor(theme.accent)
+                            .frame(width: swatchSize, height: swatchSize)
+                            .opacity(isSelected ? 1 : 0)
+                            .accessibilityHidden(true)
                     }
                 }
-                .accessibilityAddTraits(store.state.accentTheme == theme ? .isSelected : [])
+                .accessibilityAddTraits(isSelected ? .isSelected : [])
             }
         }
     }

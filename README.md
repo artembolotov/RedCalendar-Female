@@ -74,6 +74,7 @@ RedCalendar-Female/
 ├── Common/
 │   ├── Components/
 │   │   ├── PrimaryButton.swift
+│   │   ├── CloseButton.swift
 │   │   └── PhoneNumberKitField.swift
 │   ├── Extensions/
 │   │   ├── Bundle+AppInfo.swift
@@ -153,7 +154,7 @@ RedCalendar-Female/
 
 ### Требования
 - iOS 15.4+
-- Xcode 16.4+
+- Xcode 26.4+
 - Swift 5.9+
 
 ### Конфигурация окружений
