@@ -13,7 +13,15 @@ struct CalendarView: View {
     @Binding var cardHeight: DayCardHeight
     @Binding var floatingButtonState: FloatingButtonState
     @Binding var scrollCommand: ScrollCommand
-    
+    /// Status bar plus navigation bar — everything the grid runs underneath.
+    ///
+    /// Handed in rather than read from this view's own `GeometryReader`, and that is the whole
+    /// point: by the time the geometry reaches here the content has already escaped the safe
+    /// area, so there is no safe area left to report and the reader answers zero. Reading it
+    /// here once cost a release with the weekday labels sitting in the status bar.
+    let topInset: CGFloat
+
+
     // MARK: - State: Core Calendar
     @State private var calculator: MonthCalculator?
     @State private var calendar = Calendar.current
@@ -25,11 +33,7 @@ struct CalendarView: View {
     // scrolls beneath `CalendarTopChrome`.
     @State private var calendarHeight: CGFloat = 0
     @State private var calendarWidth: CGFloat = 0
-    @State private var globalTopOffset: CGFloat = 0
-    // Kept so the top inset, which lands on a pass of its own, can rebuild the calculator
-    // without waiting for the size to change again.
-    @State private var screenSize: CGSize = .zero
-    
+
     // MARK: - State: Scroll & Offsets
     @State private var scrollOffset: CGFloat = 0
     @State private var isDragging = false
@@ -64,7 +68,7 @@ struct CalendarView: View {
     /// the weekday strip. The calendar's own coordinate space starts at the top of the screen
     /// now, so this is the offset at which the area a user can actually read begins.
     private var chromeHeight: CGFloat {
-        globalTopOffset + CalendarConstants.weekdaysHeaderHeight
+        topInset + CalendarConstants.weekdaysHeaderHeight
     }
 
     /// The height left under the bar. This is what a *week* is sized against — the calendar
@@ -113,18 +117,38 @@ struct CalendarView: View {
     init(
         cardHeight: Binding<DayCardHeight> = .constant(.none),
         floatingButtonState: Binding<FloatingButtonState>,
-        scrollCommand: Binding<ScrollCommand>
+        scrollCommand: Binding<ScrollCommand>,
+        topInset: CGFloat = 0
     ) {
         self._cardHeight = cardHeight
         self._floatingButtonState = floatingButtonState
         self._scrollCommand = scrollCommand
+        self.topInset = topInset
+    }
+
+    /// Everything a layout change can tell the calendar, in one value.
+    ///
+    /// Watched as a whole rather than as a size and an inset separately: the two arrive on
+    /// different passes and in no fixed order, and every one of them has to rebuild the
+    /// calculator — a week's height is measured against the space under the bar, so a size
+    /// that lands before the inset would size the grid against a bar it does not know about.
+    private struct CalendarMetrics: Equatable {
+        let width: CGFloat
+        let height: CGFloat
+        let topInset: CGFloat
     }
     
     var body: some View {
         GeometryReader { geometry in
-            
-            let currentGlobalTopOffset = geometry.safeAreaInsets.top
-            
+
+            // Already the whole screen: the stack in `HomeView` has escaped the safe area
+            // before this reader is reached, so nothing has to be added back.
+            let metrics = CalendarMetrics(
+                width: geometry.size.width,
+                height: geometry.size.height,
+                topInset: topInset
+            )
+
             // The grid fills the screen and passes under the bar; the bar is laid over it
             // rather than stacked above it, which is the whole point — a month title sliding
             // into a blur reads as depth, and a month title stopping at a divider does not.
@@ -177,7 +201,7 @@ struct CalendarView: View {
                     weekdays: localizedWeekdays,
                     weekendIndices: weekendIndices,
                     width: calendarWidth,
-                    topInset: globalTopOffset,
+                    topInset: topInset,
                     onTap: dismissDayDetails
                 )
             }
@@ -185,24 +209,14 @@ struct CalendarView: View {
             // happens to size to — which is nothing at all on the frame before the calculator
             // exists.
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-            .onChange(of: geometry.size) { newSize in
-                screenSize = newSize
-                globalTopOffset = currentGlobalTopOffset
-                setupCalculator(height: newSize.height, width: newSize.width)
+            .onChange(of: metrics) { newValue in
+                setupCalculator(height: newValue.height, width: newValue.width)
             }
-            // The inset arrives on its own pass, and the week height is derived from the
-            // space left under the bar — so this rebuilds the calculator rather than merely
-            // recomputing the offsets, or the first layout would size every week against a
-            // navigation bar it did not know about yet.
-            .onChange(of: currentGlobalTopOffset) { newOffset in
-                globalTopOffset = newOffset
-
-                guard screenSize.height > 0, screenSize.width > 0 else {
-                    uiOffset = calculateUIOffset()
-                    return
-                }
-
-                setupCalculator(height: screenSize.height, width: screenSize.width)
+            // The reader's first pass normally reports nothing and `onChange` picks up the
+            // real measurements, but it is not owed to us — a pass that arrives measured
+            // would never change again, and nothing would ever be built.
+            .onAppear {
+                setupCalculator(height: metrics.height, width: metrics.width)
             }
             // Ahead of the height handler below: when a selection and a height land in the
             // same pass, the selection is what decides whether the height is the one being
@@ -566,6 +580,9 @@ struct CalendarView: View {
 #Preview {
     CalendarView(
         floatingButtonState: .constant(.plus),
-        scrollCommand: .constant(.none)
+        scrollCommand: .constant(.none),
+        // Stood in for, since there is no navigation bar here to measure one from.
+        topInset: 100
     )
+    .ignoresSafeArea()
 }

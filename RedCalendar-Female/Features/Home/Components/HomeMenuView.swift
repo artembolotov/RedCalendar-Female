@@ -52,8 +52,15 @@ struct HomeMenuView: View {
         }
     }
 
+    // Built with an explicit label rather than `Menu(_:systemImage:)`. That form carried the
+    // title `HomeMenuView.Menu`, a key with no translation behind it in `Localizable.xcstrings`,
+    // so it resolved to the key itself — invisible in a bare navigation bar, and not invisible
+    // at all once iOS 26 put a glass circle around the control. Styling the title away is not
+    // the fix: `labelStyle` travels through the environment and would strip the text off the
+    // menu's own items too. The glyph is the whole control, so the glyph is the whole label,
+    // and the name goes to VoiceOver directly.
     private var menu: some View {
-        Menu("HomeMenuView.Menu", systemImage: "ellipsis") {
+        Menu {
             Button(action: {
                 showSettings = true
             }) {
@@ -74,6 +81,9 @@ struct HomeMenuView: View {
                     Label("Поделиться приложением", systemImage: "square.and.arrow.up")
                 }
             }
+        } label: {
+            Image(systemName: "ellipsis")
         }
+        .accessibilityLabel("Меню")
     }
 }
