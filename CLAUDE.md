@@ -234,12 +234,21 @@ and never terminates the prediction loop in `computeDayDisplayStates`. Always go
 Fertile-window width also lives in `Constants.Cycle` — do not hardcode any of these numbers.
 
 **Two clips, and only one of them caps the bar.** In `computeDayDisplayStates` a period cut short by
-the next cycle's start really does end there, so `PeriodPosition` is derived from that cut and the
+the next cycle's start really does end there, so `SegmentPosition` is derived from that cut and the
 last day caps with `.end` (or `.single`). `loadedRange` is a viewport, not a boundary: a period
 running past it is clipped for drawing but keeps `.middle` at the edge, so the square end reads as
 continuing offscreen. Never derive positions from the drawn range — that rounds off bars that merely
-scrolled out of the loaded window. Fertile windows, by contrast, are clipped to the cycle's own
-segment: a cycle paints only the days it owns.
+scrolled out of the loaded window. The fertile window is drawn as a band and obeys the same rule,
+with the cycle's own segment as its real boundary: a cycle paints only the days it owns, so the
+window caps where the cycle does — but a window running past `loadedRange` still keeps its square
+edge there.
+
+**The fertile window is a band, not an underline.** It is a pale rounded fill behind the day
+(`FertileWindow` → `CalendarGridView`'s Layer 1), the same shape as the period bar, with the
+ovulation day in its own colour; it is drawn *below* the period bar so an opaque bar wins where a
+short cycle makes the two overlap. Keeping it out of the strip below the cell's centre is what
+gives that strip to the day indicator and the dot row — the two of them already fill 20 of its
+25pt (see the note in `CalendarConstants`). Do not move a third element back into it.
 
 `CalendarState.dayDisplayStates` is **sparse**: it is recomputed by `computeDayDisplayStates`
 (`Core/Redux/Reducers/DayDisplayStateComputer.swift`) in the reducer whenever cycle/tag/comment/range

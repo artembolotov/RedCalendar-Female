@@ -29,18 +29,18 @@ enum CalendarConstants {
     static let averageMonthHeight: CGFloat = 290
 
     // MARK: - Day rendering
-    // The day indicator, the dot row and the fertile line share the 25pt below a cell's centre
-    // (half of the smallest week height), so the four values below only move together: shrink
-    // the gaps and the dots end up inside the selected day's circle or under the dashed line.
-    // Current split: circle -15…+15, dots +16.5…+21.5, fertile line +23…+25.
+    // Only the day indicator and the dot row share the 25pt below a cell's centre (half of the
+    // smallest week height) — the fertile window is a band drawn behind the day, not a line
+    // under it, so it costs that strip nothing. Current split: circle -15…+15, dots +18…+24,
+    // and the next week's own indicator starts at +39.
     static let periodBarHeight: CGFloat = 22
     static let periodBarCornerRadius: CGFloat = 6
+    static let fertileBandHeight: CGFloat = 22
+    static let fertileBandCornerRadius: CGFloat = 6
     static let dayIndicatorSize: CGFloat = 28
-    static let fertileLineBottomInset: CGFloat = 1
-    static let fertileLineWidth: CGFloat = 2
-    static let tagDotSize: CGFloat = 5
+    static let tagDotSize: CGFloat = 6
     static let tagDotSpacing: CGFloat = 3
-    static let tagDotsOffset: CGFloat = 19
+    static let tagDotsOffset: CGFloat = 21
 
     // MARK: - Day card
     // What the day card's height is taken to be before one has been measured. Only the very
