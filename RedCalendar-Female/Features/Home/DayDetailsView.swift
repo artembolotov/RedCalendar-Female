@@ -78,8 +78,9 @@ struct DayCardNaturalHeightKey: PreferenceKey {
     }
 }
 
-// The active card's box, reported up to the pager: it drives the calendar's centering and
-// the dismiss gesture's hit test. Inactive cards contribute `.zero`.
+// The active card's box, reported up to the pager: it drives the drag gesture's hit test.
+// Inactive cards contribute `.zero`. The calendar's centering does not come from here — it is
+// written from the level, in `reportedHeight`'s unit, which is the card alone.
 struct DayCardFrameKey: PreferenceKey {
     static var defaultValue: CGRect = .zero
 
@@ -100,7 +101,7 @@ struct DayDetailsView: View {
     // Every input here is a plain value so that sliding the pager doesn't re-run this body.
     let isActive: Bool
     let dragOffset: CGFloat
-    // The level every card in the pager is drawn at, in the same units `reportedFrame` uses.
+    // The level every card in the pager is drawn at, in the same units `reportedHeight` uses.
     // `nil` means "your own content decides" — the state of the very first card of an opening.
     let levelHeight: CGFloat?
 
@@ -563,16 +564,18 @@ struct DayDetailsView: View {
 
     // MARK: - Frame reporting
 
-    // The level the pager works in is the reported height — the box plus the inset above it, less
-    // the bottom offset that hangs off the screen. Both conversions live here so the pager only
-    // ever handles one unit.
+    // The level the pager works in is the card's own box as it stands on screen: the measured
+    // height less the bottom offset that hangs off the screen edge. The inset above the box is
+    // deliberately *not* part of it — that band is where the shadow is drawn, and counting it
+    // centred the selected day in the space above the shadow rather than above the card. Both
+    // conversions live here so the pager only ever handles one unit.
     private func reportedHeight(boxHeight: CGFloat) -> CGFloat {
-        boxHeight + DayDetailsMetrics.screenInset - globalBottomOffset
+        boxHeight - globalBottomOffset
     }
 
     private var drawnBoxHeight: CGFloat? {
         guard let levelHeight = levelHeight else { return nil }
-        return max(0, levelHeight - DayDetailsMetrics.screenInset + globalBottomOffset - dragOffset)
+        return max(0, levelHeight + globalBottomOffset - dragOffset)
     }
 
     // The pager slides the card with `.offset`, so the reported global frame moves sideways
