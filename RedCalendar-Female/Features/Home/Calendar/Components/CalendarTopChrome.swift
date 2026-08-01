@@ -66,18 +66,27 @@ struct CalendarTopChrome: View {
 
     // MARK: - Private Views
 
-    // `.bar` is `systemChromeMaterial` — what UIKit fills a navigation bar with. This band
-    // stands in for that bar, so it is made of the same thing.
+    // The thinnest material there is, and the band should stay at the thin end of the range.
     //
-    // Nothing is painted over it. A flat colour laid on the material for extra density is the
-    // one thing that turns glass back into a plate: a material's density arrives *with*
-    // diffusion, so shapes and colour still come through it, while paint's density arrives
-    // with nothing and simply flattens the contrast. Half a wash of the page colour used to
-    // sit here for the sake of the weekday labels, and it read as white board — the period bar
-    // passing underneath disappeared instead of blurring.
+    // `.bar` sat here first, on the reasoning that this band stands in for a navigation bar so
+    // it should be made of the bar's own `systemChromeMaterial`. That is the wrong instinct
+    // for what the band is for: chrome material exists to make bar *contents* legible, which
+    // it does by hiding what passes behind them. Here the whole point is that the calendar
+    // stays visible — a day going under the band should soften, not vanish — so the material
+    // is chosen for how little it takes away, not for which surface it imitates.
+    //
+    // Nothing is painted over it either. A flat colour laid on a material for extra density is
+    // what turns glass back into a plate: a material's density arrives *with* diffusion, so
+    // shapes and colour still come through, while paint's density arrives with nothing and
+    // only flattens the contrast.
+    //
+    // There is nothing thinner in `Material`. If the band still hides too much, the next lever
+    // is a `UIVisualEffectView` held at partial `fractionComplete` by a paused
+    // `UIViewPropertyAnimator` — the public way to ask for a fraction of a blur — not another
+    // step through the material scale, which stops here.
     private var backdrop: some View {
         Rectangle()
-            .fill(.bar)
+            .fill(.ultraThinMaterial)
             .mask { fadeMask }
     }
 
