@@ -115,7 +115,6 @@ struct CalendarGridView: View, Equatable {
 
             shape
                 .strokeBorder(Palette.predictedStroke, lineWidth: CalendarConstants.predictedBarStrokeWidth)
-                .background(shape.fill(Palette.predictedFill))
                 .frame(width: dayWidth + lead + trail, height: CalendarConstants.periodBarHeight)
                 .offset(x: (trail - lead) / 2)
                 .frame(width: dayWidth, height: CalendarConstants.periodBarHeight)
@@ -314,9 +313,8 @@ private enum Palette {
     // are the same red to the eye, so they must be the same red in code too.
     static let period = Color.accent
     static let today = Color.accent
-    // A prediction is an outline, not a faded fill — see the stroke in `periodBar(_:)`. The
-    // fill behind it only groups the run and never has to carry the distinction on its own.
-    static let predictedFill = Color("PredictedPeriodFillColor")
+    // A prediction is an outline and nothing else — no fill behind it. The outline runs
+    // unbroken along a multi-day series, so it groups the run on its own.
     static let predictedStroke = Color.accent
     static let predictedText = Color("PredictedDayTextColor")
     static let selected = Color("SelectedDayColor")
