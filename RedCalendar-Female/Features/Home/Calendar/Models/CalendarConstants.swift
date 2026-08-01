@@ -35,8 +35,13 @@ enum CalendarConstants {
     // and the next week's own indicator starts at +39.
     static let periodBarHeight: CGFloat = 22
     static let periodBarCornerRadius: CGFloat = 6
-    static let fertileBandHeight: CGFloat = 22
-    static let fertileBandCornerRadius: CGFloat = 6
+    // The band is deliberately taller than the period bar and pulled in at its caps: the bar is
+    // opaque and drawn above it, so those 2pt of lilac above and below — and the 4pt the caps
+    // stop short — are the only thing the window has left to show for itself where the two
+    // overlap. 26 is also the ceiling: the band has to stay under the ⌀28 day indicator.
+    static let fertileBandHeight: CGFloat = 26
+    static let fertileBandCornerRadius: CGFloat = 7
+    static let fertileBandCapInset: CGFloat = 4
     static let dayIndicatorSize: CGFloat = 28
     static let tagDotSize: CGFloat = 6
     static let tagDotSpacing: CGFloat = 3
