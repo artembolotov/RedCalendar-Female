@@ -150,7 +150,8 @@ struct CalendarView: View {
                             selectedDayStamp: store.state.calendarState.selectedDayStamp,
                             today: store.state.calendarState.todayDayStamp,
                             width: calendarWidth,
-                            height: calendarHeight
+                            height: calendarHeight,
+                            theme: store.state.accentTheme
                         )
                         .equatable()
                         .offset(y: scrollOffset)

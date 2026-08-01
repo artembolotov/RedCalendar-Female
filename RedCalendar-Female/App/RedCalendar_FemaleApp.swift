@@ -31,12 +31,16 @@ struct RedCalendarApp: App {
     var body: some Scene {
         WindowGroup {
             RootView()
-                .tint(.accent)
+                // The one place the chosen accent enters the environment. Everything tinted
+                // rather than filled — navigation bars, buttons, pickers, sheets — inherits it
+                // from here, so no view below needs its own `.tint`.
+                .tint(store.state.accentTheme.accent)
                 .environmentObject(store)
                 .onAppear {
                     appDelegate.appStore = store
                     store.send(.checkAuthState)
                     store.send(.checkAnalyticsStatus)
+                    store.send(.checkAccentTheme)
                 }
                 .onChange(of: scenePhase) { newPhase in
                     if newPhase == .active {

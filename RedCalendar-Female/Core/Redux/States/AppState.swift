@@ -12,6 +12,9 @@ struct AppState: Equatable {
     var calendarState: CalendarState = CalendarState()
     var notifications: NotificationState = NotificationState()
     var analyticsActivated: Bool = false
+    // Seeded with the fallback rather than the stored value: the store is built before any
+    // service is reachable, so `.checkAccentTheme` replaces this on launch.
+    var accentTheme: AccentTheme = .fallback
 }
 
 extension AppState {

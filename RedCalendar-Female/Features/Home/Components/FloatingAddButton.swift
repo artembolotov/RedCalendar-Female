@@ -9,15 +9,21 @@ import SwiftUI
 
 struct FloatingAddButton: View {
     let state: FloatingButtonState
+    // Passed in rather than read from the asset: the button is one of the surfaces that has to
+    // follow the accent the user picked, and it draws its own fill and shadow instead of
+    // inheriting an environment tint.
+    let accent: Color
     @Binding var scrollCommand: ScrollCommand
     let onPlusTapped: (() -> Void)?
-    
+
     init(
         state: FloatingButtonState,
+        accent: Color,
         scrollCommand: Binding<ScrollCommand> = .constant(.none),
         onPlusTapped: (() -> Void)? = nil
     ) {
         self.state = state
+        self.accent = accent
         self._scrollCommand = scrollCommand
         self.onPlusTapped = onPlusTapped
     }
@@ -35,7 +41,7 @@ struct FloatingAddButton: View {
                 // through its own button — on the dark theme the top corner went visibly grey.
                 .background(
                     Circle()
-                        .fill(Color.accent)
+                        .fill(accent)
                         .overlay(
                             Circle()
                                 .fill(
@@ -47,7 +53,7 @@ struct FloatingAddButton: View {
                                 )
                         )
                 )
-                .shadow(color: Color.accent.opacity(0.4), radius: 12, x: 0, y: 6)
+                .shadow(color: accent.opacity(0.4), radius: 12, x: 0, y: 6)
         }
     }
     
@@ -196,15 +202,9 @@ struct MorphingShape: Shape {
 
 #Preview {
     VStack(spacing: 30) {
-        FloatingAddButton(
-            state: .plus
-        )
-        FloatingAddButton(
-            state: .arrowUp
-        )
-        FloatingAddButton(
-            state: .arrowDown
-        )
+        FloatingAddButton(state: .plus, accent: AccentTheme.coral.accent)
+        FloatingAddButton(state: .arrowUp, accent: AccentTheme.rose.accent)
+        FloatingAddButton(state: .arrowDown, accent: AccentTheme.berry.accent)
     }
     .padding()
     .background(Color.gray.opacity(0.1))
