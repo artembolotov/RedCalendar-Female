@@ -61,14 +61,12 @@ struct CalendarGridView: View, Equatable {
             .frame(width: width, height: CalendarConstants.monthHeaderHeight)
             .position(x: width / 2, y: month.yPosition + CalendarConstants.monthHeaderHeight / 2)
 
-        // MARK: - Layer 1: Fertile window bands
-        // Below the period bar on purpose: the two only overlap when a cycle is short enough
-        // for a period to run into the previous window, and there the period must read first.
-        ForEach(content.fertileBands) { band in
-            RoundedCorners(radius: CalendarConstants.fertileBandCornerRadius, corners: band.corners)
-                .fill(band.color)
-                .frame(width: band.width, height: CalendarConstants.fertileBandHeight)
-                .position(x: band.centerX, y: band.centerY)
+        // MARK: - Layer 1: Fertile window lines
+        ForEach(content.fertileLines) { line in
+            RoundedCorners(radius: CalendarConstants.fertileLineHeight / 2, corners: line.corners)
+                .fill(line.color)
+                .frame(width: dayWidth, height: CalendarConstants.fertileLineHeight)
+                .position(x: line.centerX, y: line.centerY)
         }
 
         // MARK: - Layer 2: Period rectangles
@@ -164,26 +162,13 @@ struct CalendarGridView: View, Equatable {
             }
 
             if let fertileWindow = state?.fertileWindow {
-                // Only the window's genuine caps are pulled in — a run wrapping onto the next
-                // calendar row is `.middle` there and stays flush, like the period bar.
-                let inset = CalendarConstants.fertileBandCapInset
-                var bandWidth = dayWidth
-                var bandCenterX = centerX
-                switch fertileWindow.position {
-                case .start:  bandWidth -= inset;     bandCenterX += inset / 2
-                case .end:    bandWidth -= inset;     bandCenterX -= inset / 2
-                case .single: bandWidth -= inset * 2
-                case .middle: break
-                }
-
-                content.fertileBands.append(
-                    FertileBand(
+                content.fertileLines.append(
+                    FertileLine(
                         id: day.daystamp.rawValue,
-                        centerX: bandCenterX,
-                        centerY: centerY,
-                        width: bandWidth,
+                        centerX: centerX,
+                        centerY: centerY + CalendarConstants.fertileLineOffset,
                         corners: fertileWindow.position.corners,
-                        color: fertileWindow.phase.bandColor
+                        color: fertileWindow.phase.lineColor
                     )
                 )
             }
@@ -220,7 +205,7 @@ struct CalendarGridView: View, Equatable {
 private struct MonthContent {
     var cells: [RenderDay] = []
     var periodBars: [PeriodBar] = []
-    var fertileBands: [FertileBand] = []
+    var fertileLines: [FertileLine] = []
 }
 
 // Stable identity (daystamp) keeps SwiftUI diffing cheap while the viewport shifts.
@@ -244,11 +229,10 @@ private struct PeriodBar: Identifiable {
     let isPredicted: Bool
 }
 
-private struct FertileBand: Identifiable {
+private struct FertileLine: Identifiable {
     let id: Int
     let centerX: CGFloat
     let centerY: CGFloat
-    let width: CGFloat
     let corners: UIRectCorner
     let color: Color
 }
@@ -264,10 +248,10 @@ private enum Palette {
     static let background = Color(UIColor.systemBackground)
     static let futureDay = Color(UIColor.tertiaryLabel)
     static let commentDot = Color(UIColor.tertiaryLabel)
-    // Translucent fills, so they carry their own light/dark variants — a single alpha reads
-    // very differently against white and against black.
-    static let fertileBand = Color("FertileBandColor")
-    static let ovulationBand = Color("OvulationBandColor")
+    // Assets, not literals: the fertile line's weight comes from its alpha, and one alpha reads
+    // very differently against white and against black, so each carries a light/dark variant.
+    static let fertileLine = Color("FertileLineColor")
+    static let ovulationLine = Color("OvulationLineColor")
 }
 
 private extension SegmentPosition {
@@ -282,10 +266,10 @@ private extension SegmentPosition {
 }
 
 private extension FertilePhase {
-    var bandColor: Color {
+    var lineColor: Color {
         switch self {
-        case .fertile:   return Palette.fertileBand
-        case .ovulation: return Palette.ovulationBand
+        case .fertile:   return Palette.fertileLine
+        case .ovulation: return Palette.ovulationLine
         }
     }
 }
