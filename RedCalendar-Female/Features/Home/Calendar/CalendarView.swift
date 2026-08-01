@@ -67,9 +67,9 @@ struct CalendarView: View {
         globalTopOffset + CalendarConstants.weekdaysHeaderHeight
     }
 
-    /// The height left under the bar. Both the centring and the floating button's thresholds
-    /// are measured against this, never against the full screen — half the screen is a point
-    /// behind the navigation bar.
+    /// The height left under the bar. This is what a *week* is sized against — the calendar
+    /// is drawn across the whole screen, but a row's height answers to how much of it can be
+    /// read. It is deliberately not what the calendar centres on; see `calculateUIOffset`.
     private var visibleCalendarHeight: CGFloat {
         max(0, calendarHeight - chromeHeight)
     }
@@ -87,9 +87,9 @@ struct CalendarView: View {
     /// Adjusts calendar position when DayDetailsView is shown
     /// Returns offset to center selected date within visible area above the panel
     ///
-    /// The card eats the bottom of the visible area, so its centre rises by exactly half the
-    /// card — the top of that area (`chromeHeight`) has not moved, and it is already baked
-    /// into `uiOffset`.
+    /// The card eats the bottom of the screen, so the middle of what is left of it rises by
+    /// exactly half the card — the top edge has not moved, and `uiOffset` already holds the
+    /// resting centre the rise is measured from.
     private var selectionUIOffset: CGFloat {
         pendingBottomOffset / 2
     }
@@ -347,11 +347,15 @@ struct CalendarView: View {
 
     /// Where today's week centre has to land on screen.
     ///
+    /// The middle of the screen, and not the middle of the area left under the bar. Those are
+    /// the same thing only if the bar is opaque, and it is not — the calendar carries on
+    /// behind it. Centring under the band would push today a good half row down the screen
+    /// from where it has always sat, to buy alignment with an edge nobody can see.
+    ///
     /// The grid's coordinate space starts at the top of the screen now, so this is a screen
-    /// position directly: the middle of what is left under the bar, not the middle of the
-    /// screen — half of which is behind the navigation bar.
+    /// position directly.
     private func calculateUIOffset() -> CGFloat {
-        chromeHeight + visibleCalendarHeight / 2
+        calendarHeight / 2
     }
     
     // MARK: - NEW: Calculate Selection Offset
@@ -474,15 +478,20 @@ struct CalendarView: View {
         let reference = uiOffset - todayWeekCenterY
         let deviation = scrollOffset - reference
 
-        // `uiOffset` is the centre of the readable area, so today leaves that area at exactly
-        // half its height in either direction — symmetric, where the old thresholds were
-        // measured off a grid that started below the strip rather than at the top of the screen.
-        let threshold = visibleCalendarHeight / 2
+        // Read off where today actually is rather than off a threshold, now that the grid's
+        // space and the screen's are the same space: `uiOffset` is where today's week centre
+        // sits at rest, and the scroll has carried it `deviation` from there.
+        //
+        // The two edges are not symmetric, and should not be: a week that has passed the
+        // bottom of the screen is gone, while one that has reached `chromeHeight` is behind
+        // the band — visible in outline, but not readable, which is the same thing to someone
+        // looking for today.
+        let todayCenterY = uiOffset + deviation
 
         let newState: FloatingButtonState = {
-            if deviation > threshold {
+            if todayCenterY > calendarHeight {
                 return .arrowDown
-            } else if deviation < -threshold {
+            } else if todayCenterY < chromeHeight {
                 return .arrowUp
             } else {
                 return .plus
