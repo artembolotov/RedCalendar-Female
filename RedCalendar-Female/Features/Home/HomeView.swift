@@ -48,6 +48,7 @@ struct HomeView: View {
                             } else {
                                 FloatingAddButton(
                                     state: floatingButtonState,
+                                    accent: store.state.accentTheme.accent,
                                     scrollCommand: $scrollCommand,
                                     onPlusTapped: setTodaySelected
                                 )
@@ -84,7 +85,7 @@ struct HomeView: View {
                     .navigationBarTitleDisplayMode(.inline)
                     .toolbar {
                         ToolbarItem(placement: .navigationBarTrailing) {
-                            HomeMenuView()
+                            HomeMenuView(accent: store.state.accentTheme.accent)
                         }
                     }
                 }

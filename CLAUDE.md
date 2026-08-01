@@ -56,6 +56,7 @@ Core/
   DI/         — ServiceLocator, @Injected
   Models/     — Daystamp, Daystamp+GRDB, AuthenticationMethod, AuthenticationError,
                  APNSToken, UserDetails, ResolvedCycleSettings, DayDisplayState,
+                 AccentTheme,
                  CycleRecord, CycleRecord+Queries,
                  CommentRecord, UserTagRecord, DayTagsRecord
   Redux/
@@ -66,6 +67,7 @@ Core/
       DatabaseMiddleware.swift
       PushNotificationsMiddleware.swift
       AnalyticsMiddleware.swift
+      AppearanceMiddleware.swift
       FeedbackMiddleware.swift
       LoggerMiddleware.swift
     Reducers/ — AppReducer, DayDisplayStateComputer
@@ -76,11 +78,12 @@ Core/
     Store.swift          — generic Store<State, Action>
   Services/   — APIService, KeychainService, AnalyticsService,
                  PushPermissionService, TapticFeedbackService,
-                 DatabaseService (GRDB)
+                 AppearanceService, DatabaseService (GRDB)
   Utils/      — Logger (AppLogger)
 Common/
   Components/ — PrimaryButton, PhoneNumberKitField, FlowLayout
-  Extensions/ — Bundle+AppInfo, String+Validation, View+AdaptiveShadow, …
+  Extensions/ — Bundle+AppInfo, String+Validation, View+AdaptiveShadow,
+                 Color+AccentTheme, …
   Modifiers/  — FormFieldStyle
   Views/      — RootView, WaitingView
 Features/
@@ -108,7 +111,7 @@ Feature folders own their own views and feature-specific models. Shared types go
 
 ### AppState
 
-`AppState` has four top-level fields:
+`AppState` has five top-level fields:
 
 ```swift
 struct AppState {
@@ -116,6 +119,7 @@ struct AppState {
     var calendarState: CalendarState   // always present, reset on logout
     var notifications: NotificationState
     var analyticsActivated: Bool
+    var accentTheme: AccentTheme       // fallback until .checkAccentTheme lands
 }
 ```
 
@@ -287,23 +291,49 @@ system `Color.red` instead, and the two were visibly different next to each othe
 a hollow bar, so a hue that drifts from the accent puts the digit out of key with the outline it
 sits in.
 
-**The accent is a coral red, and it is the closest thing on screen to the ovulation orange.**
-`#D84831` / `#E46B58` sits at ~6°, off the 0–1° of the fire-engine red it replaced, and the dark
-variant drops from a fully saturated 100% to 78% — that saturation was what made the old bar burn
-on the near-black page. The cost of the warmth is hue clearance: the gap to `OvulationLineColor`
-is 29°, down from 36°, and it is the tightest pairing in the palette. Anything new that wants a
-warm hue has to fit outside those two, and moving either one toward the other needs a check that
-the bar and the ovulation rule still read as different colours side by side.
+**The accent is chosen by the user, out of three.** `AccentTheme` (`Core/Models/AccentTheme.swift`)
+has cases `coral`, `rose` and `berry`; each names two assets — the accent and the day number
+inside a hollow bar — and the pair always moves together, because a predicted numeral off-hue from
+the outline it sits in reads as a mistake. Coral keeps the unqualified asset names (`AccentColor`,
+`PredictedDayTextColor`) since `AccentColor` is also the target's global accent and has to go on
+carrying a real colour; the other two are suffixed. The choice lives in `AppState.accentTheme`,
+is persisted to `UserDefaults` by `AppearanceService` through `AppearanceMiddleware`, and is
+restored by `.checkAccentTheme` on launch — the store is constructed before any service is
+reachable, so the initial value is always the fallback until that lands.
 
-**White numerals on the bar are the ceiling on how bright the accent may go.** A day inside a solid
-period renders `.white` in both themes, so the accent's luminance is squeezed from two sides:
+**An accent-derived colour is passed in, never read from the asset at the point of use.** There is
+exactly one `.tint` in the app, on `RootView`, and everything merely tinted inherits it. Everything
+that *fills* — the period bar, the today marker, the predicted outline, the floating button — takes
+the colour as a parameter instead. Two consequences that are easy to get wrong: `CalendarGridView`
+resolves the pair in its `init` rather than in a computed property (a named asset is a lookup, and
+the grid touches it once per bar and once per numeral), and `theme` is part of its `Equatable`
+conformance — leave it out and the grid keeps drawing the old accent until some unrelated input
+changes. `HomeMenuView` takes the colour for the same reason it takes nothing else from the store:
+it is toolbar content, where an `@EnvironmentObject` is not reliably reachable.
+
+The auth screens (`PrimaryButton`, `WelcomeView`) still draw the static `Color.accent`. That is not
+an oversight — settings are only reachable once signed in, so a user who has chosen a theme never
+sees those screens again.
+
+**Coral is the closest thing on screen to the ovulation orange.** `#D84831` / `#E46B58` sits at
+~6°, off the 0–1° of the fire-engine red it replaced, and the dark variant drops from a fully
+saturated 100% to 78% — that saturation was what made the old bar burn on the near-black page. The
+cost of the warmth is hue clearance: the gap to `OvulationLineColor` is 29°, down from 36°, and it
+is the tightest pairing in the palette. Rose (351°) and berry (345°) open it to 45° and 52°.
+Anything new that wants a warm hue has to fit outside that pair, and moving either one toward the
+other needs a check that the bar and the ovulation rule still read as different colours side by
+side.
+
+**White numerals on the bar are the ceiling on how bright any accent may go.** A day inside a solid
+period renders `.white` in every theme, so an accent's luminance is squeezed from two sides:
 contrast with that white text pulls it darker, separation from the near-black page pulls it
 lighter. The trade is strict and hue-independent — at 5.0 against the dark page, 3.74 against white
-is the most any hue can reach. The current pair measures 4.29/3.21 against white (light/dark) and
-4.09/5.83 against the page, which is essentially where the Material red sat: this accent was chosen
-on hue, not on contrast. Do not brighten the dark accent to make the bar pop without checking what
-it costs the numerals, and note that the dark end does not reach the 4.5:1 that 16pt text formally
-wants — the honest fix for that is the numeral, not the red.
+is the most any hue can reach. Measured against white (light/dark) and against the page: coral
+4.29/3.21 and 4.09/5.83, rose 4.84/3.55 and 4.61/5.27, berry 5.18/3.61 and 4.94/5.19. None of the
+three clears the 4.5:1 that 16pt text formally wants on the dark side, and nothing vivid enough to
+read as a period bar would. A fourth theme has to be placed on this same scale; do not brighten one
+to make the bar pop without checking what it costs the numerals, and note that the honest fix for
+the dark end is the numeral, not the red.
 
 **The page background falls, and the indicator ring cannot follow it.** `HomeView` fills the screen
 with a `AppBackgroundColor` → `AppBackgroundEdgeColor` vertical gradient, so the page does not read

@@ -23,7 +23,41 @@ struct CalendarGridView: View, Equatable {
     let today: Daystamp
     let width: CGFloat
     let height: CGFloat
+    let theme: AccentTheme
 
+    // Resolved at construction rather than read per day cell, for the same reason `Palette`
+    // exists: a named asset is a lookup, not a literal. The explicit init is what buys that —
+    // a computed property would resolve again on every bar and every numeral.
+    private let accent: Color
+    private let predictedText: Color
+
+    init(
+        viewport: ViewportData,
+        anchorOffset: CGFloat,
+        calculator: MonthCalculator,
+        dayDisplayStates: [Daystamp: DayDisplayState],
+        selectedDayStamp: Daystamp?,
+        today: Daystamp,
+        width: CGFloat,
+        height: CGFloat,
+        theme: AccentTheme
+    ) {
+        self.viewport = viewport
+        self.anchorOffset = anchorOffset
+        self.calculator = calculator
+        self.dayDisplayStates = dayDisplayStates
+        self.selectedDayStamp = selectedDayStamp
+        self.today = today
+        self.width = width
+        self.height = height
+        self.theme = theme
+        self.accent = theme.accent
+        self.predictedText = theme.predictedDayText
+    }
+
+    // `theme` stands in for the two resolved colours — they are derived from it, and `Color`
+    // is not usefully comparable anyway. Leaving it out would freeze the grid on the old
+    // accent until some unrelated input changed.
     static func == (lhs: CalendarGridView, rhs: CalendarGridView) -> Bool {
         lhs.calculator === rhs.calculator
             && lhs.anchorOffset == rhs.anchorOffset
@@ -31,6 +65,7 @@ struct CalendarGridView: View, Equatable {
             && lhs.height == rhs.height
             && lhs.today == rhs.today
             && lhs.selectedDayStamp == rhs.selectedDayStamp
+            && lhs.theme == rhs.theme
             && lhs.viewport == rhs.viewport
             && lhs.dayDisplayStates == rhs.dayDisplayStates
     }
@@ -119,11 +154,11 @@ struct CalendarGridView: View, Equatable {
                 // `strokeBorder`, not `stroke`: the outline stays inside `periodBarHeight`
                 // instead of straddling the edge and losing half its weight to the clip.
                 shape.strokeBorder(
-                    Palette.predictedStroke,
+                    accent,
                     lineWidth: CalendarConstants.predictedBarStrokeWidth
                 )
             } else {
-                shape.fill(Palette.period)
+                shape.fill(accent)
             }
         }
         .frame(width: dayWidth + lead + trail, height: CalendarConstants.periodBarHeight)
@@ -142,7 +177,7 @@ struct CalendarGridView: View, Equatable {
                 // The ring is what keeps the marker readable on a solid period bar — without
                 // it a red circle on red simply disappears.
                 Circle()
-                    .fill(Palette.today)
+                    .fill(accent)
                     .frame(width: CalendarConstants.dayIndicatorSize, height: CalendarConstants.dayIndicatorSize)
                     .overlay(
                         Circle()
@@ -165,7 +200,7 @@ struct CalendarGridView: View, Equatable {
                 .foregroundColor(
                     isSelected ? Palette.background :
                     cell.isToday ? .white :
-                    cell.isPredictedPeriod ? Palette.predictedText :
+                    cell.isPredictedPeriod ? predictedText :
                     cell.isInPeriod ? .white :
                     cell.daystamp > today ? Palette.futureDay :
                     .primary
@@ -311,17 +346,14 @@ private struct HorizontalRule: Shape {
 
 // MARK: - Palette
 
-// Resolved once instead of per day cell — named assets and UIColor bridging are lookups,
-// not literals. Dynamic colors still resolve against the current trait collection.
+// The colours that do not depend on the chosen accent, resolved once instead of per day cell —
+// named assets and UIColor bridging are lookups, not literals. Dynamic colors still resolve
+// against the current trait collection.
+//
+// The accent-derived pair — the period bar, the today marker, the predicted outline and the
+// numeral inside it — cannot live here: they follow `AccentTheme`, so they are stored on the
+// view and resolved in its init.
 private enum Palette {
-    // The accent asset rather than the system red: the floating button, the tint and the bar
-    // are the same red to the eye, so they must be the same red in code too.
-    static let period = Color.accent
-    static let today = Color.accent
-    // A prediction is an outline and nothing else — no fill behind it. The outline runs
-    // unbroken along a multi-day series, so it groups the run on its own.
-    static let predictedStroke = Color.accent
-    static let predictedText = Color("PredictedDayTextColor")
     static let selected = Color("SelectedDayColor")
     static let background = Color("AppBackgroundColor")
     static let futureDay = Color(UIColor.secondaryLabel)

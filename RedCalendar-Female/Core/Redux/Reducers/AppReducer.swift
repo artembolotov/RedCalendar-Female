@@ -82,6 +82,12 @@ func appReducer(state: AppState, action: AppAction) -> AppState {
     case .setAnalyticsActivated(let activated):
         state.analyticsActivated = activated
 
+    case .checkAccentTheme:
+        break
+
+    case .setAccentTheme(let theme):
+        state.accentTheme = theme
+
     case .retryFailedTasks:
         break
 

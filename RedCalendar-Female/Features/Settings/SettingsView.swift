@@ -24,6 +24,8 @@ struct SettingsView: View {
                         versionRow
                     }
 
+                    accentThemeSection
+
                     if versionTapCount >= 8 {
                         DeveloperSectionView(
                             deviceId: deviceId,
@@ -48,6 +50,37 @@ struct SettingsView: View {
     }
 
     // MARK: - Private Views
+
+    // Rows rather than a `Picker`: the thing being chosen is a colour, so each option has to
+    // show its own colour at a size worth judging. A picker would collapse the three down to
+    // their names.
+    private var accentThemeSection: some View {
+        Section("Оформление") {
+            ForEach(AccentTheme.allCases) { theme in
+                Button {
+                    store.send(.setAccentTheme(theme))
+                } label: {
+                    HStack(spacing: 12) {
+                        Circle()
+                            .fill(theme.accent)
+                            .frame(width: 22, height: 22)
+
+                        Text(theme.title)
+                            .foregroundColor(.primary)
+
+                        Spacer()
+
+                        if store.state.accentTheme == theme {
+                            Image(systemName: "checkmark")
+                                .font(.body.weight(.semibold))
+                                .foregroundColor(theme.accent)
+                        }
+                    }
+                }
+                .accessibilityAddTraits(store.state.accentTheme == theme ? .isSelected : [])
+            }
+        }
+    }
 
     private var versionRow: some View {
         HStack {

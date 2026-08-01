@@ -322,12 +322,12 @@ struct DayDetailsView: View {
         .sheet(isPresented: $showTagsSheet) {
             TagsSheetView(dayStamp: dayStamp, isPresented: $showTagsSheet)
                 .environmentObject(store)
-                .tint(.accent)
+                .tint(store.state.accentTheme.accent)
         }
         .sheet(isPresented: $showCommentSheet) {
             CommentSheetView(dayStamp: dayStamp, isPresented: $showCommentSheet)
                 .environmentObject(store)
-                .tint(.accent)
+                .tint(store.state.accentTheme.accent)
         }
         .onPreferenceChange(FlowPickerHeightKey.self) { height in
             // The options report nothing while they're closed — keeping the last measurement

@@ -19,6 +19,7 @@ final class Configurator {
         registerAPIService()
         registerPushPermissionsService()
         registerTapticFeedbackService()
+        registerAppearanceService()
     }
     
     private func registerAnalyticsService() {
@@ -55,5 +56,10 @@ final class Configurator {
     private func registerTapticFeedbackService() {
         let tapticFeedbackService: TapticFeedbackServiceProtocol = TapticFeedbackService()
         ServiceLocator.shared.addService(service: tapticFeedbackService)
+    }
+
+    private func registerAppearanceService() {
+        let appearanceService: AppearanceServiceProtocol = AppearanceService()
+        ServiceLocator.shared.addService(service: appearanceService)
     }
 }

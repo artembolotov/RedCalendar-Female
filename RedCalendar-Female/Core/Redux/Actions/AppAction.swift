@@ -41,6 +41,10 @@ enum AppAction {
     case checkAnalyticsStatus
     case setAnalyticsActivated(_ activated: Bool)
 
+    // Appearance actions
+    case checkAccentTheme
+    case setAccentTheme(_ theme: AccentTheme)
+
     // Retry actions
     case retryFailedTasks
 }

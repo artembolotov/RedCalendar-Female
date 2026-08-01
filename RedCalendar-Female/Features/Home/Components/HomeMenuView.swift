@@ -9,6 +9,11 @@ import SwiftUI
 
 // MARK: - HomeMenuView Component
 struct HomeMenuView: View {
+    // Passed in rather than pulled from the environment: this view is toolbar content, and an
+    // `@EnvironmentObject` there is not reliably reachable — a miss would be a crash, not a
+    // wrong colour.
+    let accent: Color
+
     @State private var showSettings = false
     @State private var showStatistics = false
     
@@ -37,11 +42,11 @@ struct HomeMenuView: View {
         }
         .sheet(isPresented: $showSettings) {
             SettingsView()
-                .tint(.accent)
+                .tint(accent)
         }
         .sheet(isPresented: $showStatistics) {
             StatisticsView()
-                .tint(.accent)
+                .tint(accent)
         }
     }
 }
