@@ -21,9 +21,14 @@ struct CalendarView: View {
     @State private var weekendIndices: Set<Int> = []
     
     // MARK: - State: Dimensions
+    // The full screen, not the space under the bar: the grid is drawn edge to edge and
+    // scrolls beneath `CalendarTopChrome`.
     @State private var calendarHeight: CGFloat = 0
     @State private var calendarWidth: CGFloat = 0
     @State private var globalTopOffset: CGFloat = 0
+    // Kept so the top inset, which lands on a pass of its own, can rebuild the calculator
+    // without waiting for the size to change again.
+    @State private var screenSize: CGSize = .zero
     
     // MARK: - State: Scroll & Offsets
     @State private var scrollOffset: CGFloat = 0
@@ -55,6 +60,20 @@ struct CalendarView: View {
         store.state.calendarState.todayDayStamp.toDate(calendar: calendar)
     }
 
+    /// Everything the grid runs underneath at the top of the screen — the navigation bar and
+    /// the weekday strip. The calendar's own coordinate space starts at the top of the screen
+    /// now, so this is the offset at which the area a user can actually read begins.
+    private var chromeHeight: CGFloat {
+        globalTopOffset + CalendarConstants.weekdaysHeaderHeight
+    }
+
+    /// The height left under the bar. This is what a *week* is sized against — the calendar
+    /// is drawn across the whole screen, but a row's height answers to how much of it can be
+    /// read. It is deliberately not what the calendar centres on; see `calculateUIOffset`.
+    private var visibleCalendarHeight: CGFloat {
+        max(0, calendarHeight - chromeHeight)
+    }
+
     /// The height of the card for the day currently selected — the panel the calendar has to
     /// centre above. Falls back to the last height seen only while the card for that day has
     /// not reported yet, which is a window nothing normally scrolls in.
@@ -67,9 +86,12 @@ struct CalendarView: View {
 
     /// Adjusts calendar position when DayDetailsView is shown
     /// Returns offset to center selected date within visible area above the panel
+    ///
+    /// The card eats the bottom of the screen, so the middle of what is left of it rises by
+    /// exactly half the card — the top edge has not moved, and `uiOffset` already holds the
+    /// resting centre the rise is measured from.
     private var selectionUIOffset: CGFloat {
-        let panelHeight = pendingBottomOffset
-        return panelHeight > 0 ? (panelHeight - globalTopOffset) / 2 : 0
+        pendingBottomOffset / 2
     }
 
     /// Main offset that determines calendar scroll position
@@ -83,7 +105,6 @@ struct CalendarView: View {
     // MARK: - Constants
     private let viewportUpdateThreshold: CGFloat = CalendarConstants.viewportUpdateThreshold
     private let monthHeaderHeight: CGFloat = CalendarConstants.monthHeaderHeight
-    private let headerHeight: CGFloat = CalendarConstants.weekdaysHeaderHeight
     // How long a selection waits for its card's height before leaving on the last one seen.
     // A measurement takes a frame or two; this is the guard against a card that never reports,
     // not the path a selection normally takes.
@@ -104,18 +125,10 @@ struct CalendarView: View {
             
             let currentGlobalTopOffset = geometry.safeAreaInsets.top
             
-            VStack(spacing: 0) {
-                CalendarHeaderView(
-                    weekdays: localizedWeekdays,
-                    weekendIndices: weekendIndices,
-                    width: calendarWidth,
-                    height: CalendarConstants.weekdaysHeaderHeight
-                )
-                // The strip sits above the scroll view rather than inside it, so the tap that
-                // dismisses the card from free calendar space has to be added separately here.
-                .contentShape(Rectangle())
-                .onTapGesture { dismissDayDetails() }
-
+            // The grid fills the screen and passes under the bar; the bar is laid over it
+            // rather than stacked above it, which is the whole point — a month title sliding
+            // into a blur reads as depth, and a month title stopping at a divider does not.
+            ZStack(alignment: .top) {
                 ZStack {
                     if let calc = calculator {
                         InfiniteScrollContainer(
@@ -159,32 +172,37 @@ struct CalendarView: View {
                         .allowsHitTesting(false)
                     }
                 }
-            }
-            .onChange(of: geometry.size) { newSize in
-                let headerHeight = CalendarConstants.weekdaysHeaderHeight
-                
-                globalTopOffset = currentGlobalTopOffset
-                setupCalculator(
-                    height: newSize.height - headerHeight,
-                    width: newSize.width
+
+                CalendarTopChrome(
+                    weekdays: localizedWeekdays,
+                    weekendIndices: weekendIndices,
+                    width: calendarWidth,
+                    topInset: globalTopOffset,
+                    onTap: dismissDayDetails
                 )
             }
+            // The band is pinned to the top of the screen, not to the top of whatever the grid
+            // happens to size to — which is nothing at all on the frame before the calculator
+            // exists.
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .onChange(of: geometry.size) { newSize in
+                screenSize = newSize
+                globalTopOffset = currentGlobalTopOffset
+                setupCalculator(height: newSize.height, width: newSize.width)
+            }
+            // The inset arrives on its own pass, and the week height is derived from the
+            // space left under the bar — so this rebuilds the calculator rather than merely
+            // recomputing the offsets, or the first layout would size every week against a
+            // navigation bar it did not know about yet.
             .onChange(of: currentGlobalTopOffset) { newOffset in
-                let oldOffset = globalTopOffset
                 globalTopOffset = newOffset
-                
-                // Recalculate only UI offset when globalTopOffset changes
-                uiOffset = calculateUIOffset()
-                
-                if oldOffset == 0 {
-                    scrollOffset = effectiveOffset
 
-                    if let calc = calculator {
-                        rebuildViewport(for: scrollOffset, calculator: calc)
-                    }
+                guard screenSize.height > 0, screenSize.width > 0 else {
+                    uiOffset = calculateUIOffset()
+                    return
                 }
 
-                updateFloatingButtonState(scrollOffset: scrollOffset)
+                setupCalculator(height: screenSize.height, width: screenSize.width)
             }
             // Ahead of the height handler below: when a selection and a height land in the
             // same pass, the selection is what decides whether the height is the one being
@@ -326,12 +344,18 @@ struct CalendarView: View {
     }
     
     // MARK: - NEW: Calculate UI Offset
+
+    /// Where today's week centre has to land on screen.
+    ///
+    /// The middle of the screen, and not the middle of the area left under the bar. Those are
+    /// the same thing only if the bar is opaque, and it is not — the calendar carries on
+    /// behind it. Centring under the band would push today a good half row down the screen
+    /// from where it has always sat, to buy alignment with an edge nobody can see.
+    ///
+    /// The grid's coordinate space starts at the top of the screen now, so this is a screen
+    /// position directly.
     private func calculateUIOffset() -> CGFloat {
-        let availableCalendarHeight = calendarHeight
-        let centerPosition = availableCalendarHeight / 2
-        let adjustedCenter = centerPosition - (globalTopOffset + headerHeight) / 2
-        
-        return adjustedCenter
+        calendarHeight / 2
     }
     
     // MARK: - NEW: Calculate Selection Offset
@@ -370,12 +394,16 @@ struct CalendarView: View {
         
         guard height > 0 && width > 0 else { return }
 
+        // Sized against the readable area, not the drawing area. The grid is drawn across the
+        // whole screen now, and handing that height to the calculator would quietly make every
+        // week taller — a week is measured against what a user can see, not against the strip
+        // of screen behind the navigation bar.
         let newCalculator = MonthCalculator(
             currentDate: currentDate,
-            screenHeight: height,
+            screenHeight: visibleCalendarHeight,
             calendar: calendar
         )
-        
+
         localizedWeekdays = newCalculator.getLocalizedWeekdays()
         weekendIndices = newCalculator.getWeekendIndices()
 
@@ -404,7 +432,7 @@ struct CalendarView: View {
         let dateChanged = !calendar.isDate(currentDate, inSameDayAs: currentCalculator.currentDate)
 
         if localeChanged || firstWeekdayChanged || dateChanged {
-            let newCalculator = MonthCalculator(currentDate: currentDate, screenHeight: calendarHeight, calendar: calendar)
+            let newCalculator = MonthCalculator(currentDate: currentDate, screenHeight: visibleCalendarHeight, calendar: calendar)
             localizedWeekdays = newCalculator.getLocalizedWeekdays()
             weekendIndices = newCalculator.getWeekendIndices()
 
@@ -444,25 +472,26 @@ struct CalendarView: View {
         // recomputes it from handleDaySelection(nil,…), by which point this guard passes.
         guard store.state.calendarState.selectedDayStamp == nil else { return }
 
-        let headerHeight: CGFloat = CalendarConstants.weekdaysHeaderHeight
-
-        let fullScreenHeight = calendarHeight + CalendarConstants.weekdaysHeaderHeight + globalTopOffset
-
-        let baseThreshold = fullScreenHeight / 2
-
         // The panel is closed (or closing), so compare against today's base position
         // directly — effectiveOffset still includes the panel adjustment for one render
         // cycle after selectedDayStamp becomes nil.
         let reference = uiOffset - todayWeekCenterY
         let deviation = scrollOffset - reference
-        
-        let downThreshold = baseThreshold
-        let upThreshold = -baseThreshold + globalTopOffset + headerHeight
-        
+
+        // Read off where today actually is rather than off a threshold, now that the grid's
+        // space and the screen's are the same space: `uiOffset` is where today's week centre
+        // sits at rest, and the scroll has carried it `deviation` from there.
+        //
+        // The two edges are not symmetric, and should not be: a week that has passed the
+        // bottom of the screen is gone, while one that has reached `chromeHeight` is behind
+        // the band — visible in outline, but not readable, which is the same thing to someone
+        // looking for today.
+        let todayCenterY = uiOffset + deviation
+
         let newState: FloatingButtonState = {
-            if deviation > downThreshold {
+            if todayCenterY > calendarHeight {
                 return .arrowDown
-            } else if deviation < upThreshold {
+            } else if todayCenterY < chromeHeight {
                 return .arrowUp
             } else {
                 return .plus
