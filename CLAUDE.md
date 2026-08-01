@@ -238,26 +238,25 @@ the next cycle's start really does end there, so `SegmentPosition` is derived fr
 last day caps with `.end` (or `.single`). `loadedRange` is a viewport, not a boundary: a period
 running past it is clipped for drawing but keeps `.middle` at the edge, so the square end reads as
 continuing offscreen. Never derive positions from the drawn range — that rounds off bars that merely
-scrolled out of the loaded window. The fertile window is drawn as a band and obeys the same rule,
-with the cycle's own segment as its real boundary: a cycle paints only the days it owns, so the
-window caps where the cycle does — but a window running past `loadedRange` still keeps its square
-edge there.
+scrolled out of the loaded window. The fertile line obeys the same rule, with the cycle's own
+segment as its real boundary: a cycle paints only the days it owns, so the window caps where the
+cycle does — but a window running past `loadedRange` still keeps its square edge there.
 
-**The fertile window is a band, not an underline.** It is a pale rounded fill behind the day
-(`FertileWindow` → `CalendarGridView`'s Layer 1), the same shape as the period bar, with the
-ovulation day in the same lilac at roughly twice the alpha — it is the window's peak, not a
-separate marker, so it reads as more of the same rather than as another colour. The band is drawn
-*below* the period bar so an opaque bar wins where a short cycle makes the two overlap. That
-overlap is reachable inside `Constants.Cycle` — cycle 20
-with period 4 puts the window's first day on the period's last — so the band is deliberately
-*taller* than the bar (26 vs 22) and its caps stop `fertileBandCapInset` short of the day's edge.
-Those 2pt of lilac above and below, and the caps that refuse to line up, are the only thing the
-window has left to show for itself under an opaque bar; matching the band's geometry back to the
-bar's loses it entirely. 26 is also the ceiling — the band must stay under the ⌀28 day indicator.
-Only genuine window caps are pulled in: a run wrapping onto the next calendar row is `.middle`
-there and stays flush. Keeping it out of the strip below the cell's centre is what
-gives that strip to the day indicator and the dot row — the two of them already fill 20 of its
-25pt (see the note in `CalendarConstants`). Do not move a third element back into it.
+**The fertile window is a line under the day, and it has a lane of its own.** It is a 2pt lilac
+rule (`FertileWindow` → `CalendarGridView`'s Layer 1), drawn with the same `RoundedCorners`
+per-day construction as the period bar so caps and row wraps follow identical rules — only
+genuine window caps round, a run continuing onto the next calendar row is `.middle` there and
+stays flush. Its radius is half its height, so the window's ends read as a capsule. The ovulation
+day is the same lilac at full strength: it is the window's peak, not a separate marker, so it
+reads as more of the same rather than as another colour.
+
+Three things are stacked below a cell's centre, in this order and no other: the day indicator
+(⌀28, and ⌀28 + a 2pt outward ring when selected, so −15…+15), the fertile line (+18…+20) and the
+dot row (+23…+29). The next week's own indicator starts at +39. The line sits *below* where the
+period bar ends (±11) and *above* the dots on purpose — that is what keeps it clear of the period
+bar entirely, so an overlapping cycle shows both, and what keeps a comment dot from crowding it.
+The three gaps are 3pt each and there is nothing spare: move any one of the four constants in
+`CalendarConstants` and the line lands under the selected day's circle or against the dots.
 
 `CalendarState.dayDisplayStates` is **sparse**: it is recomputed by `computeDayDisplayStates`
 (`Core/Redux/Reducers/DayDisplayStateComputer.swift`) in the reducer whenever cycle/tag/comment/range
