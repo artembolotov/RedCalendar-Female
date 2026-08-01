@@ -97,7 +97,7 @@ func computeDayDisplayStates(
                 // days are now in the past.
                 let isPredicted = isPredictedCycle || day > lastConfirmedDay
 
-                let position: PeriodPosition
+                let position: SegmentPosition
                 if cycle.startDay == barEnd {
                     position = .single
                 } else if day == cycle.startDay {
@@ -128,14 +128,35 @@ func computeDayDisplayStates(
             ovulationConfirmed = false
         }
 
-        // Clipped to the segment: a cycle only ever paints the days it owns, so a stray
-        // ovulation date can't reach into the next cycle's window.
-        let fertileLower = max(ovulationDay.advanced(by: -Constants.Cycle.fertileWindowDaysBefore), segmentStart)
-        let fertileUpper = min(ovulationDay.advanced(by: Constants.Cycle.fertileWindowDaysAfter), segmentEnd)
-        if fertileLower <= fertileUpper {
-            for day in fertileLower...fertileUpper {
-                result[day, default: .empty].fertilePhase =
-                    day == ovulationDay ? .ovulation(confirmed: ovulationConfirmed) : .fertile
+        // Where the window genuinely begins and ends: clipped to the cycle's own days, so a
+        // stray ovulation date can't reach into the next cycle's window. The band's rounded
+        // caps come from these — the loaded range is a viewport, and a window running past it
+        // is clipped for drawing but keeps its square edge, same rule as the period bar above.
+        let windowLower = max(ovulationDay.advanced(by: -Constants.Cycle.fertileWindowDaysBefore), cycle.startDay)
+        let windowUpper = nextStart
+            .map { min(ovulationDay.advanced(by: Constants.Cycle.fertileWindowDaysAfter), $0.advanced(by: -1)) }
+            ?? ovulationDay.advanced(by: Constants.Cycle.fertileWindowDaysAfter)
+        guard windowLower <= windowUpper else { continue }
+
+        let drawLower = max(windowLower, lowerBound)
+        let drawUpper = min(windowUpper, upperBound)
+        if drawLower <= drawUpper {
+            for day in drawLower...drawUpper {
+                let position: SegmentPosition
+                if windowLower == windowUpper {
+                    position = .single
+                } else if day == windowLower {
+                    position = .start
+                } else if day == windowUpper {
+                    position = .end
+                } else {
+                    position = .middle
+                }
+
+                result[day, default: .empty].fertileWindow = FertileWindow(
+                    phase: day == ovulationDay ? .ovulation(confirmed: ovulationConfirmed) : .fertile,
+                    position: position
+                )
             }
         }
     }
