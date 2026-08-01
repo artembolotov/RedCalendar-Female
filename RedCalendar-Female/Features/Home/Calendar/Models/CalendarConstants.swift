@@ -25,7 +25,13 @@ enum CalendarConstants {
     // How hard the calendar is blurred where it passes under the band. The one dial worth
     // turning here: higher and the numerals become anonymous smears, lower and the band stops
     // registering as anything at all.
-    static let topChromeBlurRadius: CGFloat = 12
+    //
+    // It has to be a radius we choose, because the system never exposes one: a
+    // `UINavigationBarAppearance` background or a SwiftUI `Material` is a named `UIBlurEffect`
+    // style, and there is no public API to say how much. Both also blur their *backdrop* — the
+    // window behind them — which over this sparse calendar is mostly empty page, so they come
+    // out as the grey plate this band exists to avoid. See `CalendarView.blurredBandLayer`.
+    static let topChromeBlurRadius: CGFloat = 8
 
     // MARK: - Month Header
     static let monthHeaderHeight: CGFloat = 60
