@@ -246,7 +246,14 @@ edge there.
 **The fertile window is a band, not an underline.** It is a pale rounded fill behind the day
 (`FertileWindow` → `CalendarGridView`'s Layer 1), the same shape as the period bar, with the
 ovulation day in its own colour; it is drawn *below* the period bar so an opaque bar wins where a
-short cycle makes the two overlap. Keeping it out of the strip below the cell's centre is what
+short cycle makes the two overlap. That overlap is reachable inside `Constants.Cycle` — cycle 20
+with period 4 puts the window's first day on the period's last — so the band is deliberately
+*taller* than the bar (26 vs 22) and its caps stop `fertileBandCapInset` short of the day's edge.
+Those 2pt of lilac above and below, and the caps that refuse to line up, are the only thing the
+window has left to show for itself under an opaque bar; matching the band's geometry back to the
+bar's loses it entirely. 26 is also the ceiling — the band must stay under the ⌀28 day indicator.
+Only genuine window caps are pulled in: a run wrapping onto the next calendar row is `.middle`
+there and stays flush. Keeping it out of the strip below the cell's centre is what
 gives that strip to the day indicator and the dot row — the two of them already fill 20 of its
 25pt (see the note in `CalendarConstants`). Do not move a third element back into it.
 

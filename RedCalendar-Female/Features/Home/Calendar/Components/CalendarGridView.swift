@@ -67,7 +67,7 @@ struct CalendarGridView: View, Equatable {
         ForEach(content.fertileBands) { band in
             RoundedCorners(radius: CalendarConstants.fertileBandCornerRadius, corners: band.corners)
                 .fill(band.color)
-                .frame(width: dayWidth, height: CalendarConstants.fertileBandHeight)
+                .frame(width: band.width, height: CalendarConstants.fertileBandHeight)
                 .position(x: band.centerX, y: band.centerY)
         }
 
@@ -164,11 +164,24 @@ struct CalendarGridView: View, Equatable {
             }
 
             if let fertileWindow = state?.fertileWindow {
+                // Only the window's genuine caps are pulled in — a run wrapping onto the next
+                // calendar row is `.middle` there and stays flush, like the period bar.
+                let inset = CalendarConstants.fertileBandCapInset
+                var bandWidth = dayWidth
+                var bandCenterX = centerX
+                switch fertileWindow.position {
+                case .start:  bandWidth -= inset;     bandCenterX += inset / 2
+                case .end:    bandWidth -= inset;     bandCenterX -= inset / 2
+                case .single: bandWidth -= inset * 2
+                case .middle: break
+                }
+
                 content.fertileBands.append(
                     FertileBand(
                         id: day.daystamp.rawValue,
-                        centerX: centerX,
+                        centerX: bandCenterX,
                         centerY: centerY,
+                        width: bandWidth,
                         corners: fertileWindow.position.corners,
                         color: fertileWindow.phase.bandColor
                     )
@@ -235,6 +248,7 @@ private struct FertileBand: Identifiable {
     let id: Int
     let centerX: CGFloat
     let centerY: CGFloat
+    let width: CGFloat
     let corners: UIRectCorner
     let color: Color
 }
