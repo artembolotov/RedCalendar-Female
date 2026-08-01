@@ -287,19 +287,23 @@ system `Color.red` instead, and the two were visibly different next to each othe
 a hollow bar, so a hue that drifts from the accent puts the digit out of key with the outline it
 sits in.
 
-**The accent is a rose red, and the hue is doing work.** `#D53046` / `#E25A6C` sits at ~351°, not
-the 0–1° of a fire-engine red — the warm end of the palette is already spent on the ovulation
-orange, and a coral accent closes that gap to under 30° of hue. It also reads as health rather than
-as a system error, which is the register the app wants.
+**The accent is a coral red, and it is the closest thing on screen to the ovulation orange.**
+`#D84831` / `#E46B58` sits at ~6°, off the 0–1° of the fire-engine red it replaced, and the dark
+variant drops from a fully saturated 100% to 78% — that saturation was what made the old bar burn
+on the near-black page. The cost of the warmth is hue clearance: the gap to `OvulationLineColor`
+is 29°, down from 36°, and it is the tightest pairing in the palette. Anything new that wants a
+warm hue has to fit outside those two, and moving either one toward the other needs a check that
+the bar and the ovulation rule still read as different colours side by side.
 
 **White numerals on the bar are the ceiling on how bright the accent may go.** A day inside a solid
 period renders `.white` in both themes, so the accent's luminance is squeezed from two sides:
 contrast with that white text pulls it darker, separation from the near-black page pulls it
 lighter. The trade is strict and hue-independent — at 5.0 against the dark page, 3.74 against white
-is the most any hue can reach. The current pair measures 3.55 against white and 5.27 against the
-page; the Material red it replaced sat at the extreme end of that scale (3.19 and 5.86). Do not
-brighten the dark accent to make the bar pop without checking what it costs the numerals, and note
-that neither end of this scale reaches the 4.5:1 that 16pt text formally wants.
+is the most any hue can reach. The current pair measures 4.29/3.21 against white (light/dark) and
+4.09/5.83 against the page, which is essentially where the Material red sat: this accent was chosen
+on hue, not on contrast. Do not brighten the dark accent to make the bar pop without checking what
+it costs the numerals, and note that the dark end does not reach the 4.5:1 that 16pt text formally
+wants — the honest fix for that is the numeral, not the red.
 
 **The page background falls, and the indicator ring cannot follow it.** `HomeView` fills the screen
 with a `AppBackgroundColor` → `AppBackgroundEdgeColor` vertical gradient, so the page does not read
