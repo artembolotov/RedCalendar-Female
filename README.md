@@ -154,7 +154,7 @@ RedCalendar-Female/
 
 ### Требования
 - iOS 15.4+
-- Xcode 16.4+
+- Xcode 26.4+
 - Swift 5.9+
 
 ### Конфигурация окружений

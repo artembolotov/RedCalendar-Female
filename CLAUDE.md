@@ -1,6 +1,6 @@
 # RedCalendar Female — Claude Guidelines
 
-iOS app for menstrual cycle tracking. SwiftUI + Redux architecture. **iOS 15.4+, Xcode 16.4+, Swift 5.9+.**
+iOS app for menstrual cycle tracking. SwiftUI + Redux architecture. **iOS 15.4+, Xcode 26.4+, Swift 5.9+.**
 
 ## Architecture
 
