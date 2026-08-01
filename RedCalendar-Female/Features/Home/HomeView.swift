@@ -25,7 +25,11 @@ struct HomeView: View {
                         CalendarView(
                             cardHeight: $dayCardHeight,
                             floatingButtonState: $floatingButtonState,
-                            scrollCommand: $scrollCommand
+                            scrollCommand: $scrollCommand,
+                            // Read here and handed down, because here is the last place it
+                            // can be read: a reader inside a view that has already escaped
+                            // the safe area has none left to report and hands back zero.
+                            topInset: geometry.safeAreaInsets.top
                         )
 
                         // The spring covers only the card/button pair: a transaction opened
@@ -81,6 +85,12 @@ struct HomeView: View {
                             detailsPresentation += 1
                         }
                     }
+                    // On the stack, never on the reader around it. A `GeometryReader` that
+                    // ignores the safe area itself has none left to describe and reports zero
+                    // insets — which collapses the calendar's top band onto the status bar and
+                    // puts the weekday labels next to the clock. The reader honours the safe
+                    // area so it can measure it; the content is what escapes it.
+                    .ignoresSafeArea(edges: [.top, .bottom])
                     .navigationBarTitleDisplayMode(.inline)
                     .toolbar {
                         ToolbarItem(placement: .navigationBarTrailing) {
@@ -91,11 +101,6 @@ struct HomeView: View {
                     // and there is nothing left to see through.
                     .transparentNavigationBarBackground()
                 }
-                // On the reader itself, not on the stack inside it. That is what makes
-                // `geometry.safeAreaInsets.top` report the inset it stopped honouring — the
-                // height of the navigation bar the grid now runs under, which is exactly what
-                // `CalendarView` centres against and sizes its top band with.
-                .ignoresSafeArea(edges: [.top, .bottom])
             }
         }
     }
