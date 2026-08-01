@@ -68,7 +68,11 @@ struct PhoneEntryView: View {
                             .frame(height: 56)
                             .frame(maxWidth: .infinity)
                             
-                            PrimaryButton(isEnabled: isPhoneValid, action: continueAction) {
+                            PrimaryButton(
+                                isEnabled: isPhoneValid,
+                                accent: store.state.accentTheme.accent,
+                                action: continueAction
+                            ) {
                                 Image(systemName: "arrow.right")
                                     .font(.title3)
                             }

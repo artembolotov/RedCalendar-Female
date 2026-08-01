@@ -10,6 +10,8 @@ import SwiftUI
 struct WelcomeView: View {
     @EnvironmentObject var store: AppStore
     @State private var currentSlide = 0
+
+    private var accent: Color { store.state.accentTheme.accent }
     
     // Computed binding for sheet presentation
     private var showLoginSheet: Binding<Bool> {
@@ -83,7 +85,7 @@ struct WelcomeView: View {
             HStack(spacing: 8) {
                 ForEach(slides.indices, id: \.self) { index in
                     Circle()
-                        .fill(currentSlide == index ? Color.accent : Color.gray.opacity(0.3))
+                        .fill(currentSlide == index ? accent : Color.gray.opacity(0.3))
                         .frame(width: 8, height: 8)
                         .animation(.easeInOut(duration: 0.2), value: currentSlide)
                 }
@@ -92,7 +94,7 @@ struct WelcomeView: View {
             
             Spacer()
             
-            PrimaryButton {
+            PrimaryButton(accent: accent) {
                 store.send(.setAuthState(.authenticating(.email(.entry()))))
             } content: {
                 Text("Войти")
@@ -109,7 +111,7 @@ struct WelcomeView: View {
             LinearGradient(
                 gradient: Gradient(colors: [
                     Color(.systemBackground),
-                    Color.red.opacity(0.05)
+                    accent.opacity(0.05)
                 ]),
                 startPoint: .top,
                 endPoint: .bottom
@@ -118,7 +120,7 @@ struct WelcomeView: View {
         .sheet(isPresented: showLoginSheet) {
             LoginView()
                 .environmentObject(store)
-                .tint(.accent)
+                .tint(accent)
         }
     }
 }

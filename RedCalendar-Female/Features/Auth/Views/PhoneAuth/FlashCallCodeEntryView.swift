@@ -155,6 +155,7 @@ struct FlashCallCodeEntryView: View {
                     PrimaryButton(
                         "Подтвердить",
                         isEnabled: isCodeValid,
+                        accent: store.state.accentTheme.accent,
                         action: { submitCode(prettyPhoneNumber: prettyPhoneNumber, e164PhoneNumber: e164PhoneNumber, maskedCallerNumber: maskedCallerNumber, requestId: requestId) }
                     )
                 }

@@ -57,7 +57,11 @@ struct EmailEntryView: View {
                                 .formFieldStyle()
                             
                             // Arrow button using custom PrimaryButton
-                            PrimaryButton(isEnabled: isEmailValid, action: continueAction) {
+                            PrimaryButton(
+                                isEnabled: isEmailValid,
+                                accent: store.state.accentTheme.accent,
+                                action: continueAction
+                            ) {
                                 Image(systemName: "arrow.right")
                                     .font(.title3)
                             }
