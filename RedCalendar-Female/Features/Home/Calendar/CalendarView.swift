@@ -18,6 +18,7 @@ struct CalendarView: View {
     @State private var calculator: MonthCalculator?
     @State private var calendar = Calendar.current
     @State private var localizedWeekdays: [String] = []
+    @State private var weekendIndices: Set<Int> = []
     
     // MARK: - State: Dimensions
     @State private var calendarHeight: CGFloat = 0
@@ -106,6 +107,7 @@ struct CalendarView: View {
             VStack(spacing: 0) {
                 CalendarHeaderView(
                     weekdays: localizedWeekdays,
+                    weekendIndices: weekendIndices,
                     width: calendarWidth,
                     height: CalendarConstants.weekdaysHeaderHeight
                 )
@@ -374,7 +376,8 @@ struct CalendarView: View {
         )
         
         localizedWeekdays = newCalculator.getLocalizedWeekdays()
-        
+        weekendIndices = newCalculator.getWeekendIndices()
+
         calculator = newCalculator
         
         // Calculate all offset components
@@ -402,6 +405,7 @@ struct CalendarView: View {
         if localeChanged || firstWeekdayChanged || dateChanged {
             let newCalculator = MonthCalculator(currentDate: currentDate, screenHeight: calendarHeight, calendar: calendar)
             localizedWeekdays = newCalculator.getLocalizedWeekdays()
+            weekendIndices = newCalculator.getWeekendIndices()
 
             calculator = newCalculator
 

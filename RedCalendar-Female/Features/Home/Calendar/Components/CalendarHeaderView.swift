@@ -9,12 +9,15 @@ import SwiftUI
 
 struct CalendarHeaderView: View {
     let weekdays: [String]
+    var weekendIndices: Set<Int> = []
     let width: CGFloat
     let height: CGFloat
-    
+
     // MARK: - Constants
     private let horizontalPadding: CGFloat = CalendarConstants.horizontalPadding
     private let dividerHeight: CGFloat = 1
+    private let weekendOpacity: Double = 0.55
+    private let dividerOpacity: Double = 0.5
     
     // Calculated properties
     private var weekdayContainerHeight: CGFloat {
@@ -34,16 +37,23 @@ struct CalendarHeaderView: View {
                     let centerX = dayX + dayWidth / 2
                     
                     Text(weekday)
-                        .font(.caption)
-                        .fontWeight(.heavy)
+                        // Rounded and a step lighter than `.heavy`, to sit with the day numbers
+                        // below instead of shouting over them.
+                        .font(.system(.caption, design: .rounded))
+                        .fontWeight(.semibold)
                         .foregroundColor(.secondary)
+                        .opacity(weekendIndices.contains(dayIndex) ? weekendOpacity : 1)
                         .position(x: centerX, y: textVerticalCenter)
                 }
             }
             .frame(width: width, height: weekdayContainerHeight)
-            
+
+            // Inset to the day columns rather than run edge to edge, and softened: a full-bleed
+            // hairline reads as a window chrome divider and cuts the calendar in two.
             Divider()
                 .frame(height: dividerHeight)
+                .padding(.horizontal, horizontalPadding / 2)
+                .opacity(dividerOpacity)
         }
         .frame(height: height)
     }
@@ -52,6 +62,7 @@ struct CalendarHeaderView: View {
 #Preview {
     CalendarHeaderView(
         weekdays: ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"],
+        weekendIndices: [5, 6],
         width: 375,
         height: 60
     )

@@ -61,7 +61,18 @@ struct HomeView: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
                         .animation(.cardEntrance, value: store.state.calendarState.selectedDayStamp != nil)
                     }
-                    .background(Color("AppBackgroundColor").ignoresSafeArea())
+                    // A very shallow fall in luminance down the screen — enough to stop the
+                    // page reading as a flat sheet, small enough that the day indicator's ring
+                    // (drawn in the top colour) still disappears into the background at the
+                    // bottom of the calendar.
+                    .background(
+                        LinearGradient(
+                            colors: [Color("AppBackgroundColor"), Color("AppBackgroundEdgeColor")],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                        .ignoresSafeArea()
+                    )
                     .onChange(of: store.state.calendarState.selectedDayStamp) { newValue in
                         if newValue == nil {
                             dragOffset = 0
