@@ -129,6 +129,7 @@ struct CodeEntryView: View {
                     PrimaryButton(
                         isRegistration ? "Зарегистрироваться" : "Войти",
                         isEnabled: isFormValid,
+                        accent: store.state.accentTheme.accent,
                         action: { submitAction(
                             email: email,
                             isRegistration: isRegistration,

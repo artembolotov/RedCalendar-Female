@@ -119,6 +119,11 @@ struct DayDetailsView: View {
     // trailing-aligned to the same edge and share a centre line.
     private let trailingControlWidth: CGFloat = 28
 
+    // The period button and the flow controls are the accent, not the system red — they mark
+    // the same thing the calendar's period bar marks, and two reds in one card read as two
+    // different meanings.
+    private var accent: Color { store.state.accentTheme.accent }
+
     private var titleText: String {
         switch dayStamp - today {
         case -2: return "Позавчера"
@@ -380,16 +385,16 @@ struct DayDetailsView: View {
             Text(title)
                 .font(.subheadline)
                 .fontWeight(.medium)
-                .foregroundColor(isFilled ? .white : .red)
+                .foregroundColor(isFilled ? .white : accent)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 8)
                 .background(
                     RoundedRectangle(cornerRadius: 8)
-                        .fill(isFilled ? Color.red : Color.clear)
+                        .fill(isFilled ? accent : Color.clear)
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color.red, lineWidth: 1.5)
+                        .stroke(accent, lineWidth: 1.5)
                 )
         }
     }
@@ -441,7 +446,7 @@ struct DayDetailsView: View {
                     .foregroundColor(.primary)
                 Spacer()
                 Text(flowLevelLabel(for: currentLevel))
-                    .foregroundColor(.red)
+                    .foregroundColor(accent)
             }
             .padding(.vertical, 12)
         }
@@ -469,11 +474,11 @@ struct DayDetailsView: View {
                             // strokeBorder keeps the outline inside the 22pt box, so the
                             // drawn circle matches the box the centring below aligns.
                             Circle()
-                                .strokeBorder(currentLevel == level ? Color.red : Color.secondary, lineWidth: 1.5)
+                                .strokeBorder(currentLevel == level ? accent : Color.secondary, lineWidth: 1.5)
                                 .frame(width: 22, height: 22)
                             if currentLevel == level {
                                 Circle()
-                                    .fill(Color.red)
+                                    .fill(accent)
                                     .frame(width: 12, height: 12)
                             }
                         }

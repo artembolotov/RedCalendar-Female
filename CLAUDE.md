@@ -311,9 +311,11 @@ conformance — leave it out and the grid keeps drawing the old accent until som
 changes. `HomeMenuView` takes the colour for the same reason it takes nothing else from the store:
 it is toolbar content, where an `@EnvironmentObject` is not reliably reachable.
 
-The auth screens (`PrimaryButton`, `WelcomeView`) still draw the static `Color.accent`. That is not
-an oversight — settings are only reachable once signed in, so a user who has chosen a theme never
-sees those screens again.
+The auth screens follow the theme too. `PrimaryButton` takes a `Color` rather than an
+`AccentTheme` — it lives in `Common` and has no business knowing what the app's themes are — and
+each of the five auth views passes it from the store it already holds. The theme is a device
+preference in `UserDefaults`, not user data, so it survives a logout: a returning user sees the
+accent they picked on the welcome screen, before they have signed back in.
 
 **Coral is the closest thing on screen to the ovulation orange.** `#D84831` / `#E46B58` sits at
 ~6°, off the 0–1° of the fire-engine red it replaced, and the dark variant drops from a fully
