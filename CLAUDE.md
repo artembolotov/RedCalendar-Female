@@ -247,8 +247,9 @@ rule (`FertileWindow` → `CalendarGridView`'s Layer 1), drawn with the same `Ro
 per-day construction as the period bar so caps and row wraps follow identical rules — only
 genuine window caps round, a run continuing onto the next calendar row is `.middle` there and
 stays flush. Its radius is half its height, so the window's ends read as a capsule. The ovulation
-day is the same lilac at full strength: it is the window's peak, not a separate marker, so it
-reads as more of the same rather than as another colour.
+day is a full-strength orange — a different hue, not a denser lilac. That distinction was once
+carried by alpha alone, which worked while the window was a 26pt fill and stopped working the
+moment it became a 2pt line: a step in density needs area to read, and a line has none.
 
 Three things are stacked below a cell's centre, in this order and no other: the day indicator
 (⌀28, and ⌀28 + a 2pt outward ring when selected, so −15…+15), the fertile line (+18…+20) and the

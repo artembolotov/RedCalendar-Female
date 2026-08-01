@@ -248,8 +248,9 @@ private enum Palette {
     static let background = Color(UIColor.systemBackground)
     static let futureDay = Color(UIColor.tertiaryLabel)
     static let commentDot = Color(UIColor.tertiaryLabel)
-    // Assets, not literals: the fertile line's weight comes from its alpha, and one alpha reads
-    // very differently against white and against black, so each carries a light/dark variant.
+    // An asset rather than a literal: the fertile line's weight comes from its alpha, and one
+    // alpha reads very differently against white and against black, so it carries a light/dark
+    // variant. The ovulation orange is full strength and needs no such split.
     static let fertileLine = Color("FertileLineColor")
     static let ovulationLine = Color("OvulationLineColor")
 }
