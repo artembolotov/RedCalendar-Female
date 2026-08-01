@@ -5,12 +5,15 @@
 
 import SwiftUI
 
-// The top band's measurements and the two masks that carve the screen along them.
+// The top band's measurements, the two masks that carve the screen along them, and the wash
+// that stands between.
 //
-// It exists as one value because two things now have to agree on it exactly: the layer that
-// blurs the calendar into the band, and the strip of weekday labels standing on it. The labels
-// sit against the bottom of the bar, and the blur has to reach precisely that far before it
-// begins dissolving — a few points of disagreement and the labels drift into the dissolve.
+// It exists as one value because three things now have to agree on it exactly: the layer that
+// blurs the calendar into the band, the wash that takes the colour out of what is blurred, and
+// the strip of weekday labels standing on both. The labels sit against the bottom of the bar,
+// and blur and wash have to reach precisely that far before they begin dissolving — a few
+// points of disagreement and the labels drift into the dissolve, or the wash ends a hair short
+// of the blur and leaves a bright line across the band.
 struct CalendarBandGeometry {
     /// Status bar plus navigation bar — everything above the weekday strip.
     let topInset: CGFloat
@@ -40,6 +43,34 @@ struct CalendarBandGeometry {
     /// brightness through the middle.
     var inverseMask: some View {
         band(above: .clear, below: .black)
+    }
+
+    /// The wash laid over the blurred copy: the page's own colour, solid across the bar and
+    /// gone by the bottom of the same dissolve.
+    ///
+    /// It is only as tall as the band. A full-height layer with a transparent tail would be
+    /// simpler to write and would swallow every tap on the calendar — `Color.clear` is hit
+    /// tested like any other shape.
+    ///
+    /// The ramp ends on the same colour at zero alpha rather than on `.clear`, which is not the
+    /// same thing: interpolating toward `.clear` runs the midpoint through an unpremultiplied
+    /// black, and a wash that goes grey through its middle is exactly the plate being avoided.
+    var scrim: some View {
+        let wash = Color("AppBackgroundColor").opacity(CalendarConstants.topChromeScrimOpacity)
+
+        return VStack(spacing: 0) {
+            wash
+                .frame(height: barHeight)
+
+            LinearGradient(
+                colors: [wash, wash.opacity(0)],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .frame(height: CalendarConstants.topChromeFadeHeight)
+        }
+        .frame(maxWidth: .infinity)
+        .allowsHitTesting(false)
     }
 
     // MARK: - Private

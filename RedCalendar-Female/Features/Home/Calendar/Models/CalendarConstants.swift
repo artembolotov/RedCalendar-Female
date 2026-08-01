@@ -22,16 +22,36 @@ enum CalendarConstants {
     // of the calendar into the sharp one, which only ever trades softness for focus, and the
     // length is what makes that trade read as depth instead of as an edge.
     static let topChromeFadeHeight: CGFloat = 40
-    // How hard the calendar is blurred where it passes under the band. The one dial worth
-    // turning here: higher and the numerals become anonymous smears, lower and the band stops
-    // registering as anything at all.
+    // How hard the calendar is blurred where it passes under the band. Anonymous smears are
+    // the goal up here — the dissolve below is where legibility comes back — but the radius
+    // still cannot run away: it reaches down past the band and pulls content from below the
+    // dissolve up into it, and the further it reaches the more the crossfade has to travel to
+    // land on a sharp row.
     //
     // It has to be a radius we choose, because the system never exposes one: a
     // `UINavigationBarAppearance` background or a SwiftUI `Material` is a named `UIBlurEffect`
     // style, and there is no public API to say how much. Both also blur their *backdrop* — the
     // window behind them — which over this sparse calendar is mostly empty page, so they come
     // out as the grey plate this band exists to avoid. See `CalendarView.blurredBandLayer`.
-    static let topChromeBlurRadius: CGFloat = 8
+    static let topChromeBlurRadius: CGFloat = 12
+    // How far the band washes what passes under it toward the page's own colour.
+    //
+    // Blur alone was not enough: it takes a period bar's shape away but not its colour, so a
+    // red run crossing the band arrived as a red smear behind the title at full strength — the
+    // band read as a window someone had breathed on rather than as chrome. The wash is what
+    // takes the *density* out, and it is drawn in `AppBackgroundColor` precisely so that it
+    // cannot become the grey plate this band has spent three attempts avoiding: over the empty
+    // page it is the page, and only where content passes does it do anything at all.
+    //
+    // The page is a gradient and this is a flat colour, the same trade the day indicator's ring
+    // makes — the two stops are about four 8-bit levels apart and the band covers the top fifth
+    // of the screen, so the mismatch at the bottom of the dissolve is under a level. If the
+    // gradient ever gains real range, this has to sample it.
+    //
+    // Not 1.0, and it should not be. At full opacity the calendar stops existing under the bar
+    // and a month title sliding upward pops out rather than sinks; the ghost left at this level
+    // is what says the grid carries on up there.
+    static let topChromeScrimOpacity: Double = 0.82
 
     // MARK: - Month Header
     static let monthHeaderHeight: CGFloat = 60

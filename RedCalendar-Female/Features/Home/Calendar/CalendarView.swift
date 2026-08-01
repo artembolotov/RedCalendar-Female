@@ -195,6 +195,10 @@ struct CalendarView: View {
                     }
                 }
 
+                // Over the blurred copy, under the labels: blur takes a bar's shape away, the
+                // wash takes its colour, and the title has to stand on both.
+                band.scrim
+
                 CalendarTopChrome(
                     weekdays: localizedWeekdays,
                     weekendIndices: weekendIndices,
