@@ -7,9 +7,8 @@ import SwiftUI
 
 // The system's own close control wherever it exists, a hand-drawn glyph only where it doesn't.
 // From iOS 26 `ButtonRole.close` renders the platform's standard ✕ — and keeps rendering whatever
-// it becomes in later releases — so nothing about its look is spelled out here. The guard is
-// `#if compiler` and not `#available` alone because the role is absent from SDKs older than
-// iOS 26: without it the file would not compile on Xcode 16.
+// it becomes in later releases — so nothing about its look, and no accessibility label, is spelled
+// out on that path. Below iOS 26 the role does not exist and the glyph is drawn here.
 struct CloseButton: View {
     @Environment(\.dismiss) private var dismiss
 
@@ -26,15 +25,11 @@ struct CloseButton: View {
     }
 
     var body: some View {
-        #if compiler(>=6.2)
         if #available(iOS 26.0, *) {
-            Button("Закрыть", role: .close, action: close)
+            Button(role: .close, action: close)
         } else {
             fallbackButton
         }
-        #else
-        fallbackButton
-        #endif
     }
 
     // MARK: - Private Views
