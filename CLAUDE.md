@@ -293,12 +293,6 @@ whole screen, invisible across a 2pt ring. Widening that gap puts a halo around 
 the bottom of the calendar; if the gradient ever needs real range, the ring has to become a mask
 rather than a colour.
 
-**The day numbers are rounded and monospaced, and the plain weight is load-bearing.** Proportional
-digits gave each week column a slightly different optical centre, so a scrolling grid visibly
-drifted; `design: .rounded` matches the bar's continuous corners. Every day used to be `.medium`,
-which left no quiet level for today and the selection to rise from — they are `.semibold` against a
-`.regular` field, and that contrast is the only thing marking them in the type.
-
 Three things are stacked below a cell's centre, in this order and no other: the day indicator
 (⌀28, and ⌀28 + a 2pt outward ring when selected, so −15…+15), the fertile line (+18…+20) and the
 dot row (+23…+29). The next week's own indicator starts at +39. The line sits *below* where the

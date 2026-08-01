@@ -37,10 +37,8 @@ struct CalendarHeaderView: View {
                     let centerX = dayX + dayWidth / 2
                     
                     Text(weekday)
-                        // Rounded and a step lighter than `.heavy`, to sit with the day numbers
-                        // below instead of shouting over them.
-                        .font(.system(.caption, design: .rounded))
-                        .fontWeight(.semibold)
+                        .font(.caption)
+                        .fontWeight(.heavy)
                         .foregroundColor(.secondary)
                         .opacity(weekendIndices.contains(dayIndex) ? weekendOpacity : 1)
                         .position(x: centerX, y: textVerticalCenter)
