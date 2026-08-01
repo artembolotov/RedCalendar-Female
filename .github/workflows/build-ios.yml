@@ -64,11 +64,30 @@ jobs:
 
       - name: Upload to TestFlight
         run: |
+          # The build number, on the record. It is the run number and nothing else, so
+          # a re-run of a failed job carries the number that already went up — which is
+          # exactly the rejection hardest to recognise from altool's wording.
+          echo "Uploading build ${{ github.run_number }}"
+
+          # errexit is on for this step (bash -e), and it used to kill the job on
+          # altool's own exit code — while the output was still inside the command
+          # substitution, so the job failed with nothing printed and the grep below
+          # never ran at all. Turned off around the call so the output is echoed
+          # first and the status is judged afterwards.
+          set +e
           output=$(xcrun altool --upload-app \
             -f build/RedCalendar-Female.ipa \
             --apiKey ${{ secrets.ASC_KEY_ID }} \
             --apiIssuer ${{ secrets.ASC_ISSUER_ID }} 2>&1)
+          status=$?
+          set -e
+
           echo "$output"
-          if echo "$output" | grep -q "UPLOAD FAILED"; then
+
+          # Both, because neither alone is enough: altool has been known to report a
+          # refused upload in its output while exiting 0, and to exit non-zero on
+          # failures that never print that phrase.
+          if [ "$status" -ne 0 ] || echo "$output" | grep -q "UPLOAD FAILED"; then
+            echo "::error::Upload of build ${{ github.run_number }} failed (altool exit ${status}) — see the altool output above."
             exit 1
           fi
