@@ -252,8 +252,10 @@ carried by alpha alone, which worked while the window was a 26pt fill and stoppe
 moment it became a 2pt line: a step in density needs area to read, and a line has none.
 
 **A prediction differs in form, not in density.** A predicted period is a *hollow* bar — a
-`predictedBarStrokeWidth` outline in the accent red over a faint grouping fill — where a confirmed
-one is solid; a predicted ovulation day is a dashed rule where a confirmed one is solid. Never go
+`predictedBarStrokeWidth` outline in the accent red and nothing behind it — where a confirmed one
+is solid; a predicted ovulation day is a dashed rule where a confirmed one is solid. The outline
+needs no backing fill to group a run: it is drawn unbroken along the whole series and caps only at
+its real ends, so the enclosure does the grouping. Never go
 back to drawing either as an alpha of the confirmed colour: alpha over a background is a step in
 lightness, and on a near-black background the only red dimmer than the confirmed red is a brown.
 The outline carries the same meaning against white and against black. The day number follows the
