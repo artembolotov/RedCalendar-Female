@@ -10,6 +10,27 @@ enum CalendarConstants {
     static let weekdaysHeaderHeight: CGFloat = 31
     static let horizontalPadding: CGFloat = 24
 
+    // MARK: - Weekday strip
+    // How much of the page colour is laid under the weekday track before the grey goes on top.
+    //
+    // Not 1.0, for the same reason the scrim above is not: an opaque backing turns the track
+    // into a plate, and the strip stops being part of the band it stands on. It cannot go much
+    // below this either — the backing is what stops day numbers ghosting up between the labels,
+    // and the blur under the strip is the band's thinnest (`topChromeScrimOpacityBottom`), so
+    // the track gets less help from the band here than anywhere else along it. At this level a
+    // period bar crossing under the strip registers as a warm shift in the grey rather than as
+    // a red shape, which is the whole point of the translucency.
+    static let weekdaysBarBackingOpacity: Double = 0.55
+    // The outline is what a weakened fill costs, paid back. Below full opacity the fill can no
+    // longer draw its own edge — the capsule's boundary was carried by the density step against
+    // the page, and thinning the fill thins that step — so the shape is stated by a hairline
+    // instead. One point, not the predicted bar's 1.5: this is chrome, and an outline heavy
+    // enough to notice makes the track read as a control that can be tapped.
+    //
+    // Drawn with `strokeBorder`, so it lands inside `periodBarHeight` rather than straddling it
+    // and losing half its weight, exactly as the period bar's outline does.
+    static let weekdaysBarStrokeWidth: CGFloat = 1
+
     // MARK: - Top chrome
     // The band the grid scrolls under: the navigation bar's own height plus the weekday
     // strip. Below it the blur dissolves over `topChromeFadeHeight` instead of ending on a
