@@ -12,11 +12,18 @@ import SwiftUI
 // edge is the boundary. A hairline over a blur reads as window chrome — exactly the flat plate
 // the band exists to get rid of.
 //
-// The track is the same shape as the period bar — `periodBarHeight`, `periodBarCornerRadius`,
-// `.continuous` — in a neutral fill instead of the accent, so the row of labels reads as one
-// object rather than seven loose words. It is the App Store Connect segmented control's
-// concept without its mechanics: a container, no selection, no dividers, and the labels stay
-// where the day columns are rather than being spaced by the container.
+// The track is a capsule in a neutral fill, so the row of labels reads as one object rather
+// than seven loose words. Its measurements come off App Store Connect's segmented control: a
+// 32pt track whose corner is an exact capsule arc, and labels at about 13pt. What is
+// deliberately not taken is everything that control does per segment — no dividers, no pill, no
+// column singled out for any reason. Every weekday is drawn identically; the strip is a legend
+// for the grid, and a legend that emphasises one of its own entries is telling you about
+// itself. The labels also stay on the day columns rather than being spaced by the container,
+// for the same reason: they belong to the grid below, not to the track around them.
+//
+// It used to borrow the period bar's height and radius to say "the same shape as the period
+// bar". At 30pt against the bar's 22 it no longer says that, so the radius follows the height
+// instead — see `weekdaysTrackHeight`.
 //
 // Its width is the seven columns exactly, not the view: `ViewportCalculator` places day cells
 // off the same `horizontalPadding`, so the track starts where Monday's column starts and ends
@@ -51,53 +58,62 @@ struct CalendarHeaderView: View {
         max(0, width - horizontalPadding)
     }
 
+    private var columnWidth: CGFloat {
+        trackWidth / 7
+    }
+
+    private func columnX(_ index: Int) -> CGFloat {
+        horizontalPadding / 2 + CGFloat(index) * columnWidth
+    }
+
+    // MARK: - Body
+
     var body: some View {
         ZStack(alignment: .topLeading) {
-            RoundedRectangle(
-                cornerRadius: CalendarConstants.periodBarCornerRadius,
-                style: .continuous
-            )
+            track
+            labels
+        }
+        .frame(width: width, height: height)
+    }
+
+    // MARK: - Layers
+
+    private var track: some View {
+        Capsule()
             .fill(
                 Color("AppBackgroundColor")
                     .opacity(CalendarConstants.weekdaysBarBackingOpacity)
             )
+            .overlay(Capsule().fill(Color("WeekdaysBarColor")))
             .overlay(
-                RoundedRectangle(
-                    cornerRadius: CalendarConstants.periodBarCornerRadius,
-                    style: .continuous
-                )
-                .fill(Color("WeekdaysBarColor"))
-            )
-            .overlay(
-                RoundedRectangle(
-                    cornerRadius: CalendarConstants.periodBarCornerRadius,
-                    style: .continuous
-                )
-                .strokeBorder(
+                Capsule().strokeBorder(
                     Color("WeekdaysBarStrokeColor"),
                     lineWidth: CalendarConstants.weekdaysBarStrokeWidth
                 )
             )
-            .frame(width: trackWidth, height: CalendarConstants.periodBarHeight)
+            .frame(width: trackWidth, height: CalendarConstants.weekdaysTrackHeight)
             .position(x: width / 2, y: height / 2)
+    }
 
-            ForEach(Array(weekdays.enumerated()), id: \.offset) { dayIndex, weekday in
-                let dayWidth = trackWidth / 7
-                let dayX = horizontalPadding / 2 + CGFloat(dayIndex) * dayWidth
-                let centerX = dayX + dayWidth / 2
-
-                Text(weekday)
-                    .font(.caption)
-                    // Primary at semibold, not secondary at heavy: the strip stands on a
-                    // translucent track over scrolling content, and a grey label over a grey
-                    // track over a moving page was the first thing to vanish. Contrast is
-                    // what carries the visibility — primary at heavy read as shouting.
-                    .fontWeight(.semibold)
-                    .foregroundColor(.primary)
-                    .position(x: centerX, y: height / 2)
-            }
+    private var labels: some View {
+        ForEach(Array(weekdays.enumerated()), id: \.offset) { dayIndex, weekday in
+            Text(weekday)
+                // 13pt, the reference's own size, now that the track is tall enough to carry
+                // it. At the old 12 on a 30pt track the labels floated in the middle of far
+                // too much fill.
+                .font(.footnote)
+                // Primary at semibold, not secondary at heavy: the strip stands on a
+                // translucent track over scrolling content, and a grey label over a grey
+                // track over a moving page was the first thing to vanish. Contrast is
+                // what carries the visibility — primary at heavy read as shouting.
+                //
+                // One weight and one colour for all seven. No weekend variant, no marker on
+                // today: the labels are a legend, and nothing about which column you are
+                // looking at should change how the legend is drawn.
+                .fontWeight(.semibold)
+                .foregroundColor(.primary)
+                .position(x: columnX(dayIndex) + columnWidth / 2, y: height / 2)
         }
-        .frame(width: width, height: height)
     }
 }
 

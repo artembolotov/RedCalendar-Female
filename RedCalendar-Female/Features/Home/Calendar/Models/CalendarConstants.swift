@@ -7,10 +7,30 @@
 import Foundation
 
 enum CalendarConstants {
-    static let weekdaysHeaderHeight: CGFloat = 31
+    static let weekdaysHeaderHeight: CGFloat = 38
     static let horizontalPadding: CGFloat = 24
 
     // MARK: - Weekday strip
+    // Measured off App Store Connect's segmented control, which is what this strip has always
+    // been echoing: a 32pt track with a 16pt radius — an exact capsule, not a rounded rectangle,
+    // since sampling its corner against the circle equation fits inside a sixth of a point at
+    // every height. Only the container is borrowed. That control also marks a selected segment
+    // with a pill, and nothing here does anything per column: the strip is a legend for the
+    // grid, and all seven weekdays are drawn identically.
+    //
+    // The track no longer borrows `periodBarHeight` and `periodBarCornerRadius`. That sharing
+    // was only ever a way of saying "the same shape as the period bar", and at 30pt against the
+    // bar's 22 it stops saying it — an 8pt radius reads as a different object on a taller box,
+    // so matching the reference means the radius follows the height, which means a capsule.
+    // Nothing is lost by cutting the link: the track is 7 columns wide and could never be
+    // mistaken for a day's bar at any radius.
+    //
+    // 30 rather than the reference's 32, and that is the ceiling rather than a rounding. App
+    // Store Connect's control is tappable and carries a touch target; this one is a label track,
+    // and it sits directly above a row of days whose indicator is ⌀28. Past 30 the track starts
+    // reading as the same weight as a row of days rather than as the chrome above them.
+    static let weekdaysTrackHeight: CGFloat = 30
+
     // How much of the page colour is laid under the weekday track before the grey goes on top.
     //
     // Not 1.0, for the same reason the scrim above is not: an opaque backing turns the track
@@ -27,8 +47,8 @@ enum CalendarConstants {
     // instead. One point, not the predicted bar's 1.5: this is chrome, and an outline heavy
     // enough to notice makes the track read as a control that can be tapped.
     //
-    // Drawn with `strokeBorder`, so it lands inside `periodBarHeight` rather than straddling it
-    // and losing half its weight, exactly as the period bar's outline does.
+    // Drawn with `strokeBorder`, so it lands inside `weekdaysTrackHeight` rather than straddling
+    // it and losing half its weight, exactly as the period bar's outline does.
     static let weekdaysBarStrokeWidth: CGFloat = 1
 
     // MARK: - Top chrome
