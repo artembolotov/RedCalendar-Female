@@ -33,20 +33,21 @@ import SwiftUI
 // gives it its tone. It spent a while translucent, letting a period bar cross under it as a pale
 // pink, and that is deliberately over — the bar now stops dead at the capsule's edge.
 //
-// Solidity moves where the shape comes from, and that is the part worth keeping straight. A
-// see-through track has to be outlined or it dissolves; a solid one draws its own boundary with
-// the step between its fill and the page, and the rim only sharpens what is already there. So
-// the fill is now the whole design and the rim is trim.
+// In the light theme the fill is white — flat, opaque white, the ⋯ button's own colour. The page
+// it stands on is a warm off-white (251,249,249), so the separation is 4 levels and slightly
+// cooler in hue, and that is genuinely all of it. The capsule's shape is therefore carried by
+// the rim and by nothing else, which is why the light rim is a little stronger than it would
+// otherwise be: with a solid fill the rim is normally trim over a boundary the fill already
+// draws, and here there is no such boundary to sharpen.
 //
-// Which is why the light theme's fill is a light cool grey and not white. White was right while
-// the track was see-through — it lightened whatever passed under it, and *that* was what made
-// the capsule visible. Solid, it has nothing left to lighten, and white on a near-white page is
-// a shape you cannot find: 2 levels of separation, with the whole capsule carried by a hairline.
-// The fill instead sits 13 levels under the page, which is the relationship App Store Connect's
-// own control has with its own background (#E4E4E9 on #F1F1F5, 16 levels) — light, but present.
+// Full opacity rather than a high alpha, and the difference is visible. At 0.55 the three
+// percent of calendar getting past `weekdaysBarBackingOpacity` still tinted the track where a
+// period bar crossed under it — two or three levels, but a coloured two or three, sitting in a
+// field of flat white. At 1.0 the bar is simply gone, and the backing stops mattering in this
+// theme at all; it is the dark theme's white lift, at 0.13, that still leans on it.
 //
-// The dark theme keeps its white lift and its white rim unchanged, because opacity was never
-// what made it read: white at 0.13 over a near-black page is a light grey either way.
+// The dark theme is unchanged. Opacity was never what made it read: white at 0.13 over a
+// near-black page is the same light grey either way.
 //
 // The rim is the ⋯ menu button's, and it is white in the dark theme only. On the near-white page
 // a white rim draws literally nothing, so the light theme's is a faint neutral instead — the one

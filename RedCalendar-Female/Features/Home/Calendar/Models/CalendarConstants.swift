@@ -39,17 +39,20 @@ enum CalendarConstants {
     // calendar reaches the track, and a dial parked at its stop stops reading as a decision.
     //
     // It used to be 0.55, so a period bar crossing under the strip arrived as a pale pink. That
-    // is gone: the bar now stops dead at the capsule's edge. The fill above is what the track
-    // looks like, and the backing's only remaining job is to make sure it is the *only* thing
-    // the track looks like.
-    static let weekdaysBarBackingOpacity: Double = 0.97
-    // One point. The fill draws its own edge again now that it is solid, so the rim is no longer
-    // load-bearing — it crisps a boundary that already exists rather than supplying it. That is
-    // the argument for keeping it thin and against removing it: the light theme's step is 13
-    // levels, which is a boundary you can find but not one you can see across a moving screen.
+    // is gone: the bar now stops dead at the capsule's edge.
     //
-    // A heavier line would be wrong at this width regardless. The strip is 370pt across, and a
-    // rim that reads as a hairline on the ⌀36 menu button reads as a drawn box at that size.
+    // It matters only in the dark theme now, where the fill above is white at 0.13 and hides
+    // nothing on its own. The light theme's fill is fully opaque, so this value is invisible
+    // there — which is exactly why it must not be lowered on the strength of the light theme
+    // looking fine.
+    static let weekdaysBarBackingOpacity: Double = 0.97
+    // One point, and in the light theme it is the only thing drawing the capsule at all: a white
+    // fill on a warm off-white page separates by 4 levels, which is a tone difference and not an
+    // edge. Do not remove it there under any circumstances, and do not thin it.
+    //
+    // Nor thicken it. The strip is 370pt across, and a rim that reads as a hairline on the ⌀36
+    // menu button reads as a drawn box at that size — which is the failure the light theme is
+    // closest to, since its rim is already carrying more than the dark theme's.
     //
     // Drawn with `strokeBorder`, so it lands inside `weekdaysTrackHeight` rather than straddling
     // it and losing half its weight, exactly as the period bar's outline does.
