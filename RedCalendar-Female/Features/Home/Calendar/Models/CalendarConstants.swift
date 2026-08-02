@@ -46,15 +46,29 @@ enum CalendarConstants {
     // there — which is exactly why it must not be lowered on the strength of the light theme
     // looking fine.
     static let weekdaysBarBackingOpacity: Double = 0.97
-    // One point. The fill draws the capsule's boundary itself — 16 levels in the light theme,
-    // a white lift in the dark — so this only sharpens an edge that already exists.
-    //
-    // Do not thicken it. The strip is 370pt across, and a rim that reads as a hairline on the
-    // ⌀36 menu button reads as a drawn box at that size.
+    // One point, and a dark-theme device: `WeekdaysBarStrokeColor` is fully transparent in the
+    // light theme, where the shadow below draws the edge instead — the menu button has no rim
+    // either, its scan stepping straight from page to fill. Do not thicken it. The strip is
+    // 370pt across, and a rim reading as a hairline on the ⌀36 button reads as a drawn box here.
     //
     // Drawn with `strokeBorder`, so it lands inside `weekdaysTrackHeight` rather than straddling
     // it and losing half its weight, exactly as the period bar's outline does.
     static let weekdaysBarStrokeWidth: CGFloat = 1
+
+    // The shadow is what makes the track read in the light theme, and it is measured off the ⋯
+    // menu button rather than invented. Around that button the page drops from (247,245,245) to
+    // (239,237,237) at the very edge and is back to full about 20pt out, while the fill itself
+    // sits only 6 levels above the page — so it is this ring, not the tone, that separates the
+    // button from the calendar. These two values with `WeekdaysBarShadowColor`'s 0.10 rebuild it.
+    //
+    // It was argued here once that a shadow could not work over this calendar, having nothing
+    // solid to fall on. The button disproves it: its shadow falls on exactly the same blurred,
+    // moving grid and reads correctly.
+    //
+    // Both are inert in the dark theme, where the shadow colour is fully transparent: black on a
+    // near-black page draws nothing, and the white rim does this job there instead.
+    static let weekdaysBarShadowRadius: CGFloat = 8
+    static let weekdaysBarShadowOffsetY: CGFloat = 2
 
     // MARK: - Top chrome
     // The band the grid scrolls under: the navigation bar's own height plus the weekday
