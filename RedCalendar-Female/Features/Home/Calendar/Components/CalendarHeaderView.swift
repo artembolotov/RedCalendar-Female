@@ -33,18 +33,19 @@ import SwiftUI
 // gives it its tone. It spent a while translucent, letting a period bar cross under it as a pale
 // pink, and that is deliberately over — the bar now stops dead at the capsule's edge.
 //
-// Both themes are the ⋯ button's material, written out as flat colour, and the thing to
-// understand about it is that it moves toward mid-grey from whichever side the page is on. That
-// is why the two themes look like opposite decisions and are not: the light fill is 16 levels
-// *below* a near-white page, the dark fill is a white lift *above* a near-black one, and both
-// are the same instruction.
+// The light theme is the ⋯ menu button, measured off a screenshot of this app and copied: fill
+// (253,252,252), no rim, and a soft shadow. The fill is barely a fill — it clears the page by
+// six levels, which is nothing — and that is the point of the thing. What separates the button
+// from the calendar is the *shadow*: the page around it drops to (239,237,237) at the edge and
+// recovers over about 20pt, so the boundary a reader actually sees is white against 239, a step
+// of 16 that the fill never had to supply. See `weekdaysBarShadowRadius`.
 //
-// The light half is the one that is easy to get backwards, and the argument is arithmetic. The
-// page is (251,249,249) — warm, and four levels short of white. Nothing put on it can be made
-// visible by being lighter; there is no room. A material on a page like this darkens, which is
-// exactly why the button reads clearly, and the fill is (235,233,233) for the same reason. It
-// keeps the page's warmth while it does it — R−G is 2 on both — because a neutral or cool grey
-// at this lightness reads as a foreign patch on a warm page rather than as the page in shade.
+// That is worth stating plainly because the obvious readings are both wrong, and both were
+// tried here. The track cannot be made visible by being lighter — the page is four levels short
+// of white and there is no room. And it must not be made visible by being darker, which does
+// work and produces a grey plate: it separates by shading the chrome instead of lifting it, so
+// the strip reads as a hole in the page rather than as something sitting on it. Light with a
+// shadow is the only one of the three that reads as a surface.
 //
 // Full opacity rather than a high alpha. At 0.55 the three percent of calendar getting past
 // `weekdaysBarBackingOpacity` still tinted the track where a period bar crossed under it — two
@@ -52,10 +53,10 @@ import SwiftUI
 // gone, and the backing stops mattering in this theme at all; it is the dark theme's white lift,
 // at 0.13, that still leans on it.
 //
-// The rim is trim, not structure: with a 16-level step the fill draws its own boundary and the
-// hairline only sharpens it. It is warm-neutral in the light theme and white in the dark, each
-// following its fill — a cool hairline on a warm page is the same mistake as a cool fill, only
-// thinner.
+// The dark theme cannot use any of this and does not need to. A black shadow on a near-black
+// page draws nothing, so its shadow colour is transparent and its white rim draws the edge
+// instead, while the fill lifts rather than shades. Same instruction — sit on the page, do not
+// cut into it — reached from the other side.
 //
 // What could not come over at all is the material itself, on two counts. It is translucent by
 // construction and this strip is deliberately not, which settles it on its own. And
@@ -112,6 +113,14 @@ struct CalendarHeaderView: View {
                 )
             )
             .frame(width: trackWidth, height: CalendarConstants.weekdaysTrackHeight)
+            // Applied to the track and not to the view: the labels sit above it in the ZStack,
+            // and shadowing the whole strip would put a halo on every one of them.
+            .shadow(
+                color: Color("WeekdaysBarShadowColor"),
+                radius: CalendarConstants.weekdaysBarShadowRadius,
+                x: 0,
+                y: CalendarConstants.weekdaysBarShadowOffsetY
+            )
             .position(x: width / 2, y: height / 2)
     }
 
