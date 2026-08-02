@@ -31,21 +31,24 @@ enum CalendarConstants {
     // reading as the same weight as a row of days rather than as the chrome above them.
     static let weekdaysTrackHeight: CGFloat = 30
 
-    // How much of the page colour is laid under the weekday track before the grey goes on top.
+    // How much of the page colour is laid under the weekday track before the fill goes on top.
     //
     // Not 1.0, for the same reason the scrim above is not: an opaque backing turns the track
     // into a plate, and the strip stops being part of the band it stands on. It cannot go much
     // below this either — the backing is what stops day numbers ghosting up between the labels,
     // and the blur under the strip is the band's thinnest (`topChromeScrimOpacityBottom`), so
-    // the track gets less help from the band here than anywhere else along it. At this level a
-    // period bar crossing under the strip registers as a warm shift in the grey rather than as
-    // a red shape, which is the whole point of the translucency.
+    // the track gets less help from the band here than anywhere else along it.
+    //
+    // It carries almost the whole job in the dark theme, where the fill over it is white at 0.13
+    // and hides essentially nothing. In the light theme the two stack — 0.55 of page under 0.55
+    // of white leaves the track about 80% opaque — which is why a period bar crossing under it
+    // arrives as a pale pink rather than a red shape.
     static let weekdaysBarBackingOpacity: Double = 0.55
-    // The outline is what a weakened fill costs, paid back. Below full opacity the fill can no
-    // longer draw its own edge — the capsule's boundary was carried by the density step against
-    // the page, and thinning the fill thins that step — so the shape is stated by a hairline
-    // instead. One point, not the predicted bar's 1.5: this is chrome, and an outline heavy
-    // enough to notice makes the track read as a control that can be tapped.
+    // One point, and it does more work than its weight suggests: the fill is translucent, so the
+    // capsule's boundary is not drawn by any density step against the page and has to be stated
+    // outright. Reading as a control is now the intent rather than the hazard — see
+    // `WeekdaysBarStrokeColor` — but a heavier line would still be wrong, because the strip is
+    // 370pt wide and a rim that reads as a hairline on a ⌀36 button reads as a box at that size.
     //
     // Drawn with `strokeBorder`, so it lands inside `weekdaysTrackHeight` rather than straddling
     // it and losing half its weight, exactly as the period bar's outline does.
