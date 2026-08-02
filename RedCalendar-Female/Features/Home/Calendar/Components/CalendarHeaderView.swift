@@ -29,21 +29,41 @@ import SwiftUI
 // off the same `horizontalPadding`, so the track starts where Monday's column starts and ends
 // where Sunday's ends. Anything wider and the bar would overhang the calendar it labels.
 //
-// The track is backed by the page's own colour, with the translucent grey laid over it. The
-// grey alone let everything under the band show through the capsule, so its tone swam with
-// whatever happened to be scrolling past and day numbers ghosted in between the labels — the
-// App Store Connect control this echoes never fights its own background. The backing is the
-// page colour and not an opaque grey for the same reason the scrim is: over the empty page it
-// *is* the page, so the capsule reads as one quiet object rather than a plate, and only where
-// content passes does it actually hide anything.
+// The track is solid: the page's own colour at `weekdaysBarBackingOpacity`, then the fill that
+// gives it its tone. It spent a while translucent, letting a period bar cross under it as a pale
+// pink, and that is deliberately over — the bar now stops dead at the capsule's edge.
 //
-// Three layers, and the third is the price of the first two being thin. The backing is held at
-// `weekdaysBarBackingOpacity` rather than full — enough to keep a period bar from arriving as a
-// red shape, not so much that the track stops belonging to the band it stands on — and the grey
-// over it is lighter than it once was. What that costs is the capsule's own edge: an opaque fill
-// draws its boundary with the density step against the page, and thinning the fill thins the
-// step. So the shape is stated by a hairline instead, and the outline is what lets the fill go
-// as light as it does. Lightening the grey without it just dissolves the track.
+// Both themes are the ⋯ button's material, written out as flat colour, and the thing to
+// understand about it is that it moves toward mid-grey from whichever side the page is on. That
+// is why the two themes look like opposite decisions and are not: the light fill is 16 levels
+// *below* a near-white page, the dark fill is a white lift *above* a near-black one, and both
+// are the same instruction.
+//
+// The light half is the one that is easy to get backwards, and the argument is arithmetic. The
+// page is (251,249,249) — warm, and four levels short of white. Nothing put on it can be made
+// visible by being lighter; there is no room. A material on a page like this darkens, which is
+// exactly why the button reads clearly, and the fill is (235,233,233) for the same reason. It
+// keeps the page's warmth while it does it — R−G is 2 on both — because a neutral or cool grey
+// at this lightness reads as a foreign patch on a warm page rather than as the page in shade.
+//
+// Full opacity rather than a high alpha. At 0.55 the three percent of calendar getting past
+// `weekdaysBarBackingOpacity` still tinted the track where a period bar crossed under it — two
+// or three levels, but a *coloured* two or three sitting in a flat field. At 1.0 the bar is
+// gone, and the backing stops mattering in this theme at all; it is the dark theme's white lift,
+// at 0.13, that still leans on it.
+//
+// The rim is trim, not structure: with a 16-level step the fill draws its own boundary and the
+// hairline only sharpens it. It is warm-neutral in the light theme and white in the dark, each
+// following its fill — a cool hairline on a warm page is the same mistake as a cool fill, only
+// thinner.
+//
+// What could not come over at all is the material itself, on two counts. It is translucent by
+// construction and this strip is deliberately not, which settles it on its own. And
+// `HomeMenuView` gets it from `.ultraThinMaterial` (the system's glass above iOS 26), where a
+// material is a backdrop capture per frame — over a ⌀36 button that is nothing, over a
+// 370pt strip standing on an already-blurred band it is a second full-width capture on every
+// frame of a scroll, which is the same budget `topChromeBlurRadius` is held to one radius by. A
+// solid track has no use for one anyway.
 struct CalendarHeaderView: View {
     let weekdays: [String]
     let width: CGFloat
@@ -118,8 +138,9 @@ struct CalendarHeaderView: View {
 }
 
 #Preview {
-    // The track is translucent now, so previewing it over nothing says nothing. A bar under it
-    // is the case the backing opacity was chosen against.
+    // Two things are being checked at once, and the bar under the track is what shows both: that
+    // it is cut off cleanly at the capsule rather than ghosting through, and that the track is
+    // still findable over the stretch of plain page either side of it.
     ZStack {
         Color("AppBackgroundColor")
 
