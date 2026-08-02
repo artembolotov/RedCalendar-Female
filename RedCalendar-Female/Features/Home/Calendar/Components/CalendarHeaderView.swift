@@ -33,18 +33,27 @@ import SwiftUI
 // gives it its tone. It spent a while translucent, letting a period bar cross under it as a pale
 // pink, and that is deliberately over — the bar now stops dead at the capsule's edge.
 //
-// In the light theme the fill is white — flat, opaque white, the ⋯ button's own colour. The page
-// it stands on is a warm off-white (251,249,249), so the separation is 4 levels and slightly
-// cooler in hue, and that is genuinely all of it. The capsule's shape is therefore carried by
-// the rim and by nothing else, which is why the light rim is a little stronger than it would
-// otherwise be: with a solid fill the rim is normally trim over a boundary the fill already
-// draws, and here there is no such boundary to sharpen.
+// In the light theme the fill is the ⋯ button's white, translated into this page's key rather
+// than copied off a screenshot. The distinction is the whole of it, and it is measurable. A real
+// iOS circular button on App Store Connect's own page is (255,255,255) on (233,233,238): white,
+// 22 levels clear of its background, and slightly cool because that page is a cool grey. Our
+// page is (251,249,249) — warm, and already almost white. Copying the literal white gives 4
+// levels instead of 22, and gives them in the wrong direction of hue: a cold patch on a warm
+// page, which reads as a foreign object rather than as a surface lifted off it.
+//
+// So the fill is (255,253,253): the page's own colour raised 4 levels with its warmth intact —
+// R−G is 2 on both. It is the same *relationship* the button has, which is what the analogy was
+// ever about; the identical number was never available on a page this light.
+//
+// Four levels is a tone, not an edge, so the rim draws the capsule and the rim alone — which is
+// why the light one is stronger than the dark theme's needs to be, and why it is warm-neutral
+// too. A cool grey hairline on a warm page is the same mistake as the cold fill, just thinner.
 //
 // Full opacity rather than a high alpha, and the difference is visible. At 0.55 the three
 // percent of calendar getting past `weekdaysBarBackingOpacity` still tinted the track where a
 // period bar crossed under it — two or three levels, but a coloured two or three, sitting in a
-// field of flat white. At 1.0 the bar is simply gone, and the backing stops mattering in this
-// theme at all; it is the dark theme's white lift, at 0.13, that still leans on it.
+// field of flat near-white. At 1.0 the bar is simply gone, and the backing stops mattering in
+// this theme at all; it is the dark theme's white lift, at 0.13, that still leans on it.
 //
 // The dark theme is unchanged. Opacity was never what made it read: white at 0.13 over a
 // near-black page is the same light grey either way.

@@ -46,9 +46,9 @@ enum CalendarConstants {
     // there — which is exactly why it must not be lowered on the strength of the light theme
     // looking fine.
     static let weekdaysBarBackingOpacity: Double = 0.97
-    // One point, and in the light theme it is the only thing drawing the capsule at all: a white
-    // fill on a warm off-white page separates by 4 levels, which is a tone difference and not an
-    // edge. Do not remove it there under any circumstances, and do not thin it.
+    // One point, and in the light theme it is the only thing drawing the capsule at all: the
+    // fill clears the page by 4 levels, which is a tone difference and not an edge. Do not
+    // remove it there under any circumstances, and do not thin it.
     //
     // Nor thicken it. The strip is 370pt across, and a rim that reads as a hairline on the ⌀36
     // menu button reads as a drawn box at that size — which is the failure the light theme is
