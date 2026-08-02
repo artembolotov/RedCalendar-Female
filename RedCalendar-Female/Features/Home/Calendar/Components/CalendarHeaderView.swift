@@ -35,6 +35,12 @@ struct CalendarHeaderView: View {
     private let horizontalPadding: CGFloat = CalendarConstants.horizontalPadding
     private let weekendOpacity: Double = 0.55
 
+    // The first layout pass can hand in a zero width, making `width - horizontalPadding`
+    // negative — an invalid frame dimension.
+    private var trackWidth: CGFloat {
+        max(0, width - horizontalPadding)
+    }
+
     var body: some View {
         ZStack(alignment: .topLeading) {
             RoundedRectangle(
@@ -42,11 +48,11 @@ struct CalendarHeaderView: View {
                 style: .continuous
             )
             .fill(Color("WeekdaysBarColor"))
-            .frame(width: width - horizontalPadding, height: CalendarConstants.periodBarHeight)
+            .frame(width: trackWidth, height: CalendarConstants.periodBarHeight)
             .position(x: width / 2, y: height / 2)
 
             ForEach(Array(weekdays.enumerated()), id: \.offset) { dayIndex, weekday in
-                let dayWidth = (width - horizontalPadding) / 7
+                let dayWidth = trackWidth / 7
                 let dayX = horizontalPadding / 2 + CGFloat(dayIndex) * dayWidth
                 let centerX = dayX + dayWidth / 2
 
