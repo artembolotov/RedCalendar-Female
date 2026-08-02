@@ -16,24 +16,30 @@ enum CalendarConstants {
     // line — that dissolve is what the strip's divider used to be, and it hangs *below* the
     // band rather than inside it, so it never crosses the weekday labels.
     //
-    // Long, and it can afford to be. While the band was a material the dissolve faded paint,
-    // which erased what lay under it — a row of numerals at the edge came out cut in half, so
-    // the ramp had to stay short enough to fall between rows. It now crossfades a blurred copy
-    // of the calendar into the sharp one, which only ever trades softness for focus, and the
-    // length is what makes that trade read as depth instead of as an edge.
-    static let topChromeFadeHeight: CGFloat = 40
-    // How hard the calendar is blurred where it passes under the band. Anonymous smears are
-    // the goal up here — the dissolve below is where legibility comes back — but the radius
-    // still cannot run away: it reaches down past the band and pulls content from below the
-    // dissolve up into it, and the further it reaches the more the crossfade has to travel to
-    // land on a sharp row.
+    // Short, and it has to be. At 40 the dissolve swallowed a whole row of days: digits a
+    // full row below the bar sat half-blurred and half-washed, which reads as a rendering
+    // mistake, not as depth — a crossfade only trades softness for focus, but a *parked* row
+    // caught mid-trade looks broken in a way a moving one never does. The transition now
+    // completes in the gap between the strip and the first row that can land under it, so a
+    // resting row is either under the band or entirely itself.
+    static let topChromeFadeHeight: CGFloat = 18
+    // How hard the calendar is blurred where it passes under the band.
+    //
+    // One radius, and the count is a measured budget, not a stylistic choice. An iOS 26-style
+    // ramp of radii — heavy behind the navigation bar, light at the dissolve — was built here
+    // and withdrawn: every radius is one more copy of the whole grid rendered offscreen on
+    // every frame of a scroll, and even a single extra copy, cropped to the band, cost
+    // visible frames on an iPhone 17 Pro (band disabled: flawless; enabled: stutter). One
+    // blurred copy per frame is the whole budget. What the heavier top of the ramp was
+    // *for* — anonymity behind the navigation bar — is carried by the scrim's density
+    // gradient instead, which costs nothing per frame; see the scrim opacities below.
     //
     // It has to be a radius we choose, because the system never exposes one: a
     // `UINavigationBarAppearance` background or a SwiftUI `Material` is a named `UIBlurEffect`
     // style, and there is no public API to say how much. Both also blur their *backdrop* — the
     // window behind them — which over this sparse calendar is mostly empty page, so they come
     // out as the grey plate this band exists to avoid. See `CalendarView.blurredBandLayer`.
-    static let topChromeBlurRadius: CGFloat = 12
+    static let topChromeBlurRadius: CGFloat = 3
     // How far the band washes what passes under it toward the page's own colour.
     //
     // Blur alone was not enough: it takes a period bar's shape away but not its colour, so a
@@ -51,7 +57,16 @@ enum CalendarConstants {
     // Not 1.0, and it should not be. At full opacity the calendar stops existing under the bar
     // and a month title sliding upward pops out rather than sinks; the ghost left at this level
     // is what says the grid carries on up there.
-    static let topChromeScrimOpacity: Double = 0.82
+    //
+    // Two opacities, because the wash is what is left of the blur ramp. The variable blur the
+    // system's soft edge uses is unaffordable here (each radius is an extra offscreen render
+    // of the grid per frame — see the blur radius above), but what the heavy top of a ramp
+    // reads as is mostly *density*, and density in a wash is free: the band is nearly opaque
+    // behind the navigation bar and thin by the weekday strip, so days ghost through under
+    // the labels the way the system's soft edge lets them. The old single flat 0.82 was the
+    // opposite failure — milk across the whole band, with the smear reading as dirt under it.
+    static let topChromeScrimOpacityTop: Double = 0.85
+    static let topChromeScrimOpacityBottom: Double = 0.3
 
     // MARK: - Month Header
     static let monthHeaderHeight: CGFloat = 60

@@ -196,24 +196,6 @@ final class MonthCalculator: ObservableObject {
         return name
     }
     
-    // Which of the seven columns are weekend days, resolved through `isDateInWeekend` rather
-    // than hardcoding Saturday/Sunday — the weekend is a locale property, and the columns are
-    // already ordered by `firstWeekday`, so an arbitrary week answers for every week.
-    func getWeekendIndices() -> Set<Int> {
-        checkAndInvalidateCacheIfNeeded()
-
-        guard let weekStart = calendar.dateInterval(of: .weekOfYear, for: currentDate)?.start else {
-            return []
-        }
-
-        return Set((0..<7).filter { index in
-            guard let day = calendar.date(byAdding: .day, value: index, to: weekStart) else {
-                return false
-            }
-            return calendar.isDateInWeekend(day)
-        })
-    }
-
     func getLocalizedWeekdays() -> [String] {
         checkAndInvalidateCacheIfNeeded()
         

@@ -22,18 +22,20 @@ import SwiftUI
 // off the same `horizontalPadding`, so the track starts where Monday's column starts and ends
 // where Sunday's ends. Anything wider and the bar would overhang the calendar it labels.
 //
-// A translucent fill rather than an opaque one, for the same reason the band is a blur and not
-// a material: over the empty page a solid neutral is a grey plate, while a translucent one
-// keeps whatever passes under the band visible through it.
+// The track is backed by the page's own colour, with the translucent grey laid over it. The
+// grey alone let everything under the band show through the capsule, so its tone swam with
+// whatever happened to be scrolling past and day numbers ghosted in between the labels — the
+// App Store Connect control this echoes never fights its own background. The backing is the
+// page colour and not an opaque grey for the same reason the scrim is: over the empty page it
+// *is* the page, so the capsule reads as one quiet object rather than a plate, and only where
+// content passes does it actually hide anything.
 struct CalendarHeaderView: View {
     let weekdays: [String]
-    var weekendIndices: Set<Int> = []
     let width: CGFloat
     let height: CGFloat
 
     // MARK: - Constants
     private let horizontalPadding: CGFloat = CalendarConstants.horizontalPadding
-    private let weekendOpacity: Double = 0.55
 
     // The first layout pass can hand in a zero width, making `width - horizontalPadding`
     // negative — an invalid frame dimension.
@@ -47,7 +49,14 @@ struct CalendarHeaderView: View {
                 cornerRadius: CalendarConstants.periodBarCornerRadius,
                 style: .continuous
             )
-            .fill(Color("WeekdaysBarColor"))
+            .fill(Color("AppBackgroundColor"))
+            .overlay(
+                RoundedRectangle(
+                    cornerRadius: CalendarConstants.periodBarCornerRadius,
+                    style: .continuous
+                )
+                .fill(Color("WeekdaysBarColor"))
+            )
             .frame(width: trackWidth, height: CalendarConstants.periodBarHeight)
             .position(x: width / 2, y: height / 2)
 
@@ -58,9 +67,12 @@ struct CalendarHeaderView: View {
 
                 Text(weekday)
                     .font(.caption)
-                    .fontWeight(.heavy)
-                    .foregroundColor(.secondary)
-                    .opacity(weekendIndices.contains(dayIndex) ? weekendOpacity : 1)
+                    // Primary at semibold, not secondary at heavy: the strip stands on a
+                    // translucent track over scrolling content, and a grey label over a grey
+                    // track over a moving page was the first thing to vanish. Contrast is
+                    // what carries the visibility — primary at heavy read as shouting.
+                    .fontWeight(.semibold)
+                    .foregroundColor(.primary)
                     .position(x: centerX, y: height / 2)
             }
         }
@@ -71,7 +83,6 @@ struct CalendarHeaderView: View {
 #Preview {
     CalendarHeaderView(
         weekdays: ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"],
-        weekendIndices: [5, 6],
         width: 375,
         height: CalendarConstants.weekdaysHeaderHeight
     )

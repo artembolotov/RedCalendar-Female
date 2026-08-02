@@ -26,7 +26,6 @@ import SwiftUI
 // treatment as iOS 26, with no version branch anywhere.
 struct CalendarTopChrome: View {
     let weekdays: [String]
-    var weekendIndices: Set<Int> = []
     let width: CGFloat
     /// Status bar plus navigation bar — everything above the weekday strip that the grid now
     /// runs underneath.
@@ -42,7 +41,6 @@ struct CalendarTopChrome: View {
     var body: some View {
         CalendarHeaderView(
             weekdays: weekdays,
-            weekendIndices: weekendIndices,
             width: width,
             height: CalendarConstants.weekdaysHeaderHeight
         )
@@ -88,7 +86,6 @@ struct CalendarTopChrome: View {
 
         CalendarTopChrome(
             weekdays: ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"],
-            weekendIndices: [5, 6],
             width: 375,
             topInset: 100,
             onTap: {}

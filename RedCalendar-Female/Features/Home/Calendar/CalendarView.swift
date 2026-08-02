@@ -26,7 +26,6 @@ struct CalendarView: View {
     @State private var calculator: MonthCalculator?
     @State private var calendar = Calendar.current
     @State private var localizedWeekdays: [String] = []
-    @State private var weekendIndices: Set<Int> = []
     
     // MARK: - State: Dimensions
     // The full screen, not the space under the bar: the grid is drawn edge to edge and
@@ -201,7 +200,6 @@ struct CalendarView: View {
 
                 CalendarTopChrome(
                     weekdays: localizedWeekdays,
-                    weekendIndices: weekendIndices,
                     width: calendarWidth,
                     topInset: topInset,
                     onTap: dismissDayDetails
@@ -274,19 +272,38 @@ struct CalendarView: View {
 
     /// The band itself: the calendar again, blurred, showing only where the bar is.
     ///
+    /// Exactly one copy, and that number is the band's whole performance budget: every
+    /// blurred copy is a full extra offscreen render of the grid on every frame of a scroll,
+    /// and a second one — even cropped to the band — dropped visible frames on an iPhone 17
+    /// Pro. The variable-blur ramp this band briefly had lives on as the scrim's density
+    /// gradient instead; see the blur radius and scrim opacities in `CalendarConstants`.
+    ///
     /// This is what a `Material` could not do here. A material over this calendar is mostly a
     /// material over empty page — the grid is sparse, and with nothing behind it to diffuse a
     /// material can only show its own grey, which is a plate by another name. Blurring the
     /// content has nothing to show when there is no content, so over empty page the band is
     /// simply absent and the page stays a page.
     ///
-    /// The mask is applied after `.offset`, which is what puts it in screen space: `.offset`
-    /// moves the rendering without touching the layout frame the mask is sized against, so the
-    /// band holds still at the top of the screen while the calendar slides underneath it.
+    /// The crop, the mask and the clip are all applied after `.offset`, which is what puts
+    /// them in screen space: `.offset` moves the rendering without touching the layout frame
+    /// they are sized against, so the band holds still at the top of the screen while the
+    /// calendar slides underneath it.
+    ///
+    /// The crop comes *before* the blur: a blur is computed for the entire layer it is
+    /// handed, so blurring the full-screen grid and then masking out the band paid for a
+    /// full-screen gaussian per frame of scroll. Clipped to `blurCropHeight` first, it blurs
+    /// a strip a fraction of that size. The mask still runs after the blur, over the cropped
+    /// frame, so the dissolve is unchanged; the crop's own bottom edge only ever shows inside
+    /// the margin the mask has already zeroed.
     private func blurredBandLayer(_ calc: MonthCalculator) -> some View {
         gridLayer(calc)
+            .frame(height: band.blurCropHeight, alignment: .top)
+            .clipped()
             .blur(radius: CalendarConstants.topChromeBlurRadius)
             .mask { band.mask }
+            // Pinned to the top of the enclosing stack itself: the copy is no longer
+            // screen-sized, and the stack it sits in centres whatever falls short.
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
     // MARK: - Dismiss Handler
@@ -463,10 +480,9 @@ struct CalendarView: View {
         )
 
         localizedWeekdays = newCalculator.getLocalizedWeekdays()
-        weekendIndices = newCalculator.getWeekendIndices()
 
         calculator = newCalculator
-        
+
         // Calculate all offset components
         recalculateOffsets(calculator: newCalculator)
 
@@ -492,7 +508,6 @@ struct CalendarView: View {
         if localeChanged || firstWeekdayChanged || dateChanged {
             let newCalculator = MonthCalculator(currentDate: currentDate, screenHeight: visibleCalendarHeight, calendar: calendar)
             localizedWeekdays = newCalculator.getLocalizedWeekdays()
-            weekendIndices = newCalculator.getWeekendIndices()
 
             calculator = newCalculator
 
