@@ -29,6 +29,14 @@ import SwiftUI
 // page colour and not an opaque grey for the same reason the scrim is: over the empty page it
 // *is* the page, so the capsule reads as one quiet object rather than a plate, and only where
 // content passes does it actually hide anything.
+//
+// Three layers, and the third is the price of the first two being thin. The backing is held at
+// `weekdaysBarBackingOpacity` rather than full — enough to keep a period bar from arriving as a
+// red shape, not so much that the track stops belonging to the band it stands on — and the grey
+// over it is lighter than it once was. What that costs is the capsule's own edge: an opaque fill
+// draws its boundary with the density step against the page, and thinning the fill thins the
+// step. So the shape is stated by a hairline instead, and the outline is what lets the fill go
+// as light as it does. Lightening the grey without it just dissolves the track.
 struct CalendarHeaderView: View {
     let weekdays: [String]
     let width: CGFloat
@@ -49,13 +57,26 @@ struct CalendarHeaderView: View {
                 cornerRadius: CalendarConstants.periodBarCornerRadius,
                 style: .continuous
             )
-            .fill(Color("AppBackgroundColor"))
+            .fill(
+                Color("AppBackgroundColor")
+                    .opacity(CalendarConstants.weekdaysBarBackingOpacity)
+            )
             .overlay(
                 RoundedRectangle(
                     cornerRadius: CalendarConstants.periodBarCornerRadius,
                     style: .continuous
                 )
                 .fill(Color("WeekdaysBarColor"))
+            )
+            .overlay(
+                RoundedRectangle(
+                    cornerRadius: CalendarConstants.periodBarCornerRadius,
+                    style: .continuous
+                )
+                .strokeBorder(
+                    Color("WeekdaysBarStrokeColor"),
+                    lineWidth: CalendarConstants.weekdaysBarStrokeWidth
+                )
             )
             .frame(width: trackWidth, height: CalendarConstants.periodBarHeight)
             .position(x: width / 2, y: height / 2)
@@ -81,9 +102,21 @@ struct CalendarHeaderView: View {
 }
 
 #Preview {
-    CalendarHeaderView(
-        weekdays: ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"],
-        width: 375,
-        height: CalendarConstants.weekdaysHeaderHeight
-    )
+    // The track is translucent now, so previewing it over nothing says nothing. A bar under it
+    // is the case the backing opacity was chosen against.
+    ZStack {
+        Color("AppBackgroundColor")
+
+        Capsule()
+            .fill(AccentTheme.coral.accent)
+            .frame(height: CalendarConstants.periodBarHeight)
+            .padding(.horizontal, CalendarConstants.horizontalPadding)
+
+        CalendarHeaderView(
+            weekdays: ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"],
+            width: 375,
+            height: CalendarConstants.weekdaysHeaderHeight
+        )
+    }
+    .frame(height: 120)
 }
