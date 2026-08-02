@@ -38,10 +38,14 @@ struct SettingsView: View {
                     }
 
                     Section {
+                        // The accent from the tint, not the system red a destructive button
+                        // would take. Three rows above this one are reds the user chose between,
+                        // and a fourth red answering to none of them reads as a fourth meaning.
+                        // The warning that red would carry is not owed here anyway: logout drops
+                        // the session, not the local database.
                         Button("Выйти") {
                             store.send(.logout)
                         }
-                        .foregroundColor(.red)
                     }
                 }
                 .navigationTitle("Настройки")
