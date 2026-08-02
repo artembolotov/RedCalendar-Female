@@ -21,11 +21,11 @@ struct SettingsView: View {
         NavigationView {
             if let deviceId = store.state.deviceId {
                 Form {
+                    accentThemeSection
+
                     Section {
                         versionRow
                     }
-
-                    accentThemeSection
 
                     if versionTapCount >= 8 {
                         DeveloperSectionView(
