@@ -46,13 +46,11 @@ enum CalendarConstants {
     // there — which is exactly why it must not be lowered on the strength of the light theme
     // looking fine.
     static let weekdaysBarBackingOpacity: Double = 0.97
-    // One point, and in the light theme it is the only thing drawing the capsule at all: the
-    // fill clears the page by 4 levels, which is a tone difference and not an edge. Do not
-    // remove it there under any circumstances, and do not thin it.
+    // One point. The fill draws the capsule's boundary itself — 16 levels in the light theme,
+    // a white lift in the dark — so this only sharpens an edge that already exists.
     //
-    // Nor thicken it. The strip is 370pt across, and a rim that reads as a hairline on the ⌀36
-    // menu button reads as a drawn box at that size — which is the failure the light theme is
-    // closest to, since its rim is already carrying more than the dark theme's.
+    // Do not thicken it. The strip is 370pt across, and a rim that reads as a hairline on the
+    // ⌀36 menu button reads as a drawn box at that size.
     //
     // Drawn with `strokeBorder`, so it lands inside `weekdaysTrackHeight` rather than straddling
     // it and losing half its weight, exactly as the period bar's outline does.

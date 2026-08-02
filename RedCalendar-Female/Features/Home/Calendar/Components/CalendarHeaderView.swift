@@ -33,36 +33,34 @@ import SwiftUI
 // gives it its tone. It spent a while translucent, letting a period bar cross under it as a pale
 // pink, and that is deliberately over — the bar now stops dead at the capsule's edge.
 //
-// In the light theme the fill is the ⋯ button's white, translated into this page's key rather
-// than copied off a screenshot. The distinction is the whole of it, and it is measurable. A real
-// iOS circular button on App Store Connect's own page is (255,255,255) on (233,233,238): white,
-// 22 levels clear of its background, and slightly cool because that page is a cool grey. Our
-// page is (251,249,249) — warm, and already almost white. Copying the literal white gives 4
-// levels instead of 22, and gives them in the wrong direction of hue: a cold patch on a warm
-// page, which reads as a foreign object rather than as a surface lifted off it.
+// Both themes are the ⋯ button's material, written out as flat colour, and the thing to
+// understand about it is that it moves toward mid-grey from whichever side the page is on. That
+// is why the two themes look like opposite decisions and are not: the light fill is 16 levels
+// *below* a near-white page, the dark fill is a white lift *above* a near-black one, and both
+// are the same instruction.
 //
-// So the fill is (255,253,253): the page's own colour raised 4 levels with its warmth intact —
-// R−G is 2 on both. It is the same *relationship* the button has, which is what the analogy was
-// ever about; the identical number was never available on a page this light.
+// The light half is the one that is easy to get backwards, and the argument is arithmetic. The
+// page is (251,249,249) — warm, and four levels short of white. Nothing put on it can be made
+// visible by being lighter; there is no room. A material on a page like this darkens, which is
+// exactly why the button reads clearly, and the fill is (235,233,233) for the same reason. It
+// keeps the page's warmth while it does it — R−G is 2 on both — because a neutral or cool grey
+// at this lightness reads as a foreign patch on a warm page rather than as the page in shade.
 //
-// Four levels is a tone, not an edge, so the rim draws the capsule and the rim alone — which is
-// why the light one is stronger than the dark theme's needs to be, and why it is warm-neutral
-// too. A cool grey hairline on a warm page is the same mistake as the cold fill, just thinner.
+// Full opacity rather than a high alpha. At 0.55 the three percent of calendar getting past
+// `weekdaysBarBackingOpacity` still tinted the track where a period bar crossed under it — two
+// or three levels, but a *coloured* two or three sitting in a flat field. At 1.0 the bar is
+// gone, and the backing stops mattering in this theme at all; it is the dark theme's white lift,
+// at 0.13, that still leans on it.
 //
-// Full opacity rather than a high alpha, and the difference is visible. At 0.55 the three
-// percent of calendar getting past `weekdaysBarBackingOpacity` still tinted the track where a
-// period bar crossed under it — two or three levels, but a coloured two or three, sitting in a
-// field of flat near-white. At 1.0 the bar is simply gone, and the backing stops mattering in
-// this theme at all; it is the dark theme's white lift, at 0.13, that still leans on it.
+// The rim is trim, not structure: with a 16-level step the fill draws its own boundary and the
+// hairline only sharpens it. It is warm-neutral in the light theme and white in the dark, each
+// following its fill — a cool hairline on a warm page is the same mistake as a cool fill, only
+// thinner.
 //
-// The dark theme is unchanged. Opacity was never what made it read: white at 0.13 over a
-// near-black page is the same light grey either way.
-//
-// The rim is the ⋯ menu button's, and it is white in the dark theme only. On the near-white page
-// a white rim draws literally nothing, so the light theme's is a faint neutral instead — the one
-// place the analogy had to be translated rather than copied. What could not come over at all is
-// the material: `HomeMenuView` uses `.ultraThinMaterial` (and the system's glass above iOS 26),
-// and a material is a backdrop capture per frame — over a ⌀36 button that is nothing, over a
+// What could not come over at all is the material itself, on two counts. It is translucent by
+// construction and this strip is deliberately not, which settles it on its own. And
+// `HomeMenuView` gets it from `.ultraThinMaterial` (the system's glass above iOS 26), where a
+// material is a backdrop capture per frame — over a ⌀36 button that is nothing, over a
 // 370pt strip standing on an already-blurred band it is a second full-width capture on every
 // frame of a scroll, which is the same budget `topChromeBlurRadius` is held to one radius by. A
 // solid track has no use for one anyway.
