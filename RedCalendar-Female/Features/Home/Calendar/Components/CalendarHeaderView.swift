@@ -29,34 +29,33 @@ import SwiftUI
 // off the same `horizontalPadding`, so the track starts where Monday's column starts and ends
 // where Sunday's ends. Anything wider and the bar would overhang the calendar it labels.
 //
-// The track is backed by the page's own colour, with a translucent fill laid over it. The fill
-// alone let everything under the band show through the capsule, so its tone swam with whatever
-// happened to be scrolling past and day numbers ghosted in between the labels — the App Store
-// Connect control this echoes never fights its own background. The backing is the page colour
-// and not an opaque grey for the same reason the scrim is: over the empty page it *is* the
-// page, so the capsule reads as one quiet object rather than a plate, and only where content
-// passes does it actually hide anything.
+// The track is solid: the page's own colour at `weekdaysBarBackingOpacity`, then the fill that
+// gives it its tone. It spent a while translucent, letting a period bar cross under it as a pale
+// pink, and that is deliberately over — the bar now stops dead at the capsule's edge.
 //
-// Three layers, and the third is the price of the first two being thin. The backing is held at
-// `weekdaysBarBackingOpacity` rather than full — enough to keep a period bar from arriving as a
-// red shape, not so much that the track stops belonging to the band it stands on. What that
-// costs is the capsule's own edge: an opaque fill draws its boundary with the density step
-// against the page, and thinning the fill thins the step. So the shape is stated by a hairline
-// instead, and the outline is what lets the fill go as light as it does. Lightening the fill
-// without it just dissolves the track.
+// Solidity moves where the shape comes from, and that is the part worth keeping straight. A
+// see-through track has to be outlined or it dissolves; a solid one draws its own boundary with
+// the step between its fill and the page, and the rim only sharpens what is already there. So
+// the fill is now the whole design and the rim is trim.
 //
-// The fill and the rim are the ⋯ menu button's, brought over deliberately so the two pieces of
-// chrome over this calendar read as one material: white fill, white rim. What could not come
-// over is the material itself. `HomeMenuView` uses `.ultraThinMaterial` (and the system's glass
-// above iOS 26), and a material is a backdrop capture per frame — over a ⌀36 button that is
-// nothing, over a 370pt strip standing on an already-blurred band it is a second full-width
-// capture on every frame of a scroll, which is the same budget `topChromeBlurRadius` is held to
-// one radius by. Plain colours cost nothing and land in the same place.
+// Which is why the light theme's fill is a light cool grey and not white. White was right while
+// the track was see-through — it lightened whatever passed under it, and *that* was what made
+// the capsule visible. Solid, it has nothing left to lighten, and white on a near-white page is
+// a shape you cannot find: 2 levels of separation, with the whole capsule carried by a hairline.
+// The fill instead sits 13 levels under the page, which is the relationship App Store Connect's
+// own control has with its own background (#E4E4E9 on #F1F1F5, 16 levels) — light, but present.
 //
-// The rim is white in the dark theme only. On the near-white page a white rim draws literally
-// nothing, so the light theme's is a faint neutral instead — the one place the analogy had to
-// be translated rather than copied. It is the fill that carries "light" in that theme, and it
-// carries it against the content passing under rather than against the page.
+// The dark theme keeps its white lift and its white rim unchanged, because opacity was never
+// what made it read: white at 0.13 over a near-black page is a light grey either way.
+//
+// The rim is the ⋯ menu button's, and it is white in the dark theme only. On the near-white page
+// a white rim draws literally nothing, so the light theme's is a faint neutral instead — the one
+// place the analogy had to be translated rather than copied. What could not come over at all is
+// the material: `HomeMenuView` uses `.ultraThinMaterial` (and the system's glass above iOS 26),
+// and a material is a backdrop capture per frame — over a ⌀36 button that is nothing, over a
+// 370pt strip standing on an already-blurred band it is a second full-width capture on every
+// frame of a scroll, which is the same budget `topChromeBlurRadius` is held to one radius by. A
+// solid track has no use for one anyway.
 struct CalendarHeaderView: View {
     let weekdays: [String]
     let width: CGFloat
@@ -131,8 +130,9 @@ struct CalendarHeaderView: View {
 }
 
 #Preview {
-    // The track is translucent now, so previewing it over nothing says nothing. A bar under it
-    // is the case the backing opacity was chosen against.
+    // Two things are being checked at once, and the bar under the track is what shows both: that
+    // it is cut off cleanly at the capsule rather than ghosting through, and that the track is
+    // still findable over the stretch of plain page either side of it.
     ZStack {
         Color("AppBackgroundColor")
 

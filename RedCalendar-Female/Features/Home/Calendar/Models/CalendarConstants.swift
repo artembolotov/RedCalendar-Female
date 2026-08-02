@@ -33,22 +33,23 @@ enum CalendarConstants {
 
     // How much of the page colour is laid under the weekday track before the fill goes on top.
     //
-    // Not 1.0, for the same reason the scrim above is not: an opaque backing turns the track
-    // into a plate, and the strip stops being part of the band it stands on. It cannot go much
-    // below this either — the backing is what stops day numbers ghosting up between the labels,
-    // and the blur under the strip is the band's thinnest (`topChromeScrimOpacityBottom`), so
-    // the track gets less help from the band here than anywhere else along it.
+    // Effectively solid. Nothing legible survives the last three percent — this is not a
+    // translucency anyone can see, and the number could be 1.0 without a visible difference. It
+    // is held a hair short because the value is the one dial that decides how much of the
+    // calendar reaches the track, and a dial parked at its stop stops reading as a decision.
     //
-    // It carries almost the whole job in the dark theme, where the fill over it is white at 0.13
-    // and hides essentially nothing. In the light theme the two stack — 0.55 of page under 0.55
-    // of white leaves the track about 80% opaque — which is why a period bar crossing under it
-    // arrives as a pale pink rather than a red shape.
-    static let weekdaysBarBackingOpacity: Double = 0.55
-    // One point, and it does more work than its weight suggests: the fill is translucent, so the
-    // capsule's boundary is not drawn by any density step against the page and has to be stated
-    // outright. Reading as a control is now the intent rather than the hazard — see
-    // `WeekdaysBarStrokeColor` — but a heavier line would still be wrong, because the strip is
-    // 370pt wide and a rim that reads as a hairline on a ⌀36 button reads as a box at that size.
+    // It used to be 0.55, so a period bar crossing under the strip arrived as a pale pink. That
+    // is gone: the bar now stops dead at the capsule's edge. The fill above is what the track
+    // looks like, and the backing's only remaining job is to make sure it is the *only* thing
+    // the track looks like.
+    static let weekdaysBarBackingOpacity: Double = 0.97
+    // One point. The fill draws its own edge again now that it is solid, so the rim is no longer
+    // load-bearing — it crisps a boundary that already exists rather than supplying it. That is
+    // the argument for keeping it thin and against removing it: the light theme's step is 13
+    // levels, which is a boundary you can find but not one you can see across a moving screen.
+    //
+    // A heavier line would be wrong at this width regardless. The strip is 370pt across, and a
+    // rim that reads as a hairline on the ⌀36 menu button reads as a drawn box at that size.
     //
     // Drawn with `strokeBorder`, so it lands inside `weekdaysTrackHeight` rather than straddling
     // it and losing half its weight, exactly as the period bar's outline does.
