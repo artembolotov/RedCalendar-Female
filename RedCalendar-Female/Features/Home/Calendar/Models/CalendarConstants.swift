@@ -143,8 +143,40 @@ enum CalendarConstants {
     // Day cells are built for the screen plus this share of its height above and below.
     // It absorbs the drift between two rebuilds — a tighter buffer shows empty rows
     // sliding in at the leading edge of a fast scroll.
-    static let dayVisibilityBufferRatio: CGFloat = 0.6
+    //
+    // What it has to cover is the threshold above plus one frame of a fast fling, because the
+    // anchor is only re-taken once a reported offset has travelled that far: ~120 + ~85pt at
+    // 60Hz, call it 205. On a 850pt screen this is ~300, which clears that with half again to
+    // spare. It is not a free dial — it is a share of *every* day cell drawn, in both the sharp
+    // grid and the blurred copy — so it is sized off that arithmetic rather than upwards until
+    // the seams stop showing. Raise `viewportUpdateThreshold` and this has to follow.
+    static let dayVisibilityBufferRatio: CGFloat = 0.35
+    // The same share, for the month walk that feeds the cull above. It only has to be wider
+    // than `dayVisibilityBufferRatio` — the viewport and the anchor are rebuilt together, so
+    // there is no drift between them to absorb, only the rounding to whole months.
+    static let viewportBufferRatio: CGFloat = 0.6
     static let averageMonthHeight: CGFloat = 290
+
+    // MARK: - Scroll flight
+    // How far the calendar may actually travel when it is sent back to a day, in screens.
+    // Anything beyond this is closed instantly first, and only this much is animated.
+    //
+    // A flight is a flight only while someone can follow it. The rail is sixty years from
+    // today, and `InfiniteScrollContainer.spring(forDistance:)` gives every distance the same
+    // 0.75s — from the far end that is 11,000pt in a single frame, thirteen screens, which is
+    // not motion but a strobe. At two screens the fastest frame moves 72pt, a little over one
+    // row. Nothing was lost by cutting the rest: it was never legible.
+    //
+    // It also decides the curve, and that is the part that will catch someone out.
+    // `spring(forDistance:)` changes damping at 1400pt, and two screens is the first cap that
+    // lands above it: at one and a half the flight would run at ζ=0.90 and settle with a
+    // visible 2pt bounce, at two it runs at ζ=0.95 and simply arrives. Do not round this
+    // number without checking which side of 1400 it leaves you on.
+    //
+    // The cap is never reached by the other thing that flies the calendar — a day selection
+    // re-centring on the chosen row — because only a day already on screen can be tapped. It
+    // needs no special case for that; the distance says it.
+    static let flightCapScreens: CGFloat = 2
 
     // MARK: - Day rendering
     // The day indicator, the fertile line and the dot row are stacked below a cell's centre in
@@ -179,6 +211,13 @@ enum CalendarConstants {
     static let cardHeightTolerance: CGFloat = 12
 
     // MARK: - Month limits for infinite scroll
-    static let minMonthOffset: Int = -2400
-    static let maxMonthOffset: Int = 2400
+    //
+    // 60 years either way, and the number is a cost as much as a range: the scroll rail is the
+    // content-space position of these two months, and reaching it means measuring every month
+    // in between — two `Calendar` calls each, once per `MonthCalculator`. At the ±200 years
+    // this used to be, that was ~9600 of them on the frame the first drag started.
+    // `MonthCalculator.getScrollLimits()` now keeps the answer, so the walk is paid once; this
+    // is what keeps that once affordable.
+    static let minMonthOffset: Int = -720
+    static let maxMonthOffset: Int = 720
 }

@@ -69,14 +69,11 @@ struct HomeView: View {
                     // A very shallow fall in luminance down the screen — enough to stop the
                     // page reading as a flat sheet, small enough that the day indicator's ring
                     // (drawn in the top colour) still disappears into the background at the
-                    // bottom of the calendar.
+                    // bottom of the calendar. The calendar's top band draws its own slice of
+                    // the same value, so it is shared rather than written out here.
                     .background(
-                        LinearGradient(
-                            colors: [Color("AppBackgroundColor"), Color("AppBackgroundEdgeColor")],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                        .ignoresSafeArea()
+                        LinearGradient.appBackground
+                            .ignoresSafeArea()
                     )
                     .onChange(of: store.state.calendarState.selectedDayStamp) { newValue in
                         if newValue == nil {

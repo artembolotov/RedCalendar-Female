@@ -204,10 +204,9 @@ struct CalendarView: View {
                             today: store.state.calendarState.todayDayStamp
                         )
 
-                        // Erased where the blurred copy below takes over, rather than left to
-                        // show through it.
+                        // Drawn whole, edge to edge, with nothing cut out of it: the band below
+                        // covers it rather than replacing it. See `blurredBandLayer`.
                         gridLayer(calc)
-                            .mask { band.inverseMask }
                             .clipped()
 
                         blurredBandLayer(calc)
@@ -272,37 +271,58 @@ struct CalendarView: View {
     
     // MARK: - Grid Layers
 
-    /// The calendar's drawn layer. Built in one place because it is drawn twice, and the two
-    /// copies must be handed *identical* inputs: `CalendarGridView` is `Equatable`, so each
-    /// copy skips its own body on any frame its inputs did not change, and scrolling only
-    /// slides them. Let the two argument lists drift and the second copy would rebuild its day
-    /// cells on frames the first one sat still for, doubling the work this whole design exists
-    /// to avoid.
+    /// The calendar's drawn layer: the grid, and the selection disc standing on it.
+    ///
+    /// Built in one place because it is drawn twice, and the two copies must be handed
+    /// *identical* inputs: both views are `Equatable`, so each copy skips its own body on any
+    /// frame its inputs did not change, and scrolling only slides them. Let the two argument
+    /// lists drift and the second copy would rebuild its day cells on frames the first one sat
+    /// still for, doubling the work this whole design exists to avoid.
     ///
     /// `animatesSelection` is the one input the copies are *meant* to disagree on, and it is
     /// safe to because it is a constant per copy: each still compares equal to its own previous
     /// self, which is all the rule above is protecting. What it buys is in `blurredBandLayer`.
+    ///
+    /// The two are siblings rather than one view, and that is the point: the grid does not take
+    /// `selectedDayStamp`, so choosing a day rebuilds a disc and seven numerals instead of
+    /// several hundred day cells. They are stacked here rather than composed inside either one
+    /// so that each keeps its own `==`, and so that the disc sits above every cell in both
+    /// copies — including the blurred one, where it draws without travelling.
     private func gridLayer(_ calc: MonthCalculator, animatesSelection: Bool = true) -> some View {
-        CalendarGridView(
-            viewport: viewport,
-            anchorOffset: viewportAnchor,
-            calculator: calc,
-            dayDisplayStates: store.state.calendarState.dayDisplayStates,
-            selectedDayStamp: store.state.calendarState.selectedDayStamp,
-            today: store.state.calendarState.todayDayStamp,
-            width: calendarWidth,
-            height: calendarHeight,
-            theme: store.state.accentTheme,
-            reduceMotion: reduceMotion,
-            selectionTravel: selectionTravel,
-            animatesSelection: animatesSelection
-        )
-        .equatable()
+        ZStack(alignment: .topLeading) {
+            CalendarGridView(
+                viewport: viewport,
+                anchorOffset: viewportAnchor,
+                calculator: calc,
+                dayDisplayStates: store.state.calendarState.dayDisplayStates,
+                dayDisplayStatesVersion: store.state.calendarState.dayDisplayStatesVersion,
+                today: store.state.calendarState.todayDayStamp,
+                width: calendarWidth,
+                height: calendarHeight,
+                theme: store.state.accentTheme
+            )
+            .equatable()
+
+            CalendarSelectionLayer(
+                viewport: viewport,
+                anchorOffset: viewportAnchor,
+                calculator: calc,
+                selectedDayStamp: store.state.calendarState.selectedDayStamp,
+                width: calendarWidth,
+                height: calendarHeight,
+                reduceMotion: reduceMotion,
+                selectionTravel: selectionTravel,
+                animatesSelection: animatesSelection
+            )
+            .equatable()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .offset(y: scrollOffset)
         .allowsHitTesting(false)
     }
 
-    /// The band itself: the calendar again, blurred, showing only where the bar is.
+    /// The band itself: the calendar again, blurred, standing on its own slice of the page and
+    /// fading out where the bar ends.
     ///
     /// Exactly one copy, and that number is the band's whole performance budget: every
     /// blurred copy is a full extra offscreen render of the grid on every frame of a scroll,
@@ -310,23 +330,39 @@ struct CalendarView: View {
     /// Pro. The variable-blur ramp this band briefly had lives on as the scrim's density
     /// gradient instead; see the blur radius and scrim opacities in `CalendarConstants`.
     ///
-    /// This is what a `Material` could not do here. A material over this calendar is mostly a
-    /// material over empty page — the grid is sparse, and with nothing behind it to diffuse a
-    /// material can only show its own grey, which is a plate by another name. Blurring the
-    /// content has nothing to show when there is no content, so over empty page the band is
-    /// simply absent and the page stays a page.
+    /// **The band is opaque, and that is what pays for the sharp grid being drawn whole.** The
+    /// sharp copy used to wear the exact complement of this mask, so the two alphas summed to
+    /// one and the dissolve was an honest crossfade of a single image. It was also a gradient
+    /// mask over a full-screen layer, which is an offscreen pass the size of the screen on
+    /// every frame of a scroll — the second such pass in this view, and the larger of the two.
+    /// Backing the blurred copy with the page instead makes this layer opaque, and compositing
+    /// an opaque image at alpha `a` over the sharp grid *is* the crossfade the two masks were
+    /// arranged to produce: `a·blurred + (1-a)·sharp`, the same arithmetic, one offscreen pass
+    /// short. Nothing doubles, because nothing shows through.
     ///
-    /// The crop, the mask and the clip are all applied after `.offset`, which is what puts
-    /// them in screen space: `.offset` moves the rendering without touching the layout frame
-    /// they are sized against, so the band holds still at the top of the screen while the
+    /// The backing is not a plate. It is `LinearGradient.appBackground` at the page's own
+    /// height, cropped to the band — the same value `HomeView` fills the screen with, drawn
+    /// again at the same extent, so over empty page it is indistinguishable from the page it
+    /// covers. That is the distinction this band has spent three attempts on: a `Material` here
+    /// could only ever show its own grey, because a material over this calendar is mostly a
+    /// material over empty page, and there is nothing sparse content can lend it to diffuse.
+    /// Blurred content has nothing to show when there is no content, so over empty page the
+    /// band still reads as page. Do not swap the gradient for a flat colour on the grounds that
+    /// the two stops are a few levels apart: they are, and it would look identical today, and
+    /// it silently re-couples this to a constant that `CalendarConstants` explicitly reserves
+    /// the right to change.
+    ///
+    /// The crop, the blur, the mask and the clip are all applied after `.offset`, which is what
+    /// puts them in screen space: `.offset` moves the rendering without touching the layout
+    /// frame they are sized against, so the band holds still at the top of the screen while the
     /// calendar slides underneath it.
     ///
     /// The crop comes *before* the blur: a blur is computed for the entire layer it is
     /// handed, so blurring the full-screen grid and then masking out the band paid for a
     /// full-screen gaussian per frame of scroll. Clipped to `blurCropHeight` first, it blurs
     /// a strip a fraction of that size. The mask still runs after the blur, over the cropped
-    /// frame, so the dissolve is unchanged; the crop's own bottom edge only ever shows inside
-    /// the margin the mask has already zeroed.
+    /// frame, so the dissolve is unchanged; the crop's own bottom edge — and the backing's —
+    /// only ever shows inside the margin the mask has already zeroed.
     ///
     /// The copy is handed `animatesSelection: false` for the same reason it is the only blurred
     /// one: a blur is recomputed whenever what it covers changes, so a selection disc animating
@@ -334,14 +370,28 @@ struct CalendarView: View {
     /// band and unreadable through it when it is. It still draws — it simply arrives instead of
     /// travelling.
     private func blurredBandLayer(_ calc: MonthCalculator) -> some View {
-        gridLayer(calc, animatesSelection: false)
-            .frame(height: band.blurCropHeight, alignment: .top)
-            .clipped()
-            .blur(radius: CalendarConstants.topChromeBlurRadius)
-            .mask { band.mask }
-            // Pinned to the top of the enclosing stack itself: the copy is no longer
-            // screen-sized, and the stack it sits in centres whatever falls short.
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        ZStack(alignment: .top) {
+            // The page's own gradient, at the page's own height, showing only its top. Sized
+            // in two steps because the colours are a function of the whole screen: give the
+            // gradient the band's height directly and the ramp is squeezed into 150pt.
+            LinearGradient.appBackground
+                .frame(height: calendarHeight)
+
+            gridLayer(calc, animatesSelection: false)
+                .frame(height: band.blurCropHeight, alignment: .top)
+                .clipped()
+                .blur(radius: CalendarConstants.topChromeBlurRadius)
+        }
+        .frame(height: band.blurCropHeight, alignment: .top)
+        .clipped()
+        .mask { band.mask }
+        // The backing is a real shape where the grid alone was not, and `Color`-like fills are
+        // hit tested. Without this every tap on the band would land here instead of on
+        // `CalendarTopChrome` above it or the day below it.
+        .allowsHitTesting(false)
+        // Pinned to the top of the enclosing stack itself: the copy is no longer
+        // screen-sized, and the stack it sits in centres whatever falls short.
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
     // MARK: - Dismiss Handler

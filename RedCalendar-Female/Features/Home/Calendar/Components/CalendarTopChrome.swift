@@ -60,11 +60,7 @@ struct CalendarTopChrome: View {
 
 #Preview {
     ZStack(alignment: .top) {
-        LinearGradient(
-            colors: [Color("AppBackgroundColor"), Color("AppBackgroundEdgeColor")],
-            startPoint: .top,
-            endPoint: .bottom
-        )
+        LinearGradient.appBackground
 
         VStack(spacing: 12) {
             ForEach(0..<12, id: \.self) { _ in

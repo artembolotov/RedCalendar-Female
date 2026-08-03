@@ -100,8 +100,9 @@ Features/
   Home/
     Calendar/
       CalendarView
-      Components/ — CalendarHeaderView, InfiniteScrollContainer
-      Models/     — CalendarModels, CalendarConstants,
+      Components/ — CalendarGridView, CalendarSelectionLayer, CalendarPalette,
+                     CalendarHeaderView, CalendarTopChrome, InfiniteScrollContainer
+      Models/     — CalendarModels, CalendarConstants, CalendarBandGeometry,
                      MonthCalculator, ScrollCommand, ViewportCalculator
     Components/   — FloatingAddButton, HomeMenuView
     HomeView, DayDetailsView, FloatingButtonState,
@@ -342,14 +343,24 @@ read as a period bar would. A fourth theme has to be placed on this same scale; 
 to make the bar pop without checking what it costs the numerals, and note that the honest fix for
 the dark end is the numeral, not the red.
 
-**The page background falls, and the indicator ring cannot follow it.** `HomeView` fills the screen
-with a `AppBackgroundColor` → `AppBackgroundEdgeColor` vertical gradient, so the page does not read
-as a flat sheet. The ring around the today/selected circle is what punches those circles out of a
-solid period bar, and it is drawn in the flat `AppBackgroundColor` — it cannot sample the gradient
-under it. That only works because the two stops are about four 8-bit levels apart: gradual across a
-whole screen, invisible across a 2pt ring. Widening that gap puts a halo around every marked day at
-the bottom of the calendar; if the gradient ever needs real range, the ring has to become a mask
-rather than a colour.
+**The page background falls, and the indicator ring cannot follow it.** `LinearGradient.appBackground`
+is a `AppBackgroundColor` → `AppBackgroundEdgeColor` vertical gradient that `HomeView` fills the
+screen with, so the page does not read as a flat sheet. The ring around the today/selected circle is
+what punches those circles out of a solid period bar, and it is drawn in the flat
+`AppBackgroundColor` — it cannot sample the gradient under it. That only works because the two stops
+are about four 8-bit levels apart: gradual across a whole screen, invisible across a 2pt ring.
+Widening that gap puts a halo around every marked day at the bottom of the calendar; if the gradient
+ever needs real range, the ring has to become a mask rather than a colour. The band's scrim makes
+the same bet and would have to move with it.
+
+It is a shared value because the calendar's top band draws it a second time. The band is opaque —
+the page's own gradient at the page's own height, cropped to the band, with the blurred grid on top
+— and that is what lets the sharp grid be drawn whole. It used to wear a gradient mask that was the
+exact complement of the band's, so the two alphas summed to one; compositing an opaque band at alpha
+`a` is the same crossfade (`a·blurred + (1-a)·sharp`) without a screen-sized offscreen pass on every
+frame of a scroll. The band drawing the *actual* gradient rather than a flat stand-in is what keeps
+it invisible over empty page, which is the whole reason it is not a `Material`. See
+`CalendarView.blurredBandLayer`.
 
 Three things are stacked below a cell's centre, in this order and no other: the day indicator
 (⌀28, and ⌀28 + a 2pt outward ring when selected, so −15…+15), the fertile line (+18…+20) and the
@@ -359,12 +370,19 @@ bar entirely, so an overlapping cycle shows both, and what keeps a comment dot f
 The three gaps are 3pt each and there is nothing spare: move any one of the four constants in
 `CalendarConstants` and the line lands under the selected day's circle or against the dots.
 
-**The selection disc belongs to no day, which is what lets it move.** It is drawn as its own layer
-above the cells (`CalendarGridView`'s Layer 4), not as a circle inside the selected cell, and a
+**The selection disc belongs to no day, which is what lets it move.** It is its own view
+(`CalendarSelectionLayer`), stacked above the grid rather than drawn inside it, and a
 numeral it covers is inverted *by the disc* — the row's numerals are drawn again in
 `AppBackgroundColor` and revealed only through it — rather than by the cell's own state. That is
 what makes a disc halfway between two days correct: cross-fading two cells' numerals instead would
 wash both of them out at the midpoint, when the disc is over neither.
+
+**Being a separate view is a performance decision as much as a visual one.** The disc lived inside
+`CalendarGridView` first, which made `selectedDayStamp` one of the grid's inputs — so every day
+tapped and every card swiped rebuilt several hundred day cells, in both copies of the grid, to move
+one circle by a column. Split out, the grid does not know a selection exists and the two redraw on
+entirely separate occasions. `CalendarView.gridLayer` stacks them so the pair still goes into both
+copies with identical inputs. Never put `selectedDayStamp` back into the grid's inputs.
 
 **The numerals do not travel; the hole does.** They are positioned in grid coordinates, in a strip
 one disc tall, and the disc is the mask over it. Laying them out relative to the disc is smaller
@@ -383,7 +401,7 @@ than being placed, in whichever direction the flight goes; a fade on the outgoin
 still, because the ghost rides the scroll. So a cross-row change is **instant** — no transition, and
 no animated transaction for SwiftUI's default `.opacity` one to attach itself to.
 
-That rule is carried by two pieces in `CalendarGridView`, and neither is optional. The animation
+That rule is carried by two pieces in `CalendarSelectionLayer`, and neither is optional. The animation
 watches `marker.centerX` alone, so a move that changes the row cannot animate even when it changes
 the column too; and the view's identity is the row, so such a move replaces it rather than reusing
 it. Without the identity the disc flies the diagonal, without the narrow value it flies the
@@ -407,35 +425,44 @@ never under the band and unreadable through it when it is. It is also the one in
 are *meant* to disagree on, and that is safe only because it is constant per copy: each still
 compares equal to its own previous self, which is all the identical-inputs rule protects.
 
-`selectionTravel` is the one grid input deliberately **outside** `==`: it decides how a change
-animates, never what is drawn, so the update that arrives once a selection has settled — carrying
-nothing but the travel falling back to zero — must compare equal and skip the body. Include it and
-every day chosen costs two full rebuilds instead of one. `reduceMotion` is the opposite case and is
+`selectionTravel` is the one input deliberately **outside** the layer's `==`: it decides how a
+change animates, never what is drawn, so the update that arrives once a selection has settled —
+carrying nothing but the travel falling back to zero — must compare equal and skip the body. Include
+it and every day chosen costs two rebuilds instead of one. `reduceMotion` is the opposite case and is
 in the comparison; like the accent theme it is read in `CalendarView` and handed down, because a
-body the grid decides to skip would never see an environment change of its own.
+body the layer decides to skip would never see an environment change of its own. Whether a day is
+today needs no input of its own: it rides along inside `viewport`.
 
 The disc is a ⌀28 view with `.position` applied from outside it, rather than a grid-sized layer
 drawing a circle somewhere inside itself. That is what lets the inverted numerals be masked by the
 disc itself, and it is why they are laid out relative to the disc's own centre rather than in grid
 coordinates.
 
-Nothing here reads the scroll. Every position in the grid is in content space — the anchor moves the
-cull, not the coordinates — so a viewport re-anchor mid-glide cannot break the interpolation, and
-`.animation(_:value: selectedDayStamp)` keeps the disc's own removal from animating on frames where
-a rebuild simply dropped its month.
+Nothing here reads the scroll. Every position in the grid and in the disc's layer is in content
+space — the anchor moves the cull, not the coordinates — so a viewport re-anchor mid-glide cannot
+break the interpolation, and a rebuild that simply dropped the disc's month removes it without a
+transition rather than animating it away.
 
 `CalendarState.dayDisplayStates` is **sparse**: it is recomputed by `computeDayDisplayStates`
 (`Core/Redux/Reducers/DayDisplayStateComputer.swift`) in the reducer whenever cycle/tag/comment/range
 state changes, and only days with content get an entry. A missing key means `DayDisplayState.empty` —
 readers must treat absence as "nothing to show", never assume every day in `loadedRange` has an entry.
 
+**The map is compared by its version, not by its contents.** `dayDisplayStatesVersion` is bumped by
+the reducer, in the one place that writes the map and only when the recomputed map differs — so equal
+versions mean an identical map, and `CalendarGridView.==` asks the integer instead of walking several
+hundred keys twice on every frame of a scroll. Both are written together and nowhere else; write the
+dictionary from anywhere else and the grid will keep drawing the old one. Most recomputes change
+nothing drawable (a comment saved outside the loaded range, a tag renamed), which is why the compare
+happens once in the reducer rather than in every reader.
+
 `CalendarState.loadedRange` is centered on the viewport: `CalendarView` dispatches
 `.calendarScrolledTo(center:)` as the user scrolls, and `DatabaseMiddleware` re-centers the range
 (and its comment/tag observations) when the center gets close to an edge. Buffer and threshold live
 in `Constants.Calendar` — do not hardcode them. **The loaded range must stay wider than what the
-calendar draws around the center** (a rendered viewport reaches roughly four months either way): a
-day scrolled into view before its range is loaded has no `DayDisplayState`, so its bars, dots and
-comments visibly draw themselves in a moment later.
+calendar draws around the center** (a rendered viewport reaches about two months either way, per
+`viewportBufferRatio`): a day scrolled into view before its range is loaded has no `DayDisplayState`,
+so its bars, dots and comments visibly draw themselves in a moment later.
 
 **Scrolling must not rebuild day cells.** The grid (`CalendarGridView`) is `Equatable` and is drawn
 for a fixed *anchor* offset; a scroll frame only slides that layer with `.offset`, and
@@ -443,8 +470,37 @@ for a fixed *anchor* offset; a scroll frame only slides that layer with `.offset
 `CalendarConstants.viewportUpdateThreshold`. Everything the grid needs must therefore be a plain
 value input — no store reads inside it — and the off-screen cull uses `anchorOffset`, never the live
 scroll offset. The cull's buffer (`dayVisibilityBufferRatio`) is what covers the drift between two
-anchors, so the two constants move together. Per-day calendar work (daystamp, day number) belongs in
-`MonthCalculator.getMonthCells(for:)`, which caches it per month; never recompute it per frame.
+anchors, so the two constants move together: it has to clear `viewportUpdateThreshold` plus one frame
+of a fast fling, and it is a share of every cell drawn in both copies of the grid, so it is sized off
+that arithmetic and not raised for comfort. `viewportBufferRatio` — the month walk that feeds the
+cull — only has to stay wider than it. Month titles are culled on the same terms the days are. Per-day
+calendar work (daystamp, day number) belongs in `MonthCalculator.getMonthCells(for:)`, which caches it
+per month; never recompute it per frame.
+
+**The scroll rail is measured once per calculator.** `getScrollLimits()` is the content-space position
+of `minMonthOffset` and `maxMonthOffset`, so reaching it measures every month in between — two
+`Calendar` calls each — and `scrollViewDidScroll` asks for it on every frame. It is cached on the
+calculator and dropped only when the locale or first weekday changes. The month range is what keeps
+that one walk affordable: at the ±200 years it once was, the first frame of the first drag paid for
+~9600 `Calendar` calls. Do not widen it without measuring, and do not reach past the cache.
+
+**A flight is capped, because a flight is only a flight while someone can follow it.**
+`spring(forDistance:)` gives every distance the same fixed duration, which is right for a screen or
+two and absurd from the rail: sixty years in 0.75s is thirteen screens per frame — a strobe, and
+also the whole of the stutter, since every reported frame re-anchors the viewport, rebuilds the grid
+and pushes a scroll centre that re-centres the loaded range and restarts the database observations
+with it. `InfiniteScrollContainer.launchOffset` closes everything past
+`CalendarConstants.flightCapScreens` instantly first, on the side the calendar is coming from, and
+animates only the rest. Two screens is chosen against the 1400pt threshold in `spring(forDistance:)`
+— it is the first cap that lands on the harder-damped curve — so changing it silently changes how
+the calendar settles. A day selection re-centring never reaches the cap, because only a day already
+on screen can be tapped.
+
+Note what the cap does *not* fix: `SpringInterpolation.progress` is snapped to 1 at `t = 1` rather
+than arriving there, and at ζ=0.95 the curve is still climbing at that point — it crosses its target
+at `t = 0.904` and is cut off at its peak. The residual is 0.00705% of the distance, so the cap
+reduces it from 19pt to a tenth of a point rather than removing it. Normalising the curve on its own
+value at `t = 1` is the real fix and has not been done.
 
 ### API Service
 

@@ -96,10 +96,20 @@ func appReducer(state: AppState, action: AppAction) -> AppState {
     }
 
     if recomputeDayDisplayStates {
-        state.calendarState.dayDisplayStates = computeDayDisplayStates(
+        let recomputed = computeDayDisplayStates(
             state.calendarState,
             cycleSettings: ResolvedCycleSettings(state.currentUser?.settings?.cycle)
         )
+
+        // Compared here, once, rather than left for the readers. Most of what triggers a
+        // recompute changes nothing a day is drawn with — a comment saved outside the loaded
+        // range, a tag renamed — and this is the one place that can turn that into a version
+        // the calendar grid then skips on. The version and the dictionary are written
+        // together and nowhere else, which is what makes equal versions mean equal contents.
+        if recomputed != state.calendarState.dayDisplayStates {
+            state.calendarState.dayDisplayStates = recomputed
+            state.calendarState.dayDisplayStatesVersion &+= 1
+        }
     }
 
     return state

@@ -15,7 +15,7 @@ class ViewportCalculator {
         today: Daystamp
     ) -> ViewportData {
 
-        let bufferHeight = screenHeight * 1.5
+        let bufferHeight = screenHeight * CalendarConstants.viewportBufferRatio
         let viewportTop = -scrollOffset - bufferHeight
         let viewportBottom = -scrollOffset + screenHeight + bufferHeight
 

@@ -66,6 +66,20 @@ struct InfiniteScrollContainer: UIViewRepresentable {
             // usually arrives mid-flight. Bend the flight rather than start it over.
             if context.coordinator.retarget(to: targetY) { return }
 
+            // Close everything past the cap before the animation starts, so the flight only
+            // covers the part of the journey a person can follow. See `launchOffset`.
+            let launchY = Self.launchOffset(
+                from: uiView.contentOffset.y,
+                to: targetY,
+                viewportHeight: uiView.bounds.height
+            )
+            if launchY != uiView.contentOffset.y {
+                uiView.contentOffset.y = launchY
+            }
+
+            // Read back rather than trusting `launchY`: writing the offset runs
+            // `scrollViewDidScroll`, which clamps to the rail, and the flight has to be
+            // measured from wherever the calendar actually ended up.
             let distance = abs(targetY - uiView.contentOffset.y)
 
             // Re-selecting the day already centred has nowhere to travel; running the display
@@ -101,8 +115,41 @@ struct InfiniteScrollContainer: UIViewRepresentable {
     /// Damping never decreases with distance: a short hop that overshoots reads as a wobble,
     /// and it is slow enough for the overshoot to be watchable. The short duration also lands
     /// the re-centring together with the card's own entrance.
+    ///
+    /// The 1400pt threshold is also what `CalendarConstants.flightCapScreens` is chosen
+    /// against — the cap decides which of these two curves every long flight gets.
     static func spring(forDistance distance: CGFloat) -> (TimeInterval, Double) {
         distance < 1400 ? (0.5, 0.90) : (0.75, 0.95)
+    }
+
+    /// Where the flight actually starts from — the calendar's own position, or the furthest
+    /// point from the target it is allowed to fly from.
+    ///
+    /// Every distance is animated over the same fixed duration, which is fine while the
+    /// distance is a screen or two and absurd from the ends of the calendar: the rail is sixty
+    /// years away, and covering that in 0.75s is thirteen screens per frame. Nobody reads that
+    /// as the calendar travelling — it is a strobe, and it is also the whole of the stutter,
+    /// because every reported frame re-anchors the viewport, rebuilds the grid and pushes a
+    /// scroll centre that re-centres the loaded range and restarts the database observations
+    /// with it. Cutting the journey to `flightCapScreens` cuts all of that to what one flight
+    /// across two screens costs.
+    ///
+    /// The cut is taken on the side the calendar is coming from, so the flight still runs in
+    /// the direction the arrow on the button pointed.
+    ///
+    /// The jump also does the loaded range a favour. It reports a centre a screen or two from
+    /// the destination a whole flight before arriving, where the uncapped version only reached
+    /// that centre on its final frame — so the days being flown to now have the length of the
+    /// animation to arrive from the database, instead of drawing themselves in afterwards.
+    static func launchOffset(from current: CGFloat, to target: CGFloat, viewportHeight: CGFloat) -> CGFloat {
+        // A view that has not been laid out yet would cap every flight to nothing.
+        guard viewportHeight > 0 else { return current }
+
+        let cap = viewportHeight * CalendarConstants.flightCapScreens
+        let travel = target - current
+        guard abs(travel) > cap else { return current }
+
+        return target - cap * (travel < 0 ? -1 : 1)
     }
 
     func makeCoordinator() -> Coordinator {

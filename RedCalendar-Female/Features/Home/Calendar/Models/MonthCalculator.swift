@@ -25,12 +25,40 @@ final class MonthCalculator: ObservableObject {
     private let bottomSpacing: CGFloat = CalendarConstants.bottomSpacing
     private let gridVerticalSpacing: CGFloat = CalendarConstants.gridVerticalSpacing
         
+    // None of these are evicted from, and none of them need to be: every key is a month offset,
+    // and every offset that reaches this class has already been clamped to
+    // `CalendarConstants.minMonthOffset ... maxMonthOffset` — by `ViewportCalculator` on both
+    // ends of its walk, by `CalendarView.centerDaystamp`, and by the scroll rail itself. So the
+    // ceiling is 1441 entries each, by construction rather than by policy.
+    //
+    // In bytes that is ~46KB apiece for the three below that hold a number, ~58KB of month
+    // names, and ~2MB of month cells — and the last of those only fills if someone drags
+    // through all 120 years, since `getMonthCells` and `getMonthName` are demand-driven where
+    // the other three are filled outright by the first measurement of the rail. A calculator
+    // does not outlive a change of locale, first weekday, day or layout metrics either; it is
+    // replaced whole, caches and all.
+    //
+    // There was an eviction pass here once. It was gated on `weekCountCache.count`, which the
+    // rail measurement saturates permanently, and it dropped entries by `abs(offset)` —
+    // distance from today, not from what is on screen — so it would have deleted the months
+    // being drawn precisely when someone had scrolled far enough to make the caches worth
+    // trimming. It also aimed at the two cheapest caches while `cumulativePositionCache`, which
+    // is computed from them and never dropped, kept everything it had. It never actually ran.
     private var weekCountCache: [Int: Int] = [:]
     private var monthHeightCache: [Int: CGFloat] = [:]
     private var monthCellsCache: [Int: [MonthCell?]] = [:]
     private var monthNameCache: [Int: String] = [:]
     private var cumulativePositionCache: [Int: CGFloat] = [0: 0]
-    
+
+    // The rail the scroll view is clamped to, kept once it has been worked out.
+    //
+    // It is by far the most expensive thing this class computes: the rail is the content-space
+    // position of the outermost months, so reaching it measures every month in between — a
+    // `date(byAdding:)` and a `range(of:in:for:)` each. `scrollViewDidScroll` asks for it on
+    // every frame, which made the first frame of the first drag pay for all of them at once.
+    private var cachedScrollLimits: (min: CGFloat, max: CGFloat)?
+
+
     private(set) var cachedLocaleIdentifier: String
     private(set) var cachedFirstWeekday: Int
     
@@ -57,7 +85,9 @@ final class MonthCalculator: ObservableObject {
             monthCellsCache.removeAll()
             monthNameCache.removeAll()
             cumulativePositionCache = [0: 0]
-            
+            // Month heights follow the first weekday, so the rail moves with it too.
+            cachedScrollLimits = nil
+
             dateFormatter.locale = Locale.current
             
             cachedLocaleIdentifier = currentLocale
@@ -170,8 +200,7 @@ final class MonthCalculator: ObservableObject {
                 }
             }
         }
-        
-        cleanupCacheIfNeeded()
+
         return position
     }
     
@@ -209,28 +238,22 @@ final class MonthCalculator: ObservableObject {
     }
     
     func getScrollLimits() -> (min: CGFloat, max: CGFloat) {
+        checkAndInvalidateCacheIfNeeded()
+
+        if let cached = cachedScrollLimits {
+            return cached
+        }
+
         let firstMonthY = getYPosition(for: minMonthOffset)
         let lastMonthY = getYPosition(for: maxMonthOffset)
         let lastMonthHeight = getMonthHeight(for: maxMonthOffset)
-        
+
         let maxScrollUp = -firstMonthY
         let availableHeight = screenHeight - 31
         let maxScrollDown = availableHeight - (lastMonthY + lastMonthHeight)
-        
-        return (min: maxScrollDown, max: maxScrollUp)
-    }
-    
-    private func cleanupCacheIfNeeded() {
-        if weekCountCache.count > 200 {
-            let sortedKeys = weekCountCache.keys.sorted { abs($0) > abs($1) }
-            let keysToRemove = Array(sortedKeys.prefix(50))
-            
-            for key in keysToRemove {
-                weekCountCache.removeValue(forKey: key)
-                monthHeightCache.removeValue(forKey: key)
-                monthCellsCache.removeValue(forKey: key)
-                monthNameCache.removeValue(forKey: key)
-            }
-        }
+
+        let limits = (min: maxScrollDown, max: maxScrollUp)
+        cachedScrollLimits = limits
+        return limits
     }
 }

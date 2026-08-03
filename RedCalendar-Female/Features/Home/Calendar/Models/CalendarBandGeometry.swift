@@ -5,8 +5,8 @@
 
 import SwiftUI
 
-// The top band's measurements, the two masks that carve the screen along them, and the wash
-// that stands between.
+// The top band's measurements, the mask that carves the screen along them, and the wash that
+// stands between.
 //
 // It exists as one value because three things now have to agree on it exactly: the layer that
 // blurs the calendar into the band, the wash that takes the colour out of what is blurred, and
@@ -39,35 +39,31 @@ struct CalendarBandGeometry {
     }
 
     /// Opaque across the bar, gone by the bottom of the dissolve, absent for the rest of the
-    /// screen. Worn by the blurred copy of the grid.
+    /// screen. Worn by the blurred copy of the grid, which is the only thing that wears a mask
+    /// here.
+    ///
+    /// The sharp grid used to wear the exact complement of this, so that the two alphas summed
+    /// to one and the dissolve was an honest crossfade of a single image rather than crisp
+    /// numerals inside a soft halo of themselves. That complement is gone, and the property is
+    /// not coming back: it was a gradient mask over a full-screen layer, which is a
+    /// screen-sized offscreen pass per frame of scroll. The blurred copy is drawn on the page's
+    /// own gradient instead — opaque, so compositing it at alpha `a` produces the identical
+    /// crossfade with nothing showing through. See `CalendarView.blurredBandLayer`.
     ///
     /// Built out of fixed heights rather than gradient stops at fractions: a mask is stretched
-    /// to the frame of whatever it masks, and proportional stops would land differently on the
-    /// cropped blur copy and the full-screen sharp one — the fixed heights are what keep this
-    /// mask and `inverseMask` exact complements of each other.
+    /// to the frame of whatever it masks, and proportional stops would land at different
+    /// heights on a layer cropped to `blurCropHeight` than on one cropped anywhere else. The
+    /// fixed heights are what let the dissolve stay put whatever the crop.
     var mask: some View {
-        band(
-            above: .black,
-            below: .clear,
-            solidHeight: barHeight,
-            fadeHeight: CalendarConstants.topChromeFadeHeight
-        )
-    }
+        VStack(spacing: 0) {
+            Color.black
+                .frame(height: barHeight)
 
-    /// The exact complement of `mask`, worn by the sharp grid.
-    ///
-    /// The sharp layer has to be *erased* under the band rather than merely covered. Leaving it
-    /// beneath the blurred copy would show both at once — crisp numerals inside a soft halo of
-    /// themselves. Because the two alphas sum to one at every height, the dissolve is an honest
-    /// crossfade of a single image from blurred to sharp: no seam, no doubling, and no dip in
-    /// brightness through the middle.
-    var inverseMask: some View {
-        band(
-            above: .clear,
-            below: .black,
-            solidHeight: barHeight,
-            fadeHeight: CalendarConstants.topChromeFadeHeight
-        )
+            LinearGradient(colors: [.black, .clear], startPoint: .top, endPoint: .bottom)
+                .frame(height: CalendarConstants.topChromeFadeHeight)
+
+            Color.clear
+        }
     }
 
     /// The wash laid over the blurred copy: the page's own colour, densest at the top of the
@@ -108,19 +104,5 @@ struct CalendarBandGeometry {
         }
         .frame(maxWidth: .infinity)
         .allowsHitTesting(false)
-    }
-
-    // MARK: - Private
-
-    private func band(above: Color, below: Color, solidHeight: CGFloat, fadeHeight: CGFloat) -> some View {
-        VStack(spacing: 0) {
-            above
-                .frame(height: solidHeight)
-
-            LinearGradient(colors: [above, below], startPoint: .top, endPoint: .bottom)
-                .frame(height: fadeHeight)
-
-            below
-        }
     }
 }
