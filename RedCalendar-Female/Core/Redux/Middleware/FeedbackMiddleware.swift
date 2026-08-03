@@ -18,6 +18,13 @@ let feedbackMiddleware: Middleware<AppState, AppAction> = { state, action, dispa
         
         //feedbackService.playSuccess()
     
+    // MARK: - Selection Events
+    // Only a day being chosen, never one being let go: dismissing the card is also a
+    // `.setSelectedDayStamp(nil)`, and a tick for tapping empty space is a tick for nothing.
+    case .setSelectedDayStamp(.some):
+
+        feedbackService.playSelection()
+
     // MARK: - Error Events
     case .setAuthState(.authenticating(.email(.entry(_, .some(_))))),
          .setAuthState(.authenticating(.email(.registration(_, _, _, .some(_))))),
