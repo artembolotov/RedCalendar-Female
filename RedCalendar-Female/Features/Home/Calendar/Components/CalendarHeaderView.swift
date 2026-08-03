@@ -58,13 +58,18 @@ import SwiftUI
 // instead, while the fill lifts rather than shades. Same instruction — sit on the page, do not
 // cut into it — reached from the other side.
 //
-// What could not come over at all is the material itself, on two counts. It is translucent by
-// construction and this strip is deliberately not, which settles it on its own. And
-// `HomeMenuView` gets it from `.ultraThinMaterial` (the system's glass above iOS 26), where a
-// material is a backdrop capture per frame — over a ⌀36 button that is nothing, over a
-// 370pt strip standing on an already-blurred band it is a second full-width capture on every
-// frame of a scroll, which is the same budget `topChromeBlurRadius` is held to one radius by. A
-// solid track has no use for one anyway.
+// What could not come over — below iOS 26 — is the material itself, on two counts. It is
+// translucent by construction and this strip is deliberately not, which settles it on its own.
+// And `.ultraThinMaterial` is a backdrop capture per frame — over a ⌀36 button that is nothing,
+// over a 370pt strip standing on an already-blurred band it is a second full-width capture on
+// every frame of a scroll, which is the same budget `topChromeBlurRadius` is held to one radius
+// by. A solid track has no use for one anyway.
+//
+// From iOS 26 that reverses: the system's own `.glassEffect` replaces the whole hand-built
+// surface (see `track`). It is still a capture, and the budget argument still stands, but it is
+// the platform's glass drawn once in place of a fill, a rim and a blurred shadow — and the strip
+// wanting to read as a surface sitting on the page is exactly what the material is for. The two
+// themes' fill/shadow/rim recipe lives on only as the pre-26 `legacyTrack`.
 struct CalendarHeaderView: View {
     let weekdays: [String]
     let width: CGFloat
@@ -99,7 +104,27 @@ struct CalendarHeaderView: View {
 
     // MARK: - Layers
 
+    // From iOS 26 the whole hand-built surface — page backing, tone fill, rim and shadow, one
+    // recipe per theme — collapses into a single `.glassEffect` in the same capsule. The material
+    // is what the light theme's shadow and the dark theme's rim were each faking from their own
+    // side: something that sits on the page and lifts off it. The objection in the file header —
+    // that a material is a per-frame backdrop capture, too dear over a 370pt strip on an
+    // already-blurred band — is a real cost, but it is the system's own glass now and drawn once
+    // where the old track needed a fill, a rim and a blurred shadow stacked. The labels still ride
+    // above it in the ZStack, so nothing here casts onto them.
+    @ViewBuilder
     private var track: some View {
+        if #available(iOS 26.0, *) {
+            Color.clear
+                .frame(width: trackWidth, height: CalendarConstants.weekdaysTrackHeight)
+                .glassEffect(in: Capsule())
+                .position(x: width / 2, y: height / 2)
+        } else {
+            legacyTrack
+        }
+    }
+
+    private var legacyTrack: some View {
         Capsule()
             .fill(
                 Color("AppBackgroundColor")
