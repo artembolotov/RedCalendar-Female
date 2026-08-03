@@ -18,6 +18,11 @@ typealias Middleware<State, Action> = (State, Action, @escaping (Action) -> Void
 - `Store` is `@MainActor final class`. Never subclass or bypass `@MainActor`.
 - Reducers are pure functions — no side effects, no async work inside them.
 - All async work and API calls belong in middleware.
+- **A middleware body does not run on the main thread.** `Middleware` is a plain `async` closure,
+  so awaiting it from the `@MainActor` store hops off the main actor. Anything UIKit-shaped
+  reached from middleware has to get back on its own — `TapticFeedbackService` does it internally,
+  because a `UIFeedbackGenerator` touched from a background thread kills the process with
+  `_internal_deactivate called more times than the feedback engine was activated`.
 - Middleware returns `[Action]` for synchronous follow-up actions; use the `dispatch` closure for actions dispatched from within an async `Task`.
 - State is always mutated by returning a modified copy from the reducer — never mutate state directly.
 - All app state lives in `AppState`. Do not store state in views or view models.
@@ -353,6 +358,71 @@ period bar ends (±11) and *above* the dots on purpose — that is what keeps it
 bar entirely, so an overlapping cycle shows both, and what keeps a comment dot from crowding it.
 The three gaps are 3pt each and there is nothing spare: move any one of the four constants in
 `CalendarConstants` and the line lands under the selected day's circle or against the dots.
+
+**The selection disc belongs to no day, which is what lets it move.** It is drawn as its own layer
+above the cells (`CalendarGridView`'s Layer 4), not as a circle inside the selected cell, and a
+numeral it covers is inverted *by the disc* — the row's numerals are drawn again in
+`AppBackgroundColor` and revealed only through it — rather than by the cell's own state. That is
+what makes a disc halfway between two days correct: cross-fading two cells' numerals instead would
+wash both of them out at the midpoint, when the disc is over neither.
+
+**The numerals do not travel; the hole does.** They are positioned in grid coordinates, in a strip
+one disc tall, and the disc is the mask over it. Laying them out relative to the disc is smaller
+code and was the first version of this, and it is wrong in motion: a view's content is built once
+per body pass while only `.position` interpolates, so the disc carries the *destination's* digit for
+the whole flight and leaves day 5 already showing a 6 — the number changing before the motion rather
+than because of it. The strip's height is not incidental either. A mask is an offscreen pass over
+the bounds it is given, and this one runs every frame of a flight; over the whole grid that is a
+screen-sized buffer per frame to show a ⌀28 hole.
+
+**It animates on one condition: that it can stay where it is on screen.** Within a row it can — the
+calendar centres on the row, and the row has not changed — so the disc travels. A change of row is
+the opposite case: the calendar flies to the new row, and whatever the disc does during that flight
+is carried by a moving grid on top of its own motion. It reads as the disc falling into place rather
+than being placed, in whichever direction the flight goes; a fade on the outgoing disc is worse
+still, because the ghost rides the scroll. So a cross-row change is **instant** — no transition, and
+no animated transaction for SwiftUI's default `.opacity` one to attach itself to.
+
+That rule is carried by two pieces in `CalendarGridView`, and neither is optional. The animation
+watches `marker.centerX` alone, so a move that changes the row cannot animate even when it changes
+the column too; and the view's identity is the row, so such a move replaces it rather than reusing
+it. Without the identity the disc flies the diagonal, without the narrow value it flies the
+vertical. Do not widen the value to `selectedDayStamp` and do not wrap the disc in a container
+`.animation` — either one hands the cross-row case an animated transaction again.
+
+**Its short curve is tied to the day card's settle, by measurement.** A swipe across the card moves
+both, so they have to land together: `SpringInterpolation` is normalized, so the card's
+`settleDuration` of 0.55 at ζ=0.85 is a real decay of ~15.5 s⁻¹ and it arrives at ~0.25s (the rest
+is the tail `CardPagingAnimator.onArrival` exists to ignore), against the disc's ~16.9 s⁻¹ and
+~0.23s. Move one and check the other. Longer travel takes a longer, harder-damped curve, the trade
+`InfiniteScrollContainer.spring(forDistance:)` already makes for the calendar's own flight. What
+cannot be matched is the start — the card takes the flick's velocity, the disc always leaves from
+rest, and it must, because choosing an animation at the call site requires a `withAnimation` that
+`Store.send` throws away when it defers the state change into a `Task`.
+
+**The blurred copy draws the disc but does not animate it** (`animatesSelection`). A blur is
+recomputed whenever what it covers changes, so a disc travelling inside `blurredBandLayer` costs a
+gaussian per frame — the single cost the whole band is budgeted against — for a disc that is almost
+never under the band and unreadable through it when it is. It is also the one input the two copies
+are *meant* to disagree on, and that is safe only because it is constant per copy: each still
+compares equal to its own previous self, which is all the identical-inputs rule protects.
+
+`selectionTravel` is the one grid input deliberately **outside** `==`: it decides how a change
+animates, never what is drawn, so the update that arrives once a selection has settled — carrying
+nothing but the travel falling back to zero — must compare equal and skip the body. Include it and
+every day chosen costs two full rebuilds instead of one. `reduceMotion` is the opposite case and is
+in the comparison; like the accent theme it is read in `CalendarView` and handed down, because a
+body the grid decides to skip would never see an environment change of its own.
+
+The disc is a ⌀28 view with `.position` applied from outside it, rather than a grid-sized layer
+drawing a circle somewhere inside itself. That is what lets the inverted numerals be masked by the
+disc itself, and it is why they are laid out relative to the disc's own centre rather than in grid
+coordinates.
+
+Nothing here reads the scroll. Every position in the grid is in content space — the anchor moves the
+cull, not the coordinates — so a viewport re-anchor mid-glide cannot break the interpolation, and
+`.animation(_:value: selectedDayStamp)` keeps the disc's own removal from animating on frames where
+a rebuild simply dropped its month.
 
 `CalendarState.dayDisplayStates` is **sparse**: it is recomputed by `computeDayDisplayStates`
 (`Core/Redux/Reducers/DayDisplayStateComputer.swift`) in the reducer whenever cycle/tag/comment/range

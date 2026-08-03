@@ -10,6 +10,11 @@ import SwiftUI
 // MARK: - Main Calendar View
 struct CalendarView: View {
     @EnvironmentObject var store: AppStore
+    // Read here and handed down for the same reason the accent theme is: the grid is
+    // `Equatable`, so a body it decides to skip would never see an environment change, and a
+    // value it reads for itself can go stale behind that comparison. As an input it is part of
+    // the comparison and cannot.
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Binding var cardHeight: DayCardHeight
     @Binding var floatingButtonState: FloatingButtonState
     @Binding var scrollCommand: ScrollCommand
@@ -37,6 +42,13 @@ struct CalendarView: View {
     @State private var scrollOffset: CGFloat = 0
     @State private var isDragging = false
     @State private var lastDispatchedCenter: Daystamp?
+
+    // The day the selection is coming *from*, which is what tells the disc how far it is about
+    // to travel. Updated from the selection's own `onChange`, so during the render that carries
+    // the new day this still holds the old one — which is exactly the pass that has to choose
+    // the curve. If the two ever ran the other way round the travel would read as zero and the
+    // disc would take the short curve, which is the right way to be wrong.
+    @State private var previousSelection: Daystamp?
 
     // MARK: - State: Viewport
     // Rebuilt in steps rather than per frame — see updateViewportTracking().
@@ -91,6 +103,14 @@ struct CalendarView: View {
 
         if cardHeight.day == selected, cardHeight.height > 0 { return cardHeight.height }
         return assumedCardHeight
+    }
+
+    /// How many days the selection just moved, for the disc's curve. Zero whenever there is
+    /// nothing to travel from — a first selection appears rather than arrives.
+    private var selectionTravel: Int {
+        guard let current = store.state.calendarState.selectedDayStamp,
+              let previous = previousSelection else { return 0 }
+        return abs(current - previous)
     }
 
     /// Adjusts calendar position when DayDetailsView is shown
@@ -222,6 +242,11 @@ struct CalendarView: View {
             // same pass, the selection is what decides whether the height is the one being
             // waited for.
             .onChange(of: store.state.calendarState.selectedDayStamp) { newValue in
+                // Ahead of the guard, because the day the disc came from is not the
+                // calculator's business: a selection that skipped this would leave the next one
+                // measuring its travel from a day two selections ago.
+                previousSelection = newValue
+
                 guard let calc = calculator else { return }
                 handleDaySelection(newValue, calculator: calc)
             }
@@ -253,7 +278,11 @@ struct CalendarView: View {
     /// slides them. Let the two argument lists drift and the second copy would rebuild its day
     /// cells on frames the first one sat still for, doubling the work this whole design exists
     /// to avoid.
-    private func gridLayer(_ calc: MonthCalculator) -> some View {
+    ///
+    /// `animatesSelection` is the one input the copies are *meant* to disagree on, and it is
+    /// safe to because it is a constant per copy: each still compares equal to its own previous
+    /// self, which is all the rule above is protecting. What it buys is in `blurredBandLayer`.
+    private func gridLayer(_ calc: MonthCalculator, animatesSelection: Bool = true) -> some View {
         CalendarGridView(
             viewport: viewport,
             anchorOffset: viewportAnchor,
@@ -263,7 +292,10 @@ struct CalendarView: View {
             today: store.state.calendarState.todayDayStamp,
             width: calendarWidth,
             height: calendarHeight,
-            theme: store.state.accentTheme
+            theme: store.state.accentTheme,
+            reduceMotion: reduceMotion,
+            selectionTravel: selectionTravel,
+            animatesSelection: animatesSelection
         )
         .equatable()
         .offset(y: scrollOffset)
@@ -295,8 +327,14 @@ struct CalendarView: View {
     /// a strip a fraction of that size. The mask still runs after the blur, over the cropped
     /// frame, so the dissolve is unchanged; the crop's own bottom edge only ever shows inside
     /// the margin the mask has already zeroed.
+    ///
+    /// The copy is handed `animatesSelection: false` for the same reason it is the only blurred
+    /// one: a blur is recomputed whenever what it covers changes, so a selection disc animating
+    /// inside this layer means a gaussian per frame of a flight, for a disc almost never in the
+    /// band and unreadable through it when it is. It still draws — it simply arrives instead of
+    /// travelling.
     private func blurredBandLayer(_ calc: MonthCalculator) -> some View {
-        gridLayer(calc)
+        gridLayer(calc, animatesSelection: false)
             .frame(height: band.blurCropHeight, alignment: .top)
             .clipped()
             .blur(radius: CalendarConstants.topChromeBlurRadius)
