@@ -136,7 +136,8 @@ struct CalendarSelectionLayer: View, Equatable {
         }
     }
 
-    /// How the disc gets where it is going, or `nil` for straight there.
+    /// How the disc gets where it is going, or `nil` for straight there — which is the usual
+    /// answer. Only a one-day move slides; see `Animation.daySelection(travelDays:)`.
     ///
     /// Nil in the blurred copy of the grid, and that is a performance decision rather than a
     /// visual one: a disc animating inside `CalendarView.blurredBandLayer` recomputes that

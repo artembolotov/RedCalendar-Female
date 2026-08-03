@@ -14,9 +14,36 @@ extension Animation {
     /// than the entrance: the top edge travels alone here, and a bounce on it reads as a glitch.
     static let cardLevelChange = Animation.spring(response: 0.35, dampingFraction: 0.9)
 
-    /// The selection disc travelling along a row, over `travelDays` days.
+    /// The selection disc travelling along a row, over `travelDays` days — or `nil` for straight
+    /// there, which is every move but one.
     ///
-    /// **The short curve is tied to the day card's settle, and the two were measured against
+    /// **Only a single step slides.** The disc travels when the selection moves by exactly one
+    /// day and stays in its row; every other move places it. That is not a threshold that could
+    /// have been drawn anywhere — a one-day move is the only one a gesture produces, because the
+    /// day card pages by ±1 and nothing else (`DayDetailsPagerView.commit(shift:)`), so it is the
+    /// only move where the disc is following something the hand is already doing. Tapping a day
+    /// four columns over is not a movement the user made; it is a choice, and drawing a line
+    /// across the week to illustrate it is the calendar explaining itself to someone who was not
+    /// asking.
+    ///
+    /// It also ends the strobe, which is what the flight actually cost. The disc is a mask, so
+    /// every numeral it crosses inverts to the page colour and back on the way past — a jump
+    /// across the week flickered five digits in sequence, and that, rather than the disc, is what
+    /// was tiring to watch. Speeding the sweep up only shortens each flash; not crossing the
+    /// intervening days at all removes them. A single step passes over nothing, which is why it
+    /// is the one case that survives.
+    ///
+    /// This is the same judgement `CalendarConstants.flightCapScreens` makes about the calendar's
+    /// own flight, and the one the row identity in `CalendarSelectionLayer` already made about a
+    /// change of row: motion that cannot be followed is not motion, and a placement reads as
+    /// deliberate where an unfollowable flight reads as a glitch.
+    ///
+    /// A midnight rollover is **not** one of these cases, though it looks like it should be:
+    /// `.updateTodayDayStamp` moves `todayDayStamp` alone and never touches `selectedDayStamp`,
+    /// so the disc does not move at all when the day turns over. What moves is the today marker
+    /// inside the grid, which is drawn per-cell and has no animation of its own.
+    ///
+    /// **The curve is tied to the day card's settle, and the two were measured against
     /// each other rather than eyeballed.** A swipe across the card moves both — the card by its
     /// own display link, the disc by this — so they have to land together. `SpringInterpolation`
     /// is normalized (ζ=0.85, ω=10 across the whole duration), so at the card's
@@ -31,16 +58,14 @@ extension Animation {
     /// `Task`, so no `withAnimation` around a dispatch survives to reach the view. On a hard
     /// flick the card will leave first; that is structural, not a number to tune.
     ///
-    /// Longer travel gets a longer, calmer curve, the same trade
-    /// `InfiniteScrollContainer.spring(forDistance:)` makes for the calendar's own flight —
-    /// and, as there, damping goes **up** with distance, never down: the fast peak velocity of
-    /// a long throw is exactly what makes an overshoot read as a wobble. Below the threshold a
-    /// move is a step — a swipe, or a tap on a neighbour — and the disc should keep the card's
-    /// timing. Above it the move is a jump across the week, where the same duration would only
-    /// mean a whippier disc.
-    static func daySelection(travelDays: Int) -> Animation {
-        travelDays >= 3
-            ? .spring(response: 0.48, dampingFraction: 0.90)
-            : .spring(response: 0.32, dampingFraction: 0.86)
+    /// There is one curve now, and that is a consequence rather than a simplification: the only
+    /// distance it is ever asked to cover is one cell. A second, calmer curve for long throws
+    /// lived here and is gone with the throws themselves — it was tuned against a wobble that a
+    /// 50pt slide cannot produce.
+    ///
+    /// `travelDays` is `0` for a first selection, which takes the same path as a long jump and
+    /// for the same reason: a disc appearing has nowhere to have come from.
+    static func daySelection(travelDays: Int) -> Animation? {
+        travelDays == 1 ? .spring(response: 0.32, dampingFraction: 0.86) : nil
     }
 }

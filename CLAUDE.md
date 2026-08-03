@@ -412,11 +412,46 @@ vertical. Do not widen the value to `selectedDayStamp` and do not wrap the disc 
 both, so they have to land together: `SpringInterpolation` is normalized, so the card's
 `settleDuration` of 0.55 at ζ=0.85 is a real decay of ~15.5 s⁻¹ and it arrives at ~0.25s (the rest
 is the tail `CardPagingAnimator.onArrival` exists to ignore), against the disc's ~16.9 s⁻¹ and
-~0.23s. Move one and check the other. Longer travel takes a longer, harder-damped curve, the trade
-`InfiniteScrollContainer.spring(forDistance:)` already makes for the calendar's own flight. What
-cannot be matched is the start — the card takes the flick's velocity, the disc always leaves from
-rest, and it must, because choosing an animation at the call site requires a `withAnimation` that
-`Store.send` throws away when it defers the state change into a `Task`.
+~0.23s. Move one and check the other. What cannot be matched is the start — the card takes the
+flick's velocity, the disc always leaves from rest, and it must, because choosing an animation at
+the call site requires a `withAnimation` that `Store.send` throws away when it defers the state
+change into a `Task`.
+
+**Only a swipe slides the disc. A tap always places it, at any distance.**
+`Animation.daySelection(travelDays:)` returns a curve for `travelDays == 1` and `nil` for
+everything else — a jump across the week, and a first selection, which has nowhere to have come
+from. ±1 is the only move a gesture makes, since the day card pages by exactly one day
+(`DayDetailsPagerView.commit(shift:)`), so it is the only move where the disc follows something
+the hand is already doing.
+
+That leaves a tap on a *neighbouring* day, which is also one day and must not look like the swipe:
+a disc sliding to a day the user already pointed at illustrates a journey nobody took. It is
+suppressed by `CalendarView.selectionWasTapped`, set by `onDayTapped` and cleared by the
+`onChange` that the selection triggers, so it describes exactly one change — the same one-pass
+lifetime `previousSelection` has. It is folded into `selectionTravel`, which reports the distance
+the disc *should* cover rather than the one it did: that keeps it out of `CalendarSelectionLayer`,
+which already takes that single value and already exempts it from `==`. A separate input would
+need the same exemption for the same reason, and is one more thing to get wrong.
+
+Only the tap can be recognised, because only the tap happens in `CalendarView` — the card's paging
+lives in `DayDetailsPagerView`, and `HomeView.setTodaySelected()` in a third place. Distinguishing
+them at the action would mean giving `.setSelectedDayStamp` a provenance the reducer has no use
+for. The consequence to know: the floating today button, pressed while the selection sits on
+yesterday or tomorrow, still slides. It is a choice rather than a gesture and by this rule should
+place, but it cannot say so from where it lives.
+
+What the flight actually cost was the strobe. The disc is a mask, so every numeral it crosses
+inverts to the page colour and back on the way past — a jump across the week flickered five digits
+in sequence, and that, not the disc, was what was tiring. Speeding the sweep up only shortens each
+flash; not crossing the intervening days removes them. A single step passes over nothing, which is
+why it is the case that survives. The long throw once had a second, calmer curve of its own; it is
+gone with the throws, having been tuned against a wobble a 50pt slide cannot produce. This is the
+judgement `flightCapScreens` already makes about the calendar's own flight, and the one the row
+identity already made about a change of row: motion that cannot be followed is not motion.
+
+**A midnight rollover does not move the disc**, though it reads like a one-day step that should
+slide. `.updateTodayDayStamp` writes `todayDayStamp` alone and never touches `selectedDayStamp`;
+what moves is the today marker inside the grid, which is drawn per-cell and has no animation.
 
 **The blurred copy draws the disc but does not animate it** (`animatesSelection`). A blur is
 recomputed whenever what it covers changes, so a disc travelling inside `blurredBandLayer` costs a

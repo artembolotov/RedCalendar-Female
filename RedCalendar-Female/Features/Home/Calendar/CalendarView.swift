@@ -50,6 +50,18 @@ struct CalendarView: View {
     // disc would take the short curve, which is the right way to be wrong.
     @State private var previousSelection: Daystamp?
 
+    // Whether the selection now landing was made by tapping a day in the calendar. Set by the
+    // tap itself and cleared by the selection it produces, so it describes exactly one change —
+    // the same one-pass lifetime `previousSelection` has, and for the same reason.
+    //
+    // It exists because a tap and a swipe are the same one-day move and must not look alike. A
+    // swipe is the hand moving the selection, and the disc follows it; a tap is a choice, and a
+    // disc sliding to a day the user already pointed at illustrates a journey nobody took. Only
+    // the tap can be recognised here, because only the tap happens in this view — the card's
+    // paging lives in `DayDetailsPagerView`, and telling them apart at the action would mean
+    // giving `setSelectedDayStamp` a provenance the reducer has no use for.
+    @State private var selectionWasTapped = false
+
     // MARK: - State: Viewport
     // Rebuilt in steps rather than per frame — see updateViewportTracking().
     @State private var viewport: ViewportData = .empty
@@ -105,10 +117,19 @@ struct CalendarView: View {
         return assumedCardHeight
     }
 
-    /// How many days the selection just moved, for the disc's curve. Zero whenever there is
-    /// nothing to travel from — a first selection appears rather than arrives.
+    /// How far the disc should slide, in days. Zero means it is placed rather than moved, and
+    /// that is the usual answer — only a one-day move slides at all
+    /// (`Animation.daySelection(travelDays:)`).
+    ///
+    /// Zero whenever there is nothing to travel from, since a first selection appears rather
+    /// than arrives; and zero for a tap regardless of distance, which is why this is the
+    /// distance the disc *should* cover rather than the distance it did. Folding the tap in here
+    /// keeps it out of `CalendarSelectionLayer` entirely: the layer already takes this one value
+    /// and already excludes it from `==` on the grounds that it decides how a change animates and
+    /// never what is drawn. A second input would need the same exemption and the same care.
     private var selectionTravel: Int {
-        guard let current = store.state.calendarState.selectedDayStamp,
+        guard !selectionWasTapped,
+              let current = store.state.calendarState.selectedDayStamp,
               let previous = previousSelection else { return 0 }
         return abs(current - previous)
     }
@@ -196,6 +217,10 @@ struct CalendarView: View {
                             },
                             onDayTapped: { dayStamp in
                                 let current = store.state.calendarState.selectedDayStamp
+                                // Ahead of the dispatch, and it has room to spare: `Store.send`
+                                // defers the state change into a `Task`, so the flag is in place
+                                // long before the render that reads it.
+                                selectionWasTapped = true
                                 store.send(.setSelectedDayStamp(current == dayStamp ? nil : dayStamp))
                             },
                             onEmptyAreaTapped: { dismissDayDetails() },
@@ -245,6 +270,9 @@ struct CalendarView: View {
                 // calculator's business: a selection that skipped this would leave the next one
                 // measuring its travel from a day two selections ago.
                 previousSelection = newValue
+                // Cleared here rather than at the tap, so it survives exactly as long as the
+                // travel it suppresses. Left set, it would swallow the slide on the next swipe.
+                selectionWasTapped = false
 
                 guard let calc = calculator else { return }
                 handleDaySelection(newValue, calculator: calc)
