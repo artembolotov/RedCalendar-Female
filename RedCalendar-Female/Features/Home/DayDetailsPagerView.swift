@@ -79,12 +79,25 @@ struct DayDetailsPagerView: View {
     // runs on well past that — so a run of quick swipes never reaches it and every day in that
     // run is drawn at the same level.
     //
-    // The two directions are not worth the same wait. A card that has to grow is clipping rows
-    // the user cannot even tap, so holding the level costs them the day's contents; one that has
-    // to shrink is only carrying blank space below its last row, which costs nothing and is
-    // worth keeping for longer.
-    private let levelGrowDwellDelay: TimeInterval = 0.3
-    private let levelShrinkDwellDelay: TimeInterval = 0.6
+    // What the number is measured against is the settle's own residual wobble: at
+    // `settleDuration` and `settleDamping` the card is within 0.5pt of its slot at 0.21s (a
+    // flick) to 0.27s (a slow release), and its overshoot falls under 2pt at 0.34–0.36s
+    // whatever speed it left at. So this lands the height change on the first moment the card
+    // is genuinely still, and the user waits ~0.4s from lifting their finger — inside the
+    // window where the resize still reads as the tail of their own gesture rather than as
+    // something the card decided on its own.
+    //
+    // That budget is also the whole of what the dwell has to cover. The next swipe cancels it
+    // at its first `.changed`, which in a run of 2–3 swipes a second arrives 0.2–0.33s after
+    // the previous lift — before this fires. A pause long enough to reach it is a pause the
+    // user is reading in, and there the day's own height is worth more than a stable one.
+    //
+    // Growing and shrinking once waited different amounts, on the grounds that a card holding
+    // a level too short clips rows while one holding a level too tall only carries blank space.
+    // That distinction was worth 300ms when the waits were 0.3s and 0.6s and the resize landed
+    // either inside the gesture or well outside it. At this length both directions are inside
+    // it, and the moment the card stops moving does not depend on which way its content goes.
+    private let levelDwellDelay: TimeInterval = 0.15
 
     init(
         dayStamp: Daystamp,
@@ -275,16 +288,7 @@ struct DayDetailsPagerView: View {
 
         let day = activeDay
         levelSettleTask = Task { @MainActor in
-            guard await sleepUnlessCancelled(levelGrowDwellDelay), isResting(on: day) else { return }
-
-            // Which way the card is about to go can only be read here: a calendar tap arms the
-            // dwell before the new card has been measured, so at that point `naturalHeight`
-            // still belongs to the day being left.
-            if let level = levelHeight, naturalHeight < level {
-                let remainder = max(0, levelShrinkDwellDelay - levelGrowDwellDelay)
-                guard await sleepUnlessCancelled(remainder), isResting(on: day) else { return }
-            }
-
+            guard await sleepUnlessCancelled(levelDwellDelay), isResting(on: day) else { return }
             applyLevel(naturalHeight, animated: true)
         }
     }

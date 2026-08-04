@@ -377,25 +377,46 @@ struct DayDetailsView: View {
 
     // MARK: - Period button
 
+    // The button is the calendar's period bar with a word in it, and it borrows the bar's whole
+    // vocabulary rather than approximating it: `periodBarCornerRadius` with `.continuous`
+    // corners, a solid accent fill where the day is recorded, and where it is not, the same
+    // hollow `predictedBarStrokeWidth` outline the grid draws a prediction with — down to the
+    // label taking `predictedDayText`, which is the colour of a numeral inside such an outline.
+    // The two shapes mark the same thing, so a difference between them would read as a
+    // difference in meaning.
+    //
+    // The height is not borrowed. At the bar's 22pt the box stops growing with Dynamic Type and
+    // a large accessibility size clips the title, so the button keeps sizing to its own text.
     private func periodButtonRow(buttonState: PeriodButtonState) -> some View {
         let isStart = buttonState == .startOutline || buttonState == .startFilled
         let isFilled = buttonState == .startFilled || buttonState == .endFilled
         let title = isStart ? "Начало месячных" : "Конец месячных"
+        let shape = RoundedRectangle(
+            cornerRadius: CalendarConstants.periodBarCornerRadius,
+            style: .continuous
+        )
 
         return Button(action: handlePeriodButton) {
             Text(title)
                 .font(.subheadline)
                 .fontWeight(.medium)
-                .foregroundColor(isFilled ? .white : accent)
+                .foregroundColor(isFilled ? .white : store.state.accentTheme.predictedDayText)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 8)
                 .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(isFilled ? accent : Color.clear)
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(accent, lineWidth: 1.5)
+                    Group {
+                        if isFilled {
+                            shape.fill(accent)
+                        } else {
+                            // `strokeBorder`, as in the grid: the outline stays inside the box
+                            // rather than straddling its edge, so the filled and hollow states
+                            // occupy exactly the same footprint.
+                            shape.strokeBorder(
+                                accent,
+                                lineWidth: CalendarConstants.predictedBarStrokeWidth
+                            )
+                        }
+                    }
                 )
         }
     }
