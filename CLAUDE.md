@@ -23,6 +23,17 @@ typealias Middleware<State, Action> = (State, Action, @escaping (Action) -> Void
   reached from middleware has to get back on its own — `TapticFeedbackService` does it internally,
   because a `UIFeedbackGenerator` touched from a background thread kills the process with
   `_internal_deactivate called more times than the feedback engine was activated`.
+- **A middleware that keeps state between actions must declare where that state lives.** The rule
+  above has a corollary that is easy to miss: `Store.send` gives every action its own `Task`, so two
+  actions run their middleware bodies *concurrently*, on different threads of the cooperative pool.
+  A middleware holding mutable properties is therefore holding them somewhere two actions reach at
+  once. `DatabaseMiddleware` owns GRDB observation tokens and is `@MainActor` for exactly that
+  reason, entered through the `await` in `combineAppMiddlewares()`; before it was isolated, a fast
+  calendar scroll had two `.calendarScrolledTo` actions overwriting the same
+  `AnyDatabaseCancellable` at once, which over-released it and crashed the app later, inside
+  `malloc`, with nothing of ours on the stack. New stateful middleware needs the same treatment —
+  isolation, not a lock — and any blocking call it makes has to become `async` first, because
+  isolating to the main actor means the work now happens where blocking is not allowed.
 - Middleware returns `[Action]` for synchronous follow-up actions; use the `dispatch` closure for actions dispatched from within an async `Task`.
 - State is always mutated by returning a modified copy from the reducer — never mutate state directly.
 - All app state lives in `AppState`. Do not store state in views or view models.
@@ -494,7 +505,16 @@ happens once in the reducer rather than in every reader.
 `CalendarState.loadedRange` is centered on the viewport: `CalendarView` dispatches
 `.calendarScrolledTo(center:)` as the user scrolls, and `DatabaseMiddleware` re-centers the range
 (and its comment/tag observations) when the center gets close to an edge. Buffer and threshold live
-in `Constants.Calendar` — do not hardcode them. **The loaded range must stay wider than what the
+in `Constants.Calendar` — do not hardcode them.
+
+**The middleware decides against its own `observedRange`, not against the state it was handed.**
+The state's `loadedRange` lags: `.setLoadedRange` travels back through `send` → `Task` →
+`Task.yield()` → reducer, while the calendar reports a new centre every `centerReportStep` days.
+During a fling several `.calendarScrolledTo` arrive inside that round trip, all carrying the old
+range, and reading the range from state made every one of them restart both observations — a burst
+of GRDB starts per fling, which is what turned a latent data race into a reproducible crash.
+`DatabaseMiddleware.observedRange` is written the moment the observations start, so the burst
+collapses to one restart. It duplicates state deliberately; keep the two writes together. **The loaded range must stay wider than what the
 calendar draws around the center** (a rendered viewport reaches about two months either way, per
 `viewportBufferRatio`): a day scrolled into view before its range is loaded has no `DayDisplayState`,
 so its bars, dots and comments visibly draw themselves in a moment later.
@@ -562,7 +582,18 @@ All records conform to `Codable, FetchableRecord, PersistableRecord`. Column map
 
 **Equatable** is implemented without `updatedAt` — used by `ValueObservation.removeDuplicates()` to avoid spurious UI updates. `DayTagsRecord` compares `tagIds` as `Set`.
 
-**Observations** return `AnyDatabaseCancellable` — the caller must retain the token to keep the observation alive.
+**All access is `async`.** `DatabaseServiceProtocol` is `async throws` throughout, backed by GRDB's
+async `read`/`write`, so a caller on the main actor waits for a transaction without blocking a
+thread on it. Ordering survives the change: requests reach the GRDB queue in the order callers
+reached their `await`, and each write is still one transaction.
+
+**Observations** return `AnyDatabaseCancellable` — the caller must retain the token to keep the
+observation alive. They are main-actor-bound at both ends: started from the main actor and
+delivering there, via `ValueObservation.start`'s `@MainActor` overload (default `.mainActor`
+scheduler — the same `DispatchQueue.main` delivery as before, but now checked by the compiler
+rather than assumed). That is not a convenience for the UI. The token is shared mutable state whose
+`deinit` cancels the observation, so whoever holds it has to be isolated somewhere, and the main
+actor is where the values were always going.
 
 **Migrations** are in `DatabaseService.runMigrations(_:)`. Always append new migrations — never modify existing ones.
 

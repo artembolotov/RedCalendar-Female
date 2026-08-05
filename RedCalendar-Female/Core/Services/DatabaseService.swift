@@ -59,24 +59,24 @@ final class DatabaseService: DatabaseServiceProtocol {
 
     // MARK: - Fetch
 
-    func fetchCycles() throws -> [CycleRecord] {
-        try dbQueue.read { db in
+    func fetchCycles() async throws -> [CycleRecord] {
+        try await dbQueue.read { db in
             try CycleRecord
                 .filter(CycleRecord.Columns.periodLength != nil)
                 .fetchAll(db)
         }
     }
 
-    func fetchUserTags() throws -> [UserTagRecord] {
-        try dbQueue.read { db in
+    func fetchUserTags() async throws -> [UserTagRecord] {
+        try await dbQueue.read { db in
             try UserTagRecord
                 .filter(UserTagRecord.Columns.name != nil)
                 .fetchAll(db)
         }
     }
 
-    func fetchComments(in range: ClosedRange<Daystamp>) throws -> [CommentRecord] {
-        try dbQueue.read { db in
+    func fetchComments(in range: ClosedRange<Daystamp>) async throws -> [CommentRecord] {
+        try await dbQueue.read { db in
             try CommentRecord
                 .filter(range.contains(CommentRecord.Columns.dayNumber))
                 .filter(CommentRecord.Columns.comment != nil)
@@ -84,8 +84,8 @@ final class DatabaseService: DatabaseServiceProtocol {
         }
     }
 
-    func fetchDayTags(in range: ClosedRange<Daystamp>) throws -> [DayTagsRecord] {
-        try dbQueue.read { db in
+    func fetchDayTags(in range: ClosedRange<Daystamp>) async throws -> [DayTagsRecord] {
+        try await dbQueue.read { db in
             try DayTagsRecord
                 .filter(range.contains(DayTagsRecord.Columns.dayNumber))
                 .fetchAll(db)
@@ -94,32 +94,32 @@ final class DatabaseService: DatabaseServiceProtocol {
 
     // MARK: - Upsert
 
-    func upsert(_ cycles: [CycleRecord]) throws {
-        try dbQueue.write { db in
+    func upsert(_ cycles: [CycleRecord]) async throws {
+        try await dbQueue.write { db in
             for cycle in cycles {
                 try cycle.upsert(db)
             }
         }
     }
 
-    func upsert(_ comments: [CommentRecord]) throws {
-        try dbQueue.write { db in
+    func upsert(_ comments: [CommentRecord]) async throws {
+        try await dbQueue.write { db in
             for comment in comments {
                 try comment.upsert(db)
             }
         }
     }
 
-    func upsert(_ userTags: [UserTagRecord]) throws {
-        try dbQueue.write { db in
+    func upsert(_ userTags: [UserTagRecord]) async throws {
+        try await dbQueue.write { db in
             for tag in userTags {
                 try tag.upsert(db)
             }
         }
     }
 
-    func upsert(_ dayTags: [DayTagsRecord]) throws {
-        try dbQueue.write { db in
+    func upsert(_ dayTags: [DayTagsRecord]) async throws {
+        try await dbQueue.write { db in
             for dayTag in dayTags {
                 try dayTag.upsert(db)
             }
@@ -128,8 +128,8 @@ final class DatabaseService: DatabaseServiceProtocol {
 
     // MARK: - Delete
 
-    func deleteCycle(startDay: Daystamp) throws {
-        _ = try dbQueue.write { db in
+    func deleteCycle(startDay: Daystamp) async throws {
+        _ = try await dbQueue.write { db in
             try CycleRecord
                 .filter(CycleRecord.Columns.startDay == startDay)
                 .deleteAll(db)
@@ -138,8 +138,8 @@ final class DatabaseService: DatabaseServiceProtocol {
 
     // MARK: - Sync
 
-    func lastSyncTimestamp() throws -> Int? {
-        try dbQueue.read { db in
+    func lastSyncTimestamp() async throws -> Int? {
+        try await dbQueue.read { db in
             let cyclesMax = try Int.fetchOne(db, sql: "SELECT MAX(updated_at) FROM cycles")
             let userTagsMax = try Int.fetchOne(db, sql: "SELECT MAX(updated_at) FROM user_tags")
             let commentsMax = try Int.fetchOne(db, sql: "SELECT MAX(updated_at) FROM comments")
@@ -150,7 +150,13 @@ final class DatabaseService: DatabaseServiceProtocol {
 
     // MARK: - Observations
 
-    func observeCycles(onChange: @escaping ([CycleRecord]) -> Void) -> AnyDatabaseCancellable {
+    // All four observations start on the main actor and deliver there: this is
+    // `ValueObservation.start`'s `@MainActor` overload, whose default `.mainActor` scheduler is
+    // the same `DispatchQueue.main` delivery as before — the difference is that the compiler now
+    // checks it instead of the caller assuming it.
+
+    @MainActor
+    func observeCycles(onChange: @escaping @MainActor ([CycleRecord]) -> Void) -> AnyDatabaseCancellable {
         let observation = ValueObservation.tracking { db in
             try CycleRecord
                 .filter(CycleRecord.Columns.periodLength != nil)
@@ -159,7 +165,6 @@ final class DatabaseService: DatabaseServiceProtocol {
 
         return observation.start(
             in: dbQueue,
-            scheduling: .async(onQueue: .main),
             onError: { error in
                 AppLogger.error("Cycles observation failed", error: error)
             },
@@ -167,7 +172,8 @@ final class DatabaseService: DatabaseServiceProtocol {
         )
     }
 
-    func observeUserTags(onChange: @escaping ([UserTagRecord]) -> Void) -> AnyDatabaseCancellable {
+    @MainActor
+    func observeUserTags(onChange: @escaping @MainActor ([UserTagRecord]) -> Void) -> AnyDatabaseCancellable {
         let observation = ValueObservation.tracking { db in
             try UserTagRecord
                 .filter(UserTagRecord.Columns.name != nil)
@@ -176,7 +182,6 @@ final class DatabaseService: DatabaseServiceProtocol {
 
         return observation.start(
             in: dbQueue,
-            scheduling: .async(onQueue: .main),
             onError: { error in
                 AppLogger.error("UserTags observation failed", error: error)
             },
@@ -184,7 +189,11 @@ final class DatabaseService: DatabaseServiceProtocol {
         )
     }
 
-    func observeComments(in range: ClosedRange<Daystamp>, onChange: @escaping ([CommentRecord]) -> Void) -> AnyDatabaseCancellable {
+    @MainActor
+    func observeComments(
+        in range: ClosedRange<Daystamp>,
+        onChange: @escaping @MainActor ([CommentRecord]) -> Void
+    ) -> AnyDatabaseCancellable {
         let observation = ValueObservation.tracking { db in
             try CommentRecord
                 .filter(range.contains(CommentRecord.Columns.dayNumber))
@@ -194,7 +203,6 @@ final class DatabaseService: DatabaseServiceProtocol {
 
         return observation.start(
             in: dbQueue,
-            scheduling: .async(onQueue: .main),
             onError: { error in
                 AppLogger.error("Comments observation failed", error: error)
             },
@@ -202,7 +210,11 @@ final class DatabaseService: DatabaseServiceProtocol {
         )
     }
 
-    func observeDayTags(in range: ClosedRange<Daystamp>, onChange: @escaping ([DayTagsRecord]) -> Void) -> AnyDatabaseCancellable {
+    @MainActor
+    func observeDayTags(
+        in range: ClosedRange<Daystamp>,
+        onChange: @escaping @MainActor ([DayTagsRecord]) -> Void
+    ) -> AnyDatabaseCancellable {
         let observation = ValueObservation.tracking { db in
             try DayTagsRecord
                 .filter(range.contains(DayTagsRecord.Columns.dayNumber))
@@ -211,7 +223,6 @@ final class DatabaseService: DatabaseServiceProtocol {
 
         return observation.start(
             in: dbQueue,
-            scheduling: .async(onQueue: .main),
             onError: { error in
                 AppLogger.error("DayTags observation failed", error: error)
             },
