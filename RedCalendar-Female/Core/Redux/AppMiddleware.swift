@@ -5,9 +5,6 @@
 //  Created by Артём Болотов on 04.06.2025.
 //
 
-// MARK: - Database Middleware Instance
-let databaseMiddleware = DatabaseMiddleware()
-
 // MARK: - Create App Middleware
 func combineAppMiddlewares() -> [Middleware<AppState, AppAction>] {
     return [
@@ -18,6 +15,11 @@ func combineAppMiddlewares() -> [Middleware<AppState, AppAction>] {
         analyticsMiddleware,
         appearanceMiddleware,
         feedbackMiddleware,
-        databaseMiddleware.handle
+        // `Middleware` is an unisolated type and DatabaseMiddleware lives on the main actor,
+        // because it owns the GRDB observation tokens. This `await` is the hop onto it, and it is
+        // also what serialises actions the store otherwise sends each in its own `Task`.
+        { state, action, dispatch in
+            await DatabaseMiddleware.shared.handle(state: state, action: action, dispatch: dispatch)
+        }
     ]
 }
