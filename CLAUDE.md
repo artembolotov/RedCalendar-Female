@@ -60,6 +60,19 @@ typealias Middleware<State, Action> = (State, Action, @escaping (Action) -> Void
   @Injected var apiService: APIServiceProtocol
   ```
 - Never call `ServiceLocator.shared.getService()` directly in views. Views read from the store only.
+- **Registration is launch-only and resolution is per-read.** `Configurator.setup()` is the one
+  place that writes to the container; `@Injected` stores nothing and looks the service up on every
+  read. Both sides take the container's lock, so resolving from the cooperative pool is safe.
+  Registering a service anywhere other than `setup()` is not a shortcut to avoid — it works — but
+  it does mean thinking about what is reading the container at that moment.
+- **Nothing may resolve a service at construction time.** The store's default value expression —
+  `combineAppMiddlewares()` — runs before `RedCalendarApp.init()`'s body, which is where
+  `Configurator.setup()` is called. Every service is therefore resolved lazily, on first use, long
+  after registration. An eagerly-injected stored property anywhere in that chain is a `fatalError`
+  on launch.
+- The container keys on the **static** type it was registered under, which is what the
+  protocol-type rule above is really enforcing: register as `MyService` and every
+  `@Injected var x: MyServiceProtocol` misses.
 
 **Adding a new service:** create the protocol + implementation, register in `Configurator`, inject with `@Injected`.
 

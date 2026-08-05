@@ -171,9 +171,9 @@ final class DatabaseMiddleware {
                 var deleted = existing
                 deleted.periodLength = nil
                 deleted.updatedAt = nil
-                await write("markPeriodStart soft delete") { service in try await service.upsert([deleted]) }
+                await write("markPeriodStart soft delete") { try await dbService.upsert([deleted]) }
             } else {
-                await write("markPeriodStart delete") { service in try await service.deleteCycle(startDay: stamp) }
+                await write("markPeriodStart delete") { try await dbService.deleteCycle(startDay: stamp) }
             }
         } else {
             guard cycles.canStartPeriod(at: stamp, today: today) else {
@@ -187,7 +187,7 @@ final class DatabaseMiddleware {
                 flowLevels: [:],
                 updatedAt: nil
             )
-            await write("markPeriodStart insert") { service in try await service.upsert([newCycle]) }
+            await write("markPeriodStart insert") { try await dbService.upsert([newCycle]) }
         }
     }
 
@@ -201,7 +201,7 @@ final class DatabaseMiddleware {
         var updated = cycle
         updated.periodLength = max(Constants.Cycle.minPeriodLength, min(Constants.Cycle.maxPeriodLength, raw))
         updated.updatedAt = nil
-        await write("markPeriodEnd") { service in try await service.upsert([updated]) }
+        await write("markPeriodEnd") { try await dbService.upsert([updated]) }
     }
 
     private func handleUnmarkPeriodEnd(stamp: Daystamp, cycles: [CycleRecord]) async {
@@ -211,7 +211,7 @@ final class DatabaseMiddleware {
         var updated = cycle
         updated.periodLength = 0
         updated.updatedAt = nil
-        await write("unmarkPeriodEnd") { service in try await service.upsert([updated]) }
+        await write("unmarkPeriodEnd") { try await dbService.upsert([updated]) }
     }
 
     private func handleSetFlowLevel(stamp: Daystamp, level: Int?, today: Daystamp, cycles: [CycleRecord]) async {
@@ -221,7 +221,7 @@ final class DatabaseMiddleware {
         }
         cycle.setFlowLevel(level, on: stamp)
         cycle.updatedAt = nil
-        await write("setFlowLevel") { service in try await service.upsert([cycle]) }
+        await write("setFlowLevel") { try await dbService.upsert([cycle]) }
     }
 
     private func handleSaveComment(stamp: Daystamp, text: String) async {
@@ -230,7 +230,7 @@ final class DatabaseMiddleware {
             comment: text.isEmpty ? nil : text,
             updatedAt: nil
         )
-        await write("saveComment") { service in try await service.upsert([record]) }
+        await write("saveComment") { try await dbService.upsert([record]) }
     }
 
     private func handleSetDayTags(stamp: Daystamp, tagIds: [String]) async {
@@ -239,7 +239,7 @@ final class DatabaseMiddleware {
             tagIds: tagIds,
             updatedAt: nil
         )
-        await write("setDayTags") { service in try await service.upsert([record]) }
+        await write("setDayTags") { try await dbService.upsert([record]) }
     }
 
     // User edits must not fail silently in production data flows — at minimum leave a trace.
@@ -247,16 +247,9 @@ final class DatabaseMiddleware {
     // The transaction goes to the GRDB queue and is awaited, so the main thread never stands on
     // it. Order is preserved: requests reach that queue in the order the main actor reached the
     // corresponding `await`.
-    private func write(
-        _ operation: String,
-        _ work: (DatabaseServiceProtocol) async throws -> Void
-    ) async {
-        // `@Injected` vends the service through a `mutating get`, so it is resolved once here and
-        // handed to the closure — that keeps the mutating access off the same expression as the
-        // `await` inside the operation.
-        let service = dbService
+    private func write(_ operation: String, _ work: () async throws -> Void) async {
         do {
-            try await work(service)
+            try await work()
         } catch {
             AppLogger.error("Database write failed: \(operation)", error: error)
         }
