@@ -7,11 +7,16 @@
 
 import Foundation
 
+/// Main-actor isolated, by the module default and on purpose. It runs from `RedCalendarApp.init()`,
+/// which is main-actor isolated itself, and `TapticFeedbackService` is a `@MainActor` type — so
+/// this is the isolation that can build it. That the services it registers are mostly
+/// `nonisolated` costs nothing here: registration crosses into the locker, which is nonisolated,
+/// and every one of them is `Sendable`.
 final class Configurator {
     static let shared = Configurator()
-    
+
     private init() {}
-    
+
     func setup() {
         registerAnalyticsService()
         registerDatabaseService()

@@ -1,7 +1,7 @@
 import Foundation
 import GRDB
 
-struct CycleRecord: Codable, FetchableRecord, PersistableRecord {
+nonisolated struct CycleRecord: Codable, FetchableRecord, PersistableRecord {
     var startDay: Daystamp
     var periodLength: Int?
     var ovulation: OvulationData?
@@ -32,7 +32,7 @@ extension CycleRecord: Equatable {
 
 // MARK: - OvulationData
 
-struct OvulationData: Codable, Equatable {
+nonisolated struct OvulationData: Codable, Equatable {
     var day: Daystamp
     var confirmed: Bool
 

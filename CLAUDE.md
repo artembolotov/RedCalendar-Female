@@ -10,38 +10,77 @@ The app uses a hand-rolled Redux implementation.
 
 **Core types** (`Core/Redux/`):
 ```swift
-typealias Reducer<State, Action> = (State, Action) -> State
-typealias Middleware<State, Action> = (State, Action, @escaping (Action) -> Void) async -> [Action]
+typealias Reducer<State, Action> = @MainActor (State, Action) -> State
+typealias Middleware<State, Action> =
+    @MainActor (State, Action, @escaping @MainActor (Action) -> Void) async -> [Action]
 ```
 
 **Rules:**
 - `Store` is `@MainActor final class`. Never subclass or bypass `@MainActor`.
 - Reducers are pure functions — no side effects, no async work inside them.
 - All async work and API calls belong in middleware.
-- **A middleware body does not run on the main thread.** `Middleware` is a plain `async` closure,
-  so awaiting it from the `@MainActor` store hops off the main actor. Anything UIKit-shaped
-  reached from middleware has to get back on its own — `TapticFeedbackService` does it internally,
-  because a `UIFeedbackGenerator` touched from a background thread kills the process with
-  `_internal_deactivate called more times than the feedback engine was activated`.
-- **A middleware that keeps state between actions must declare where that state lives.** The rule
-  above has a corollary that is easy to miss: `Store.send` gives every action its own `Task`, so two
-  actions run their middleware bodies *concurrently*, on different threads of the cooperative pool.
-  A middleware holding mutable properties is therefore holding them somewhere two actions reach at
-  once. `DatabaseMiddleware` owns GRDB observation tokens and is `@MainActor` for exactly that
-  reason, entered through the `await` in `combineAppMiddlewares()`; before it was isolated, a fast
-  calendar scroll had two `.calendarScrolledTo` actions overwriting the same
-  `AnyDatabaseCancellable` at once, which over-released it and crashed the app later, inside
-  `malloc`, with nothing of ours on the stack. New stateful middleware needs the same treatment —
-  isolation, not a lock — and any blocking call it makes has to become `async` first, because
-  isolating to the main actor means the work now happens where blocking is not allowed.
+- **A middleware body runs on the main actor, and the module is main-actor by default.** The target
+  builds with `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor`, so an unannotated declaration is
+  main-actor isolated and going off it is the thing you say out loud. `Middleware` was unisolated
+  once — awaiting it from the `@MainActor` store hopped *off* the main actor — and that single fact
+  produced both of the crashes this project has shipped: a `UIFeedbackGenerator` touched from the
+  cooperative pool (`_internal_deactivate called more times than the feedback engine was
+  activated`), and two actions over-releasing the same GRDB observation token, which died later
+  inside `malloc` with nothing of ours on the stack. `TapticFeedbackService` no longer hops by hand;
+  it is a `@MainActor` type and the compiler checks it.
+- **Work that must not occupy the main actor says `nonisolated`, at the protocol.** Blocking or
+  long-running work has not moved onto the main actor just because the default did:
+  `KeychainServiceProtocol` (blocking Security-framework I/O on the launch path),
+  `APIServiceProtocol` and `DatabaseServiceProtocol`'s CRUD half (the round trip *and* the decode),
+  `AnalyticsServiceProtocol` and `AppLogger` (raised from wherever the thing happened) are all
+  `nonisolated`. `async` alone would not do it — a main-actor-isolated `async` method resumes on
+  the main actor, so the decode of every API response would land there.
+- **Values are `nonisolated`; the machinery is main-actor.** Everything in `Core/Models/`, plus the
+  Redux states and `AppAction`, is marked `nonisolated`: they are pure values and belong to no
+  actor, and the nonisolated database and API layers construct and decode them. This is also what
+  keeps `AppState: Sendable` meaningful — a main-actor-isolated type is *implicitly* `Sendable`
+  whatever it holds, so leaving the module default on `AppState` would satisfy the conformance by
+  isolation alone and stop checking the tree beneath it.
+- **A dispatch is two halves: the reducer runs now, the side effects are queued.** `send` applies
+  the reducer synchronously on the caller's turn, so state changes in the order actions were sent
+  and has changed by the time `send` returns; the action is then put on one `AsyncStream` that a
+  single task drains, so one action's middleware chain finishes before the next one starts. Every
+  dispatch used to be its own `Task` opening with `await Task.yield()`, which gave away both: two
+  actions sent back to back diverged at the first suspension and ran their middleware
+  concurrently. Middleware is handed the state *its own* action produced, not whatever state has
+  become by the time the queue reaches it.
+- **An animation chosen at the call site works, and that follows from the above.**
+  `withAnimation { store.send(…) }` could not work while the state change was deferred into a
+  `Task` — the transaction was gone by the time it ran. Since the reducer is synchronous now, do
+  not reintroduce a `Task` around it; it would silently break every call-site animation.
+- **A middleware that keeps state between actions must still declare where that state lives.** The
+  queue removes the overlap, but the main actor is reentrant, so an `await` in the middle of a
+  read-then-write is a gap something else on the main actor can land in.
+  `DatabaseMiddleware` owns the GRDB observation tokens, is explicitly `@MainActor` for that
+  reason, and keeps its token mutations `await`-free. New stateful middleware needs the same
+  treatment — isolation, not a lock — and any blocking call it makes has to become `async`
+  first, because the main actor is where blocking is not allowed.
+- **The queue is only cheap because middleware does not sit in it.** A long `await` inside one
+  middleware delays every action behind it. The heavy ones (`AuthMiddleware`, `MigrationMiddleware`,
+  `PushNotificationsMiddleware`) return `[]` immediately and do their work inside their own `Task`,
+  dispatching the result when it lands. Keep that shape.
 - Middleware returns `[Action]` for synchronous follow-up actions; use the `dispatch` closure for actions dispatched from within an async `Task`.
 - State is always mutated by returning a modified copy from the reducer — never mutate state directly.
 - All app state lives in `AppState`. Do not store state in views or view models.
 - `AppState` is `Equatable`; the store skips the `@Published` write when the reducer
   returns an identical state (`isDuplicate: (==)` in the app entry point), so no-op
-  actions don't invalidate views. Keep new state types `Equatable`. Untyped `Error`
-  payloads (`AuthState.migrating`, `EmailAuthState.entry`) compare by
-  `localizedDescription` — that's the observable identity for the UI.
+  actions don't invalidate views. Keep new state types `Equatable`.
+- **`AppState` and `AppAction` are `Sendable`, and no state type carries an untyped error.**
+  Every error in state is a concrete `Equatable` enum — `AuthenticationError`,
+  `MigrationError` — which is what lets `Equatable` be synthesized rather than hand-written.
+  `AuthState.migrating` and `EmailAuthState.entry` both used to hold `any Error` and compare by
+  `localizedDescription`; an `any Error` is not `Sendable`, so a state holding one cannot cross an
+  isolation boundary, and the description was the only thing the UI ever read anyway. A middleware
+  that catches an arbitrary error converts at the boundary (`AuthenticationError.from(_:)`,
+  `MigrationError.from(_:)`) instead of putting it in state.
+  `Sendable` is declared on `AppState` alone rather than on each model it contains: the root is
+  what actually crosses an isolation boundary, and conformance there makes the compiler check the
+  whole tree below it. Adding a non-sendable field anywhere in the graph fails at `AppState`.
 
 **Adding a new action:** add a case to `AppAction`, handle it in `appReducer`, handle side effects in the relevant middleware file.
 
@@ -60,9 +99,21 @@ typealias Middleware<State, Action> = (State, Action, @escaping (Action) -> Void
   @Injected var apiService: APIServiceProtocol
   ```
 - Never call `ServiceLocator.shared.getService()` directly in views. Views read from the store only.
+- **Every service protocol is `Sendable`, and most of them are `nonisolated`.** The container is
+  declared `addService<T: Sendable>` / `getService<T: Sendable>`, which is what makes its
+  `@unchecked Sendable` honest: it hands values across isolation boundaries, so it may only hold
+  values that can be. `TapticFeedbackServiceProtocol` is the one `@MainActor` service — it drives
+  `UIFeedbackGenerator`, which permits nothing else — and a `@MainActor` type is implicitly
+  `Sendable`, so it satisfies the constraint too.
+- **`ServiceLocator` stays an `NSLock`, not an actor.** An actor would make `getService` `async`,
+  and `@Injected.wrappedValue` is a plain computed property read from wherever a service is needed;
+  every one of those call sites would grow an `await` to buy a guarantee the lock already gives.
+  (`Synchronization.Mutex` is the modern spelling of the same thing and needs iOS 18; this app
+  ships to 15.4.) The services themselves are not actors either — they are stateless, or already
+  serialized by something that is: `DatabaseQueue`, `URLSession`, Security framework.
 - **Registration is launch-only and resolution is per-read.** `Configurator.setup()` is the one
   place that writes to the container; `@Injected` stores nothing and looks the service up on every
-  read. Both sides take the container's lock, so resolving from the cooperative pool is safe.
+  read. Both sides take the container's lock, so resolving from any isolation is safe.
   Registering a service anywhere other than `setup()` is not a shortcut to avoid — it works — but
   it does mean thinking about what is reading the container at that moment.
 - **Nothing may resolve a service at construction time.** The store's default value expression —
@@ -84,6 +135,7 @@ Core/
   Constants.swift
   DI/         — ServiceLocator, @Injected
   Models/     — Daystamp, Daystamp+GRDB, AuthenticationMethod, AuthenticationError,
+                 MigrationError,
                  APNSToken, UserDetails, ResolvedCycleSettings, DayDisplayState,
                  AccentTheme,
                  CycleRecord, CycleRecord+Queries,
@@ -437,9 +489,11 @@ both, so they have to land together: `SpringInterpolation` is normalized, so the
 `settleDuration` of 0.55 at ζ=0.85 is a real decay of ~15.5 s⁻¹ and it arrives at ~0.25s (the rest
 is the tail `CardPagingAnimator.onArrival` exists to ignore), against the disc's ~16.9 s⁻¹ and
 ~0.23s. Move one and check the other. What cannot be matched is the start — the card takes the
-flick's velocity, the disc always leaves from rest, and it must, because choosing an animation at
-the call site requires a `withAnimation` that `Store.send` throws away when it defers the state
-change into a `Task`.
+flick's velocity, the disc always leaves from rest. That was once forced: `Store.send` deferred the
+state change into a `Task`, so a `withAnimation` at the call site was thrown away. It is now a
+choice, since the reducer runs synchronously and a call-site transaction survives — but the two
+curves above are tuned against a disc that leaves from rest, so giving it the flick's velocity means
+retuning both.
 
 **Only a swipe slides the disc. A tap always places it, at any distance.**
 `Animation.daySelection(travelDays:)` returns a curve for `travelDays == 1` and `nil` for
@@ -521,9 +575,10 @@ happens once in the reducer rather than in every reader.
 in `Constants.Calendar` — do not hardcode them.
 
 **The middleware decides against its own `observedRange`, not against the state it was handed.**
-The state's `loadedRange` lags: `.setLoadedRange` travels back through `send` → `Task` →
-`Task.yield()` → reducer, while the calendar reports a new centre every `centerReportStep` days.
-During a fling several `.calendarScrolledTo` arrive inside that round trip, all carrying the old
+The state's `loadedRange` lags, and the store's action queue does not close the gap.
+`.setLoadedRange` is a value the middleware *returns*, so it is dispatched only after `handle` has
+finished — while the calendar reports a new centre every `centerReportStep` days. During a fling
+several `.calendarScrolledTo` are already queued behind the one being handled, all carrying the old
 range, and reading the range from state made every one of them restart both observations — a burst
 of GRDB starts per fling, which is what turned a latent data race into a reproducible crash.
 `DatabaseMiddleware.observedRange` is written the moment the observations start, so the burst

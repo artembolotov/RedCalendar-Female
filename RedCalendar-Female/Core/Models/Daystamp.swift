@@ -46,7 +46,7 @@ private enum ReferenceDate {
 }
 
 // MARK: - Daystamp Structure
-struct Daystamp {
+nonisolated struct Daystamp {
     let rawValue: Int
 
     // MARK: - Initializers

@@ -7,7 +7,7 @@
 
 import UIKit
 
-class AppDelegate: NSObject, UIApplicationDelegate {
+final class AppDelegate: NSObject, UIApplicationDelegate {
 
     // Store reference to dispatch actions
     var appStore: AppStore?

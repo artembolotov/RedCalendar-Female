@@ -1,7 +1,7 @@
 import Foundation
 import GRDB
 
-struct DayTagsRecord: Codable, FetchableRecord, PersistableRecord {
+nonisolated struct DayTagsRecord: Codable, FetchableRecord, PersistableRecord {
     var dayNumber: Daystamp
     var tagIds: [String]
     var updatedAt: Int?

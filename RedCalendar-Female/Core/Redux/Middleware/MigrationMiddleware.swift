@@ -7,24 +7,6 @@
 
 import Foundation
 
-// MARK: - Migration Errors
-enum MigrationError: Error, LocalizedError {
-    case noUserIdFound
-    case keychainSaveError
-    case serverError(String)
-    
-    var errorDescription: String? {
-        switch self {
-        case .noUserIdFound:
-            return "No user ID found for migration"
-        case .keychainSaveError:
-            return "Failed to save device ID to keychain"
-        case .serverError(let message):
-            return "Server error: \(message)"
-        }
-    }
-}
-
 let migrationMiddleware: Middleware<AppState, AppAction> = { state, action, dispatch in
     @Injected var keychain: KeychainServiceProtocol
     @Injected var apiService: APIServiceProtocol
@@ -52,7 +34,9 @@ let migrationMiddleware: Middleware<AppState, AppAction> = { state, action, disp
                     )))
                 } catch {
                     AppLogger.error("Migration failed", error: error)
-                    dispatch(.setAuthState(.migrating(userId: userId, error: error)))
+                    dispatch(.setAuthState(
+                        .migrating(userId: userId, error: MigrationError.from(error))
+                    ))
                 }
             }
         }

@@ -1,7 +1,7 @@
 import Foundation
 import GRDB
 
-struct UserTagRecord: Codable, FetchableRecord, PersistableRecord {
+nonisolated struct UserTagRecord: Codable, FetchableRecord, PersistableRecord {
     var id: String
     var name: String?
     var category: Int?

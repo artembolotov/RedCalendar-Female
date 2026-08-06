@@ -9,22 +9,22 @@ import UserNotifications
 import UIKit
 
 // MARK: - Push Permission Status
-enum PushPermissionState {
+nonisolated enum PushPermissionState {
     case notAsked
     case denied
     case authorized
 }
 
 // MARK: - Protocol
-protocol PushPermissionServiceProtocol {
+nonisolated protocol PushPermissionServiceProtocol: Sendable {
     func getState() async -> PushPermissionState
-    
+
     @discardableResult
     func requestAuthorization() async -> Bool
 }
 
 // MARK: - Implementation
-final class PushPermissionService: PushPermissionServiceProtocol {
+nonisolated final class PushPermissionService: PushPermissionServiceProtocol {
     
     private let notificationCenter = UNUserNotificationCenter.current()
     

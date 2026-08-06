@@ -10,7 +10,7 @@
 ///
 /// The "not covered" case is deliberately not called `none` — `?? .none` on an optional
 /// `PeriodCoverage` would then be ambiguous with `Optional.none`.
-enum PeriodCoverage: Equatable {
+nonisolated enum PeriodCoverage: Equatable {
     case outside
     case ongoing
     case completed
@@ -20,7 +20,7 @@ enum PeriodCoverage: Equatable {
 
 /// All cycle lookups for a single day, resolved together so callers run the
 /// queries once per render instead of re-running them per property.
-struct CycleDayContext {
+nonisolated struct CycleDayContext {
     let day: Daystamp
     let owning: CycleRecord?
 
