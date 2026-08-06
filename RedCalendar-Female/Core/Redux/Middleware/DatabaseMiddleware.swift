@@ -8,20 +8,23 @@ import GRDB
 
 // MARK: - DatabaseMiddleware
 
-/// Main-actor isolated, and that is a correctness requirement rather than a convenience.
+/// Main-actor isolated, spelled out rather than inherited from the module default, because this is
+/// the one middleware that keeps state between actions and the isolation is what protects it.
 ///
-/// `Store.send` gives every action its own `Task` and `Middleware` is an unisolated `async`
-/// closure, so without isolation two actions ran `handle` at the same time on different threads
-/// of the cooperative pool. The observation tokens below are plain stored properties whose
-/// `deinit` does real work (`AnyDatabaseCancellable.deinit` calls `cancel()`), and overwriting
-/// one of those from two threads at once loses a reference count and corrupts the heap — the
-/// crash then lands wherever the allocator happens to notice, with nothing of ours on the stack.
-/// A fast calendar scroll produced exactly that, because `.calendarScrolledTo` arrives in bursts.
+/// The observation tokens below are plain stored properties whose `deinit` does real work
+/// (`AnyDatabaseCancellable.deinit` calls `cancel()`), and overwriting one of those from two
+/// threads at once loses a reference count and corrupts the heap — the crash then lands wherever
+/// the allocator happens to notice, with nothing of ours on the stack. That is what a fast
+/// calendar scroll used to produce, back when `Middleware` was unisolated and `Store.send` ran
+/// every action in its own `Task`: `.calendarScrolledTo` arrives in bursts, and the bursts ran
+/// concurrently.
 ///
-/// **The invariant:** everything that reads or writes the tokens and `observedRange`
-/// (`startPermanentObservations`, `startRangeObservations`, `cancelAll`) is synchronous, and
-/// `handle` has no `await` between checking the state of the observations and changing it. The
-/// main actor is reentrant — an `await` introduced into that gap brings the same race back.
+/// **The invariant, which the store's action queue does not retire:** everything that reads or
+/// writes the tokens and `observedRange` (`startPermanentObservations`, `startRangeObservations`,
+/// `cancelAll`) is synchronous, and `handle` has no `await` between checking the state of the
+/// observations and changing it. Actions no longer overlap, but the main actor is still reentrant
+/// — an `await` introduced into that gap hands the window to whatever else is waiting on the main
+/// actor, and this class is reachable from more than the queue.
 @MainActor
 final class DatabaseMiddleware {
     static let shared = DatabaseMiddleware()
@@ -35,12 +38,14 @@ final class DatabaseMiddleware {
 
     /// The range `commentsToken` and `dayTagsToken` are currently subscribed to.
     ///
-    /// It duplicates `state.calendarState.loadedRange` on purpose. The store only learns about a
-    /// new range after `.setLoadedRange` travels back through `send` → `Task` → `Task.yield()` →
-    /// reducer, while the calendar reports a fresh centre every `centerReportStep` days: several
-    /// more `.calendarScrolledTo` arrive inside that round trip, and every one of them still sees
-    /// the old `loadedRange`. Deciding from state restarted both observations once per action in
-    /// the burst; deciding from here restarts them once per expansion.
+    /// It duplicates `state.calendarState.loadedRange` on purpose, and still does now that the
+    /// store applies reducers synchronously. `.setLoadedRange` is a *return value* from this
+    /// method: it is dispatched after `handle` returns, so it cannot have reached the reducer
+    /// while the burst that produced it is still being drained. The calendar reports a fresh
+    /// centre every `centerReportStep` days, so several `.calendarScrolledTo` sit in the queue
+    /// behind this one, every one of them carrying the old `loadedRange`. Deciding from state
+    /// restarts both observations once per action in the burst; deciding from here restarts them
+    /// once per expansion.
     private var observedRange: ClosedRange<Daystamp>?
 
     private var observationsActive: Bool { cyclesToken != nil }

@@ -41,14 +41,29 @@ typealias Middleware<State, Action> =
   keeps `AppState: Sendable` meaningful — a main-actor-isolated type is *implicitly* `Sendable`
   whatever it holds, so leaving the module default on `AppState` would satisfy the conformance by
   isolation alone and stop checking the tree beneath it.
-- **A middleware that keeps state between actions must declare where that state lives.**
-  `Store.send` gives every action its own `Task`, so two actions run their middleware bodies
-  concurrently. Main-actor isolation does not by itself fix this — the main actor is reentrant, so
-  an `await` in the middle of a read-then-write is still a gap another action can land in.
-  `DatabaseMiddleware` owns the GRDB observation tokens and is explicitly `@MainActor` for that
-  reason, and its token mutations are deliberately `await`-free. New stateful middleware needs the
-  same treatment — isolation, not a lock — and any blocking call it makes has to become `async`
+- **A dispatch is two halves: the reducer runs now, the side effects are queued.** `send` applies
+  the reducer synchronously on the caller's turn, so state changes in the order actions were sent
+  and has changed by the time `send` returns; the action is then put on one `AsyncStream` that a
+  single task drains, so one action's middleware chain finishes before the next one starts. Every
+  dispatch used to be its own `Task` opening with `await Task.yield()`, which gave away both: two
+  actions sent back to back diverged at the first suspension and ran their middleware
+  concurrently. Middleware is handed the state *its own* action produced, not whatever state has
+  become by the time the queue reaches it.
+- **An animation chosen at the call site works, and that follows from the above.**
+  `withAnimation { store.send(…) }` could not work while the state change was deferred into a
+  `Task` — the transaction was gone by the time it ran. Since the reducer is synchronous now, do
+  not reintroduce a `Task` around it; it would silently break every call-site animation.
+- **A middleware that keeps state between actions must still declare where that state lives.** The
+  queue removes the overlap, but the main actor is reentrant, so an `await` in the middle of a
+  read-then-write is a gap something else on the main actor can land in.
+  `DatabaseMiddleware` owns the GRDB observation tokens, is explicitly `@MainActor` for that
+  reason, and keeps its token mutations `await`-free. New stateful middleware needs the same
+  treatment — isolation, not a lock — and any blocking call it makes has to become `async`
   first, because the main actor is where blocking is not allowed.
+- **The queue is only cheap because middleware does not sit in it.** A long `await` inside one
+  middleware delays every action behind it. The heavy ones (`AuthMiddleware`, `MigrationMiddleware`,
+  `PushNotificationsMiddleware`) return `[]` immediately and do their work inside their own `Task`,
+  dispatching the result when it lands. Keep that shape.
 - Middleware returns `[Action]` for synchronous follow-up actions; use the `dispatch` closure for actions dispatched from within an async `Task`.
 - State is always mutated by returning a modified copy from the reducer — never mutate state directly.
 - All app state lives in `AppState`. Do not store state in views or view models.
@@ -474,9 +489,11 @@ both, so they have to land together: `SpringInterpolation` is normalized, so the
 `settleDuration` of 0.55 at ζ=0.85 is a real decay of ~15.5 s⁻¹ and it arrives at ~0.25s (the rest
 is the tail `CardPagingAnimator.onArrival` exists to ignore), against the disc's ~16.9 s⁻¹ and
 ~0.23s. Move one and check the other. What cannot be matched is the start — the card takes the
-flick's velocity, the disc always leaves from rest, and it must, because choosing an animation at
-the call site requires a `withAnimation` that `Store.send` throws away when it defers the state
-change into a `Task`.
+flick's velocity, the disc always leaves from rest. That was once forced: `Store.send` deferred the
+state change into a `Task`, so a `withAnimation` at the call site was thrown away. It is now a
+choice, since the reducer runs synchronously and a call-site transaction survives — but the two
+curves above are tuned against a disc that leaves from rest, so giving it the flick's velocity means
+retuning both.
 
 **Only a swipe slides the disc. A tap always places it, at any distance.**
 `Animation.daySelection(travelDays:)` returns a curve for `travelDays == 1` and `nil` for
@@ -558,9 +575,10 @@ happens once in the reducer rather than in every reader.
 in `Constants.Calendar` — do not hardcode them.
 
 **The middleware decides against its own `observedRange`, not against the state it was handed.**
-The state's `loadedRange` lags: `.setLoadedRange` travels back through `send` → `Task` →
-`Task.yield()` → reducer, while the calendar reports a new centre every `centerReportStep` days.
-During a fling several `.calendarScrolledTo` arrive inside that round trip, all carrying the old
+The state's `loadedRange` lags, and the store's action queue does not close the gap.
+`.setLoadedRange` is a value the middleware *returns*, so it is dispatched only after `handle` has
+finished — while the calendar reports a new centre every `centerReportStep` days. During a fling
+several `.calendarScrolledTo` are already queued behind the one being handled, all carrying the old
 range, and reading the range from state made every one of them restart both observations — a burst
 of GRDB starts per fling, which is what turned a latent data race into a reproducible crash.
 `DatabaseMiddleware.observedRange` is written the moment the observations start, so the burst
