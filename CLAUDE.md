@@ -62,12 +62,20 @@ typealias Middleware<State, Action> =
   upward from the diagnostic to the declaration it names, not to the file it appeared in.
 - **A dispatch is two halves: the reducer runs now, the side effects are queued.** `send` applies
   the reducer synchronously on the caller's turn, so state changes in the order actions were sent
-  and has changed by the time `send` returns; the action is then put on one `AsyncStream` that a
-  single task drains, so one action's middleware chain finishes before the next one starts. Every
-  dispatch used to be its own `Task` opening with `await Task.yield()`, which gave away both: two
-  actions sent back to back diverged at the first suspension and ran their middleware
-  concurrently. Middleware is handed the state *its own* action produced, not whatever state has
-  become by the time the queue reaches it.
+  and has changed by the time `send` returns; the action is then appended to one buffer that a
+  single drain loop empties in order, so one action's middleware chain finishes before the next one
+  starts. Every dispatch used to be its own `Task` opening with `await Task.yield()`, which gave
+  away both: two actions sent back to back diverged at the first suspension and ran their
+  middleware concurrently. Middleware is handed the state *its own* action produced, not whatever
+  state has become by the time the queue reaches it.
+- **The queue is an array and a flag, and it may not go back to being an `AsyncStream`.** It was
+  one, briefly, and the `AsyncStream<Effect>.Continuation` and `Task` that put in `Store`'s
+  stored properties crashed the optimizer: `EarlyPerfInliner` recursed without bound in
+  `isCallerAndCalleeLayoutConstraintsCompatible` on the class's implicit `deinit`. It reproduces
+  only under `-O`, so every debug build was clean and only the release archive failed — six merges
+  shipped nothing before anyone read a CI log. Whatever the toolchain does later, the array is
+  fewer moving parts for identical ordering. **Anything that fails only in a release archive is
+  invisible to a normal build; check the CI run, not the local one.**
 - **An animation chosen at the call site works, and that follows from the above.**
   `withAnimation { store.send(…) }` could not work while the state change was deferred into a
   `Task` — the transaction was gone by the time it ran. Since the reducer is synchronous now, do
