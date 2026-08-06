@@ -60,9 +60,8 @@ let migrationMiddleware: Middleware = { state, action, dispatch in
                 }
             }
         }
-        return []
         
     default:
-        return []
+        break
     }
 }

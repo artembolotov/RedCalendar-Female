@@ -12,11 +12,10 @@ let analyticsMiddleware: Middleware = { state, action, dispatch in
     switch action {
 
     case .checkAnalyticsStatus:
-        return [.setAnalyticsActivated(analytics.isActivated)]
+        dispatch(.setAnalyticsActivated(analytics.isActivated))
 
     default:
         break
     }
     
-    return []
 }

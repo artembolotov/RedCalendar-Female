@@ -10,7 +10,7 @@ let appearanceMiddleware: Middleware = { state, action, dispatch in
     switch action {
 
     case .checkAccentTheme:
-        return [.setAccentTheme(appearance.accentTheme)]
+        dispatch(.setAccentTheme(appearance.accentTheme))
 
     case .setAccentTheme(let theme):
         // The reducer has already put the theme in state; writing it to disk is the side
@@ -21,5 +21,4 @@ let appearanceMiddleware: Middleware = { state, action, dispatch in
         break
     }
 
-    return []
 }

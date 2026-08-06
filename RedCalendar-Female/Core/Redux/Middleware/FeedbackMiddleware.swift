@@ -48,5 +48,4 @@ let feedbackMiddleware: Middleware = { state, action, dispatch in
         break
     }
     
-    return []
 }

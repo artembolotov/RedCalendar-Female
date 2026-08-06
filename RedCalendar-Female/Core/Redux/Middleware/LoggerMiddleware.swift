@@ -7,5 +7,4 @@
 
 let loggerMiddleware: Middleware = { state, action, dispatch in
     AppLogger.action(action)
-    return []
 }

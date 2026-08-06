@@ -18,15 +18,17 @@ let authMiddleware: Middleware = { state, action, dispatch in
     case .checkAuthState:
         // Priority 1: Check for device_id (new system)
         if let deviceId = keychain.getDeviceID() {
-            return [.setAuthState(.authenticated(deviceId: deviceId, userDetails: nil))]
+            dispatch(.setAuthState(.authenticated(deviceId: deviceId, userDetails: nil)))
+            return
         }
-        
+
         // Priority 2: Check for legacy user_id (Firebase)
         if let userId = keychain.getUserUID() {
-            return [.setAuthState(.migrating(userId: userId, error: nil))]
+            dispatch(.setAuthState(.migrating(userId: userId, error: nil)))
+            return
         }
-        
-        return [.setAuthState(.notAuthenticated)]
+
+        dispatch(.setAuthState(.notAuthenticated))
         
     
     case .setAuthState(let authState):
@@ -192,7 +194,6 @@ let authMiddleware: Middleware = { state, action, dispatch in
                 }
             }
             
-            return []
         }
         
         // Existing logic for other auth states...
@@ -213,7 +214,6 @@ let authMiddleware: Middleware = { state, action, dispatch in
             }
         }
         
-        return []
        
     case .logout:
         if case .authenticated(let deviceId, _) = state.authState {
@@ -230,9 +230,8 @@ let authMiddleware: Middleware = { state, action, dispatch in
                 }
             }
         }
-        return []
         
     default:
-        return []
+        break
     }
 }

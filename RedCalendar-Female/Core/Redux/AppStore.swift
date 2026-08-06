@@ -30,8 +30,13 @@ typealias Reducer = (AppState, AppAction) -> AppState
 ///
 /// `@Sendable` is free here — all seven global middlewares are closure literals capturing
 /// nothing — and it is what lets them stay global `let`s.
+///
+/// A middleware emits actions **one way**: through `dispatch`. It used to also be able to return
+/// them, and the two paths were never distinguishable at the call site — a returned action and a
+/// dispatched one both ended up in the same queue. What the return path actually bought was 15
+/// `return []` statements in bodies that emit nothing at all.
 typealias Dispatch = @MainActor @Sendable (AppAction) -> Void
-typealias Middleware = @MainActor @Sendable (AppState, AppAction, @escaping Dispatch) async -> [AppAction]
+typealias Middleware = @MainActor @Sendable (AppState, AppAction, @escaping Dispatch) async -> Void
 
 /// Concrete over `AppState`/`AppAction` rather than generic, and that is deliberate twice over.
 ///
@@ -111,15 +116,14 @@ final class AppStore: ObservableObject {
 
     // MARK: - Private Implementation
 
-    /// Reentrancy is the whole of it: `send` called from inside the loop below — by a
-    /// middleware's `dispatch`, or by a returned action — appends and returns, because
-    /// `isDraining` is already true. One drain task exists at a time and it runs until the
-    /// queue is empty.
+    /// Reentrancy is the whole of it: `send` called from inside the loop below — always through a
+    /// middleware's `dispatch` — appends and returns, because `isDraining` is already true. One
+    /// drain task exists at a time and it runs until the queue is empty.
     ///
     /// What this does *not* do is make a slow middleware free: a long `await` in one delays
     /// every action behind it. That stays affordable only because the heavy middlewares return
-    /// `[]` immediately and do their work in their own `Task`, dispatching the result when it
-    /// lands. Keep that shape.
+    /// immediately and do their work in their own `Task`, dispatching the result when it lands.
+    /// Keep that shape.
     private func drain() {
         guard !isDraining else { return }
         isDraining = true
@@ -129,12 +133,8 @@ final class AppStore: ObservableObject {
                 let effect = queue.removeFirst()
 
                 for middleware in middlewares {
-                    let followUps = await middleware(effect.state, effect.action) { [weak self] followUp in
+                    await middleware(effect.state, effect.action) { [weak self] followUp in
                         self?.send(followUp)
-                    }
-
-                    for followUp in followUps {
-                        send(followUp)
                     }
                 }
             }

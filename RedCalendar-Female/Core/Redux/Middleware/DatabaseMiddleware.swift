@@ -40,13 +40,15 @@ final class DatabaseMiddleware {
 
     /// The range `commentsToken` and `dayTagsToken` are currently subscribed to.
     ///
-    /// It duplicates `state.calendarState.loadedRange` on purpose, and the reason survived the
-    /// store becoming ordered. `.setLoadedRange` is a value `handle` *returns*, so it cannot
-    /// reach the reducer while the burst of `.calendarScrolledTo` that produced it is still
-    /// queued ahead of it — and the calendar reports a fresh centre every `centerReportStep`
-    /// days, so a fling produces several. Every one of them would still see the old
-    /// `loadedRange`. Deciding from state restarted both observations once per action in the
-    /// burst; deciding from here restarts them once per expansion.
+    /// It duplicates `state.calendarState.loadedRange` on purpose, and the reason has outlived
+    /// two rewrites of how the store schedules things. The dispatch below does reach the reducer
+    /// immediately, so `state` is current the moment it returns — but that does nothing for the
+    /// `.calendarScrolledTo` actions already sitting in the queue behind it. Each was queued with
+    /// the state *its own* reducer produced, so every one of them still carries the range as it
+    /// was before the expansion, and the calendar reports a fresh centre every
+    /// `centerReportStep` days, so a fling produces several. Deciding from state restarted both
+    /// observations once per action in the burst; deciding from here restarts them once per
+    /// expansion.
     private var observedRange: ClosedRange<Daystamp>?
 
     private var observationsActive: Bool { cyclesToken != nil }
@@ -55,7 +57,7 @@ final class DatabaseMiddleware {
 
     // MARK: - Handle
 
-    func handle(state: AppState, action: AppAction, dispatch: @escaping Dispatch) async -> [AppAction] {
+    func handle(state: AppState, action: AppAction, dispatch: @escaping Dispatch) async {
         switch action {
         case .setAuthState(let authState):
             if case .authenticated = authState {
@@ -77,7 +79,7 @@ final class DatabaseMiddleware {
                 let buffer = Constants.Calendar.loadedRangeBuffer
                 let newRange = (center - buffer)...(center + buffer)
                 startRangeObservations(for: newRange, dispatch: dispatch)
-                return [.setLoadedRange(newRange)]
+                dispatch(.setLoadedRange(newRange))
             }
 
         case .markPeriodStart(let stamp):
@@ -114,7 +116,6 @@ final class DatabaseMiddleware {
         default:
             break
         }
-        return []
     }
 
     // MARK: - Private Methods

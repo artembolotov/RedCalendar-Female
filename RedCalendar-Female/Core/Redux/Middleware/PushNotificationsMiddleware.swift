@@ -28,7 +28,6 @@ let pushNotificationMiddleware: Middleware = { state, action, dispatch in
                 }
             }
         }
-        return []
         
     case .setPushPermissionState(let state):
         if state == nil {
@@ -37,16 +36,14 @@ let pushNotificationMiddleware: Middleware = { state, action, dispatch in
                 dispatch(.setPushPermissionState(status))
             }
         }
-        return []
         
     case .retryFailedTasks:
         
         if state.isAuthenticated, let token = state.notifications.apnsToken, token.isSynced == false {
-            return [.setAPNSToken(token)]
+            dispatch(.setAPNSToken(token))
         }
-        return []
         
     default:
-        return []
+        break
     }
 }

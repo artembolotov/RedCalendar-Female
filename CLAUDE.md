@@ -12,7 +12,7 @@ The app uses a hand-rolled Redux implementation.
 ```swift
 typealias Reducer = (AppState, AppAction) -> AppState
 typealias Dispatch = @MainActor @Sendable (AppAction) -> Void
-typealias Middleware = @MainActor @Sendable (AppState, AppAction, @escaping Dispatch) async -> [AppAction]
+typealias Middleware = @MainActor @Sendable (AppState, AppAction, @escaping Dispatch) async -> Void
 ```
 
 **Rules:**
@@ -31,7 +31,7 @@ typealias Middleware = @MainActor @Sendable (AppState, AppAction, @escaping Disp
   handed the state *its own* action produced, not whatever the state has become by the time the
   queue reaches it.
 - **A slow middleware is not free.** A long `await` in one delays every action behind it. That is
-  affordable only because the heavy middlewares return `[]` immediately and do their work in their
+  affordable only because the heavy middlewares return immediately and do their work in their
   own `Task`, dispatching the result when it lands. Anything that waits on the network, on the
   user, or on a system alert belongs in a `Task` — see the permission prompt in `AuthMiddleware`.
   Short bounded work (`DatabaseMiddleware`'s GRDB writes) may be awaited inline.
@@ -51,7 +51,10 @@ typealias Middleware = @MainActor @Sendable (AppState, AppAction, @escaping Disp
   `AnyDatabaseCancellable` at once, which over-released it and crashed the app later, inside
   `malloc`, with nothing of ours on the stack. New stateful middleware needs the same treatment —
   isolation, not a lock.
-- Middleware returns `[Action]` for synchronous follow-up actions; use the `dispatch` closure for actions dispatched from within an async `Task`.
+- **A middleware emits actions one way: `dispatch`.** It returns `Void`. There used to be a second
+  path — returning `[Action]` — and the two were indistinguishable in effect, since both ended in
+  the same queue; what the return path bought was 15 `return []` statements in bodies that emit
+  nothing. `dispatch` works the same from the body and from inside an async `Task`.
 - State is always mutated by returning a modified copy from the reducer — never mutate state directly.
 - All app state lives in `AppState`. Do not store state in views or view models.
 - `AppState` is `Equatable, Sendable`; the store skips the `@Published` write when the reducer
