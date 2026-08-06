@@ -8,7 +8,7 @@
 import Foundation
 import UIKit
 
-let authMiddleware: Middleware<AppState, AppAction> = { state, action, dispatch in
+let authMiddleware: Middleware = { state, action, dispatch in
     @Injected var keychain: KeychainServiceProtocol
     @Injected var pushPermissionService: PushPermissionServiceProtocol
     @Injected var apiService: APIServiceProtocol

@@ -8,7 +8,7 @@
 import Foundation
 
 // MARK: - Feedback Middleware
-let feedbackMiddleware: Middleware<AppState, AppAction> = { state, action, dispatch in
+let feedbackMiddleware: Middleware = { state, action, dispatch in
     @Injected var feedbackService: TapticFeedbackServiceProtocol
     
     switch action {

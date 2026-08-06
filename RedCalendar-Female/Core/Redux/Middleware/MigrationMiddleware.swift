@@ -25,7 +25,7 @@ enum MigrationError: Error, LocalizedError {
     }
 }
 
-let migrationMiddleware: Middleware<AppState, AppAction> = { state, action, dispatch in
+let migrationMiddleware: Middleware = { state, action, dispatch in
     @Injected var keychain: KeychainServiceProtocol
     @Injected var apiService: APIServiceProtocol
     

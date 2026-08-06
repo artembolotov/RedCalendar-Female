@@ -4,7 +4,7 @@
 //
 
 // MARK: - Appearance Middleware
-let appearanceMiddleware: Middleware<AppState, AppAction> = { state, action, dispatch in
+let appearanceMiddleware: Middleware = { state, action, dispatch in
     @Injected var appearance: AppearanceServiceProtocol
 
     switch action {

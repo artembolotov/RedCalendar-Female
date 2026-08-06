@@ -8,7 +8,7 @@
 import Foundation
 
 // PushNotificationMiddleware.swift
-let pushNotificationMiddleware: Middleware<AppState, AppAction> = { state, action, dispatch in
+let pushNotificationMiddleware: Middleware = { state, action, dispatch in
     @Injected var apiService: APIServiceProtocol
     @Injected var pushPermissionService: PushPermissionServiceProtocol
     

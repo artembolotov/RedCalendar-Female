@@ -6,7 +6,7 @@
 //
 
 // MARK: - Analytics Middleware
-let analyticsMiddleware: Middleware<AppState, AppAction> = { state, action, dispatch in
+let analyticsMiddleware: Middleware = { state, action, dispatch in
     @Injected var analytics: AnalyticsServiceProtocol
     
     switch action {
