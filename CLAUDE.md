@@ -589,11 +589,15 @@ animates only the rest. Two screens is chosen against the 1400pt threshold in `s
 the calendar settles. A day selection re-centring never reaches the cap, because only a day already
 on screen can be tapped.
 
-Note what the cap does *not* fix: `SpringInterpolation.progress` is snapped to 1 at `t = 1` rather
-than arriving there, and at ζ=0.95 the curve is still climbing at that point — it crosses its target
-at `t = 0.904` and is cut off at its peak. The residual is 0.00705% of the distance, so the cap
-reduces it from 19pt to a tenth of a point rather than removing it. Normalising the curve on its own
-value at `t = 1` is the real fix and has not been done.
+The cap only shrinks a second problem it does not fix on its own: the raw analytic solution is not
+1 at `t = 1` for most `damping`/`initialVelocity` pairs — at ζ=0.95 it crosses its target at
+`t = 0.904` and is still mid-overshoot when the window ends, off by 0.00705% of the distance. Before
+the fix, `progress` snapped that residual to 1 instead of arriving there, so the cap could only
+shrink the visible jump (19pt down to a tenth of a point on the rail), not remove it.
+`SpringInterpolation.progress` now divides the raw solution by that same raw solution evaluated at
+`t = 1` (`rawValue`), so the curve is rescaled to actually land on 1 at the boundary instead of
+being cut off near it — the jump this section used to describe is gone by construction, not by
+truncation.
 
 **A flight is stopped in `dismantleUIView`, and it cannot be stopped in `deinit`.** A
 `CADisplayLink` retains its target and the main run loop retains the link until `invalidate()`, so

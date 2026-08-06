@@ -15,10 +15,25 @@ enum SpringInterpolation {
     /// - Parameter initialVelocity: the speed the animation starts at, in fractions of the
     ///   total distance per unit of progress — `velocity * duration / distance`. Zero starts
     ///   from rest; a flick hands its own speed over so the motion stays continuous.
+    ///
+    /// The animation window ends at `t = 1` whether or not the underlying decaying oscillation
+    /// has settled there — for most `damping`/`initialVelocity` pairs it hasn't, so
+    /// `rawValue(1, ...)` lands a little off 1 (an underdamped curve is typically still past its
+    /// target, mid-overshoot). Dividing by that same endpoint rescales the whole curve to land
+    /// on exactly 1 there, so the value just before `t = 1` and the hardcoded `1` this returns
+    /// at `t = 1` agree instead of the curve snapping past it.
     static func progress(_ t: Double, damping: Double, initialVelocity: Double = 0) -> Double {
         guard t > 0 else { return 0 }
         guard t < 1 else { return 1 }
 
+        let endpoint = rawValue(1, damping: damping, initialVelocity: initialVelocity)
+        return rawValue(t, damping: damping, initialVelocity: initialVelocity) / endpoint
+    }
+
+    /// The spring's displacement at `t`, unnormalized: this is the plain analytic solution and,
+    /// away from `t = 1`, does not itself reach 0 or 1 at any particular `t`. `progress` is what
+    /// turns it into a 0...1 curve.
+    private static func rawValue(_ t: Double, damping: Double, initialVelocity: Double) -> Double {
         let c = damping * 2.0 * sqrt(mass * stiffness)
         let omega = sqrt(stiffness / mass)
         let zeta = c / (2.0 * sqrt(stiffness * mass))
