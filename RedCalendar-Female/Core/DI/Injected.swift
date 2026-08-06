@@ -20,11 +20,16 @@ import Foundation
 /// runs, so nothing may resolve a service at construction time. It is now lazy *per read* rather
 /// than cached behind mutable state, which costs one dictionary lookup and buys the property back
 /// its ordinary meaning — reading it reads.
+/// `nonisolated` goes on the members and not on the type, which is not a style choice: a property
+/// wrapper's attributes are applied to each declaration that uses it, and most uses here are
+/// locals declared inside a middleware closure — `nonisolated` on a local variable is an error.
+/// Putting it on `init` and `wrappedValue` gets the same thing where it is needed, which is that
+/// a service can be resolved from the nonisolated services as well as from the main actor.
 @propertyWrapper
-nonisolated struct Injected<Service: Sendable> {
-    init() {}
+struct Injected<Service: Sendable> {
+    nonisolated init() {}
 
-    var wrappedValue: Service {
+    nonisolated var wrappedValue: Service {
         ServiceLocator.shared.getService()
     }
 }
