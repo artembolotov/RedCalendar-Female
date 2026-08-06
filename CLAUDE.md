@@ -39,9 +39,18 @@ typealias Middleware<State, Action> = (State, Action, @escaping (Action) -> Void
 - All app state lives in `AppState`. Do not store state in views or view models.
 - `AppState` is `Equatable`; the store skips the `@Published` write when the reducer
   returns an identical state (`isDuplicate: (==)` in the app entry point), so no-op
-  actions don't invalidate views. Keep new state types `Equatable`. Untyped `Error`
-  payloads (`AuthState.migrating`, `EmailAuthState.entry`) compare by
-  `localizedDescription` — that's the observable identity for the UI.
+  actions don't invalidate views. Keep new state types `Equatable`.
+- **`AppState` and `AppAction` are `Sendable`, and no state type carries an untyped error.**
+  Every error in state is a concrete `Equatable` enum — `AuthenticationError`,
+  `MigrationError` — which is what lets `Equatable` be synthesized rather than hand-written.
+  `AuthState.migrating` and `EmailAuthState.entry` both used to hold `any Error` and compare by
+  `localizedDescription`; an `any Error` is not `Sendable`, so a state holding one cannot cross an
+  isolation boundary, and the description was the only thing the UI ever read anyway. A middleware
+  that catches an arbitrary error converts at the boundary (`AuthenticationError.from(_:)`,
+  `MigrationError.from(_:)`) instead of putting it in state.
+  `Sendable` is declared on `AppState` alone rather than on each model it contains: the root is
+  what actually crosses an isolation boundary, and conformance there makes the compiler check the
+  whole tree below it. Adding a non-sendable field anywhere in the graph fails at `AppState`.
 
 **Adding a new action:** add a case to `AppAction`, handle it in `appReducer`, handle side effects in the relevant middleware file.
 
@@ -84,6 +93,7 @@ Core/
   Constants.swift
   DI/         — ServiceLocator, @Injected
   Models/     — Daystamp, Daystamp+GRDB, AuthenticationMethod, AuthenticationError,
+                 MigrationError,
                  APNSToken, UserDetails, ResolvedCycleSettings, DayDisplayState,
                  AccentTheme,
                  CycleRecord, CycleRecord+Queries,

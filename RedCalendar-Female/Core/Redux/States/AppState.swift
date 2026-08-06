@@ -7,7 +7,12 @@
 
 import Foundation
 
-struct AppState: Equatable {
+/// `Sendable` is declared here rather than left to inference, and it is declared on the *root*
+/// deliberately: it makes the compiler check the whole tree beneath it — `CalendarState`, the GRDB
+/// records, `Daystamp`, `DayDisplayState` — without those leaves needing an annotation each. A
+/// value that stops being sendable anywhere in the graph fails here, at the one type that actually
+/// crosses an isolation boundary.
+struct AppState: Equatable, Sendable {
     var authState: AuthState?
     var calendarState: CalendarState = CalendarState()
     var notifications: NotificationState = NotificationState()

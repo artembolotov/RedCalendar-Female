@@ -7,11 +7,16 @@
 
 import AppMetricaCore
 
+/// `parameters` is `[String: String]` rather than AppMetrica's own `[AnyHashable: Any]`, which is
+/// the one signature in the service layer that can never be `Sendable` — an `Any` value carries no
+/// guarantee at all, so a dictionary of them cannot cross an isolation boundary. Both call sites
+/// (`AppLogger.warn`, `AppLogger.error`) pass a single `["message": String]`, so nothing is given
+/// up; the upcast to AppMetrica's type happens once, at the call into the SDK.
 protocol AnalyticsServiceProtocol {
     var isActivated: Bool { get }
     func registerApp()
     func trackEvent(_ name: String)
-    func trackEvent(_ name: String, parameters: [AnyHashable : Any]?)
+    func trackEvent(_ name: String, parameters: [String: String]?)
 }
 
 final class AnalyticsService: AnalyticsServiceProtocol {
@@ -32,7 +37,7 @@ final class AnalyticsService: AnalyticsServiceProtocol {
         AppMetrica.reportEvent(name: name)
     }
 
-    func trackEvent(_ name: String, parameters: [AnyHashable : Any]?) {
-        AppMetrica.reportEvent(name: name, parameters: parameters)
+    func trackEvent(_ name: String, parameters: [String: String]?) {
+        AppMetrica.reportEvent(name: name, parameters: parameters.map { $0 as [AnyHashable: Any] })
     }
 }
