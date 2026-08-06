@@ -29,20 +29,20 @@ protocol DatabaseServiceProtocol: Sendable {
 
     // Observations
     @MainActor
-    func observeCycles(onChange: @escaping @MainActor ([CycleRecord]) -> Void) -> AnyDatabaseCancellable
+    func observeCycles(onChange: @escaping @MainActor @Sendable ([CycleRecord]) -> Void) -> AnyDatabaseCancellable
 
     @MainActor
-    func observeUserTags(onChange: @escaping @MainActor ([UserTagRecord]) -> Void) -> AnyDatabaseCancellable
+    func observeUserTags(onChange: @escaping @MainActor @Sendable ([UserTagRecord]) -> Void) -> AnyDatabaseCancellable
 
     @MainActor
     func observeComments(
         in range: ClosedRange<Daystamp>,
-        onChange: @escaping @MainActor ([CommentRecord]) -> Void
+        onChange: @escaping @MainActor @Sendable ([CommentRecord]) -> Void
     ) -> AnyDatabaseCancellable
 
     @MainActor
     func observeDayTags(
         in range: ClosedRange<Daystamp>,
-        onChange: @escaping @MainActor ([DayTagsRecord]) -> Void
+        onChange: @escaping @MainActor @Sendable ([DayTagsRecord]) -> Void
     ) -> AnyDatabaseCancellable
 }

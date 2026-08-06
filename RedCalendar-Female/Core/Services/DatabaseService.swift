@@ -156,7 +156,7 @@ final class DatabaseService: DatabaseServiceProtocol {
     // checks it instead of the caller assuming it.
 
     @MainActor
-    func observeCycles(onChange: @escaping @MainActor ([CycleRecord]) -> Void) -> AnyDatabaseCancellable {
+    func observeCycles(onChange: @escaping @MainActor @Sendable ([CycleRecord]) -> Void) -> AnyDatabaseCancellable {
         let observation = ValueObservation.tracking { db in
             try CycleRecord
                 .filter(CycleRecord.Columns.periodLength != nil)
@@ -173,7 +173,7 @@ final class DatabaseService: DatabaseServiceProtocol {
     }
 
     @MainActor
-    func observeUserTags(onChange: @escaping @MainActor ([UserTagRecord]) -> Void) -> AnyDatabaseCancellable {
+    func observeUserTags(onChange: @escaping @MainActor @Sendable ([UserTagRecord]) -> Void) -> AnyDatabaseCancellable {
         let observation = ValueObservation.tracking { db in
             try UserTagRecord
                 .filter(UserTagRecord.Columns.name != nil)
@@ -192,7 +192,7 @@ final class DatabaseService: DatabaseServiceProtocol {
     @MainActor
     func observeComments(
         in range: ClosedRange<Daystamp>,
-        onChange: @escaping @MainActor ([CommentRecord]) -> Void
+        onChange: @escaping @MainActor @Sendable ([CommentRecord]) -> Void
     ) -> AnyDatabaseCancellable {
         let observation = ValueObservation.tracking { db in
             try CommentRecord
@@ -213,7 +213,7 @@ final class DatabaseService: DatabaseServiceProtocol {
     @MainActor
     func observeDayTags(
         in range: ClosedRange<Daystamp>,
-        onChange: @escaping @MainActor ([DayTagsRecord]) -> Void
+        onChange: @escaping @MainActor @Sendable ([DayTagsRecord]) -> Void
     ) -> AnyDatabaseCancellable {
         let observation = ValueObservation.tracking { db in
             try DayTagsRecord
