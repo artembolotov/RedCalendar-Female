@@ -164,9 +164,7 @@ struct InfiniteScrollContainer: UIViewRepresentable {
         private var currentScrollOffset: CGFloat = 0
         
         // Animation properties
-        // `nonisolated(unsafe)` only so that `deinit` can invalidate it — see below. Every other
-        // access is on the main actor, where the display link also fires.
-        nonisolated(unsafe) private var displayLink: CADisplayLink?
+        private var displayLink: CADisplayLink?
         private var animationStartTime: CFTimeInterval = 0
         private var animationDuration: TimeInterval = 0
         private var animationStartOffset: CGFloat = 0
@@ -194,11 +192,7 @@ struct InfiniteScrollContainer: UIViewRepresentable {
         }
         
         deinit {
-            // Not `stopAnimation()`: that is main-actor isolated and a `deinit` is not. Only the
-            // display link actually needs releasing, because it retains its target until it is
-            // invalidated. `animatingScrollView` is `weak`, and a coordinator being deallocated
-            // has no offset left to animate.
-            displayLink?.invalidate()
+            stopAnimation()
         }
         
         func updateToday(_ today: Daystamp) {

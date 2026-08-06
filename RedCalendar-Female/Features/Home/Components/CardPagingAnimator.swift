@@ -12,11 +12,7 @@ import SwiftUI
 final class CardPagingAnimator: ObservableObject {
     @Published private(set) var offset: CGFloat = 0
 
-    // `nonisolated(unsafe)` only so that `deinit` can invalidate it. A `deinit` is nonisolated,
-    // and this class is main-actor like the rest of the module, so the last release would
-    // otherwise be unable to reach the one property it has to clean up. Every other access is on
-    // the main actor, and the display link itself only ever fires there.
-    nonisolated(unsafe) private var displayLink: CADisplayLink?
+    private var displayLink: CADisplayLink?
     private var startOffset: CGFloat = 0
     private var targetOffset: CGFloat = 0
     private var startTime: CFTimeInterval = 0

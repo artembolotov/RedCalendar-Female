@@ -9,12 +9,7 @@ import Foundation
 import UIKit
 
 // MARK: - Protocol
-
-/// `nonisolated` so that a request's real work — the `URLSession` round trip and the JSON decode
-/// on the way back — stays off the main actor under the module's main-actor default. `async` alone
-/// would not have done it: a main-actor-isolated `async` method resumes on the main actor, so the
-/// decode of every response would land there.
-nonisolated protocol APIServiceProtocol: Sendable {
+protocol APIServiceProtocol {
     func migrateUser(userId: String) async throws -> MigrationResponse
     func verifyDevice(deviceId: String) async throws -> VerificationResponse
     func updateAPNSToken(deviceId: String, apnsToken: String) async throws -> APNSTokenResponse
@@ -26,7 +21,7 @@ nonisolated protocol APIServiceProtocol: Sendable {
 }
 
 // MARK: - Request Models
-nonisolated struct MigrateUserRequest: Codable {
+struct MigrateUserRequest: Codable {
     let userId: String
     let deviceModel: String
     
@@ -36,7 +31,7 @@ nonisolated struct MigrateUserRequest: Codable {
     }
 }
 
-nonisolated struct UpdateAPNSTokenRequest: Codable {
+struct UpdateAPNSTokenRequest: Codable {
     let apnsToken: String
     let isDevelopment: Bool
     
@@ -46,15 +41,15 @@ nonisolated struct UpdateAPNSTokenRequest: Codable {
     }
 }
 
-nonisolated struct CheckEmailRequest: Codable {
+struct CheckEmailRequest: Codable {
     let email: String
 }
 
-nonisolated struct CheckPhoneRequest: Codable {
+struct CheckPhoneRequest: Codable {
     let phone: String
 }
 
-nonisolated struct VerifyCodeRequest: Codable {
+struct VerifyCodeRequest: Codable {
     let email: String
     let code: String
     let deviceModel: String
@@ -68,7 +63,7 @@ nonisolated struct VerifyCodeRequest: Codable {
     }
 }
 
-nonisolated struct VerifyFlashCallRequest: Codable {
+struct VerifyFlashCallRequest: Codable {
     let requestId: String
     let code: String
     let deviceModel: String
@@ -81,7 +76,7 @@ nonisolated struct VerifyFlashCallRequest: Codable {
 }
 
 // MARK: - Response Models
-nonisolated struct MigrationResponse: Codable {
+struct MigrationResponse: Codable {
     let success: Bool
     let data: MigrationData?
     let message: String?
@@ -98,7 +93,7 @@ nonisolated struct MigrationResponse: Codable {
     }
 }
 
-nonisolated struct VerificationResponse: Codable {
+struct VerificationResponse: Codable {
     let success: Bool
     let data: VerificationData?
     let timestamp: String
@@ -116,19 +111,19 @@ nonisolated struct VerificationResponse: Codable {
     }
 }
 
-nonisolated struct APNSTokenResponse: Codable {
+struct APNSTokenResponse: Codable {
     let success: Bool
     let message: String?
     let timestamp: String
 }
 
-nonisolated struct LogoutResponse: Codable {
+struct LogoutResponse: Codable {
     let success: Bool
     let message: String?
     let timestamp: String
 }
 
-nonisolated struct CheckEmailResponse: Codable {
+struct CheckEmailResponse: Codable {
     let data: CheckEmailData
     let timestamp: String
     
@@ -139,7 +134,7 @@ nonisolated struct CheckEmailResponse: Codable {
     }
 }
 
-nonisolated struct CheckPhoneResponse: Codable {
+struct CheckPhoneResponse: Codable {
     let success: Bool
     let error: String?
     let message: String?
@@ -169,7 +164,7 @@ nonisolated struct CheckPhoneResponse: Codable {
     }
 }
 
-nonisolated struct VerifyCodeResponse: Codable {
+struct VerifyCodeResponse: Codable {
     let success: Bool
     let data: VerifyCodeData?
     let message: String?
@@ -186,7 +181,7 @@ nonisolated struct VerifyCodeResponse: Codable {
     }
 }
 
-nonisolated struct VerifyFlashCallResponse: Codable {
+struct VerifyFlashCallResponse: Codable {
     let success: Bool
     let error: String?
     let message: String?
@@ -204,24 +199,20 @@ nonisolated struct VerifyFlashCallResponse: Codable {
     }
 }
 
-nonisolated struct APIError: Codable {
+struct APIError: Codable {
     let error: String        // Error code (e.g., "CODE_ALREADY_SENT")
     let message: String?     // Localized error message from server
     let timestamp: String
 }
 
 // MARK: - Errors
-/// `Sendable`, which is why `networkError` carries a `String` rather than the underlying `Error`:
-/// this type is thrown from the nonisolated service and caught on the main actor, and an
-/// `any Error` payload would make the whole enum unsendable. Nothing is lost — the one place that
-/// reads this case only ever took `localizedDescription` off it.
-nonisolated enum APIServiceError: Error, LocalizedError, Sendable {
+enum APIServiceError: Error, LocalizedError {
     case invalidURL
     case noData
     case decodingError
     case httpError(Int)
     case serverError(String)
-    case networkError(String)
+    case networkError(Error)
     case unauthorized
     case phoneNotAllowed(String) // New error type for phone authentication
     
@@ -237,8 +228,8 @@ nonisolated enum APIServiceError: Error, LocalizedError, Sendable {
             return "HTTP Error: \(code)"
         case .serverError(let message):
             return message
-        case .networkError(let message):
-            return "Network error: \(message)"
+        case .networkError(let error):
+            return "Network error: \(error.localizedDescription)"
         case .unauthorized:
             return "User not authorized"
         case .phoneNotAllowed(let message):
@@ -248,7 +239,7 @@ nonisolated enum APIServiceError: Error, LocalizedError, Sendable {
 }
 
 // MARK: - API Service Implementation
-nonisolated final class APIService: APIServiceProtocol {
+final class APIService: APIServiceProtocol {
     
     // MARK: - Properties
     private let baseURL = Constants.URLs.api

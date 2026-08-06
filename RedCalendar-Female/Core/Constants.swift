@@ -6,10 +6,7 @@
 //
 import Foundation
 
-/// `nonisolated` because these are read from both sides of the isolation line — `URLs.api` from
-/// `APIService`'s stored property, `Calendar` and `Cycle` from the reducer and the views. A
-/// constant that needed the main actor would be no constant at all.
-nonisolated struct Constants {
+struct Constants {
     struct URLs {
         static let appLink = "https://apps.apple.com/app/redcalendar-cycle-tracker/id1535523842"
         static var api: String {

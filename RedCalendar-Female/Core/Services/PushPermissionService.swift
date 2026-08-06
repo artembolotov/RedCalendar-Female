@@ -9,28 +9,25 @@ import UserNotifications
 import UIKit
 
 // MARK: - Push Permission Status
-nonisolated enum PushPermissionState {
+enum PushPermissionState {
     case notAsked
     case denied
     case authorized
 }
 
 // MARK: - Protocol
-nonisolated protocol PushPermissionServiceProtocol: Sendable {
+protocol PushPermissionServiceProtocol {
     func getState() async -> PushPermissionState
-
+    
     @discardableResult
     func requestAuthorization() async -> Bool
 }
 
 // MARK: - Implementation
-nonisolated final class PushPermissionService: PushPermissionServiceProtocol {
-
-    // Resolved per call rather than stored. `UNUserNotificationCenter` is not `Sendable`, so as a
-    // stored property it would need `nonisolated(unsafe)` — and there is nothing to store:
-    // `current()` returns the same process-wide instance every time.
-    private var notificationCenter: UNUserNotificationCenter { .current() }
-
+final class PushPermissionService: PushPermissionServiceProtocol {
+    
+    private let notificationCenter = UNUserNotificationCenter.current()
+    
     // MARK: - Get Current Status
     func getState() async -> PushPermissionState {
         let settings = await notificationCenter.notificationSettings()

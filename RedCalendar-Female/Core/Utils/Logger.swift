@@ -5,10 +5,7 @@
 //  Created by Артём Болотов on 04.06.2025.
 //
 
-/// `nonisolated`: a log line is written where the thing being logged happened, and that is as often
-/// the nonisolated keychain or API service as it is a view. Isolating this to the main actor would
-/// turn every `AppLogger.error(…)` in those files into an `await`.
-nonisolated struct AppLogger {
+struct AppLogger {
     static func action(_ action: AppAction) {
         #if DEBUG
         print("🎯 Action: \(action)")
@@ -25,10 +22,11 @@ nonisolated struct AppLogger {
         #if DEBUG
         print("⚠️ WARN: \(message)")
         #endif
-
+        
+        @Injected var analytics: AnalyticsServiceProtocol
         analytics.trackEvent("app_warning", parameters: ["message": message])
     }
-
+    
     static func error(_ message: String, error: Error? = nil) {
         #if DEBUG
         print("❌ ERROR: \(message)")
@@ -36,16 +34,8 @@ nonisolated struct AppLogger {
             print("   Details: \(error.localizedDescription)")
         }
         #endif
-
+        
+        @Injected var analytics: AnalyticsServiceProtocol
         analytics.trackEvent("app_error", parameters: ["message": message])
-    }
-
-    /// The one place that resolves through the container rather than through `@Injected`. The
-    /// wrapper takes the module's main-actor default — it has to, since a local variable inherits
-    /// its wrapper's isolation and `nonisolated` on a local is an error — and this type is
-    /// nonisolated, because a log line is written wherever the thing being logged happened. Same
-    /// lookup, same per-read laziness, no wrapper.
-    private static var analytics: AnalyticsServiceProtocol {
-        ServiceLocator.shared.getService()
     }
 }

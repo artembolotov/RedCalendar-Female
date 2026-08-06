@@ -5,7 +5,7 @@
 //  Created by Артём Болотов on 21.05.2026.
 //
 
-nonisolated struct NotificationState: Equatable, Sendable {
+struct NotificationState: Equatable {
     var apnsToken: APNSToken?
     var pushPermissionState: PushPermissionState?
 }

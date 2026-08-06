@@ -5,7 +5,7 @@
 
 // MARK: - DayDisplayState
 
-nonisolated struct DayDisplayState: Equatable {
+struct DayDisplayState: Equatable {
     var cyclePhase: CyclePhase
     var fertileWindow: FertileWindow?
     var hasComment: Bool
@@ -21,21 +21,21 @@ nonisolated struct DayDisplayState: Equatable {
 
 // MARK: - CyclePhase
 
-nonisolated enum CyclePhase: Equatable {
+enum CyclePhase: Equatable {
     case none
     case period(position: SegmentPosition, isPredicted: Bool)
 }
 
 // MARK: - FertileWindow
 
-nonisolated struct FertileWindow: Equatable {
+struct FertileWindow: Equatable {
     var phase: FertilePhase
     var position: SegmentPosition
 }
 
 // MARK: - FertilePhase
 
-nonisolated enum FertilePhase: Equatable {
+enum FertilePhase: Equatable {
     case fertile
     case ovulation(confirmed: Bool)
 }
@@ -44,7 +44,7 @@ nonisolated enum FertilePhase: Equatable {
 
 // Where a day sits inside a run of days drawn as one bar — the period bar and the fertile
 // window band both cap their ends with it.
-nonisolated enum SegmentPosition: Equatable {
+enum SegmentPosition: Equatable {
     case start
     case middle
     case end

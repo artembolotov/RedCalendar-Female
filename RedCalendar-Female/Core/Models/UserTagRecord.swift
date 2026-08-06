@@ -1,7 +1,7 @@
 import Foundation
 import GRDB
 
-nonisolated struct UserTagRecord: Codable, FetchableRecord, PersistableRecord {
+struct UserTagRecord: Codable, FetchableRecord, PersistableRecord {
     var id: String
     var name: String?
     var category: Int?
@@ -19,7 +19,7 @@ nonisolated struct UserTagRecord: Codable, FetchableRecord, PersistableRecord {
     typealias CodingKeys = Columns
 }
 
-nonisolated extension UserTagRecord: Equatable {
+extension UserTagRecord: Equatable {
     static func == (lhs: UserTagRecord, rhs: UserTagRecord) -> Bool {
         lhs.id == rhs.id &&
         lhs.name == rhs.name &&

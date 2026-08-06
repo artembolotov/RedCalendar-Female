@@ -1,7 +1,7 @@
 import Foundation
 import GRDB
 
-nonisolated struct CommentRecord: Codable, FetchableRecord, PersistableRecord {
+struct CommentRecord: Codable, FetchableRecord, PersistableRecord {
     var dayNumber: Daystamp
     var comment: String?
     var updatedAt: Int?
@@ -17,7 +17,7 @@ nonisolated struct CommentRecord: Codable, FetchableRecord, PersistableRecord {
     typealias CodingKeys = Columns
 }
 
-nonisolated extension CommentRecord: Equatable {
+extension CommentRecord: Equatable {
     static func == (lhs: CommentRecord, rhs: CommentRecord) -> Bool {
         lhs.dayNumber == rhs.dayNumber &&
         lhs.comment == rhs.comment

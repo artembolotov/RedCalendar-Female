@@ -5,7 +5,7 @@
 //  Created by Артём Болотов on 04.06.2025.
 //
 
-nonisolated enum AppAction: Sendable {
+enum AppAction {
     // Auth actions
     case checkAuthState
     case setAuthState(_ state: AuthState)
