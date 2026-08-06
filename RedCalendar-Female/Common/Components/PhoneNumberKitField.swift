@@ -7,6 +7,7 @@
 
 import SwiftUI
 import PhoneNumberKit
+import PhoneNumberKitUI
 
 struct PhoneNumberKitField: UIViewRepresentable {
     @Binding var phoneNumber: String

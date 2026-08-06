@@ -1,5 +1,5 @@
 {
-  "originHash" : "b4187eaa3973452c76a9909b9cff792dd22d8e90e6e046c5a0aa8c570e37b0d4",
+  "originHash" : "5c06801ff152d5488250352867e5026d2df8d260b066cbc639d3028d3fdc71a1",
   "pins" : [
     {
       "identity" : "appmetrica-sdk-ios",
@@ -31,10 +31,19 @@
     {
       "identity" : "phonenumberkit",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/marmelroy/PhoneNumberKit.git",
+      "location" : "https://github.com/PhoneNumberKit/PhoneNumberKit",
       "state" : {
-        "revision" : "8cba2258060e356d5fc4836d4ff8549faa2409dd",
-        "version" : "4.1.4"
+        "revision" : "e18a029dbada1d8eb32e3f81a4eb72eba539ff75",
+        "version" : "5.0.6"
+      }
+    },
+    {
+      "identity" : "phonenumberkitui",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/PhoneNumberKit/PhoneNumberKitUI",
+      "state" : {
+        "revision" : "2e328c979cce62871be946f25c4d537c76526689",
+        "version" : "1.1.0"
       }
     }
   ],

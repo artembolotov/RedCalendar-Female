@@ -7,8 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		AB17058A2E0F372700B5208D /* PhoneNumberKit-Static in Frameworks */ = {isa = PBXBuildFile; productRef = AB1705892E0F372700B5208D /* PhoneNumberKit-Static */; };
 		AB56FF102FC6BCC7004B27E5 /* GRDB in Frameworks */ = {isa = PBXBuildFile; productRef = AB56FF0F2FC6BCC7004B27E5 /* GRDB */; };
+		AB7CC9873024D8F70019A983 /* PhoneNumberKit-Static in Frameworks */ = {isa = PBXBuildFile; productRef = AB7CC9863024D8F70019A983 /* PhoneNumberKit-Static */; };
+		AB7CC98A3024D91F0019A983 /* PhoneNumberKitUI in Frameworks */ = {isa = PBXBuildFile; productRef = AB7CC9893024D91F0019A983 /* PhoneNumberKitUI */; };
 		AB9FE2572DF00B390083B0D9 /* AppMetricaCore in Frameworks */ = {isa = PBXBuildFile; productRef = AB9FE2562DF00B390083B0D9 /* AppMetricaCore */; };
 		AB9FE2592DF00B390083B0D9 /* AppMetricaCrashes in Frameworks */ = {isa = PBXBuildFile; productRef = AB9FE2582DF00B390083B0D9 /* AppMetricaCrashes */; };
 /* End PBXBuildFile section */
@@ -47,8 +48,9 @@
 			buildActionMask = 2147483647;
 			files = (
 				AB9FE2592DF00B390083B0D9 /* AppMetricaCrashes in Frameworks */,
+				AB7CC9873024D8F70019A983 /* PhoneNumberKit-Static in Frameworks */,
+				AB7CC98A3024D91F0019A983 /* PhoneNumberKitUI in Frameworks */,
 				AB9FE2572DF00B390083B0D9 /* AppMetricaCore in Frameworks */,
-				AB17058A2E0F372700B5208D /* PhoneNumberKit-Static in Frameworks */,
 				AB56FF102FC6BCC7004B27E5 /* GRDB in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -96,8 +98,9 @@
 			packageProductDependencies = (
 				AB9FE2562DF00B390083B0D9 /* AppMetricaCore */,
 				AB9FE2582DF00B390083B0D9 /* AppMetricaCrashes */,
-				AB1705892E0F372700B5208D /* PhoneNumberKit-Static */,
 				AB56FF0F2FC6BCC7004B27E5 /* GRDB */,
+				AB7CC9863024D8F70019A983 /* PhoneNumberKit-Static */,
+				AB7CC9893024D91F0019A983 /* PhoneNumberKitUI */,
 			);
 			productName = "RedCalendar-Female";
 			productReference = AB9FE2372DEFF9110083B0D9 /* RedCalendar-Female.app */;
@@ -129,8 +132,9 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				AB9FE2552DF00B390083B0D9 /* XCRemoteSwiftPackageReference "appmetrica-sdk-ios" */,
-				AB1705882E0F372700B5208D /* XCRemoteSwiftPackageReference "PhoneNumberKit" */,
 				AB56FF0E2FC6BCC7004B27E5 /* XCRemoteSwiftPackageReference "GRDB.swift" */,
+				AB7CC9853024D8F70019A983 /* XCRemoteSwiftPackageReference "PhoneNumberKit" */,
+				AB7CC9883024D91F0019A983 /* XCRemoteSwiftPackageReference "PhoneNumberKitUI" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = AB9FE2382DEFF9110083B0D9 /* Products */;
@@ -611,20 +615,28 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		AB1705882E0F372700B5208D /* XCRemoteSwiftPackageReference "PhoneNumberKit" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/marmelroy/PhoneNumberKit.git";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 4.1.1;
-			};
-		};
 		AB56FF0E2FC6BCC7004B27E5 /* XCRemoteSwiftPackageReference "GRDB.swift" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/groue/GRDB.swift.git";
 			requirement = {
 				kind = upToNextMajorVersion;
 				minimumVersion = 7.0.0;
+			};
+		};
+		AB7CC9853024D8F70019A983 /* XCRemoteSwiftPackageReference "PhoneNumberKit" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/PhoneNumberKit/PhoneNumberKit";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 5.0.6;
+			};
+		};
+		AB7CC9883024D91F0019A983 /* XCRemoteSwiftPackageReference "PhoneNumberKitUI" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/PhoneNumberKit/PhoneNumberKitUI";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.1.0;
 			};
 		};
 		AB9FE2552DF00B390083B0D9 /* XCRemoteSwiftPackageReference "appmetrica-sdk-ios" */ = {
@@ -638,15 +650,20 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		AB1705892E0F372700B5208D /* PhoneNumberKit-Static */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = AB1705882E0F372700B5208D /* XCRemoteSwiftPackageReference "PhoneNumberKit" */;
-			productName = "PhoneNumberKit-Static";
-		};
 		AB56FF0F2FC6BCC7004B27E5 /* GRDB */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = AB56FF0E2FC6BCC7004B27E5 /* XCRemoteSwiftPackageReference "GRDB.swift" */;
 			productName = GRDB;
+		};
+		AB7CC9863024D8F70019A983 /* PhoneNumberKit-Static */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AB7CC9853024D8F70019A983 /* XCRemoteSwiftPackageReference "PhoneNumberKit" */;
+			productName = "PhoneNumberKit-Static";
+		};
+		AB7CC9893024D91F0019A983 /* PhoneNumberKitUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AB7CC9883024D91F0019A983 /* XCRemoteSwiftPackageReference "PhoneNumberKitUI" */;
+			productName = PhoneNumberKitUI;
 		};
 		AB9FE2562DF00B390083B0D9 /* AppMetricaCore */ = {
 			isa = XCSwiftPackageProductDependency;
