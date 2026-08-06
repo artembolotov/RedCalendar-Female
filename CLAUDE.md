@@ -637,6 +637,18 @@ actor is where the values were always going.
 
 ### Environments
 
+**Concurrency checking:** `SWIFT_STRICT_CONCURRENCY = targeted` on all four configurations,
+`SWIFT_VERSION` still `5.0`, so everything arrives as a warning and nothing is an error. The tree
+is clean at that level — a new warning there means new code, so keep it at zero.
+
+`complete` is not on, and turning it on is a separate piece of work rather than a flag flip: it
+reports 45 warnings, and only ~12 of them are in the Redux/service layer (`: Sendable` on the five
+remaining service protocols, which is the real fix). The rest is UI — `FlowLayout` alone accounts
+for 22, from mutable `var`s captured in a `@ViewBuilder` closure, and needs its cursor boxed into
+a type. **Do not turn on `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor` to make them go away.** That
+was tried, and it is what produced the 18 `nonisolated` extensions in `Core/Models/` that got the
+whole migration reverted; this app's value layer is deliberately reachable from off-main.
+
 | Scheme | Config | API |
 |---|---|---|
 | RedCalendar-Female (Debug) | Debug | Dev |
