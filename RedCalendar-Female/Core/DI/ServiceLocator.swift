@@ -8,13 +8,15 @@
 import Foundation
 
 /// Registration happens once, from `Configurator.setup()` at launch; resolution happens from
-/// anywhere, on any thread — middleware bodies run on the cooperative pool.
+/// anywhere, on any thread.
 ///
-/// Those two have never overlapped in practice, which is how an unsynchronised dictionary
-/// survived here. But that was a property of the call order rather than of this type: a single
-/// service registered after launch would put a dictionary write next to concurrent reads, and a
-/// `Dictionary` torn that way corrupts the heap exactly like the observation tokens in
-/// `DatabaseMiddleware` did. The lock makes it a property of the type instead.
+/// Middleware is main-actor isolated now, so the everyday reads have converged on one thread —
+/// but the lock is not there because of where middleware runs. It is there because registration
+/// and resolution are not otherwise ordered by anything except the call order at launch, and a
+/// single service registered later would put a dictionary write next to concurrent reads.
+/// A `Dictionary` torn that way corrupts the heap exactly like the observation tokens in
+/// `DatabaseMiddleware` did. The lock makes safety a property of the type rather than of the
+/// sequence in which it happens to be called; that argument does not move when the callers do.
 ///
 /// The key is the **static** type the service is registered and resolved under, which is why
 /// `Configurator` registers everything as its protocol type. `ObjectIdentifier` rather than a

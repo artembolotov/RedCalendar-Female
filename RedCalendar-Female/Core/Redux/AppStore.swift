@@ -52,6 +52,24 @@ final class AppStore: ObservableObject {
     private let reducer: Reducer
     private let middlewares: [Middleware]
 
+    /// An action paired with the state **its own** reducer produced, rather than with whatever
+    /// the state has become by the time the queue reaches it. That is the only reading of
+    /// "the state a middleware sees" that does not depend on how long the queue is.
+    ///
+    /// A nominal struct rather than the obvious `(action:state:)` tuple. Both attempts at this
+    /// queue in the reverted migration used a generic type instantiated at a tuple —
+    /// `AsyncStream<(action:state:)>`, then `[(action:state:)]` — and both archives died in the
+    /// optimizer's generic-layout check. A struct has one concrete layout and nothing to
+    /// substitute. Three lines, and the cheapest hedge available against a compiler bug nobody
+    /// has isolated.
+    private struct Effect {
+        let action: AppAction
+        let state: AppState
+    }
+
+    private var queue: [Effect] = []
+    private var isDraining = false
+
     init(
         initialState: AppState,
         reducer: @escaping Reducer,
@@ -64,33 +82,64 @@ final class AppStore: ObservableObject {
 
     // MARK: - Public Interface
 
+    /// A dispatch is two halves, and the split is the design.
+    ///
+    /// The **reducer runs synchronously**, here, on the caller's turn — so state changes in the
+    /// order actions were sent, and it has already changed by the time `send` returns. The
+    /// **effects are queued**, and drained one at a time, so one action's middleware chain
+    /// finishes before the next one's begins.
+    ///
+    /// Every dispatch used to be its own unstructured `Task` opening with `await Task.yield()`,
+    /// which gave away both halves: two actions sent back to back diverged at that first
+    /// suspension point and ran their middleware concurrently. That is the shape behind both
+    /// crashes this app has shipped — a burst of `.calendarScrolledTo` during a fling restarting
+    /// the same GRDB observation from two threads, and a haptic generator driven from the pool.
+    /// Isolating the two middlewares that got caught fixed those two cases and never fixed the
+    /// ordering; the main actor is reentrant, so an `await` inside any middleware stayed a
+    /// window the next action could land in.
     func send(_ action: AppAction) {
-        Task {
-            // Yield to give animations priority
-            await Task.yield()
-
-            let newState = reducer(state, action)
-            // Skip the @Published write for no-op actions — otherwise every
-            // dispatch invalidates all observing views even when nothing changed.
-            if newState != state {
-                state = newState
-            }
-
-            await processMiddlewares(for: action)
+        let newState = reducer(state, action)
+        // Skip the @Published write for no-op actions — otherwise every
+        // dispatch invalidates all observing views even when nothing changed.
+        if newState != state {
+            state = newState
         }
+
+        queue.append(Effect(action: action, state: state))
+        drain()
     }
 
     // MARK: - Private Implementation
 
-    private func processMiddlewares(for action: AppAction) async {
-        for middleware in middlewares {
-            let actions = await middleware(state, action) { [weak self] asyncAction in
-                self?.send(asyncAction)
+    /// Reentrancy is the whole of it: `send` called from inside the loop below — by a
+    /// middleware's `dispatch`, or by a returned action — appends and returns, because
+    /// `isDraining` is already true. One drain task exists at a time and it runs until the
+    /// queue is empty.
+    ///
+    /// What this does *not* do is make a slow middleware free: a long `await` in one delays
+    /// every action behind it. That stays affordable only because the heavy middlewares return
+    /// `[]` immediately and do their work in their own `Task`, dispatching the result when it
+    /// lands. Keep that shape.
+    private func drain() {
+        guard !isDraining else { return }
+        isDraining = true
+
+        Task {
+            while !queue.isEmpty {
+                let effect = queue.removeFirst()
+
+                for middleware in middlewares {
+                    let followUps = await middleware(effect.state, effect.action) { [weak self] followUp in
+                        self?.send(followUp)
+                    }
+
+                    for followUp in followUps {
+                        send(followUp)
+                    }
+                }
             }
 
-            for action in actions {
-                send(action)
-            }
+            isDraining = false
         }
     }
 }

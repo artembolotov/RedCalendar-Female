@@ -203,7 +203,13 @@ let authMiddleware: Middleware = { state, action, dispatch in
         if case .authenticated(_, _) = authState {
             UIApplication.shared.registerForRemoteNotifications()
             if state.notifications.pushPermissionState == .notAsked {
-                await pushPermissionService.requestAuthorization()
+                // In its own `Task` rather than awaited here: this call puts the system
+                // permission alert on screen and does not return until the user answers it.
+                // Middleware runs on the store's serial effect queue, so awaiting it inline
+                // would stall every action behind it for as long as the alert is up.
+                Task {
+                    await pushPermissionService.requestAuthorization()
+                }
             }
         }
         

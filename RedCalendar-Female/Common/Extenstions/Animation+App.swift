@@ -54,9 +54,11 @@ extension Animation {
     ///
     /// What cannot be matched is the *start*: the card takes the flick's velocity into its
     /// spring and the disc always leaves from rest. Handing the gesture's speed over would mean
-    /// choosing the animation at the call site, and `Store.send` defers the state change into a
-    /// `Task`, so no `withAnimation` around a dispatch survives to reach the view. On a hard
-    /// flick the card will leave first; that is structural, not a number to tune.
+    /// choosing the animation at the call site. That is now possible in principle — the store
+    /// runs its reducer synchronously, so a `withAnimation` around a dispatch does reach the
+    /// view — but nothing in the app does it yet, and adopting it here is a change to how the
+    /// disc moves rather than a change to this number. On a hard flick the card still leaves
+    /// first.
     ///
     /// There is one curve now, and that is a consequence rather than a simplification: the only
     /// distance it is ever asked to cover is one cell. A second, calmer curve for long throws

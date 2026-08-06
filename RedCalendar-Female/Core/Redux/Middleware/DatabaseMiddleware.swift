@@ -8,20 +8,25 @@ import GRDB
 
 // MARK: - DatabaseMiddleware
 
-/// Main-actor isolated, and that is a correctness requirement rather than a convenience.
+/// Main-actor isolated, and still a correctness requirement rather than a convenience — though
+/// no longer the only thing standing between this class and a heap corruption.
 ///
-/// `Store.send` gives every action its own `Task` and `Middleware` is an unisolated `async`
-/// closure, so without isolation two actions ran `handle` at the same time on different threads
-/// of the cooperative pool. The observation tokens below are plain stored properties whose
-/// `deinit` does real work (`AnyDatabaseCancellable.deinit` calls `cancel()`), and overwriting
-/// one of those from two threads at once loses a reference count and corrupts the heap — the
-/// crash then lands wherever the allocator happens to notice, with nothing of ours on the stack.
-/// A fast calendar scroll produced exactly that, because `.calendarScrolledTo` arrives in bursts.
+/// The tokens below are stored properties whose `deinit` does real work
+/// (`AnyDatabaseCancellable.deinit` calls `cancel()`), so overwriting one from two threads at
+/// once loses a reference count and corrupts the heap; the crash then lands wherever the
+/// allocator happens to notice, with nothing of ours on the stack. A fast calendar scroll
+/// produced exactly that, because `.calendarScrolledTo` arrives in bursts and every action used
+/// to get its own `Task` on the cooperative pool.
 ///
-/// **The invariant:** everything that reads or writes the tokens and `observedRange`
+/// The store no longer works that way — actions are drained one at a time — so this isolation is
+/// now belt to that braces. It stays because the ownership argument is independent of the
+/// store's scheduling: whoever holds a token has to be isolated somewhere, and the main actor is
+/// where GRDB delivers the values anyway.
+///
+/// **The invariant is unchanged:** everything that reads or writes the tokens and `observedRange`
 /// (`startPermanentObservations`, `startRangeObservations`, `cancelAll`) is synchronous, and
 /// `handle` has no `await` between checking the state of the observations and changing it. The
-/// main actor is reentrant — an `await` introduced into that gap brings the same race back.
+/// main actor is reentrant — an `await` introduced into that gap brings the race back.
 @MainActor
 final class DatabaseMiddleware {
     static let shared = DatabaseMiddleware()
@@ -35,12 +40,13 @@ final class DatabaseMiddleware {
 
     /// The range `commentsToken` and `dayTagsToken` are currently subscribed to.
     ///
-    /// It duplicates `state.calendarState.loadedRange` on purpose. The store only learns about a
-    /// new range after `.setLoadedRange` travels back through `send` → `Task` → `Task.yield()` →
-    /// reducer, while the calendar reports a fresh centre every `centerReportStep` days: several
-    /// more `.calendarScrolledTo` arrive inside that round trip, and every one of them still sees
-    /// the old `loadedRange`. Deciding from state restarted both observations once per action in
-    /// the burst; deciding from here restarts them once per expansion.
+    /// It duplicates `state.calendarState.loadedRange` on purpose, and the reason survived the
+    /// store becoming ordered. `.setLoadedRange` is a value `handle` *returns*, so it cannot
+    /// reach the reducer while the burst of `.calendarScrolledTo` that produced it is still
+    /// queued ahead of it — and the calendar reports a fresh centre every `centerReportStep`
+    /// days, so a fling produces several. Every one of them would still see the old
+    /// `loadedRange`. Deciding from state restarted both observations once per action in the
+    /// burst; deciding from here restarts them once per expansion.
     private var observedRange: ClosedRange<Daystamp>?
 
     private var observationsActive: Bool { cyclesToken != nil }
