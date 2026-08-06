@@ -7,6 +7,10 @@
 
 import Foundation
 
+// Main-actor isolated because it constructs `TapticFeedbackService`, which owns UIKit
+// feedback generators. `setup()` is called from `RedCalendarApp.init()`, which is already
+// on the main actor, so this annotation has no ripple beyond this file.
+@MainActor
 final class Configurator {
     static let shared = Configurator()
     

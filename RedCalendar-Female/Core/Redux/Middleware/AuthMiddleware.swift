@@ -201,9 +201,7 @@ let authMiddleware: Middleware = { state, action, dispatch in
         }
         
         if case .authenticated(_, _) = authState {
-            await MainActor.run {
-                UIApplication.shared.registerForRemoteNotifications()
-            }
+            UIApplication.shared.registerForRemoteNotifications()
             if state.notifications.pushPermissionState == .notAsked {
                 await pushPermissionService.requestAuthorization()
             }

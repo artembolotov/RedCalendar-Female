@@ -15,9 +15,12 @@ func combineAppMiddlewares() -> [Middleware] {
         analyticsMiddleware,
         appearanceMiddleware,
         feedbackMiddleware,
-        // `Middleware` is an unisolated type and DatabaseMiddleware lives on the main actor,
-        // because it owns the GRDB observation tokens. This `await` is the hop onto it, and it is
-        // also what serialises actions the store otherwise sends each in its own `Task`.
+        // The closure stays, but it is no longer the hop onto the main actor — `Middleware` is
+        // `@MainActor` now, so there is no hop left to make. It is here because
+        // `DatabaseMiddleware.shared.handle` cannot be written directly: a partial method
+        // application is not `@Sendable`, and `combineAppMiddlewares()` is nonisolated, so
+        // evaluating a main-actor `static let` in it is an error under Swift 6. Inside a
+        // `@MainActor` closure literal both are fine, and nothing is captured.
         { state, action, dispatch in
             await DatabaseMiddleware.shared.handle(state: state, action: action, dispatch: dispatch)
         }

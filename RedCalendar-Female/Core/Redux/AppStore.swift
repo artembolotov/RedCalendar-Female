@@ -9,8 +9,29 @@ import Foundation
 import Combine
 
 typealias Reducer = (AppState, AppAction) -> AppState
-typealias Dispatch = (AppAction) -> Void
-typealias Middleware = (AppState, AppAction, @escaping Dispatch) async -> [AppAction]
+
+/// Both are `@MainActor`, and that is the boundary the whole app's thread-safety rests on.
+///
+/// `Middleware` used to be an unisolated `async` closure type, so awaiting it from the
+/// `@MainActor` store hopped *off* the main actor and every middleware body ran on the
+/// cooperative pool. Two things followed. The `dispatch` closure below is formed in a
+/// main-actor context, so handing it to an unisolated parameter type erased its isolation
+/// and all 17 `dispatch(…)` calls invoked a main-actor closure from a pool thread — legal
+/// only because nothing was checking. And anything main-thread-only that a middleware
+/// touched had to catch itself: `TapticFeedbackService` carried a hand-rolled
+/// `Thread.isMainThread` hop for exactly that reason, after a `UIFeedbackGenerator` driven
+/// from the pool killed the process.
+///
+/// Isolating the two typealiases costs two words and replaces both workarounds. Nothing that
+/// *should* leave the main actor is affected: every such call in this app is already `async`
+/// on an unisolated protocol (`APIService`, `PushPermissionService`, `DatabaseService`'s
+/// CRUD), and a `nonisolated async` function runs on the generic executor no matter which
+/// actor called it.
+///
+/// `@Sendable` is free here — all seven global middlewares are closure literals capturing
+/// nothing — and it is what lets them stay global `let`s.
+typealias Dispatch = @MainActor @Sendable (AppAction) -> Void
+typealias Middleware = @MainActor @Sendable (AppState, AppAction, @escaping Dispatch) async -> [AppAction]
 
 /// Concrete over `AppState`/`AppAction` rather than generic, and that is deliberate twice over.
 ///

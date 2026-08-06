@@ -49,7 +49,7 @@ final class DatabaseMiddleware {
 
     // MARK: - Handle
 
-    func handle(state: AppState, action: AppAction, dispatch: @escaping (AppAction) -> Void) async -> [AppAction] {
+    func handle(state: AppState, action: AppAction, dispatch: @escaping Dispatch) async -> [AppAction] {
         switch action {
         case .setAuthState(let authState):
             if case .authenticated = authState {
@@ -113,7 +113,7 @@ final class DatabaseMiddleware {
 
     // MARK: - Private Methods
 
-    private func startPermanentObservations(dispatch: @escaping (AppAction) -> Void) {
+    private func startPermanentObservations(dispatch: @escaping Dispatch) {
         let service = dbService
         cyclesToken = service.observeCycles { records in
             dispatch(.setCycles(records))
@@ -126,7 +126,7 @@ final class DatabaseMiddleware {
     // The previous observations are cancelled explicitly rather than left to the assignment
     // dropping their last reference and `deinit` doing it: this way the moment of cancellation is
     // this line, not wherever ARC got around to releasing the object.
-    private func startRangeObservations(for range: ClosedRange<Daystamp>, dispatch: @escaping (AppAction) -> Void) {
+    private func startRangeObservations(for range: ClosedRange<Daystamp>, dispatch: @escaping Dispatch) {
         commentsToken?.cancel()
         dayTagsToken?.cancel()
         observedRange = range
