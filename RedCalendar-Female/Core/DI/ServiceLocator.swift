@@ -22,6 +22,20 @@ import Foundation
 /// `Configurator` registers everything as its protocol type. `ObjectIdentifier` rather than a
 /// type name: it cannot collide across modules, and it costs nothing to compute, which matters
 /// now that `@Injected` resolves on every read instead of caching.
+///
+/// `addService` takes that type as an explicit `T.Type` argument rather than inferring `T` from
+/// `service`'s own type. It used to infer it — `let x: SomeProtocol = Concrete(); addService(service:
+/// x)` relied on `T` binding to `x`'s declared type, `SomeProtocol` — and that inference is not
+/// stable across language modes: passing an existential-typed value to an unconstrained generic
+/// parameter is exactly where the compiler is free to open the existential and bind `T` to the
+/// concrete type underneath instead, which is what Swift 6 mode did to every registration in
+/// `Configurator` at once. Registration and `@Injected`'s lookup keyed on different types after
+/// that, and resolving anything was the fatalError below, on first launch. Making the type an
+/// explicit argument removes the inference — and with it the language-mode dependency — entirely.
+/// `getService`'s `T` has no such hazard: it is inferred from the *expected return type* at the
+/// call site (`@Injected`'s `wrappedValue` getter, itself typed by the property's declared type),
+/// which is ordinary contextual inference, not existential opening, and stayed correct under both
+/// modes when this was diagnosed.
 final class ServiceLocator: @unchecked Sendable {
     static let shared = ServiceLocator()
 
@@ -30,10 +44,10 @@ final class ServiceLocator: @unchecked Sendable {
 
     private init() {}
 
-    func addService<T>(service: T) {
+    func addService<T>(_ type: T.Type, service: T) {
         lock.lock()
         defer { lock.unlock() }
-        services[ObjectIdentifier(T.self)] = service
+        services[ObjectIdentifier(type)] = service
     }
 
     func getService<T>() -> T {

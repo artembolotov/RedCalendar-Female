@@ -74,8 +74,12 @@ typealias Middleware = @MainActor @Sendable (AppState, AppAction, @escaping Disp
 - All services are registered in `Configurator.setup()` as their **protocol type**, not the concrete type:
   ```swift
   let service: MyServiceProtocol = MyService()
-  ServiceLocator.shared.addService(service: service)
+  ServiceLocator.shared.addService(MyServiceProtocol.self, service: service)
   ```
+  The metatype argument is explicit, not inferred from `service`'s declared type — Swift's rule
+  for binding a generic parameter from an existential-typed argument is not stable across language
+  modes (see the Swift 6 note under Environments below), so `addService` takes the type it keys on
+  as an ordinary value argument instead of leaving it to inference.
 - Inject services using `@Injected` inside middleware closures or class properties:
   ```swift
   @Injected var apiService: APIServiceProtocol
@@ -93,8 +97,8 @@ typealias Middleware = @MainActor @Sendable (AppState, AppAction, @escaping Disp
   `Configurator.setup()` is called. Every service is therefore resolved lazily, on first use, long
   after registration. An eagerly-injected stored property anywhere in that chain is a `fatalError`
   on launch.
-- The container keys on the **static** type it was registered under, which is what the
-  protocol-type rule above is really enforcing: register as `MyService` and every
+- The container keys on the type passed as `addService`'s first argument, which is what the
+  protocol-type rule above is really enforcing: pass `MyService.self` and every
   `@Injected var x: MyServiceProtocol` misses.
 
 **Adding a new service:** create the protocol + implementation, register in `Configurator`, inject with `@Injected`.
@@ -655,25 +659,34 @@ actor is where the values were always going.
 
 ### Environments
 
-**Concurrency checking:** `SWIFT_STRICT_CONCURRENCY = complete` on all four configurations,
-`SWIFT_VERSION` still `5.0`, so everything arrives as a warning and nothing is an error. The tree
-is clean at that level — a new warning there means new code, so keep it at zero.
+**Concurrency checking:** `SWIFT_STRICT_CONCURRENCY = complete` and `SWIFT_VERSION = 6.0` on all
+four configurations. The `complete` tree reached zero warnings under Swift 5 mode first, verified
+by archive; `SWIFT_VERSION` moved to `6.0` on that basis, turning the same diagnostics into errors.
+A new concurrency error means new code — there is no warning tier left to catch it first, so
+archive before merging anything that touches an actor boundary.
 
-**`SWIFT_VERSION = 6.0` was tried and reverted — it does not just turn the existing warnings into
-errors.** Language mode changes how Swift infers a generic parameter from an existential argument:
-`ServiceLocator.addService<T>(service:)` is called as `addService(service: keychain)` where
-`keychain` is `let keychain: KeychainServiceProtocol = KeychainService()`. Under Swift 5, `T` binds
-to the annotation, `KeychainServiceProtocol` — under Swift 6, the compiler opens the existential
-and binds `T` to the concrete `KeychainService` instead. Registration and `@Injected`'s lookup key
-on different types after that, and every resolution of that service is the `ServiceLocator.swift`
-fatalError, on first launch, before any UI. `complete` under Swift 5 mode produces the same set of
-*diagnostics* Swift 6 mode does, which is what made this look safe from an archive alone — archive
-only compiles, and this bug does not fail to compile, it fails to run. Confirmed by actually
-launching the app in the simulator: 5.0 resolves `T=KeychainServiceProtocol` and works, 6.0
-resolves `T=KeychainService` and crashes on `.checkAuthState`, both from an otherwise identical
-tree. Do not flip `SWIFT_VERSION` again without first making `ServiceLocator`'s registration
-explicit about the type it keys on (e.g. take the protocol metatype as a parameter instead of
-inferring it), and without launching the app afterward — an archive verifies compilation, not this.
+**The first attempt at `SWIFT_VERSION = 6.0` was reverted, and the reason had nothing to do with
+concurrency.** Language mode changes how Swift infers a generic parameter from an existential
+argument. `ServiceLocator.addService` used to be `addService<T>(service:)`, called as
+`addService(service: keychain)` where `keychain` is `let keychain: KeychainServiceProtocol =
+KeychainService()`. Under Swift 5, `T` bound to the annotation, `KeychainServiceProtocol` — under
+Swift 6, the compiler opened the existential and bound `T` to the concrete `KeychainService`
+instead. Registration and `@Injected`'s lookup keyed on different types after that, and every
+resolution of that service was the `ServiceLocator.swift` fatalError, on first launch, before any
+UI. `complete` under Swift 5 mode produces the same set of *diagnostics* Swift 6 mode does, which
+is what made the first attempt look safe from an archive alone — archive only compiles, and this
+bug didn't fail to compile, it failed to run. Confirmed by actually launching the app in the
+simulator: 5.0 resolved `T=KeychainServiceProtocol` and worked, 6.0 resolved `T=KeychainService`
+and crashed on `.checkAuthState`, both from an otherwise identical tree.
+
+The fix, now in place, is that `addService` takes the type it keys on as an explicit `T.Type`
+argument (`addService(KeychainServiceProtocol.self, service: keychain)`) instead of inferring `T`
+from `service`'s declared type — see the Dependency Injection section above and the doc comment on
+`ServiceLocator`. That removes the inference this depended on entirely, rather than relying on a
+language mode not to open the existential. Re-verified the same way: launched in the simulator
+under `SWIFT_VERSION = 6.0`, `checkAuthState` resolves `KeychainServiceProtocol` correctly and the
+welcome screen renders. **Any future change to `ServiceLocator` or to how a service is registered
+needs the same verification an archive cannot give — launch the app, don't just compile it.**
 
 **Do not turn on `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor` to make a warning go away.** That was
 tried while getting here, and it is what produced 18 `nonisolated` extensions in `Core/Models/`

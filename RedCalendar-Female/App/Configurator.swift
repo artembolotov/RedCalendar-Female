@@ -28,15 +28,15 @@ final class Configurator {
     
     private func registerAnalyticsService() {
         let analytics: any AnalyticsServiceProtocol = AnalyticsService()
-        ServiceLocator.shared.addService(service: analytics)
-        
+        ServiceLocator.shared.addService(AnalyticsServiceProtocol.self, service: analytics)
+
         analytics.registerApp()
     }
-    
+
     private func registerDatabaseService() {
         do {
             let dbService: DatabaseServiceProtocol = try DatabaseService()
-            ServiceLocator.shared.addService(service: dbService)
+            ServiceLocator.shared.addService(DatabaseServiceProtocol.self, service: dbService)
         } catch {
             fatalError("Failed to initialize DatabaseService: \(error)")
         }
@@ -44,26 +44,26 @@ final class Configurator {
 
     private func registerKeychainService() {
         let keychain: KeychainServiceProtocol = KeychainService()
-        ServiceLocator.shared.addService(service: keychain)
+        ServiceLocator.shared.addService(KeychainServiceProtocol.self, service: keychain)
     }
-    
+
     private func registerAPIService() {
         let apiService: APIServiceProtocol = APIService()
-        ServiceLocator.shared.addService(service: apiService)
+        ServiceLocator.shared.addService(APIServiceProtocol.self, service: apiService)
     }
-    
+
     private func registerPushPermissionsService() {
         let pushPermissionsService: PushPermissionServiceProtocol = PushPermissionService()
-        ServiceLocator.shared.addService(service: pushPermissionsService)
+        ServiceLocator.shared.addService(PushPermissionServiceProtocol.self, service: pushPermissionsService)
     }
-    
+
     private func registerTapticFeedbackService() {
         let tapticFeedbackService: TapticFeedbackServiceProtocol = TapticFeedbackService()
-        ServiceLocator.shared.addService(service: tapticFeedbackService)
+        ServiceLocator.shared.addService(TapticFeedbackServiceProtocol.self, service: tapticFeedbackService)
     }
 
     private func registerAppearanceService() {
         let appearanceService: AppearanceServiceProtocol = AppearanceService()
-        ServiceLocator.shared.addService(service: appearanceService)
+        ServiceLocator.shared.addService(AppearanceServiceProtocol.self, service: appearanceService)
     }
 }
