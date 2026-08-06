@@ -29,8 +29,8 @@ typealias Middleware<State, Action> =
 ///
 /// The **reducer runs synchronously**, inside `send`, on the caller's turn of the run loop. State
 /// therefore changes in the order actions were sent, and it has changed by the time `send` returns.
-/// The **side effects are queued**, onto one stream that a single task drains in order, so one
-/// action's middleware chain finishes before the next one's begins.
+/// The **side effects are queued**, into one buffer that is drained in order, so one action's
+/// middleware chain finishes before the next one's begins.
 ///
 /// Every dispatch used to be its own unstructured `Task`, opening with `await Task.yield()`. That
 /// gave away both halves. Two actions sent back to back diverged at the first suspension point and
@@ -62,8 +62,16 @@ final class Store<State: Sendable, Action: Sendable>: ObservableObject {
     /// made, which is the only reading that stays the same however long the queue is.
     private typealias Effect = (action: Action, state: State)
 
-    private let enqueue: AsyncStream<Effect>.Continuation
-    private var pump: Task<Void, Never>?
+    /// The queue is a plain array and a flag rather than an `AsyncStream` fed by a long-lived
+    /// task, and that is not a matter of taste. The stream version put an
+    /// `AsyncStream<Effect>.Continuation` and a `Task` in this generic class's stored properties,
+    /// and the optimizer crashed destroying them: `EarlyPerfInliner` recursed without bound in
+    /// `isCallerAndCalleeLayoutConstraintsCompatible` on `Store`'s implicit `deinit` and overran
+    /// its stack. Only under `-O`, so every debug build was clean and only the release archive
+    /// failed. If a later toolchain fixes that, there is still nothing here to go back for: this
+    /// is fewer moving parts for identical ordering.
+    private var pending: [Effect] = []
+    private var isDraining = false
 
     init(
         initialState: State,
@@ -75,24 +83,6 @@ final class Store<State: Sendable, Action: Sendable>: ObservableObject {
         self.reducer = reducer
         self.middlewares = middlewares
         self.isDuplicate = isDuplicate
-
-        // The build closure runs synchronously, so `continuation` is set before it is read. This
-        // spelling rather than `AsyncStream.makeStream` because it is available at every
-        // deployment target this app supports.
-        var continuation: AsyncStream<Effect>.Continuation!
-        let effects = AsyncStream<Effect>(bufferingPolicy: .unbounded) { continuation = $0 }
-        self.enqueue = continuation
-
-        // Inherits the main actor from this initializer, which is what lets it call `@MainActor`
-        // middleware directly. Held rather than discarded so the store owns it, but nothing has
-        // to cancel it: the continuation is a stored property here, so releasing the store
-        // finishes the stream and the loop falls out on its own.
-        self.pump = Task { [weak self] in
-            for await effect in effects {
-                guard let self else { return }
-                await self.runMiddlewares(for: effect)
-            }
-        }
     }
 
     // MARK: - Public Interface
@@ -105,10 +95,27 @@ final class Store<State: Sendable, Action: Sendable>: ObservableObject {
             state = newState
         }
 
-        enqueue.yield((action: action, state: state))
+        pending.append((action: action, state: state))
+
+        // One drain per burst, not per action: a `send` arriving while the loop is running is
+        // picked up by the loop itself.
+        guard !isDraining else { return }
+        isDraining = true
+        Task { await drain() }
     }
 
     // MARK: - Private Implementation
+
+    /// Runs to the end of the queue and stops. Nothing can be lost on the way out: this is the
+    /// main actor, and there is no suspension point between the last `pending.isEmpty` check and
+    /// clearing the flag, so a `send` either lands before the check and is drained, or after the
+    /// flag is down and starts a drain of its own.
+    private func drain() async {
+        while !pending.isEmpty {
+            await runMiddlewares(for: pending.removeFirst())
+        }
+        isDraining = false
+    }
 
     private func runMiddlewares(for effect: Effect) async {
         for middleware in middlewares {
