@@ -7,14 +7,14 @@
 
 import AppMetricaCore
 
-protocol AnalyticsServiceProtocol {
+protocol AnalyticsServiceProtocol: Sendable {
     var isActivated: Bool { get }
     func registerApp()
     func trackEvent(_ name: String)
     func trackEvent(_ name: String, parameters: [AnyHashable : Any]?)
 }
 
-final class AnalyticsService: AnalyticsServiceProtocol {
+final class AnalyticsService: AnalyticsServiceProtocol, Sendable {
 
     var isActivated: Bool { AppMetrica.isActivated }
 

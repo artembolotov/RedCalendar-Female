@@ -180,13 +180,18 @@ struct InfiniteScrollContainer: UIViewRepresentable {
         private var currentScrollOffset: CGFloat = 0
         
         // Animation properties
-        private var displayLink: CADisplayLink?
+        // `displayLink` and `animatingScrollView` are the two properties `stopAnimation()`
+        // touches from `deinit` below, which — alone among every caller here — is not
+        // guaranteed to run on the main thread. `nonisolated(unsafe)` lets `stopAnimation()`
+        // stay `nonisolated` and callable from there; every other call site is already on the
+        // main actor regardless of what the type system requires of it.
+        nonisolated(unsafe) private var displayLink: CADisplayLink?
         private var animationStartTime: CFTimeInterval = 0
         private var animationDuration: TimeInterval = 0
         private var animationStartOffset: CGFloat = 0
         private var animationTargetOffset: CGFloat = 0
         private var animationDamping: Double = 0.68
-        private weak var animatingScrollView: UIScrollView?
+        nonisolated(unsafe) private weak var animatingScrollView: UIScrollView?
 
         var isAnimating: Bool { displayLink != nil }
 
@@ -306,7 +311,7 @@ struct InfiniteScrollContainer: UIViewRepresentable {
             return true
         }
 
-        func stopAnimation() {
+        nonisolated func stopAnimation() {
             displayLink?.invalidate()
             displayLink = nil
             animatingScrollView = nil

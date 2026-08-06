@@ -9,7 +9,7 @@ import Foundation
 import UIKit
 
 // MARK: - Protocol
-protocol APIServiceProtocol {
+protocol APIServiceProtocol: Sendable {
     func migrateUser(userId: String) async throws -> MigrationResponse
     func verifyDevice(deviceId: String) async throws -> VerificationResponse
     func updateAPNSToken(deviceId: String, apnsToken: String) async throws -> APNSTokenResponse
@@ -239,7 +239,7 @@ enum APIServiceError: Error, LocalizedError {
 }
 
 // MARK: - API Service Implementation
-final class APIService: APIServiceProtocol {
+final class APIService: APIServiceProtocol, Sendable {
     
     // MARK: - Properties
     private let baseURL = Constants.URLs.api

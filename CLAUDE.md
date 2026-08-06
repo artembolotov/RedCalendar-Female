@@ -655,17 +655,60 @@ actor is where the values were always going.
 
 ### Environments
 
-**Concurrency checking:** `SWIFT_STRICT_CONCURRENCY = targeted` on all four configurations,
+**Concurrency checking:** `SWIFT_STRICT_CONCURRENCY = complete` on all four configurations,
 `SWIFT_VERSION` still `5.0`, so everything arrives as a warning and nothing is an error. The tree
 is clean at that level — a new warning there means new code, so keep it at zero.
 
-`complete` is not on, and turning it on is a separate piece of work rather than a flag flip: it
-reports 45 warnings, and only ~12 of them are in the Redux/service layer (`: Sendable` on the five
-remaining service protocols, which is the real fix). The rest is UI — `FlowLayout` alone accounts
-for 22, from mutable `var`s captured in a `@ViewBuilder` closure, and needs its cursor boxed into
-a type. **Do not turn on `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor` to make them go away.** That
-was tried, and it is what produced the 18 `nonisolated` extensions in `Core/Models/` that got the
-whole migration reverted; this app's value layer is deliberately reachable from off-main.
+**Do not turn on `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor` to make a warning go away.** That was
+tried while getting here, and it is what produced 18 `nonisolated` extensions in `Core/Models/`
+that got the whole migration reverted once; this app's value layer is deliberately reachable from
+off-main. Every warning `complete` found had a narrower fix:
+
+- **Service protocols are `Sendable`.** `APIServiceProtocol`, `PushPermissionServiceProtocol`,
+  `KeychainServiceProtocol`, `AnalyticsServiceProtocol` and `AppearanceServiceProtocol` all refine
+  `Sendable` now, and their concrete types conform alongside — each is either a `final class` with
+  no mutable stored state or one guarded the ways below. `DatabaseServiceProtocol` already was.
+  `TapticFeedbackServiceProtocol` doesn't need to be: it is `@MainActor` outright (see
+  `TapticFeedbackService.swift`), which is a stronger guarantee for a type only ever called from
+  `Middleware`. This is what let `@Injected var apiService: APIServiceProtocol` inside a `Task {
+  }` in `AuthMiddleware` stop being a warning: an existential of a non-Sendable protocol can't
+  cross into a `@Sendable` closure, Sendable or not the closure only ever runs where it was made.
+- **A system type that isn't Sendable-audited gets `@preconcurrency import`, file-scoped.**
+  `KeychainService.swift` (`Security`, for `CFString`/`CFBoolean` keychain query values) and
+  `PushPermissionService.swift` (`UserNotifications`, for `UNUserNotificationCenter`) do this. It
+  only silences the specific module named, in the one file that imports it that way — it is not a
+  blanket escape hatch.
+- **A value the compiler can't see is locked gets `nonisolated(unsafe)`, next to the lock that
+  actually protects it.** `Daystamp`'s `ReferenceDate` cache and `DayDetailsView`'s
+  `DayTitleFormatters` cache both already took an `NSLock` before every read and write; the
+  annotation just tells the type system what was already true. `AppearanceService.defaults`
+  (`UserDefaults`) is the same annotation for a different reason — no lock, because Apple's own
+  documented thread-safety is the guarantee there, not ours.
+- **A `PreferenceKey.defaultValue` is a computed property, never a stored one.** `static var
+  defaultValue: T = x` is stored global mutable state by the same rule as any other `static var`;
+  `static var defaultValue: T { x }` has no backing storage and the warning has nothing to attach
+  to. `FlowLayoutHeightKey`, `FlowPickerHeightKey`, `DayCardNaturalHeightKey`, `DayCardFrameKey`
+  and `TodayVisibilityPreferenceKey` are all written this way now — match it for new keys.
+- **A `View`'s custom `Equatable` conformance that reads its own stored properties is isolated to
+  `@MainActor` on the conformance, not the whole type.** `CalendarGridView` and
+  `CalendarSelectionLayer` infer `@MainActor` on their stored properties from being a `View`
+  (`body` is a `@MainActor` requirement), same as any SwiftUI view; `==` is a nonisolated
+  `Equatable` requirement by default, and reading those properties from it is what crossed. Both
+  now read `View, @MainActor Equatable` — SE-0470's per-conformance isolation, not a redesign.
+- **A shared mutable cursor threaded through a closure-based algorithm is a `final class`, marked
+  `@unchecked Sendable` with a comment saying why.** `FlowLayout`'s `alignmentGuide`-based
+  wrapping needs one running offset visible across every child's guide closures — a captured `var`
+  can't do that, only a reference type can — and `FlowLayoutCursor` says in comment why treating
+  it as safe is correct rather than convenient: SwiftUI resolves one stack's guides serially, in
+  `ForEach`'s order, which is what the offset accumulation already depended on.
+- **A method only `deinit` needs to call off the main actor is `nonisolated`, deliberately,
+  alongside the specific properties it touches.** `InfiniteScrollContainer.Coordinator.
+  stopAnimation()` inferred `@MainActor` from conforming to `UIScrollViewDelegate`, like every
+  other method there — correctly, since every *other* caller is already on the main actor. `deinit`
+  is the one caller that Swift will never let be, isolated class or not (see "A flight is stopped
+  in `dismantleUIView`" above), so `stopAnimation()` and the two properties it touches
+  (`displayLink`, `animatingScrollView`) are `nonisolated` / `nonisolated(unsafe)` explicitly,
+  rather than the whole class losing the inferred isolation everything else there correctly relies on.
 
 | Scheme | Config | API |
 |---|---|---|

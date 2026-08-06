@@ -31,7 +31,7 @@ import SwiftUI
 /// incidental either. A mask is an offscreen pass over the bounds it is given, and this one runs
 /// every frame of a flight; over the whole grid that is a screen-sized buffer per frame to show
 /// a ⌀28 hole.
-struct CalendarSelectionLayer: View, Equatable {
+struct CalendarSelectionLayer: View, @MainActor Equatable {
     let viewport: ViewportData
     /// The scroll offset the viewport was built for — the same anchor the grid culls against,
     /// and never the live offset. See `CalendarGridView`.

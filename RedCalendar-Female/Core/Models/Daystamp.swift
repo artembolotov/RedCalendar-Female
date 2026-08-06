@@ -25,8 +25,10 @@ extension DateComponents {
 // only changes when the user's region does, so one memoized slot covers every call.
 private enum ReferenceDate {
     private static let lock = NSLock()
-    private static var cachedCalendar: Calendar?
-    private static var cachedDate: Date?
+    // Every read and write happens inside `lock`'s critical section below — `nonisolated(unsafe)`
+    // hands the type system what the lock already guarantees at runtime.
+    nonisolated(unsafe) private static var cachedCalendar: Calendar?
+    nonisolated(unsafe) private static var cachedDate: Date?
 
     private static let components = DateComponents.componentsForReferenceDate()
 

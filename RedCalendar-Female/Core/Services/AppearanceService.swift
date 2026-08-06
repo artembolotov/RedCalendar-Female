@@ -7,13 +7,15 @@ import Foundation
 
 // A setter rather than a settable property: `@Injected` hands back a protocol existential, and
 // assigning through one would require the protocol to be class-constrained for no gain.
-protocol AppearanceServiceProtocol {
+protocol AppearanceServiceProtocol: Sendable {
     var accentTheme: AccentTheme { get }
     func setAccentTheme(_ theme: AccentTheme)
 }
 
-final class AppearanceService: AppearanceServiceProtocol {
-    private let defaults: UserDefaults
+final class AppearanceService: AppearanceServiceProtocol, Sendable {
+    // UserDefaults isn't Sendable-audited, but every access it documents is thread-safe by
+    // design — the property itself just needs to say so.
+    nonisolated(unsafe) private let defaults: UserDefaults
     private let accentThemeKey = "accentTheme"
 
     init(defaults: UserDefaults = .standard) {

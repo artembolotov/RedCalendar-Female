@@ -12,8 +12,10 @@ enum DayDetailsMetrics {
 // needs are memoized, and dropped when the user's region changes.
 private enum DayTitleFormatters {
     private static let lock = NSLock()
-    private static var cachedLocaleIdentifier: String?
-    private static var formatters: [String: DateFormatter] = [:]
+    // Every read and write happens inside `lock`'s critical section below — `nonisolated(unsafe)`
+    // hands the type system what the lock already guarantees at runtime.
+    nonisolated(unsafe) private static var cachedLocaleIdentifier: String?
+    nonisolated(unsafe) private static var formatters: [String: DateFormatter] = [:]
 
     static func formatter(template: String) -> DateFormatter {
         lock.lock()
@@ -41,7 +43,7 @@ private enum DayTitleFormatters {
 // Natural height of the flow level options, reported from outside the card's layout so the
 // card can slide the notes down by exactly that much.
 private struct FlowPickerHeightKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
+    static var defaultValue: CGFloat { 0 }
 
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
         let next = nextValue()
@@ -68,7 +70,7 @@ struct DayCardHeight: Equatable {
 // Height the active card's content asks for, reported from inside the card's own layout so the
 // pager can decide when to move every card to it. Inactive cards contribute `.none`.
 struct DayCardNaturalHeightKey: PreferenceKey {
-    static var defaultValue: DayCardHeight = .none
+    static var defaultValue: DayCardHeight { .none }
 
     static func reduce(value: inout DayCardHeight, nextValue: () -> DayCardHeight) {
         let next = nextValue()
@@ -82,7 +84,7 @@ struct DayCardNaturalHeightKey: PreferenceKey {
 // Inactive cards contribute `.zero`. The calendar's centering does not come from here — it is
 // written from the level, in `reportedHeight`'s unit, which is the card alone.
 struct DayCardFrameKey: PreferenceKey {
-    static var defaultValue: CGRect = .zero
+    static var defaultValue: CGRect { .zero }
 
     static func reduce(value: inout CGRect, nextValue: () -> CGRect) {
         let next = nextValue()

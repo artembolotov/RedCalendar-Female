@@ -16,7 +16,7 @@ enum FloatingButtonState: Equatable {
 
 // MARK: - PreferenceKey for state communication
 struct TodayVisibilityPreferenceKey: PreferenceKey {
-    static var defaultValue: FloatingButtonState = .plus
+    static var defaultValue: FloatingButtonState { .plus }
     
     static func reduce(value: inout FloatingButtonState, nextValue: () -> FloatingButtonState) {
         value = nextValue()

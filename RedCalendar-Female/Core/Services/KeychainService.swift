@@ -5,10 +5,10 @@
 //  Created by Артём Болотов on 04.06.2025.
 //
 
-import Security
+@preconcurrency import Security
 import Foundation
 
-protocol KeychainServiceProtocol {
+protocol KeychainServiceProtocol: Sendable {
     // Device ID methods (new system)
     func getDeviceID() -> String?
     @discardableResult func saveDeviceID(_ deviceId: String) -> Bool
@@ -20,7 +20,7 @@ protocol KeychainServiceProtocol {
     @discardableResult func deleteUserUID() -> Bool
 }
 
-final class KeychainService: KeychainServiceProtocol {
+final class KeychainService: KeychainServiceProtocol, Sendable {
     
     // MARK: - Keys
     private let deviceIDKey = "redcalendar_device_id"

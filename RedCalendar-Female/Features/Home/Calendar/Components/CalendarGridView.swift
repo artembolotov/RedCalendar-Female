@@ -17,7 +17,7 @@ import SwiftUI
 // is `CalendarSelectionLayer`, drawn above this one; while it lived here, `selectedDayStamp`
 // was an input, so every tap and every card swipe rebuilt every day cell in both copies of the
 // grid to move one circle. Do not reintroduce it here.
-struct CalendarGridView: View, Equatable {
+struct CalendarGridView: View, @MainActor Equatable {
     let viewport: ViewportData
     /// The scroll offset the viewport was built for. Visibility is decided against it, not
     /// against the live offset, so the layer stays stable between re-anchors.

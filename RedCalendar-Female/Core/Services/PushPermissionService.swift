@@ -5,7 +5,7 @@
 //  Created by Артём Болотов on 09.06.2025.
 //
 
-import UserNotifications
+@preconcurrency import UserNotifications
 import UIKit
 
 // MARK: - Push Permission Status
@@ -16,7 +16,7 @@ enum PushPermissionState {
 }
 
 // MARK: - Protocol
-protocol PushPermissionServiceProtocol {
+protocol PushPermissionServiceProtocol: Sendable {
     func getState() async -> PushPermissionState
     
     @discardableResult
@@ -24,7 +24,7 @@ protocol PushPermissionServiceProtocol {
 }
 
 // MARK: - Implementation
-final class PushPermissionService: PushPermissionServiceProtocol {
+final class PushPermissionService: PushPermissionServiceProtocol, Sendable {
     
     private let notificationCenter = UNUserNotificationCenter.current()
     
