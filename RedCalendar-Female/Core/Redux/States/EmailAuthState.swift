@@ -5,7 +5,7 @@
 //  Created by Артём Болотов on 12.06.2025.
 //
 
-enum EmailAuthState: Equatable, Sendable {
+nonisolated enum EmailAuthState: Equatable, Sendable {
     case entry(
         email: String? = nil,
         error: AuthenticationError? = nil

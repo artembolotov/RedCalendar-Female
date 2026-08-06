@@ -7,12 +7,12 @@ import Foundation
 
 // A setter rather than a settable property: `@Injected` hands back a protocol existential, and
 // assigning through one would require the protocol to be class-constrained for no gain.
-protocol AppearanceServiceProtocol {
+nonisolated protocol AppearanceServiceProtocol: Sendable {
     var accentTheme: AccentTheme { get }
     func setAccentTheme(_ theme: AccentTheme)
 }
 
-final class AppearanceService: AppearanceServiceProtocol {
+nonisolated final class AppearanceService: AppearanceServiceProtocol {
     private let defaults: UserDefaults
     private let accentThemeKey = "accentTheme"
 

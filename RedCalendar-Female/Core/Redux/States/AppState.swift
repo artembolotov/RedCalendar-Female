@@ -12,7 +12,13 @@ import Foundation
 /// records, `Daystamp`, `DayDisplayState` — without those leaves needing an annotation each. A
 /// value that stops being sendable anywhere in the graph fails here, at the one type that actually
 /// crosses an isolation boundary.
-struct AppState: Equatable, Sendable {
+///
+/// `nonisolated` is what keeps that check honest. The module is main-actor by default, and a
+/// main-actor-isolated type is *implicitly* `Sendable` no matter what it holds — so leaving the
+/// default here would satisfy the conformance above by isolation alone and stop looking at the
+/// tree. State is a value; it belongs to no actor. The store, the reducer and the middleware are
+/// the main-actor half.
+nonisolated struct AppState: Equatable, Sendable {
     var authState: AuthState?
     var calendarState: CalendarState = CalendarState()
     var notifications: NotificationState = NotificationState()

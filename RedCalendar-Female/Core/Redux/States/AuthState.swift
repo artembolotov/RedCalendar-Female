@@ -5,7 +5,7 @@
 //  Created by Артём Болотов on 09.06.2025.
 //
 
-enum AuthState: Equatable, Sendable {
+nonisolated enum AuthState: Equatable, Sendable {
     case notAuthenticated
     case authenticated(deviceId: String, userDetails: UserDetails?)
     case migrating(userId: String, error: MigrationError? = nil)

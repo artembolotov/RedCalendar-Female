@@ -8,8 +8,24 @@
 import Foundation
 import Combine
 
-typealias Reducer<State, Action> = (State, Action) -> State
-typealias Middleware<State, Action> = (State, Action, @escaping (Action) -> Void) async -> [Action]
+typealias Reducer<State, Action> = @MainActor (State, Action) -> State
+
+/// A middleware body runs **on the main actor**, and the annotation is written out rather than
+/// left to `SWIFT_DEFAULT_ACTOR_ISOLATION` because this type is the contract the whole side-effect
+/// layer is built against.
+///
+/// It used to be unisolated, which meant awaiting it from the `@MainActor` store hopped *off* the
+/// main actor — so the safe default was the one you had to opt into, one middleware at a time. The
+/// bill came due twice: `TapticFeedbackService` grew a hand-rolled `Thread.isMainThread` hop
+/// because a `UIFeedbackGenerator` touched from the pool kills the process, and `DatabaseMiddleware`
+/// had to be isolated after two concurrent actions over-released the same GRDB observation token.
+/// Neither was a bug in those files; both were this typealias.
+///
+/// Work that must not run on the main actor now says so, in the one place that knows: a service
+/// method marked `nonisolated`, or an `await` on something that is. That is a claim the compiler
+/// checks, which `Thread.isMainThread` never was.
+typealias Middleware<State, Action> =
+    @MainActor (State, Action, @escaping @MainActor (Action) -> Void) async -> [Action]
 
 @MainActor
 final class Store<State, Action>: ObservableObject {

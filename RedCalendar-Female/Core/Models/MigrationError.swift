@@ -15,7 +15,7 @@ import Foundation
 /// which an untyped `any Error` is not. Wrapping the description loses nothing the UI had: it only
 /// ever renders `errorDescription`, which is why the old hand-written `==` compared these by
 /// `localizedDescription` in the first place.
-enum MigrationError: Error, LocalizedError, Equatable, Sendable {
+nonisolated enum MigrationError: Error, LocalizedError, Equatable, Sendable {
     case noUserIdFound
     case keychainSaveError
     case serverError(String)

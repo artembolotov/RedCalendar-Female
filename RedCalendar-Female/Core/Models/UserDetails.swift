@@ -8,7 +8,7 @@
 import Foundation
 
 // MARK: - User Details
-struct UserDetails: Codable, Equatable {
+nonisolated struct UserDetails: Codable, Equatable {
     let userId: String          // Firebase UID - always present (keeping original field)
     let name: String?           // User name
     let email: String?          // User email
@@ -26,7 +26,7 @@ struct UserDetails: Codable, Equatable {
 }
 
 // MARK: - User Settings
-struct UserSettings: Codable, Equatable {
+nonisolated struct UserSettings: Codable, Equatable {
     let cycle: CycleSettings?
     let predictions: PredictionSettings?
     let notifications: NotificationSettings?

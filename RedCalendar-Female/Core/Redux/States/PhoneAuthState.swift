@@ -5,7 +5,7 @@
 //  Created by Артём Болотов on 12.06.2025.
 //
 
-enum PhoneAuthState: Equatable, Sendable {
+nonisolated enum PhoneAuthState: Equatable, Sendable {
     case entry(
         prettyPhoneNumber: String? = nil,
         error: AuthenticationError? = nil

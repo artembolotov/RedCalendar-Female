@@ -1,7 +1,7 @@
 import Foundation
 import GRDB
 
-struct CommentRecord: Codable, FetchableRecord, PersistableRecord {
+nonisolated struct CommentRecord: Codable, FetchableRecord, PersistableRecord {
     var dayNumber: Daystamp
     var comment: String?
     var updatedAt: Int?

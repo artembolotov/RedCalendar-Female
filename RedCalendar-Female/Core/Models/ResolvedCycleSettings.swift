@@ -7,7 +7,7 @@
 /// with. `UserSettings.CycleSettings` carries raw optional integers straight from the API:
 /// a zero or negative cycle length there would divide by zero in `predictedCycleStart` and
 /// never terminate the prediction loop in `computeDayDisplayStates`.
-struct ResolvedCycleSettings: Equatable {
+nonisolated struct ResolvedCycleSettings: Equatable {
     let cycleLength: Int
     let periodLength: Int
     let lutealPhaseLength: Int

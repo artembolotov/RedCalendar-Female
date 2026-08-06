@@ -7,7 +7,7 @@
 // literals: each colour needs its own light and dark variant, and the constraint behind those
 // variants — white numerals on the period bar pulling the accent darker while separation from
 // the near-black page pulls it lighter — is recorded in CLAUDE.md.
-enum AccentTheme: String, CaseIterable, Identifiable, Equatable {
+nonisolated enum AccentTheme: String, CaseIterable, Identifiable, Equatable {
     case coral
     case rose
     case berry

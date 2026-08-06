@@ -21,7 +21,7 @@ import Foundation
 /// than cached behind mutable state, which costs one dictionary lookup and buys the property back
 /// its ordinary meaning — reading it reads.
 @propertyWrapper
-struct Injected<Service> {
+nonisolated struct Injected<Service: Sendable> {
     init() {}
 
     var wrappedValue: Service {

@@ -12,14 +12,17 @@ import AppMetricaCore
 /// guarantee at all, so a dictionary of them cannot cross an isolation boundary. Both call sites
 /// (`AppLogger.warn`, `AppLogger.error`) pass a single `["message": String]`, so nothing is given
 /// up; the upcast to AppMetrica's type happens once, at the call into the SDK.
-protocol AnalyticsServiceProtocol {
+/// `nonisolated` because `AppLogger` is: a warning or an error is raised from wherever it happened,
+/// including the nonisolated keychain and API services, and a logger that needed the main actor
+/// would make every one of those call sites `async`.
+nonisolated protocol AnalyticsServiceProtocol: Sendable {
     var isActivated: Bool { get }
     func registerApp()
     func trackEvent(_ name: String)
     func trackEvent(_ name: String, parameters: [String: String]?)
 }
 
-final class AnalyticsService: AnalyticsServiceProtocol {
+nonisolated final class AnalyticsService: AnalyticsServiceProtocol {
 
     var isActivated: Bool { AppMetrica.isActivated }
 

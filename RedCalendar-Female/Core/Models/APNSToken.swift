@@ -5,7 +5,7 @@
 //  Created by Артём Болотов on 09.06.2025.
 //
 
-struct APNSToken: Equatable {
+nonisolated struct APNSToken: Equatable {
     let value: String
     let isSynced: Bool
     
