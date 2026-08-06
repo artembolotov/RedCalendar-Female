@@ -8,38 +8,28 @@
 import Security
 import Foundation
 
-/// `nonisolated`, and that is the load-bearing part rather than a formality.
-///
-/// Every method here is synchronous and every one of them makes a blocking call into Security
-/// framework. The module is main-actor by default, so without this the whole keychain would move
-/// onto the main actor — and `.checkAuthState` reads it on the launch path, where a cold keychain
-/// is the slowest it ever is. `SecItem*` is thread-safe and this type holds nothing mutable, so
-/// there is nothing for the main actor to protect here; it would only be paying for the isolation.
-nonisolated protocol KeychainServiceProtocol: Sendable {
+protocol KeychainServiceProtocol {
     // Device ID methods (new system)
     func getDeviceID() -> String?
     @discardableResult func saveDeviceID(_ deviceId: String) -> Bool
     @discardableResult func deleteDeviceID() -> Bool
-
+    
     // User UID methods (Firebase legacy, for migration)
     func getUserUID() -> String?
     @discardableResult func saveUserUID(_ uid: String) -> Bool
     @discardableResult func deleteUserUID() -> Bool
 }
 
-nonisolated final class KeychainService: KeychainServiceProtocol {
-
+final class KeychainService: KeychainServiceProtocol {
+    
     // MARK: - Keys
     private let deviceIDKey = "redcalendar_device_id"
     private let userUIDKey = "redcalendar_user_uid"
-
+    
     // MARK: - Security Configuration
-    // Held as Swift types rather than `CFString`/`CFBoolean`: CoreFoundation types are not
-    // `Sendable`, and the keychain queries are `[String: Any]`, which bridges either back to
-    // what `SecItem*` wants.
-    private let accessibility = kSecAttrAccessibleAfterFirstUnlock as String
-    private let synchronizable = false
-
+    private let accessibility = kSecAttrAccessibleAfterFirstUnlock
+    private let synchronizable: CFBoolean = kCFBooleanFalse
+    
     // MARK: - Device ID Methods (New System)
     func getDeviceID() -> String? {
         return getValue(for: deviceIDKey)

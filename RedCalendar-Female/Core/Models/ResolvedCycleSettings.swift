@@ -7,7 +7,7 @@
 /// with. `UserSettings.CycleSettings` carries raw optional integers straight from the API:
 /// a zero or negative cycle length there would divide by zero in `predictedCycleStart` and
 /// never terminate the prediction loop in `computeDayDisplayStates`.
-nonisolated struct ResolvedCycleSettings: Equatable {
+struct ResolvedCycleSettings: Equatable {
     let cycleLength: Int
     let periodLength: Int
     let lutealPhaseLength: Int
@@ -30,6 +30,6 @@ nonisolated struct ResolvedCycleSettings: Equatable {
     }
 }
 
-nonisolated private func clamp(_ value: Int, _ range: ClosedRange<Int>) -> Int {
+private func clamp(_ value: Int, _ range: ClosedRange<Int>) -> Int {
     Swift.min(Swift.max(value, range.lowerBound), range.upperBound)
 }

@@ -1,7 +1,7 @@
 import Foundation
 import GRDB
 
-nonisolated final class DatabaseService: DatabaseServiceProtocol {
+final class DatabaseService: DatabaseServiceProtocol {
     private let dbQueue: DatabaseQueue
 
     init() throws {

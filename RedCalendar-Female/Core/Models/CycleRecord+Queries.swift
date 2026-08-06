@@ -10,7 +10,7 @@
 ///
 /// The "not covered" case is deliberately not called `none` — `?? .none` on an optional
 /// `PeriodCoverage` would then be ambiguous with `Optional.none`.
-nonisolated enum PeriodCoverage: Equatable {
+enum PeriodCoverage: Equatable {
     case outside
     case ongoing
     case completed
@@ -20,7 +20,7 @@ nonisolated enum PeriodCoverage: Equatable {
 
 /// All cycle lookups for a single day, resolved together so callers run the
 /// queries once per render instead of re-running them per property.
-nonisolated struct CycleDayContext {
+struct CycleDayContext {
     let day: Daystamp
     let owning: CycleRecord?
 
@@ -63,7 +63,7 @@ nonisolated struct CycleDayContext {
 // Invariant: `CalendarState.cycles` is sorted by `startDay` ascending — the
 // reducer sorts once in `.setCycles`. The backward scans below rely on that
 // order to return the latest match in a single early-exiting pass.
-nonisolated extension Array where Element == CycleRecord {
+extension Array where Element == CycleRecord {
 
     /// Last cycle that starts on or before the given day — the cycle the day belongs to.
     func owningCycle(for day: Daystamp) -> CycleRecord? {
@@ -152,7 +152,7 @@ nonisolated extension Array where Element == CycleRecord {
 
 // MARK: - CycleRecord Helpers
 
-nonisolated extension CycleRecord {
+extension CycleRecord {
 
     /// How this cycle's recorded period relates to the given day.
     ///

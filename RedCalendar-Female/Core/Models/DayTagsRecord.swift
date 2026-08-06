@@ -1,7 +1,7 @@
 import Foundation
 import GRDB
 
-nonisolated struct DayTagsRecord: Codable, FetchableRecord, PersistableRecord {
+struct DayTagsRecord: Codable, FetchableRecord, PersistableRecord {
     var dayNumber: Daystamp
     var tagIds: [String]
     var updatedAt: Int?
@@ -17,7 +17,7 @@ nonisolated struct DayTagsRecord: Codable, FetchableRecord, PersistableRecord {
     typealias CodingKeys = Columns
 }
 
-nonisolated extension DayTagsRecord: Equatable {
+extension DayTagsRecord: Equatable {
     static func == (lhs: DayTagsRecord, rhs: DayTagsRecord) -> Bool {
         lhs.dayNumber == rhs.dayNumber &&
         Set(lhs.tagIds) == Set(rhs.tagIds)

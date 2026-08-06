@@ -1,7 +1,7 @@
 import Foundation
 import GRDB
 
-nonisolated struct CycleRecord: Codable, FetchableRecord, PersistableRecord {
+struct CycleRecord: Codable, FetchableRecord, PersistableRecord {
     var startDay: Daystamp
     var periodLength: Int?
     var ovulation: OvulationData?
@@ -21,7 +21,7 @@ nonisolated struct CycleRecord: Codable, FetchableRecord, PersistableRecord {
     typealias CodingKeys = Columns
 }
 
-nonisolated extension CycleRecord: Equatable {
+extension CycleRecord: Equatable {
     static func == (lhs: CycleRecord, rhs: CycleRecord) -> Bool {
         lhs.startDay == rhs.startDay &&
         lhs.periodLength == rhs.periodLength &&
@@ -32,7 +32,7 @@ nonisolated extension CycleRecord: Equatable {
 
 // MARK: - OvulationData
 
-nonisolated struct OvulationData: Codable, Equatable {
+struct OvulationData: Codable, Equatable {
     var day: Daystamp
     var confirmed: Bool
 

@@ -8,7 +8,7 @@
 import Foundation
 
 // MARK: - User Details
-nonisolated struct UserDetails: Codable, Equatable {
+struct UserDetails: Codable, Equatable {
     let userId: String          // Firebase UID - always present (keeping original field)
     let name: String?           // User name
     let email: String?          // User email
@@ -26,7 +26,7 @@ nonisolated struct UserDetails: Codable, Equatable {
 }
 
 // MARK: - User Settings
-nonisolated struct UserSettings: Codable, Equatable {
+struct UserSettings: Codable, Equatable {
     let cycle: CycleSettings?
     let predictions: PredictionSettings?
     let notifications: NotificationSettings?
@@ -59,7 +59,7 @@ nonisolated struct UserSettings: Codable, Equatable {
 }
 
 // MARK: - Convenience Initializers
-nonisolated extension UserDetails {
+extension UserDetails {
     
     /// Initialize from API response data
     init(from apiUser: APIUserInfo) {

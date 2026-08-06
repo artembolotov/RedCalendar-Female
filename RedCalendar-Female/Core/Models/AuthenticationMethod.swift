@@ -5,7 +5,7 @@
 //  Created by Артём Болотов on 12.06.2025.
 //
 
-nonisolated enum AuthenticationMethod: Equatable, Sendable {
+enum AuthenticationMethod: Equatable {
     case phone(PhoneAuthState)
     case email(EmailAuthState)
 }

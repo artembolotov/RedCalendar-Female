@@ -7,7 +7,7 @@
 
 import Foundation
 
-nonisolated enum AuthenticationError: Error, LocalizedError, Equatable, Sendable {
+enum AuthenticationError: Error, LocalizedError, Equatable {
     // Phone errors
     case phoneNotRegistered                        // Not a RedCalendar 2.0 user
     case phoneCallFailed                          // Flash call request failed
@@ -73,13 +73,13 @@ nonisolated enum AuthenticationError: Error, LocalizedError, Equatable, Sendable
     }
 }
 
-nonisolated extension AuthenticationError {
+extension AuthenticationError {
     static func from(_ error: Error) -> AuthenticationError {
         switch error {
         case APIServiceError.serverError(let message):
             return .serverError(message)
-        case APIServiceError.networkError(let message):
-            return .networkError(message)
+        case APIServiceError.networkError(let networkError):
+            return .networkError(networkError.localizedDescription)
         default:
             return .unknownError(error.localizedDescription)
         }
