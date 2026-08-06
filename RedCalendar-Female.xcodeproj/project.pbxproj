@@ -644,7 +644,7 @@
 			repositoryURL = "https://github.com/appmetrica/appmetrica-sdk-ios";
 			requirement = {
 				kind = upToNextMajorVersion;
-				minimumVersion = 5.11.0;
+				minimumVersion = 6.0.0;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
