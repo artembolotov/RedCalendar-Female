@@ -655,9 +655,11 @@ actor is where the values were always going.
 
 ### Environments
 
-**Concurrency checking:** `SWIFT_STRICT_CONCURRENCY = complete` on all four configurations,
-`SWIFT_VERSION` still `5.0`, so everything arrives as a warning and nothing is an error. The tree
-is clean at that level — a new warning there means new code, so keep it at zero.
+**Concurrency checking:** `SWIFT_STRICT_CONCURRENCY = complete` on all four configurations. The
+tree reached zero warnings at that level under `SWIFT_VERSION = 5.0`, verified by archive, and
+`SWIFT_VERSION` moved to `6.0` on that basis — same diagnostics, now errors instead of warnings. A
+new concurrency error means new code; there is no warning tier left to catch it first, so archive
+before merging anything that touches an actor boundary.
 
 **Do not turn on `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor` to make a warning go away.** That was
 tried while getting here, and it is what produced 18 `nonisolated` extensions in `Core/Models/`
