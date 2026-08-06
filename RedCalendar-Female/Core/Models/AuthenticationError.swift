@@ -73,7 +73,7 @@ nonisolated enum AuthenticationError: Error, LocalizedError, Equatable, Sendable
     }
 }
 
-extension AuthenticationError {
+nonisolated extension AuthenticationError {
     static func from(_ error: Error) -> AuthenticationError {
         switch error {
         case APIServiceError.serverError(let message):

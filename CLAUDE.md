@@ -41,6 +41,14 @@ typealias Middleware<State, Action> =
   keeps `AppState: Sendable` meaningful — a main-actor-isolated type is *implicitly* `Sendable`
   whatever it holds, so leaving the module default on `AppState` would satisfy the conformance by
   isolation alone and stop checking the tree beneath it.
+- **`nonisolated` on a type does not reach its extensions — mark those too.** An extension is its
+  own declaration and takes the module default independently, so a conformance declared in one is
+  a *main-actor-isolated conformance* however the type itself is annotated. That is not a
+  formality: `extension Daystamp: DatabaseValueConvertible` isolated that way cannot be used from
+  the nonisolated `DatabaseService` at all, and the `extension …: Equatable` on each GRDB record
+  stops satisfying `ValueObservation.removeDuplicates()`, whose type parameter is `Sendable`. Every
+  extension in `Core/Models/` carries `nonisolated`; a new one that omits it breaks the database
+  layer and nothing else, so the error arrives far from the edit.
 - **A dispatch is two halves: the reducer runs now, the side effects are queued.** `send` applies
   the reducer synchronously on the caller's turn, so state changes in the order actions were sent
   and has changed by the time `send` returns; the action is then put on one `AsyncStream` that a

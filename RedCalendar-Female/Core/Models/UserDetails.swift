@@ -59,7 +59,7 @@ nonisolated struct UserSettings: Codable, Equatable {
 }
 
 // MARK: - Convenience Initializers
-extension UserDetails {
+nonisolated extension UserDetails {
     
     /// Initialize from API response data
     init(from apiUser: APIUserInfo) {

@@ -17,7 +17,7 @@ nonisolated struct DayTagsRecord: Codable, FetchableRecord, PersistableRecord {
     typealias CodingKeys = Columns
 }
 
-extension DayTagsRecord: Equatable {
+nonisolated extension DayTagsRecord: Equatable {
     static func == (lhs: DayTagsRecord, rhs: DayTagsRecord) -> Bool {
         lhs.dayNumber == rhs.dayNumber &&
         Set(lhs.tagIds) == Set(rhs.tagIds)

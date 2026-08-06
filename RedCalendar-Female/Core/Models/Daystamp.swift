@@ -8,7 +8,7 @@
 import Foundation
 
 // MARK: - DateComponents Extension
-extension DateComponents {
+nonisolated extension DateComponents {
     static func componentsForReferenceDate() -> DateComponents {
         var components = DateComponents()
         components.day = 1
@@ -73,7 +73,7 @@ nonisolated struct Daystamp {
 }
 
 // MARK: - ExpressibleByIntegerLiteral
-extension Daystamp: ExpressibleByIntegerLiteral {
+nonisolated extension Daystamp: ExpressibleByIntegerLiteral {
     init(integerLiteral value: Int) {
         self.init(rawValue: value)
     }
@@ -84,7 +84,7 @@ extension Daystamp: ExpressibleByIntegerLiteral {
 // Strideable — not AdditiveArithmetic: the distance between two days is a count of
 // days, not a day, and adding two daystamps together is meaningless. It also makes
 // `ClosedRange<Daystamp>` iterable, so day loops stay in Daystamp throughout.
-extension Daystamp: Strideable {
+nonisolated extension Daystamp: Strideable {
     func advanced(by n: Int) -> Daystamp {
         return Daystamp(rawValue: rawValue + n)
     }
@@ -107,7 +107,7 @@ extension Daystamp: Strideable {
 // Spelled out rather than inherited: `Strideable` supplies `advanced(by:)` /
 // `distance(to:)` and makes `ClosedRange<Daystamp>` iterable, but the standard library
 // vends `+` / `-` only for concrete stridable types, not for the protocol itself.
-extension Daystamp {
+nonisolated extension Daystamp {
     static func + (lhs: Daystamp, rhs: Int) -> Daystamp {
         return Daystamp(rawValue: lhs.rawValue + rhs)
     }
@@ -123,7 +123,7 @@ extension Daystamp {
 }
 
 // MARK: - Codable
-extension Daystamp: Codable {
+nonisolated extension Daystamp: Codable {
     init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
         self.rawValue = try container.decode(Int.self)
@@ -136,7 +136,7 @@ extension Daystamp: Codable {
 }
 
 // MARK: - CustomStringConvertible
-extension Daystamp: CustomStringConvertible {
+nonisolated extension Daystamp: CustomStringConvertible {
     var description: String {
         // Use current calendar for display purposes
         let calendar = Calendar.current
@@ -153,7 +153,7 @@ extension Daystamp: CustomStringConvertible {
 }
 
 // MARK: - Hashable
-extension Daystamp: Hashable {
+nonisolated extension Daystamp: Hashable {
     func hash(into hasher: inout Hasher) {
         hasher.combine(rawValue)
     }

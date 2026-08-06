@@ -21,7 +21,7 @@ nonisolated struct CycleRecord: Codable, FetchableRecord, PersistableRecord {
     typealias CodingKeys = Columns
 }
 
-extension CycleRecord: Equatable {
+nonisolated extension CycleRecord: Equatable {
     static func == (lhs: CycleRecord, rhs: CycleRecord) -> Bool {
         lhs.startDay == rhs.startDay &&
         lhs.periodLength == rhs.periodLength &&

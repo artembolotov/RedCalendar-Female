@@ -63,7 +63,7 @@ nonisolated struct CycleDayContext {
 // Invariant: `CalendarState.cycles` is sorted by `startDay` ascending — the
 // reducer sorts once in `.setCycles`. The backward scans below rely on that
 // order to return the latest match in a single early-exiting pass.
-extension Array where Element == CycleRecord {
+nonisolated extension Array where Element == CycleRecord {
 
     /// Last cycle that starts on or before the given day — the cycle the day belongs to.
     func owningCycle(for day: Daystamp) -> CycleRecord? {
@@ -152,7 +152,7 @@ extension Array where Element == CycleRecord {
 
 // MARK: - CycleRecord Helpers
 
-extension CycleRecord {
+nonisolated extension CycleRecord {
 
     /// How this cycle's recorded period relates to the given day.
     ///

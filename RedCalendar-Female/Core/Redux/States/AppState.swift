@@ -28,7 +28,7 @@ nonisolated struct AppState: Equatable, Sendable {
     var accentTheme: AccentTheme = .fallback
 }
 
-extension AppState {
+nonisolated extension AppState {
     var isAuthenticated: Bool {
         if case .authenticated = authState { true } else { false }
     }

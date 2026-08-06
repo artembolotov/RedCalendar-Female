@@ -32,7 +32,7 @@ nonisolated enum MigrationError: Error, LocalizedError, Equatable, Sendable {
     }
 }
 
-extension MigrationError {
+nonisolated extension MigrationError {
     /// Passes a `MigrationError` through unchanged and wraps everything else.
     static func from(_ error: any Error) -> MigrationError {
         error as? MigrationError ?? .serverError(error.localizedDescription)
