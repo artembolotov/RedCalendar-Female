@@ -75,7 +75,7 @@ struct FlowLayout<Data: RandomAccessCollection, ID: Hashable, Content: View>: Vi
 /// `@unchecked` because the guarantee is SwiftUI's rather than the type's: guides are evaluated
 /// during layout, on the main thread, one at a time. A cursor is also created per `generate(in:)`
 /// call and captured by nothing else, so it never outlives the pass it belongs to.
-private final class FlowLayoutCursor: @unchecked Sendable {
+nonisolated private final class FlowLayoutCursor: @unchecked Sendable {
     private var x: CGFloat = 0
     private var y: CGFloat = 0
 

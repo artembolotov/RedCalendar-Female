@@ -58,7 +58,7 @@ nonisolated private struct FlowPickerHeightKey: PreferenceKey {
 /// number alone is not the signal: a card keeping its level across a day change reports the same
 /// height for a new day, and a new day whose content happens to measure the same as the last
 /// one's would otherwise never be reported at all.
-struct DayCardHeight: Equatable {
+nonisolated struct DayCardHeight: Equatable {
     var day: Daystamp?
     var height: CGFloat
 
