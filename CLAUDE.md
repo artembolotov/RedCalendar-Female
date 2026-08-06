@@ -99,6 +99,14 @@ typealias Middleware<State, Action> =
   @Injected var apiService: APIServiceProtocol
   ```
 - Never call `ServiceLocator.shared.getService()` directly in views. Views read from the store only.
+- **`@Injected` is main-actor only, and that is a limit of property wrappers rather than a choice.**
+  Nearly every use is a local variable inside a middleware closure, and such a local inherits the
+  isolation of its wrapper — so a `nonisolated` anywhere on `Injected`, on the type or on
+  `wrappedValue`, arrives at those locals as `nonisolated` on a local variable, which does not
+  compile. The wrapper therefore takes the module default, which suits every middleware.
+  Nonisolated code resolves through `ServiceLocator.shared.getService()` directly: the container is
+  nonisolated, so it is the identical lookup with identical per-read laziness. `AppLogger` is the
+  only such place today.
 - **Every service protocol is `Sendable`, and most of them are `nonisolated`.** The container is
   declared `addService<T: Sendable>` / `getService<T: Sendable>`, which is what makes its
   `@unchecked Sendable` honest: it hands values across isolation boundaries, so it may only hold
