@@ -271,7 +271,7 @@ final class APIService: APIServiceProtocol, Sendable {
         
         request.httpBody = try JSONEncoder().encode(requestBody)
         
-        let (data, response) = try await session.data(for: request)
+        let (data, response) = try await performRequest(request)
         
         try validateHTTPResponse(response, data: data)
         
@@ -286,7 +286,7 @@ final class APIService: APIServiceProtocol, Sendable {
         request.httpMethod = "GET"
         request.setValue("Bearer \(deviceId)", forHTTPHeaderField: "Authorization")
         
-        let (data, response) = try await session.data(for: request)
+        let (data, response) = try await performRequest(request)
         
         try validateHTTPResponse(response, data: data)
         
@@ -316,7 +316,7 @@ final class APIService: APIServiceProtocol, Sendable {
         
         request.httpBody = try JSONEncoder().encode(body)
         
-        let (data, response) = try await session.data(for: request)
+        let (data, response) = try await performRequest(request)
         
         try validateHTTPResponse(response, data: data)
         
@@ -331,7 +331,7 @@ final class APIService: APIServiceProtocol, Sendable {
         request.httpMethod = "DELETE"
         request.setValue("Bearer \(deviceId)", forHTTPHeaderField: "Authorization")
         
-        let (data, response) = try await session.data(for: request)
+        let (data, response) = try await performRequest(request)
         
         try validateHTTPResponse(response, data: data)
         
@@ -352,7 +352,7 @@ final class APIService: APIServiceProtocol, Sendable {
         let requestBody = CheckEmailRequest(email: email)
         request.httpBody = try JSONEncoder().encode(requestBody)
         
-        let (data, response) = try await session.data(for: request)
+        let (data, response) = try await performRequest(request)
         
         try validateHTTPResponse(response, data: data)
         
@@ -373,7 +373,7 @@ final class APIService: APIServiceProtocol, Sendable {
         let requestBody = CheckPhoneRequest(phone: phone)
         request.httpBody = try JSONEncoder().encode(requestBody)
         
-        let (data, response) = try await session.data(for: request)
+        let (data, response) = try await performRequest(request)
         
         try validateHTTPResponse(response, data: data)
         
@@ -400,7 +400,7 @@ final class APIService: APIServiceProtocol, Sendable {
         
         request.httpBody = try JSONEncoder().encode(requestBody)
         
-        let (data, response) = try await session.data(for: request)
+        let (data, response) = try await performRequest(request)
         
         try validateHTTPResponse(response, data: data)
         
@@ -426,7 +426,7 @@ final class APIService: APIServiceProtocol, Sendable {
         )
         request.httpBody = try JSONEncoder().encode(requestBody)
         
-        let (data, response) = try await session.data(for: request)
+        let (data, response) = try await performRequest(request)
         
         try validateHTTPResponse(response, data: data)
         
@@ -434,7 +434,22 @@ final class APIService: APIServiceProtocol, Sendable {
     }
     
     // MARK: - Private Methods
-    
+
+    /// Runs the request and wraps any transport-level failure (DNS, timeout, offline, TLS…)
+    /// as `APIServiceError.networkError` — the single choke point for that, same role
+    /// `validateHTTPResponse` plays for HTTP status. Without it, a raw `URLError` reaches
+    /// `AuthenticationError.from(_:)`, doesn't match its `APIServiceError.networkError` case,
+    /// and falls through to the generic `.unknownError`.
+    private func performRequest(_ request: URLRequest) async throws -> (Data, URLResponse) {
+        do {
+            return try await session.data(for: request)
+        } catch let error as APIServiceError {
+            throw error
+        } catch {
+            throw APIServiceError.networkError(error)
+        }
+    }
+
     /// Gets device model identifier
     @MainActor
     private func getDeviceModel() -> String {
