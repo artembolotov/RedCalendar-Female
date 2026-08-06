@@ -595,6 +595,20 @@ at `t = 0.904` and is cut off at its peak. The residual is 0.00705% of the dista
 reduces it from 19pt to a tenth of a point rather than removing it. Normalising the curve on its own
 value at `t = 1` is the real fix and has not been done.
 
+**A flight is stopped in `dismantleUIView`, and it cannot be stopped in `deinit`.** A
+`CADisplayLink` retains its target and the main run loop retains the link until `invalidate()`, so
+an animating `Coordinator` is held by an object that outlives the app — its `deinit` is only ever
+entered once the link is already gone, which makes stopping there a no-op in exactly the state it
+was written for. That was never a crash, because `animatingScrollView` is weak and the tick after
+SwiftUI drops the scroll view ends the animation itself; what it cost was up to 0.75s of frames
+writing `contentOffset` on a detached scroll view, each reporting a scroll centre that reaches
+`DatabaseMiddleware` and re-centres the loaded range for a calendar that no longer exists.
+`Coordinator.cleanUp()` also clears `pendingReport`, which is the same effect one run loop turn
+wide: the report is delivered whatever happens to the view in between, and the queued block reads
+the value back so clearing it is enough. New teardown work belongs in `cleanUp()` for both reasons —
+`deinit` cannot be relied on to run at teardown, and it may not run on the main thread, where an
+`invalidate()` on a link added to `.main` wants to be.
+
 ### API Service
 
 - Base URL comes from `Info.plist` key `API_BASE_URL`, set per build configuration. Read it via `Constants.URLs.api`.

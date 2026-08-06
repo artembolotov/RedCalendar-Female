@@ -112,6 +112,22 @@ struct InfiniteScrollContainer: UIViewRepresentable {
         }
     }
 
+    /// The only point where a flight in progress can be stopped while the coordinator is still
+    /// reachable.
+    ///
+    /// Its `deinit` cannot do it. A `CADisplayLink` retains its target and the run loop retains
+    /// the link until `invalidate()`, so an animating coordinator is held by an object that
+    /// outlives the app and is not deallocated at all — the `deinit` is only ever entered with
+    /// `displayLink` already nil, where stopping is a no-op. What kept that safe is
+    /// `animatingScrollView` being weak: the tick after SwiftUI drops the scroll view finds it
+    /// gone and ends the animation itself. But the frames before that still write `contentOffset`
+    /// on a detached scroll view, and each write reports a scroll centre that reaches
+    /// `DatabaseMiddleware` and re-centres the loaded range on behalf of a view that no longer
+    /// exists. Stopping here closes that window rather than waiting for it to close itself.
+    static func dismantleUIView(_ uiView: UIScrollView, coordinator: Coordinator) {
+        coordinator.cleanUp()
+    }
+
     /// Damping never decreases with distance: a short hop that overshoots reads as a wobble,
     /// and it is slow enough for the overshoot to be watchable. The short duration also lands
     /// the re-centring together with the card's own entrance.
@@ -191,8 +207,24 @@ struct InfiniteScrollContainer: UIViewRepresentable {
             self.calculator = parent.calculator
         }
         
+        // Not the guarantee it looks like: an active `CADisplayLink` is retained by the run loop
+        // and retains this coordinator, so `deinit` is unreachable until the link is already gone.
+        // `dismantleUIView` is what actually stops a flight. Kept for the case where a coordinator
+        // is discarded without its view ever having been dismantled.
         deinit {
             stopAnimation()
+        }
+
+        /// Everything that can still reach SwiftUI after the view is gone, dropped in one place.
+        ///
+        /// Stopping the display link is the visible half. The other half is the report already
+        /// scheduled: it is delivered a run loop turn later whatever happens to the view in
+        /// between, and delivering it calls `onScrollChanged`, which dispatches a scroll centre
+        /// into the store on behalf of a calendar that no longer exists. Clearing `pendingReport`
+        /// is enough to stop it — the queued block reads it back and returns when it is gone.
+        func cleanUp() {
+            stopAnimation()
+            pendingReport = nil
         }
         
         func updateToday(_ today: Daystamp) {
