@@ -13,7 +13,10 @@ nonisolated protocol AppearanceServiceProtocol: Sendable {
 }
 
 nonisolated final class AppearanceService: AppearanceServiceProtocol {
-    private let defaults: UserDefaults
+    // `UserDefaults` predates `Sendable` and never got the annotation, but it is documented as
+    // thread-safe and this holds one to read a single key. Injectable, so tests can hand it a
+    // suite of their own, which is the only reason it is stored rather than `.standard` inline.
+    nonisolated(unsafe) private let defaults: UserDefaults
     private let accentThemeKey = "accentTheme"
 
     init(defaults: UserDefaults = .standard) {

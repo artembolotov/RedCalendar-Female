@@ -24,34 +24,30 @@ struct FlowLayout<Data: RandomAccessCollection, ID: Hashable, Content: View>: Vi
     }
 
     private func generate(in geometry: GeometryProxy) -> some View {
-        var x: CGFloat = 0
-        var y: CGFloat = 0
+        let cursor = FlowLayoutCursor()
+        let rowWidth = geometry.size.width
+        let id = self.id
         let lastID = data.last?[keyPath: id]
 
         return ZStack(alignment: .topLeading) {
             ForEach(data, id: id) { item in
+                // Resolved here rather than inside the guides, which is what keeps `item`,
+                // `lastID` and the view's own generic parameters out of those closures.
+                let isLast = item[keyPath: id] == lastID
+
                 content(item)
                     .padding(.trailing, spacing)
                     .padding(.bottom, rowSpacing)
                     .alignmentGuide(.leading) { d in
-                        if abs(x - d.width) > geometry.size.width {
-                            x = 0
-                            y -= d.height
-                        }
-                        let result = x
-                        if item[keyPath: id] == lastID {
-                            x = 0
-                        } else {
-                            x -= d.width
-                        }
-                        return result
+                        cursor.leading(
+                            rowWidth: rowWidth,
+                            itemWidth: d.width,
+                            itemHeight: d.height,
+                            isLast: isLast
+                        )
                     }
                     .alignmentGuide(.top) { _ in
-                        let result = y
-                        if item[keyPath: id] == lastID {
-                            y = 0
-                        }
-                        return result
+                        cursor.top(isLast: isLast)
                     }
             }
         }
@@ -69,8 +65,39 @@ struct FlowLayout<Data: RandomAccessCollection, ID: Hashable, Content: View>: Vi
     }
 }
 
-private struct FlowLayoutHeightKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
+/// Where the next item goes, carried across the alignment guides of one layout pass.
+///
+/// The wrapping arithmetic has to accumulate: each guide reads where the previous item left off
+/// and writes where this one ends. In an `alignmentGuide` closure that used to be two `var`s
+/// captured from `generate(in:)` — which is a mutable capture in a closure SwiftUI now declares
+/// `@Sendable`, and the compiler rejects it. A box makes the sharing explicit instead of implicit.
+///
+/// `@unchecked` because the guarantee is SwiftUI's rather than the type's: guides are evaluated
+/// during layout, on the main thread, one at a time. A cursor is also created per `generate(in:)`
+/// call and captured by nothing else, so it never outlives the pass it belongs to.
+private final class FlowLayoutCursor: @unchecked Sendable {
+    private var x: CGFloat = 0
+    private var y: CGFloat = 0
+
+    func leading(rowWidth: CGFloat, itemWidth: CGFloat, itemHeight: CGFloat, isLast: Bool) -> CGFloat {
+        if abs(x - itemWidth) > rowWidth {
+            x = 0
+            y -= itemHeight
+        }
+        let result = x
+        x = isLast ? 0 : x - itemWidth
+        return result
+    }
+
+    func top(isLast: Bool) -> CGFloat {
+        let result = y
+        if isLast { y = 0 }
+        return result
+    }
+}
+
+nonisolated private struct FlowLayoutHeightKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
         value = max(value, nextValue())
     }

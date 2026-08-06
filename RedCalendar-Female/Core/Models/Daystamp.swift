@@ -23,10 +23,13 @@ nonisolated extension DateComponents {
 // Resolving 2001-01-01 in a calendar is a full date computation, and the calendar
 // conversions below run per visible day while the calendar scrolls. The calendar
 // only changes when the user's region does, so one memoized slot covers every call.
-private enum ReferenceDate {
+// `nonisolated`, because `Daystamp` is: the database layer builds daystamps off the main actor.
+// The two cache slots are `nonisolated(unsafe)` for the usual reason a lock exists — the compiler
+// cannot see that `lock` guards them, and it is right not to; every access below is inside it.
+nonisolated private enum ReferenceDate {
     private static let lock = NSLock()
-    private static var cachedCalendar: Calendar?
-    private static var cachedDate: Date?
+    nonisolated(unsafe) private static var cachedCalendar: Calendar?
+    nonisolated(unsafe) private static var cachedDate: Date?
 
     private static let components = DateComponents.componentsForReferenceDate()
 

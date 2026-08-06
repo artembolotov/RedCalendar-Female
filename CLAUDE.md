@@ -119,8 +119,9 @@ typealias Middleware<State, Action> =
   declared `addService<T: Sendable>` / `getService<T: Sendable>`, which is what makes its
   `@unchecked Sendable` honest: it hands values across isolation boundaries, so it may only hold
   values that can be. `TapticFeedbackServiceProtocol` is the one `@MainActor` service — it drives
-  `UIFeedbackGenerator`, which permits nothing else — and a `@MainActor` type is implicitly
-  `Sendable`, so it satisfies the constraint too.
+  `UIFeedbackGenerator`, which permits nothing else — and it still has to say `: Sendable`
+  explicitly: a `@MainActor` *concrete* type is implicitly sendable, but the container stores
+  `any Protocol`, and an existential is sendable only when its protocol says so.
 - **`ServiceLocator` stays an `NSLock`, not an actor.** An actor would make `getService` `async`,
   and `@Injected.wrappedValue` is a plain computed property read from wherever a service is needed;
   every one of those call sites would grow an `await` to buy a guarantee the lock already gives.

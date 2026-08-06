@@ -19,8 +19,11 @@ import UIKit
 /// `Middleware` was an unisolated `async` closure and so every haptic in this app was raised from
 /// the cooperative pool. That hop is gone: the middleware type is `@MainActor` now, and this
 /// annotation is what makes the guarantee checkable instead of merely observed.
+/// `Sendable` as well as `@MainActor`: the container stores services as `any Protocol`, and an
+/// existential is `Sendable` only when its protocol says so — a `@MainActor` *concrete* type is
+/// implicitly sendable, but `any TapticFeedbackServiceProtocol` is not.
 @MainActor
-protocol TapticFeedbackServiceProtocol {
+protocol TapticFeedbackServiceProtocol: Sendable {
     func playSuccess()
     func playError()
     func playWarning()
