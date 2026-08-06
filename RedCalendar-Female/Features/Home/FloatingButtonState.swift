@@ -8,7 +8,7 @@
 import SwiftUI
 
 // MARK: - Button State Enum
-enum FloatingButtonState: Equatable {
+nonisolated enum FloatingButtonState: Equatable {
     case plus        // Today is visible - show plus
     case arrowUp     // Today went below viewport - show arrow up
     case arrowDown   // Today went above viewport - show arrow down

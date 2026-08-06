@@ -41,14 +41,25 @@ typealias Middleware<State, Action> =
   keeps `AppState: Sendable` meaningful — a main-actor-isolated type is *implicitly* `Sendable`
   whatever it holds, so leaving the module default on `AppState` would satisfy the conformance by
   isolation alone and stop checking the tree beneath it.
-- **`nonisolated` on a type does not reach its extensions — mark those too.** An extension is its
-  own declaration and takes the module default independently, so a conformance declared in one is
-  a *main-actor-isolated conformance* however the type itself is annotated. That is not a
-  formality: `extension Daystamp: DatabaseValueConvertible` isolated that way cannot be used from
-  the nonisolated `DatabaseService` at all, and the `extension …: Equatable` on each GRDB record
-  stops satisfying `ValueObservation.removeDuplicates()`, whose type parameter is `Sendable`. Every
-  extension in `Core/Models/` carries `nonisolated`; a new one that omits it breaks the database
-  layer and nothing else, so the error arrives far from the edit.
+- **`nonisolated` is not transitive, and that is the whole difficulty of it.** It applies to the
+  one declaration it is written on. Everything that declaration *reaches* has to say it too, or the
+  module default puts the main actor back in the middle:
+  - **Extensions.** An extension is its own declaration, so a conformance declared in one is a
+    *main-actor-isolated conformance* however the type is annotated. `extension Daystamp:
+    DatabaseValueConvertible` isolated that way cannot be used from the nonisolated
+    `DatabaseService` at all, and the `extension …: Equatable` on each GRDB record stops satisfying
+    `ValueObservation.removeDuplicates()`, whose type parameter is `Sendable`. Every extension in
+    `Core/Models/` carries `nonisolated`.
+  - **Types reached from a nonisolated one.** `ReferenceDate` behind `Daystamp`, the `clamp` in
+    `ResolvedCycleSettings`, `DayCardHeight` behind `DayCardNaturalHeightKey`, `FloatingButtonState`
+    behind `TodayVisibilityPreferenceKey` — a main-actor default value in a nonisolated
+    `PreferenceKey` is an error, and so is a main-actor helper called from a nonisolated method.
+  - **Existentials.** `Sendable` on a `@MainActor` protocol still has to be written: the concrete
+    type gets it implicitly, `any Protocol` does not.
+
+  The error almost never lands in the file that caused it — a missing `nonisolated` in
+  `Core/Models/` surfaces in `DatabaseService`, one on a preference value surfaces in its key. Read
+  upward from the diagnostic to the declaration it names, not to the file it appeared in.
 - **A dispatch is two halves: the reducer runs now, the side effects are queued.** `send` applies
   the reducer synchronously on the caller's turn, so state changes in the order actions were sent
   and has changed by the time `send` returns; the action is then put on one `AsyncStream` that a
