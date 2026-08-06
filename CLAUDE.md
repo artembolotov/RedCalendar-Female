@@ -655,11 +655,25 @@ actor is where the values were always going.
 
 ### Environments
 
-**Concurrency checking:** `SWIFT_STRICT_CONCURRENCY = complete` on all four configurations. The
-tree reached zero warnings at that level under `SWIFT_VERSION = 5.0`, verified by archive, and
-`SWIFT_VERSION` moved to `6.0` on that basis — same diagnostics, now errors instead of warnings. A
-new concurrency error means new code; there is no warning tier left to catch it first, so archive
-before merging anything that touches an actor boundary.
+**Concurrency checking:** `SWIFT_STRICT_CONCURRENCY = complete` on all four configurations,
+`SWIFT_VERSION` still `5.0`, so everything arrives as a warning and nothing is an error. The tree
+is clean at that level — a new warning there means new code, so keep it at zero.
+
+**`SWIFT_VERSION = 6.0` was tried and reverted — it does not just turn the existing warnings into
+errors.** Language mode changes how Swift infers a generic parameter from an existential argument:
+`ServiceLocator.addService<T>(service:)` is called as `addService(service: keychain)` where
+`keychain` is `let keychain: KeychainServiceProtocol = KeychainService()`. Under Swift 5, `T` binds
+to the annotation, `KeychainServiceProtocol` — under Swift 6, the compiler opens the existential
+and binds `T` to the concrete `KeychainService` instead. Registration and `@Injected`'s lookup key
+on different types after that, and every resolution of that service is the `ServiceLocator.swift`
+fatalError, on first launch, before any UI. `complete` under Swift 5 mode produces the same set of
+*diagnostics* Swift 6 mode does, which is what made this look safe from an archive alone — archive
+only compiles, and this bug does not fail to compile, it fails to run. Confirmed by actually
+launching the app in the simulator: 5.0 resolves `T=KeychainServiceProtocol` and works, 6.0
+resolves `T=KeychainService` and crashes on `.checkAuthState`, both from an otherwise identical
+tree. Do not flip `SWIFT_VERSION` again without first making `ServiceLocator`'s registration
+explicit about the type it keys on (e.g. take the protocol metatype as a parameter instead of
+inferring it), and without launching the app afterward — an archive verifies compilation, not this.
 
 **Do not turn on `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor` to make a warning go away.** That was
 tried while getting here, and it is what produced 18 `nonisolated` extensions in `Core/Models/`
