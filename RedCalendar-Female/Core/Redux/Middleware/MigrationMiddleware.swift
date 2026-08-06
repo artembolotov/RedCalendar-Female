@@ -8,7 +8,7 @@
 import Foundation
 
 // MARK: - Migration Errors
-enum MigrationError: Error, LocalizedError {
+enum MigrationError: Error, LocalizedError, Equatable {
     case noUserIdFound
     case keychainSaveError
     case serverError(String)
@@ -52,7 +52,11 @@ let migrationMiddleware: Middleware = { state, action, dispatch in
                     )))
                 } catch {
                     AppLogger.error("Migration failed", error: error)
-                    dispatch(.setAuthState(.migrating(userId: userId, error: error)))
+                    // Not `AuthenticationError.from` — its `.unknownError` drops the message it
+                    // is handed, and `RootView` renders exactly that description.
+                    let migrationError = error as? MigrationError
+                        ?? .serverError(error.localizedDescription)
+                    dispatch(.setAuthState(.migrating(userId: userId, error: migrationError)))
                 }
             }
         }

@@ -7,7 +7,11 @@
 
 import Foundation
 
-struct AppState: Equatable {
+// `Sendable` is a checked conformance, not decoration: it is what stops an untyped `Error`
+// payload from being reintroduced into the state tree. Every error in here is a concrete enum
+// for that reason, and that is also what let the two hand-written `==` implementations —
+// which compared errors by `localizedDescription` — be deleted in favour of synthesis.
+struct AppState: Equatable, Sendable {
     var authState: AuthState?
     var calendarState: CalendarState = CalendarState()
     var notifications: NotificationState = NotificationState()
