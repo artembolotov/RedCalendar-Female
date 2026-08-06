@@ -19,7 +19,7 @@ nonisolated struct UserTagRecord: Codable, FetchableRecord, PersistableRecord {
     typealias CodingKeys = Columns
 }
 
-extension UserTagRecord: Equatable {
+nonisolated extension UserTagRecord: Equatable {
     static func == (lhs: UserTagRecord, rhs: UserTagRecord) -> Bool {
         lhs.id == rhs.id &&
         lhs.name == rhs.name &&

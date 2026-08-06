@@ -17,7 +17,7 @@ nonisolated struct CommentRecord: Codable, FetchableRecord, PersistableRecord {
     typealias CodingKeys = Columns
 }
 
-extension CommentRecord: Equatable {
+nonisolated extension CommentRecord: Equatable {
     static func == (lhs: CommentRecord, rhs: CommentRecord) -> Bool {
         lhs.dayNumber == rhs.dayNumber &&
         lhs.comment == rhs.comment
