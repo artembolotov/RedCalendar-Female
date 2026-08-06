@@ -40,8 +40,8 @@ private enum DayTitleFormatters {
 
 // Natural height of the flow level options, reported from outside the card's layout so the
 // card can slide the notes down by exactly that much.
-private struct FlowPickerHeightKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
+nonisolated private struct FlowPickerHeightKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
 
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
         let next = nextValue()
@@ -67,8 +67,8 @@ struct DayCardHeight: Equatable {
 
 // Height the active card's content asks for, reported from inside the card's own layout so the
 // pager can decide when to move every card to it. Inactive cards contribute `.none`.
-struct DayCardNaturalHeightKey: PreferenceKey {
-    static var defaultValue: DayCardHeight = .none
+nonisolated struct DayCardNaturalHeightKey: PreferenceKey {
+    static let defaultValue: DayCardHeight = .none
 
     static func reduce(value: inout DayCardHeight, nextValue: () -> DayCardHeight) {
         let next = nextValue()
@@ -81,8 +81,8 @@ struct DayCardNaturalHeightKey: PreferenceKey {
 // The active card's box, reported up to the pager: it drives the drag gesture's hit test.
 // Inactive cards contribute `.zero`. The calendar's centering does not come from here — it is
 // written from the level, in `reportedHeight`'s unit, which is the card alone.
-struct DayCardFrameKey: PreferenceKey {
-    static var defaultValue: CGRect = .zero
+nonisolated struct DayCardFrameKey: PreferenceKey {
+    static let defaultValue: CGRect = .zero
 
     static func reduce(value: inout CGRect, nextValue: () -> CGRect) {
         let next = nextValue()

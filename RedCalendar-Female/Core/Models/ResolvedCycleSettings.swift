@@ -30,6 +30,6 @@ nonisolated struct ResolvedCycleSettings: Equatable {
     }
 }
 
-private func clamp(_ value: Int, _ range: ClosedRange<Int>) -> Int {
+nonisolated private func clamp(_ value: Int, _ range: ClosedRange<Int>) -> Int {
     Swift.min(Swift.max(value, range.lowerBound), range.upperBound)
 }
