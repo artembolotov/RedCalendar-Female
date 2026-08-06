@@ -252,15 +252,26 @@ struct DayDetailsPagerView: View {
 
         guard levelHeight != newHeight else { return }
 
+        // Deferred a run loop turn: `applyLevel` is called from
+        // `onPreferenceChange(DayCardNaturalHeightKey.self)`, and `levelHeight` feeds
+        // `drawnBoxHeight`, which is what `DayCardFrameKey`'s own GeometryReader measures.
+        // Writing it synchronously here re-resolves that preference inside the same update
+        // SwiftUI is still processing — "Bound preference DayCardFrameKey tried to update
+        // multiple times per frame". One tick costs nothing visible; the fix has to move the
+        // write out of the preference callback that's still on the stack.
         if animated {
-            withAnimation(.cardLevelChange) {
-                levelHeight = newHeight
+            Task { @MainActor in
+                withAnimation(.cardLevelChange) {
+                    levelHeight = newHeight
+                }
             }
         } else {
-            var transaction = Transaction()
-            transaction.disablesAnimations = true
-            withTransaction(transaction) {
-                levelHeight = newHeight
+            Task { @MainActor in
+                var transaction = Transaction()
+                transaction.disablesAnimations = true
+                withTransaction(transaction) {
+                    levelHeight = newHeight
+                }
             }
         }
     }
