@@ -291,7 +291,7 @@ struct DayDetailsView: View {
             .padding(.top, 4)
         }
         .padding(cardPadding)
-        .padding(.bottom, globalBottomOffset - dragOffset)
+        .padding(.bottom, globalBottomOffset)
         // Keeps the content at the height it asks for so that a level shorter than the content
         // spills past the bottom edge and is cut, rather than squeezing the rows into the box.
         .fixedSize(horizontal: false, vertical: true)
@@ -306,6 +306,15 @@ struct DayDetailsView: View {
                     )
             }
         )
+        // The pull's stretch, and it belongs on this side of the measurement above — which is
+        // the only reason it is a padding of its own rather than folded into the one below the
+        // content. The two sum to what that single padding always was, so the box is unchanged;
+        // what changes is the height the card reports for itself. `dragOffset` returns to zero
+        // the instant the finger lifts, while the geometry goes on carrying the pull for the
+        // whole `.cardEntrance` spring — so measured from inside, every frame of that return
+        // read as the day's own content growing, and the level settle committed about a third
+        // of the pull as the card's height a fifth of a second later.
+        .padding(.bottom, -dragOffset)
         // A `nil` height is the natural one, so the two cases need no branch here.
         .frame(height: drawnBoxHeight, alignment: .top)
         // The card is a fixed box: the open flow picker and the notes it pushes down run past

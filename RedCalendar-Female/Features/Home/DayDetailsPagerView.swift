@@ -63,7 +63,17 @@ struct DayDetailsPagerView: View {
     // than a distance: the card is sized by its content, so days differ by hundreds of points
     // and any fixed number would be past a short card's whole height.
     private let dismissHeightFraction: CGFloat = 0.35
-    private let maxUpwardOffset: CGFloat = 150
+    // How far up the card follows the finger at `rubberBandFactor` before the band tightens.
+    // Its own number rather than a share of the limit below: the two used to be tied as
+    // `maxUpwardOffset / 3`, so every attempt to move the limit silently re-shaped the free
+    // region underneath it as well.
+    private let freeUpwardOffset: CGFloat = 50
+    // The stretch the pull approaches and never reaches. An asymptote rather than a ceiling:
+    // this named 150 while the curve topped out at 110, which left the `min` that was meant to
+    // enforce it unable to fire and the constant describing a pull the card could not be given.
+    // `resistedUpward` is today's curve exactly — same free region, same initial slope, same
+    // shape — respelled so that this number is the limit it claims to be.
+    private let maxUpwardOffset: CGFloat = 110
 
     private let pageCommitRatio: CGFloat = 0.25
     // Share of a slot the finger moves one-to-one before the drag starts resisting.
@@ -207,12 +217,20 @@ struct DayDetailsPagerView: View {
             cardFrame = frame
         }
         .onPreferenceChange(DayCardNaturalHeightKey.self) { measurement in
-            // A downward drag shortens the card, and the measurement shortens with it — that
-            // is the drag, not the day's own height. A measurement from a card that is no
-            // longer the active one belongs to the day being left.
-            guard measurement.height > 0, measurement.day == activeDay, dragOffset == 0 else { return }
+            // A measurement from a card that is no longer the active one belongs to the day
+            // being left.
+            guard measurement.height > 0, measurement.day == activeDay else { return }
             let measured = measurement.height
+            // Recorded whatever the finger is doing. The card no longer reports the drag as
+            // part of its height, so there is nothing here to reject — and a preference is
+            // delivered only when it changes, so a comment or a tag landing mid-gesture gets
+            // exactly one delivery. Dropping that one would leave the card standing at a level
+            // its content has already left, until something else happened to resize it.
             naturalHeight = measured
+
+            // Applying it is what must not happen under a finger. The dwell armed when the
+            // gesture ends picks up whatever arrived in the meantime.
+            guard dragOffset == 0 else { return }
 
             if levelHeight == nil {
                 // The first card of an opening has no level to inherit.
@@ -468,27 +486,27 @@ struct DayDetailsPagerView: View {
         // The card is being resized by the finger; a level change on top of that would fight it.
         cancelLevelSettle()
 
-        if translation < 0 {
-            let absTranslation = abs(translation)
-            let initialVisualThreshold = maxUpwardOffset / 3
-            let initialTranslationThreshold = initialVisualThreshold / rubberBandFactor
-
-            if absTranslation <= initialTranslationThreshold {
-                dragOffset = translation * rubberBandFactor
-            } else {
-                let baseOffset = initialVisualThreshold
-                let excessTranslation = absTranslation - initialTranslationThreshold
-
-                let remainingDistance = maxUpwardOffset - initialVisualThreshold
-                let resistanceFactor = 1.0 / (1.0 + excessTranslation / (remainingDistance * 2.0))
-                let excessOffset = excessTranslation * rubberBandFactor * resistanceFactor
-
-                let totalOffset = baseOffset + excessOffset
-                dragOffset = -min(totalOffset, maxUpwardOffset)
-            }
-        } else {
+        guard translation < 0 else {
             dragOffset = translation
+            return
         }
+
+        dragOffset = -resistedUpward(abs(translation))
+    }
+
+    // The upward pull's rubber band, in the shape `resisted(_:)` gives the horizontal drag: the
+    // finger's distance at `rubberBandFactor` up to `freeUpwardOffset`, then a curve approaching
+    // `maxUpwardOffset` from below, so no clamp is needed to hold the limit. Downward is not
+    // banded at all — that direction dismisses, and resistance there is resistance to closing.
+    private func resistedUpward(_ distance: CGFloat) -> CGFloat {
+        let free = freeUpwardOffset / rubberBandFactor
+
+        guard distance > free else { return distance * rubberBandFactor }
+
+        let remaining = maxUpwardOffset - freeUpwardOffset
+        let excess = distance - free
+
+        return freeUpwardOffset + remaining * (1 - 1 / (excess * rubberBandFactor / remaining + 1))
     }
 
     private func handleDragEnded(velocity: CGFloat) {
