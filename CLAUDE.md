@@ -739,14 +739,45 @@ off-main. Every warning `complete` found had a narrower fix:
   (`displayLink`, `animatingScrollView`) are `nonisolated` / `nonisolated(unsafe)` explicitly,
   rather than the whole class losing the inferred isolation everything else there correctly relies on.
 
-| Scheme | Config | API |
-|---|---|---|
-| RedCalendar-Female (Debug) | Debug | Dev |
-| RedCalendar-Female (Release) | Release | Production |
-| Staging Debug | Debug-Staging | Staging |
-| Staging Release | Release-Staging | Staging |
+There are **two** app schemes, both shared, and they select a configuration per *action* — the
+scheme name alone does not tell you which API a build talks to:
 
-`#if DEBUG` maps to both Debug and Debug-Staging — use it for `isDevelopment` flags (e.g., APNs sandbox).
+| Scheme | Run / Test / Analyze | Profile | Archive |
+|---|---|---|---|
+| RedCalendar-Production | Debug | Release | Release |
+| RedCalendar-Staging | Debug-Staging (Run) · Debug (Test, Analyze) | Release | Release-Staging |
+
+The four configurations map to two API hosts, via `API_BASE_URL` on the **target's** build settings
+(the project level also sets it, but the target's value is what reaches `Info.plist`):
+
+| Config | API host |
+|---|---|
+| Debug | `https://api.calendar.red` (production) |
+| Release | `https://api.calendar.red` (production) |
+| Debug-Staging | `https://staging.calendar.red` |
+| Release-Staging | `https://staging.calendar.red` |
+
+**There is no dev API.** Debug and Release both point at production — a plain Run of
+`RedCalendar-Production` writes to live data. Two consequences of the per-action mapping that are
+easy to trip over: `RedCalendar-Staging`'s Test and Analyze actions build **Debug**, so unit tests
+under the staging scheme hit production, and its Profile action builds **Release**, so an Instruments
+run of the staging scheme is a production build. Only Run and Archive are actually staging there.
+
+Every scheme other than these two (`AppMetrica-Package`, `KSCrash-Package`, `BootTimeMonitor`,
+`Filters`, `Installations`, `Recording`, `Reporting`, `Sinks`) belongs to an SPM dependency — never
+build the app through one.
+
+Building from the command line means naming the configuration explicitly, since `xcodebuild`
+defaults to `Release` when `-scheme` is omitted:
+
+```
+xcodebuild -project RedCalendar-Female.xcodeproj -scheme RedCalendar-Staging \
+  -configuration Debug-Staging -destination 'platform=iOS Simulator,name=iPhone 16' build
+```
+
+`#if DEBUG` maps to both Debug and Debug-Staging (`SWIFT_ACTIVE_COMPILATION_CONDITIONS` at the
+project level) — use it for `isDevelopment` flags (e.g., APNs sandbox). Note that it does **not**
+line up with which API is in use: Debug is a production build with `DEBUG` defined.
 
 ## Swift & SwiftUI Style
 
