@@ -103,6 +103,27 @@ struct HomeView: View {
                     // and there is nothing left to see through.
                     .transparentNavigationBarBackground()
                 }
+                // On the reader, and only the keyboard — which is the exception to the note
+                // above, not a contradiction of it. That note is about the *device* insets: the
+                // reader has to honour those, because reading `safeAreaInsets.top` off it is
+                // where the calendar's whole top band comes from. The keyboard is a different
+                // region, and the reader has no business honouring it.
+                //
+                // The calendar is sized by this reader and centres the selected week on half
+                // that height. Keyboard avoidance shrinks the reader whenever a text field has
+                // focus — the comment editor's, presented over this screen — and the calendar
+                // then takes the shortened screen for the screen, lifting every week by half of
+                // what the keyboard took. Nothing else moves with it, which is what makes it so
+                // hard to read as a height problem: the top band is pinned to the top of the
+                // screen, and the week height is already at its 50pt floor on both sides of the
+                // change, so the rows do not even re-space. The only symptom is a calendar that
+                // has stopped centring.
+                //
+                // `.ignoresSafeArea(edges: [.top, .bottom])` on the stack inside does not cover
+                // this. It defaults to every region, keyboard included, but it can only make
+                // *that stack* escape an inset — it cannot give back height the reader above it
+                // was never proposed.
+                .ignoresSafeArea(.keyboard)
             }
         }
     }
