@@ -210,6 +210,17 @@ enum CalendarConstants {
     // the error moves the scroll target by half of it.
     static let cardHeightTolerance: CGFloat = 12
 
+    // How much calendar an open card has to leave standing, in weeks. It is what
+    // `CalendarView.resolvedMaxCardHeight` reserves before the card is allowed any of the
+    // screen, so it is the one number that decides how tall a long comment may grow the card.
+    //
+    // One week is what the geometry alone would allow: at that point the selected row is flush
+    // between the band and the card, which satisfies every constraint and reads as a row
+    // trapped in a slot. A day is chosen out of the month around it, and a card that leaves
+    // only its own row standing takes away the thing it was chosen from. Three keeps the week
+    // before and the week after, so the day still sits in a calendar.
+    static let minWeeksAboveCard: CGFloat = 3
+
     // MARK: - Month limits for infinite scroll
     //
     // 60 years either way, and the number is a cost as much as a range: the scroll rail is the

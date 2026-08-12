@@ -29,6 +29,9 @@ struct CalendarView: View {
     /// point: by the time the geometry reaches here the content has already escaped the safe
     /// area, so there is no safe area left to report and the reader answers zero. Reading it
     /// here once cost a release with the weekday labels sitting in the status bar.
+    ///
+    /// **Read it in `body` and nowhere else** — everything below goes through `bandInset`
+    /// instead, for the reason given there.
     let topInset: CGFloat
 
 
@@ -42,6 +45,23 @@ struct CalendarView: View {
     // scrolls beneath `CalendarTopChrome`.
     @State private var calendarHeight: CGFloat = 0
     @State private var calendarWidth: CGFloat = 0
+
+    /// The inset everything here is measured against — `topInset`, held somewhere that survives
+    /// being read outside `body`.
+    ///
+    /// `topInset` is a plain `let`, so it belongs to one view value. Every function in this file
+    /// that is not `body` runs from a closure that captured an *older* one: `onChange(of:perform:)`
+    /// hands its action the `self` from before the update, and `InfiniteScrollContainer` keeps
+    /// the first `onScrollChanged` it is given for the life of the scroll view. `@State` is
+    /// immune — it reads from storage the view value only points at — which is why the two behave
+    /// differently in the same closure, and why this is the only shape of the fix.
+    ///
+    /// Left unfixed it is not a stale pixel or two. The inset arrives as zero and the real value
+    /// lands a pass later, so `setupCalculator` built the whole calendar against a 38pt band
+    /// instead of a 154pt one: the week height came out 53 instead of 45, the card's ceiling was
+    /// measured from the top of the screen rather than from under the navigation bar, and the
+    /// floating button decided today was readable while it sat behind the bar.
+    @State private var bandInset: CGFloat = 0
 
     // MARK: - State: Scroll & Offsets
     @State private var scrollOffset: CGFloat = 0
@@ -100,9 +120,11 @@ struct CalendarView: View {
     }
 
     /// Shared with `CalendarTopChrome`, so the blur and the weekday labels standing on it are
-    /// measured from one place.
+    /// measured from one place. That is also why it is built from `bandInset` rather than from
+    /// `topInset` directly: the drawn band and the geometry the grid is laid out against have to
+    /// be the same band, and only one of the two values is readable from everywhere that needs it.
     private var band: CalendarBandGeometry {
-        CalendarBandGeometry(topInset: topInset)
+        CalendarBandGeometry(topInset: bandInset)
     }
 
     /// The height left under the bar. This is what a *week* is sized against — the calendar
@@ -115,22 +137,22 @@ struct CalendarView: View {
     /// The ceiling on the card's own box (`DayDetailsView.reportedHeight`'s unit — the card
     /// excluding the elastic hang-off below the screen, same as `pendingBottomOffset`).
     ///
-    /// The calendar centres the selected week in the space *above* the card: at box height `H`
-    /// that week's centre lands at `(calendarHeight - H) / 2` (see `effectiveOffset`). For the
-    /// week not to sit under the chrome band, its top edge — half a week above its centre — must
-    /// clear `chromeHeight`:
+    /// The calendar centres the selected week in the readable strip between the band and the
+    /// card (see `selectionUIOffset`), so the strip is what this ceiling is written against:
+    /// the card gets the screen less the band, less the weeks the strip has to keep standing.
+    /// How many weeks that is, and why it is not the one the geometry alone would allow, is
+    /// `CalendarConstants.minWeeksAboveCard`.
     ///
-    ///     (calendarHeight - H) / 2 - weekHeight / 2 >= chromeHeight
-    ///
-    /// Solved for `H`, that is the ceiling below. A card asking for more is clipped to it by
-    /// `DayDetailsView` rather than pushing the centring point up under the band, which is what
-    /// let an unbounded multi-line comment grow the card to cover the whole screen.
+    /// A card asking for more is clipped to this by `DayDetailsView` rather than pushing the
+    /// centring point up under the band, which is what let an unbounded multi-line comment grow
+    /// the card to cover the whole screen.
     ///
     /// `.infinity` before the calculator exists — the very first geometry pass, which no card
     /// can be open during — so nothing is clipped against a limit that has no meaning yet.
     private var resolvedMaxCardHeight: CGFloat {
         guard let calc = calculator, calendarHeight > 0 else { return .infinity }
-        return max(0, calendarHeight - chromeHeight * 2 - calc.weekHeight)
+        let strip = calc.weekHeight * CalendarConstants.minWeeksAboveCard
+        return max(0, calendarHeight - chromeHeight - strip)
     }
 
     /// The height of the card for the day currently selected — the panel the calendar has to
@@ -163,11 +185,18 @@ struct CalendarView: View {
     /// Adjusts calendar position when DayDetailsView is shown
     /// Returns offset to center selected date within visible area above the panel
     ///
-    /// The card eats the bottom of the screen, so the middle of what is left of it rises by
-    /// exactly half the card — the top edge has not moved, and `uiOffset` already holds the
-    /// resting centre the rise is measured from.
+    /// How far off the resting centre (`uiOffset`) the selected week has to sit. The card eats
+    /// the bottom of the screen and the band eats the top, so the middle of the strip left
+    /// between them rises by half the card and falls by half the band.
+    ///
+    /// The band counts here where it deliberately does not in `calculateUIOffset`, and the
+    /// difference is what the two are centring *for*. Nothing is open at rest, so the calendar
+    /// is centred on the screen it fills — it carries on behind the band, and pushing today
+    /// down half a row to align with an edge nobody can see buys nothing. With a card open the
+    /// question is the opposite one: the selected day is the thing being read, and the strip it
+    /// can be read in ends at the bottom of the weekday labels, not at the top of the screen.
     private var selectionUIOffset: CGFloat {
-        pendingBottomOffset / 2
+        (pendingBottomOffset - chromeHeight) / 2
     }
 
     /// Main offset that determines calendar scroll position
@@ -273,7 +302,7 @@ struct CalendarView: View {
                 CalendarTopChrome(
                     weekdays: localizedWeekdays,
                     width: calendarWidth,
-                    topInset: topInset,
+                    topInset: bandInset,
                     onTap: dismissDayDetails
                 )
             }
@@ -282,13 +311,13 @@ struct CalendarView: View {
             // exists.
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             .onChange(of: metrics) { newValue in
-                setupCalculator(height: newValue.height, width: newValue.width)
+                setupCalculator(newValue)
             }
             // The reader's first pass normally reports nothing and `onChange` picks up the
             // real measurements, but it is not owed to us — a pass that arrives measured
             // would never change again, and nothing would ever be built.
             .onAppear {
-                setupCalculator(height: metrics.height, width: metrics.width)
+                setupCalculator(metrics)
             }
             // Ahead of the height handler below: when a selection and a height land in the
             // same pass, the selection is what decides whether the height is the one being
@@ -571,6 +600,8 @@ struct CalendarView: View {
     /// behind it. Centring under the band would push today a good half row down the screen
     /// from where it has always sat, to buy alignment with an edge nobody can see.
     ///
+    /// An open card is the one case where the band does count — see `selectionUIOffset`.
+    ///
     /// The grid's coordinate space starts at the top of the screen now, so this is a screen
     /// position directly.
     private func calculateUIOffset() -> CGFloat {
@@ -607,10 +638,18 @@ struct CalendarView: View {
         updateCalculatorIfNeeded()
     }
     
-    private func setupCalculator(height: CGFloat, width: CGFloat) {
+    /// Takes the metrics whole rather than reading any of them off `self`: this is called from
+    /// `onChange`, whose action closure carries the view value from *before* the update, so
+    /// `self.topInset` here is the previous pass's inset — see `bandInset`. `newValue` is the
+    /// only current one, and writing it to state is what makes it current for everything else.
+    private func setupCalculator(_ metrics: CalendarMetrics) {
+        let height = metrics.height
+        let width = metrics.width
+
         self.calendarHeight = height
         self.calendarWidth = width
-        
+        self.bandInset = metrics.topInset
+
         guard height > 0 && width > 0 else { return }
 
         // Sized against the readable area, not the drawing area. The grid is drawn across the
