@@ -433,7 +433,7 @@ struct DayDetailsPagerView: View {
         settle(to: CGFloat(-shift) * pageStride, velocity: velocity)
 
         pendingSelection = newSelection
-        store.send(.setSelectedDayStamp(newSelection))
+        store.send(.calendar(.selectDay(newSelection)))
     }
 
     private func settle(to target: CGFloat, velocity: CGFloat) {
@@ -530,7 +530,7 @@ struct DayDetailsPagerView: View {
 
         if (pulledFarEnough && velocity >= -150) || velocity > velocityThreshold {
             cancelLevelSettle()
-            store.send(.setSelectedDayStamp(nil))
+            store.send(.calendar(.selectDay(nil)))
         } else {
             withAnimation(.cardEntrance) {
                 dragOffset = 0

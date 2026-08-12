@@ -27,7 +27,7 @@ struct LoginView: View {
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Отмена") {
-                        store.send(.setAuthState(.notAuthenticated))
+                        store.send(.auth(.set(.notAuthenticated)))
                     }
                 }
             }

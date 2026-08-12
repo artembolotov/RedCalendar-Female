@@ -21,10 +21,10 @@ struct PhoneEntryView: View {
     private func continueAction() {
         guard let validE164Number = e164PhoneNumber else { return }
         
-        store.send(.setAuthState(.authenticating(.phone(.requesting(
+        store.send(.auth(.set(.authenticating(.phone(.requesting(
             prettyPhoneNumber: phoneText,
             e164PhoneNumber: validE164Number
-        )))))
+        ))))))
     }
     
     var body: some View {
@@ -108,10 +108,10 @@ struct PhoneEntryView: View {
     
     private func goBackToEmail() {
         // Return to email entry screen
-        store.send(.setAuthState(.authenticating(.email(.entry(
+        store.send(.auth(.set(.authenticating(.email(.entry(
             email: nil,
             error: nil
-        )))))
+        ))))))
     }
 }
 

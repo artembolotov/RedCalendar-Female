@@ -43,12 +43,11 @@ final class DatabaseMiddleware {
     /// It duplicates `state.calendarState.loadedRange` on purpose, and the reason has outlived
     /// two rewrites of how the store schedules things. The dispatch below does reach the reducer
     /// immediately, so `state` is current the moment it returns — but that does nothing for the
-    /// `.calendarScrolledTo` actions already sitting in the queue behind it. Each was queued with
-    /// the state *its own* reducer produced, so every one of them still carries the range as it
-    /// was before the expansion, and the calendar reports a fresh centre every
-    /// `centerReportStep` days, so a fling produces several. Deciding from state restarted both
-    /// observations once per action in the burst; deciding from here restarts them once per
-    /// expansion.
+    /// `.scrolledTo` actions already sitting in the queue behind it. Each was queued with the
+    /// state *its own* reducer produced, so every one of them still carries the range as it was
+    /// before the expansion, and the calendar reports a fresh centre every `centerReportStep`
+    /// days, so a fling produces several. Deciding from state restarted both observations once
+    /// per action in the burst; deciding from here restarts them once per expansion.
     private var observedRange: ClosedRange<Daystamp>?
 
     private var observationsActive: Bool { cyclesToken != nil }
@@ -59,7 +58,8 @@ final class DatabaseMiddleware {
 
     func handle(state: AppState, action: AppAction, dispatch: @escaping Dispatch) async {
         switch action {
-        case .setAuthState(let authState):
+
+        case .auth(.set(let authState)):
             if case .authenticated = authState {
                 // userDetails updates re-dispatch .authenticated — don't recreate observations
                 guard !observationsActive else { break }
@@ -69,7 +69,7 @@ final class DatabaseMiddleware {
                 cancelAll()
             }
 
-        case .calendarScrolledTo(let center):
+        case .calendar(.scrolledTo(let center)):
             // `observedRange` is non-nil exactly while the range observations are running.
             guard let observed = observedRange else { break }
             let threshold = Constants.Calendar.rangeExpansionThreshold
@@ -79,39 +79,63 @@ final class DatabaseMiddleware {
                 let buffer = Constants.Calendar.loadedRangeBuffer
                 let newRange = (center - buffer)...(center + buffer)
                 startRangeObservations(for: newRange, dispatch: dispatch)
-                dispatch(.setLoadedRange(newRange))
+                dispatch(.data(.setLoadedRange(newRange)))
             }
 
-        case .markPeriodStart(let stamp):
-            await handleMarkPeriodStart(
-                stamp: stamp,
-                today: state.calendarState.todayDayStamp,
-                cycles: state.calendarState.cycles
-            )
+        // This middleware owns the data domain — every read here is an observation it started and
+        // every write is a transaction it runs — so the switch is exhaustive. The cases it does
+        // nothing for are spelled out rather than swept into a `default`, which is the whole
+        // point: a new `DataAction` does not compile until somebody has decided whether it
+        // reaches the database.
+        case .data(let dataAction):
+            switch dataAction {
 
-        case .markPeriodEnd(let stamp):
-            await handleMarkPeriodEnd(
-                stamp: stamp,
-                today: state.calendarState.todayDayStamp,
-                cycles: state.calendarState.cycles
-            )
+            case .markPeriodStart(let stamp):
+                await handleMarkPeriodStart(
+                    stamp: stamp,
+                    today: state.calendarState.todayDayStamp,
+                    cycles: state.calendarState.cycles,
+                    dispatch: dispatch
+                )
 
-        case .unmarkPeriodEnd(let stamp):
-            await handleUnmarkPeriodEnd(stamp: stamp, cycles: state.calendarState.cycles)
+            case .markPeriodEnd(let stamp):
+                await handleMarkPeriodEnd(
+                    stamp: stamp,
+                    today: state.calendarState.todayDayStamp,
+                    cycles: state.calendarState.cycles,
+                    dispatch: dispatch
+                )
 
-        case .setFlowLevel(let stamp, let level):
-            await handleSetFlowLevel(
-                stamp: stamp,
-                level: level,
-                today: state.calendarState.todayDayStamp,
-                cycles: state.calendarState.cycles
-            )
+            case .unmarkPeriodEnd(let stamp):
+                await handleUnmarkPeriodEnd(
+                    stamp: stamp,
+                    cycles: state.calendarState.cycles,
+                    dispatch: dispatch
+                )
 
-        case .saveComment(let stamp, let text):
-            await handleSaveComment(stamp: stamp, text: text)
+            case .setFlowLevel(let stamp, let level):
+                await handleSetFlowLevel(
+                    stamp: stamp,
+                    level: level,
+                    today: state.calendarState.todayDayStamp,
+                    cycles: state.calendarState.cycles,
+                    dispatch: dispatch
+                )
 
-        case .setDayTags(let stamp, let tagIds):
-            await handleSetDayTags(stamp: stamp, tagIds: tagIds)
+            case .saveComment(let stamp, let text):
+                await handleSaveComment(stamp: stamp, text: text, dispatch: dispatch)
+
+            case .setDayTags(let stamp, let tagIds):
+                await handleSetDayTags(stamp: stamp, tagIds: tagIds, dispatch: dispatch)
+
+            // Values this middleware produced, on their way to the reducer.
+            case .setCycles, .setUserTags, .setVisibleComments, .setVisibleDayTags, .setLoadedRange:
+                break
+
+            // The outcome of a write, which the reducer and the UI deal with.
+            case .writeFailed, .dismissWriteFailure:
+                break
+            }
 
         default:
             break
@@ -123,10 +147,10 @@ final class DatabaseMiddleware {
     private func startPermanentObservations(dispatch: @escaping Dispatch) {
         let service = dbService
         cyclesToken = service.observeCycles { records in
-            dispatch(.setCycles(records))
+            dispatch(.data(.setCycles(records)))
         }
         userTagsToken = service.observeUserTags { records in
-            dispatch(.setUserTags(records))
+            dispatch(.data(.setUserTags(records)))
         }
     }
 
@@ -140,11 +164,7 @@ final class DatabaseMiddleware {
 
         let service = dbService
         commentsToken = service.observeComments(in: range) { records in
-            let dict = Dictionary(
-                records.compactMap { record in record.comment.map { (record.dayNumber, $0) } },
-                uniquingKeysWith: { $1 }
-            )
-            dispatch(.setVisibleComments(dict))
+            dispatch(.data(.setVisibleComments(Self.commentsByDay(records))))
         }
 
         dayTagsToken = service.observeDayTags(in: range) { records in
@@ -152,8 +172,17 @@ final class DatabaseMiddleware {
                 records.map { ($0.dayNumber, $0.tagIds) },
                 uniquingKeysWith: { $1 }
             )
-            dispatch(.setVisibleDayTags(dict))
+            dispatch(.data(.setVisibleDayTags(dict)))
         }
+    }
+
+    /// Shared by the observation and by the re-read a failed comment write triggers, so the two
+    /// cannot disagree about what a soft-deleted comment looks like in state: absent, not empty.
+    private static func commentsByDay(_ records: [CommentRecord]) -> [Daystamp: String] {
+        Dictionary(
+            records.compactMap { record in record.comment.map { (record.dayNumber, $0) } },
+            uniquingKeysWith: { $1 }
+        )
     }
 
     private func cancelAll() {
@@ -171,16 +200,25 @@ final class DatabaseMiddleware {
 
     // MARK: - Day editing handlers
 
-    private func handleMarkPeriodStart(stamp: Daystamp, today: Daystamp, cycles: [CycleRecord]) async {
+    private func handleMarkPeriodStart(
+        stamp: Daystamp,
+        today: Daystamp,
+        cycles: [CycleRecord],
+        dispatch: @escaping Dispatch
+    ) async {
         if let existing = cycles.first(where: { $0.startDay == stamp }) {
             // Toggle off: soft delete if synced, physical delete if not
             if existing.updatedAt != nil {
                 var deleted = existing
                 deleted.periodLength = nil
                 deleted.updatedAt = nil
-                await write("markPeriodStart soft delete") { try await dbService.upsert([deleted]) }
+                await write(.periodStart, detail: "soft delete", dispatch: dispatch) {
+                    try await dbService.upsert([deleted])
+                }
             } else {
-                await write("markPeriodStart delete") { try await dbService.deleteCycle(startDay: stamp) }
+                await write(.periodStart, detail: "delete", dispatch: dispatch) {
+                    try await dbService.deleteCycle(startDay: stamp)
+                }
             }
         } else {
             guard cycles.canStartPeriod(at: stamp, today: today) else {
@@ -194,11 +232,18 @@ final class DatabaseMiddleware {
                 flowLevels: [:],
                 updatedAt: nil
             )
-            await write("markPeriodStart insert") { try await dbService.upsert([newCycle]) }
+            await write(.periodStart, detail: "insert", dispatch: dispatch) {
+                try await dbService.upsert([newCycle])
+            }
         }
     }
 
-    private func handleMarkPeriodEnd(stamp: Daystamp, today: Daystamp, cycles: [CycleRecord]) async {
+    private func handleMarkPeriodEnd(
+        stamp: Daystamp,
+        today: Daystamp,
+        cycles: [CycleRecord],
+        dispatch: @escaping Dispatch
+    ) async {
         guard stamp <= today, let cycle = cycles.recordedPeriodCycle(covering: stamp) else {
             AppLogger.warn("markPeriodEnd rejected for \(stamp): in the future, or no period covers the day")
             return
@@ -208,57 +253,101 @@ final class DatabaseMiddleware {
         var updated = cycle
         updated.periodLength = max(Constants.Cycle.minPeriodLength, min(Constants.Cycle.maxPeriodLength, raw))
         updated.updatedAt = nil
-        await write("markPeriodEnd") { try await dbService.upsert([updated]) }
+        await write(.periodEnd, dispatch: dispatch) { try await dbService.upsert([updated]) }
     }
 
-    private func handleUnmarkPeriodEnd(stamp: Daystamp, cycles: [CycleRecord]) async {
+    private func handleUnmarkPeriodEnd(
+        stamp: Daystamp,
+        cycles: [CycleRecord],
+        dispatch: @escaping Dispatch
+    ) async {
         guard let cycle = cycles.completedCycle(covering: stamp),
               let periodLength = cycle.periodLength,
               cycle.startDay.advanced(by: periodLength - 1) == stamp else { return }
         var updated = cycle
         updated.periodLength = 0
         updated.updatedAt = nil
-        await write("unmarkPeriodEnd") { try await dbService.upsert([updated]) }
+        await write(.periodEnd, detail: "unmark", dispatch: dispatch) {
+            try await dbService.upsert([updated])
+        }
     }
 
-    private func handleSetFlowLevel(stamp: Daystamp, level: Int?, today: Daystamp, cycles: [CycleRecord]) async {
+    private func handleSetFlowLevel(
+        stamp: Daystamp,
+        level: Int?,
+        today: Daystamp,
+        cycles: [CycleRecord],
+        dispatch: @escaping Dispatch
+    ) async {
         guard stamp <= today, var cycle = cycles.recordedPeriodCycle(covering: stamp) else {
             AppLogger.warn("setFlowLevel rejected for \(stamp): in the future, or no recorded period covers the day")
             return
         }
         cycle.setFlowLevel(level, on: stamp)
         cycle.updatedAt = nil
-        await write("setFlowLevel") { try await dbService.upsert([cycle]) }
+        await write(.flowLevel, dispatch: dispatch) { try await dbService.upsert([cycle]) }
     }
 
-    private func handleSaveComment(stamp: Daystamp, text: String) async {
+    private func handleSaveComment(stamp: Daystamp, text: String, dispatch: @escaping Dispatch) async {
         let record = CommentRecord(
             dayNumber: stamp,
             comment: text.isEmpty ? nil : text,
             updatedAt: nil
         )
-        await write("saveComment") { try await dbService.upsert([record]) }
+        await write(.comment, dispatch: dispatch) { try await dbService.upsert([record]) }
     }
 
-    private func handleSetDayTags(stamp: Daystamp, tagIds: [String]) async {
+    private func handleSetDayTags(stamp: Daystamp, tagIds: [String], dispatch: @escaping Dispatch) async {
         let record = DayTagsRecord(
             dayNumber: stamp,
             tagIds: tagIds,
             updatedAt: nil
         )
-        await write("setDayTags") { try await dbService.upsert([record]) }
+        await write(.dayTags, dispatch: dispatch) { try await dbService.upsert([record]) }
     }
 
-    // User edits must not fail silently in production data flows — at minimum leave a trace.
-    //
-    // The transaction goes to the GRDB queue and is awaited, so the main thread never stands on
-    // it. Order is preserved: requests reach that queue in the order the main actor reached the
-    // corresponding `await`.
-    private func write(_ operation: String, _ work: () async throws -> Void) async {
+    /// A user edit that does not reach the disk is reported twice: to the log, and to the user.
+    ///
+    /// The log alone was what this did, and it was defensible only while every one of these
+    /// writes was invisible in state — the day card redraws from the observation, so a write that
+    /// failed simply left the old value on screen and the user saw their tap do nothing. That
+    /// stopped being true for the comment, which the reducer puts on screen before the disk has
+    /// taken it, and it will stop being true for anything else that follows it. So the failure
+    /// goes into `CalendarState.writeFailure` and the UI says so.
+    ///
+    /// The transaction goes to the GRDB queue and is awaited, so the main thread never stands on
+    /// it. Order is preserved: requests reach that queue in the order the main actor reached the
+    /// corresponding `await`.
+    private func write(
+        _ operation: DataWriteOperation,
+        detail: String? = nil,
+        dispatch: @escaping Dispatch,
+        _ work: () async throws -> Void
+    ) async {
         do {
             try await work()
         } catch {
-            AppLogger.error("Database write failed: \(operation)", error: error)
+            let label = detail.map { "\(operation.logLabel) \($0)" } ?? operation.logLabel
+            AppLogger.error("Database write failed: \(label)", error: error)
+            dispatch(.data(.writeFailed(operation)))
+
+            // The comment is the one edit whose new value is already in state, so telling the
+            // user it failed is not enough on its own — the text they were told was lost is
+            // still on the card. Re-reading the range puts the stored comment back, which is
+            // what the observation would have done had the write changed anything.
+            if operation == .comment {
+                await reloadComments(dispatch: dispatch)
+            }
+        }
+    }
+
+    private func reloadComments(dispatch: @escaping Dispatch) async {
+        guard let range = observedRange else { return }
+        do {
+            let records = try await dbService.fetchComments(in: range)
+            dispatch(.data(.setVisibleComments(Self.commentsByDay(records))))
+        } catch {
+            AppLogger.error("Failed to re-read comments after a failed write", error: error)
         }
     }
 }

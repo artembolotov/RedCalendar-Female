@@ -29,8 +29,10 @@ let migrationMiddleware: Middleware = { state, action, dispatch in
     @Injected var keychain: KeychainServiceProtocol
     @Injected var apiService: APIServiceProtocol
     
+    // Observes the auth domain rather than owning it, so it matches the one case it acts on
+    // instead of switching exhaustively — a new `AuthAction` genuinely is none of its business.
     switch action {
-    case .setAuthState(let authState):
+    case .auth(.set(let authState)):
         if case .migrating(let userId, let error) = authState, error == nil {
             Task {
                 do {
@@ -46,17 +48,17 @@ let migrationMiddleware: Middleware = { state, action, dispatch in
                     
                     keychain.deleteUserUID()
                     
-                    dispatch(.setAuthState(.authenticated(
+                    dispatch(.auth(.set(.authenticated(
                         deviceId: data.deviceId,
                         userDetails: nil
-                    )))
+                    ))))
                 } catch {
                     AppLogger.error("Migration failed", error: error)
                     // Not `AuthenticationError.from` — its `.unknownError` drops the message it
                     // is handed, and `RootView` renders exactly that description.
                     let migrationError = error as? MigrationError
                         ?? .serverError(error.localizedDescription)
-                    dispatch(.setAuthState(.migrating(userId: userId, error: migrationError)))
+                    dispatch(.auth(.set(.migrating(userId: userId, error: migrationError))))
                 }
             }
         }

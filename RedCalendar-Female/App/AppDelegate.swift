@@ -16,9 +16,9 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
-        if let accent = UIColor(named: "AccentColor") {
-            UIWindow.appearance().tintColor = accent
-        }
+        // UIKit's tint is set from the chosen accent by `AppearanceMiddleware`, not from the
+        // `AccentColor` asset here: this runs before the stored theme has been read, and an
+        // appearance proxy set once at launch cannot follow a theme the user changes later.
         return true
     }
 
@@ -31,7 +31,7 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         AppLogger.info("Got APNS token: \(token)")
         
         // Dispatch Redux action
-        appStore?.send(.setAPNSToken(APNSToken(value: token, isSynced: false)))
+        appStore?.send(.push(.setAPNSToken(APNSToken(value: token, isSynced: false))))
     }
     
     // Called when APNs registration fails

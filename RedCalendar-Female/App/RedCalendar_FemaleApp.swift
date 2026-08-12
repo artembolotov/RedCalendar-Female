@@ -37,21 +37,21 @@ struct RedCalendarApp: App {
                 .environmentObject(store)
                 .onAppear {
                     appDelegate.appStore = store
-                    store.send(.checkAuthState)
-                    store.send(.checkAnalyticsStatus)
-                    store.send(.checkAccentTheme)
+                    store.send(.auth(.check))
+                    store.send(.analytics(.checkStatus))
+                    store.send(.appearance(.checkAccentTheme))
                 }
                 .onChange(of: scenePhase) { newPhase in
                     if newPhase == .active {
-                        store.send(.updateTodayDayStamp)
-                        store.send(.setPushPermissionState(nil))
+                        store.send(.calendar(.updateToday))
+                        store.send(.push(.setPermissionState(nil)))
                         store.send(.retryFailedTasks)
 
                         clearNotifications()
                     }
                 }
                 .onReceive(NotificationCenter.default.publisher(for: UIApplication.significantTimeChangeNotification)) { _ in
-                    store.send(.updateTodayDayStamp)
+                    store.send(.calendar(.updateToday))
                 }
         }
     }

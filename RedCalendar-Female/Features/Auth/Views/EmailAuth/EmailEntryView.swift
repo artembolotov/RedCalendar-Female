@@ -23,7 +23,7 @@ struct EmailEntryView: View {
         guard trimmedEmail.isValidEmail else { return }
         
         isEmailFieldFocused = false
-        store.send(.setAuthState(.authenticating(.email(.checking(email: trimmedEmail, name: nil)))))
+        store.send(.auth(.set(.authenticating(.email(.checking(email: trimmedEmail, name: nil))))))
     }
     
     var body: some View {
@@ -87,7 +87,7 @@ struct EmailEntryView: View {
                        .multilineTextAlignment(.center)
                        .environment(\.openURL, OpenURLAction { url in
                            switch url.absoluteString {
-                           case "phone": store.send(.setAuthState(.authenticating(.phone(.entry()))))
+                           case "phone": store.send(.auth(.set(.authenticating(.phone(.entry())))))
                            case "email": UIApplication.shared.open(URL(string: "mailto:support@calendar.red")!)
                            default: break
                            }

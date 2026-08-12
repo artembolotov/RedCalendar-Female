@@ -20,8 +20,8 @@ typealias Middleware = @MainActor @Sendable (AppState, AppAction, @escaping Disp
 - **The store is concrete, not generic, and that is load-bearing.** `Store<State, Action>` had one
   instantiation and cost an archive: `swift-frontend` recursed without bound in `EarlyPerfInliner`
   on the generic class's implicit `deinit`, under `-O` only, so debug builds stayed green while
-  every TestFlight upload failed. Do not re-introduce generic parameters here without archiving
-  the result first.
+  every TestFlight upload failed. That is the history behind the shape; it is not a standing
+  instruction to archive, only the thing to remember if anyone ever wants the generic back.
 - Reducers are pure functions — no side effects, no async work inside them.
 - All async work and API calls belong in middleware.
 - **A dispatch is two halves: the reducer runs synchronously, the effects are queued.** `send`
@@ -64,7 +64,34 @@ typealias Middleware = @MainActor @Sendable (AppState, AppAction, @escaping Disp
   `Sendable` conformance enforces, and it is what lets `==` be synthesized. An `any Error` payload
   would bring back both the hand-written comparisons and the hole they papered over.
 
-**Adding a new action:** add a case to `AppAction`, handle it in `appReducer`, handle side effects in the relevant middleware file.
+- **Actions are grouped by domain, and the grouping is what makes the compiler useful.** `AppAction`
+  has one case per domain — `.auth`, `.calendar`, `.data`, `.push`, `.analytics`, `.appearance`,
+  plus the cross-cutting `.retryFailedTasks` — each wrapping an enum of its own. Flat, every
+  middleware ended in `default: break`, so a new case compiled everywhere and was handled nowhere:
+  nothing told you that a new day-editing action had no middleware writing it to the database. A
+  middleware that **owns** a domain now switches its sub-enum with no `default` (`AuthMiddleware`
+  over `AuthAction`, `DatabaseMiddleware` over `DataAction`, and so on), and adding a case is a
+  build error in the file that would have had to handle it. `DatabaseMiddleware` spells out the
+  cases it deliberately ignores rather than sweeping them into a `default` — that list is the
+  decision, not noise. The *outer* switch still takes a `default` and has to: every middleware sees
+  every action, and a middleware that merely observes another domain (`FeedbackMiddleware` watching
+  for almost everything, `MigrationMiddleware` watching for one auth case) matches what it wants
+  and ignores the rest.
+
+**Adding a new action:** add a case to the domain enum it belongs to in `AppAction.swift` — a new
+top-level case is a claim that it belongs to no domain, which `retryFailedTasks` is currently the
+only thing that can say. Then handle it in `appReducer` and in the middleware that owns the domain;
+the compiler will name that middleware for you.
+
+**A write that does not reach the disk is reported to the user, not only to the log.**
+`DatabaseMiddleware.write` dispatches `.data(.writeFailed(DataWriteOperation))` on a failed
+transaction, the reducer parks it in `CalendarState.writeFailure`, and `HomeView` presents it. It
+holds one failure and the last one wins: these are single-row local transactions on a file the app
+owns, so a failure means the store itself is in trouble and the second failure is the first one
+again. The alert is presented from *state* rather than from a one-shot trigger, and from `HomeView`
+rather than from the sheet that caused it — a comment is saved as its sheet dismisses, so the
+failure lands while a presentation is already in flight, and a flag that stays true until answered
+is the only version of this that survives that.
 
 **Adding a new middleware:** create `*Middleware.swift` in `Core/Redux/Middleware/`, register it in `combineAppMiddlewares()` in `Core/Redux/AppMiddleware.swift`.
 
@@ -112,11 +139,12 @@ Core/
   DI/         — ServiceLocator, @Injected
   Models/     — Daystamp, Daystamp+GRDB, AuthenticationMethod, AuthenticationError,
                  APNSToken, UserDetails, ResolvedCycleSettings, DayDisplayState,
-                 AccentTheme,
+                 AccentTheme, DataWriteOperation,
                  CycleRecord, CycleRecord+Queries,
                  CommentRecord, UserTagRecord, DayTagsRecord
   Redux/
-    Actions/  — AppAction
+    Actions/  — AppAction, plus the per-domain AuthAction/CalendarAction/DataAction/
+                 PushAction/AnalyticsAction/AppearanceAction it wraps
     Middleware/
       AuthMiddleware.swift
       MigrationMiddleware.swift
@@ -153,7 +181,7 @@ Features/
       Components/ — CalendarGridView, CalendarSelectionLayer, CalendarPalette,
                      CalendarHeaderView, CalendarTopChrome, InfiniteScrollContainer
       Models/     — CalendarModels, CalendarConstants, CalendarBandGeometry,
-                     MonthCalculator, ScrollCommand, ViewportCalculator
+                     CalendarLayout, MonthCalculator, ScrollCommand, ViewportCalculator
     Components/   — FloatingAddButton, HomeMenuView
     HomeView, DayDetailsView, FloatingButtonState,
     CommentSheetView, TagsSheetView
@@ -367,6 +395,18 @@ conformance — leave it out and the grid keeps drawing the old accent until som
 changes. `HomeMenuView` takes the colour for the same reason it takes nothing else from the store:
 it is toolbar content, where an `@EnvironmentObject` is not reliably reachable.
 
+**UIKit gets the accent from the middleware, because SwiftUI's `.tint` does not reach it.** The
+caret and selection handles in `PhoneNumberKitField`'s `UITextField` read `UIWindow.tintColor`, and
+nothing about the modifier on `RootView` propagates into a `UIViewRepresentable`. So
+`AppearanceMiddleware` writes the window tint on `.setAccentTheme` — the action that carries the
+stored theme on launch and the chosen one afterwards, which is exactly when the answer changes.
+This used to be one line in `AppDelegate` setting `UIWindow.appearance().tintColor` to the
+`AccentColor` asset at launch, and it was wrong twice: it hardcoded coral whichever theme the user
+had picked, before the stored one had even been read, and an appearance proxy is consulted when a
+window is *created*, so choosing a different accent in settings could never change it. Both the
+proxy and the live windows are written — the proxy for a window built later, the windows for the
+one already on screen.
+
 The auth screens follow the theme too. `PrimaryButton` takes a `Color` rather than an
 `AccentTheme` — it lives in `Common` and has no business knowing what the app's themes are — and
 each of the five auth views passes it from the store it already holds. The theme is a device
@@ -561,6 +601,26 @@ calendar draws around the center** (a rendered viewport reaches about two months
 `viewportBufferRatio`): a day scrolled into view before its range is loaded has no `DayDisplayState`,
 so its bars, dots and comments visibly draw themselves in a moment later.
 
+**Where the calendar sits is arithmetic, and it lives outside the view.** `CalendarLayout` takes the
+screen height, the band's height and a week's height, and answers the six questions that used to be
+computed properties scattered down `CalendarView`: what a week is sized against, where today rests,
+how tall the day card may grow, how far the selected week shifts for an open card, what the scroll
+offset should be, and which way the floating button points. The two positions that genuinely cost
+something — `todayWeekCenterY` and `selectionOffset`, each a walk through the calculator's months —
+stay as `@State`; everything derived from them is recomputed, because it is subtraction.
+
+The day↔position conversions moved the other way, onto `MonthCalculator` itself (`weekCenterY(for:)`,
+`originShift(from:)`, `monthCenterDaystamp(atContentY:)`), since every Y in this app is measured from
+the top of the month holding *that calculator's* `currentDate`. Asking the calculator removes a
+disagreement the old signatures allowed: `weekCenterY` took a calculator as an argument and read the
+reference date off the view, and the two differ for exactly one pass — the midnight rollover that
+replaces the calculator.
+
+Neither type is a refactor for tidiness. These are the numbers that go subtly wrong (which height a
+week is measured against, whether the band counts, what "today is off screen" means), and eight
+lines of arithmetic in a row can be checked against the rules above in a way that the same eight
+lines spread over eight hundred cannot.
+
 **Scrolling must not rebuild day cells.** The grid (`CalendarGridView`) is `Equatable` and is drawn
 for a fixed *anchor* offset; a scroll frame only slides that layer with `.offset`, and
 `CalendarView.rebuildViewport` re-anchors it once the scroll has travelled
@@ -662,8 +722,13 @@ actor is where the values were always going.
 **Concurrency checking:** `SWIFT_STRICT_CONCURRENCY = complete` and `SWIFT_VERSION = 6.0` on all
 four configurations. The `complete` tree reached zero warnings under Swift 5 mode first, verified
 by archive; `SWIFT_VERSION` moved to `6.0` on that basis, turning the same diagnostics into errors.
-A new concurrency error means new code — there is no warning tier left to catch it first, so
-archive before merging anything that touches an actor boundary.
+A new concurrency error means new code — there is no warning tier left to catch it first.
+
+**The build gate is one ordinary build.** A simulator build compiles every file an archive does, so
+archiving is for releases, not for checking a change. Running the app is worth the trouble only when
+something specific needs looking at — a layout or an animation, or a change to how services are
+registered, which is the one case where a green build means nothing (see the `ServiceLocator` note
+below). Everything else is read from the code.
 
 **The first attempt at `SWIFT_VERSION = 6.0` was reverted, and the reason had nothing to do with
 concurrency.** Language mode changes how Swift infers a generic parameter from an existential

@@ -491,11 +491,11 @@ struct DayDetailsView: View {
     private func handlePeriodButton() {
         switch periodButtonState(context: cycles.dayContext(for: dayStamp)) {
         case .startOutline, .startFilled:
-            store.send(.markPeriodStart(dayStamp))
+            store.send(.data(.markPeriodStart(dayStamp)))
         case .endOutline:
-            store.send(.markPeriodEnd(dayStamp))
+            store.send(.data(.markPeriodEnd(dayStamp)))
         case .endFilled:
-            store.send(.unmarkPeriodEnd(dayStamp))
+            store.send(.data(.unmarkPeriodEnd(dayStamp)))
         }
     }
 
@@ -547,7 +547,7 @@ struct DayDetailsView: View {
         VStack(spacing: 0) {
             ForEach(flowLevelOptions, id: \.1) { level, label in
                 Button(action: {
-                    store.send(.setFlowLevel(dayStamp, level))
+                    store.send(.data(.setFlowLevel(dayStamp, level)))
                     withAnimation(.easeInOut(duration: flowPickerDuration)) {
                         showFlowPicker = false
                     }
@@ -700,7 +700,7 @@ struct DayDetailsView: View {
     }
 
     private func dismissView() {
-        store.send(.setSelectedDayStamp(nil))
+        store.send(.calendar(.selectDay(nil)))
     }
 }
 

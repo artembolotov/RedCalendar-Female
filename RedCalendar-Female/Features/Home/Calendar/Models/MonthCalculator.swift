@@ -237,6 +237,69 @@ final class MonthCalculator: ObservableObject {
         return reorderedWeekdays
     }
     
+    // MARK: - Positions in the calendar's own space
+
+    /// The vertical centre of the week holding `daystamp`, in content space.
+    ///
+    /// It lived in `CalendarView` and took a calculator as an argument, which meant it also had
+    /// to be handed the date the coordinate space is measured from — and the view's idea of today
+    /// and the calculator's can differ for a pass, in the one situation that matters: the midnight
+    /// rollover that replaces the calculator. Asking the calculator itself removes the
+    /// disagreement, because `getYPosition(for:)` is measured from exactly this `currentDate`.
+    func weekCenterY(for daystamp: Daystamp) -> CGFloat {
+        let targetDate = daystamp.toDate(calendar: calendar)
+
+        guard let targetMonthStart = calendar.dateInterval(of: .month, for: targetDate)?.start,
+              let ownMonthStart = calendar.dateInterval(of: .month, for: currentDate)?.start else {
+            return 0
+        }
+
+        let monthOffset = calendar.dateComponents([.month], from: ownMonthStart, to: targetMonthStart).month ?? 0
+
+        let cells = getMonthCells(for: monthOffset)
+        let weekIndex = (cells.firstIndex { $0?.daystamp == daystamp } ?? 0) / 7
+
+        let gridStartY = getYPosition(for: monthOffset) + monthHeaderHeight
+        let weekY = gridStartY + CGFloat(weekIndex) * (weekHeight + gridVerticalSpacing)
+        return weekY + weekHeight / 2
+    }
+
+    /// How far the content moved when `previous` was replaced by this calculator.
+    ///
+    /// Every Y position is measured from the top of the month holding the calculator's
+    /// `currentDate`, so a today that crossed into a new month re-origins the whole coordinate
+    /// space. Without cancelling that out of the scroll offset, the day the user was looking at
+    /// slides a month's height away at midnight on the 1st.
+    func originShift(from previous: MonthCalculator) -> CGFloat {
+        guard let previousMonthStart = calendar.dateInterval(of: .month, for: previous.currentDate)?.start,
+              let ownMonthStart = calendar.dateInterval(of: .month, for: currentDate)?.start,
+              let monthOffset = calendar.dateComponents([.month], from: ownMonthStart, to: previousMonthStart).month
+        else {
+            return 0
+        }
+
+        return getYPosition(for: monthOffset)
+    }
+
+    /// The middle of whichever month covers `contentY`.
+    ///
+    /// Month precision on purpose: the only caller is the loaded range, which is managed in
+    /// hundreds of days, and finding the exact day would mean walking a month's cells for a
+    /// number that is rounded away immediately afterwards.
+    func monthCenterDaystamp(atContentY contentY: CGFloat) -> Daystamp {
+        var offset = Int(contentY / CalendarConstants.averageMonthHeight)
+        offset = min(max(offset, minMonthOffset), maxMonthOffset)
+
+        while offset > minMonthOffset && getYPosition(for: offset) > contentY {
+            offset -= 1
+        }
+        while offset < maxMonthOffset && getYPosition(for: offset + 1) <= contentY {
+            offset += 1
+        }
+
+        return Daystamp(from: getMonthDate(for: offset), calendar: calendar)
+    }
+
     func getScrollLimits() -> (min: CGFloat, max: CGFloat) {
         checkAndInvalidateCacheIfNeeded()
 

@@ -33,4 +33,17 @@ struct CalendarState: Equatable {
     /// frame, and this is a map over the whole loaded range: several hundred keys, each with a
     /// `Set` inside it, compared twice a frame to answer a question that has one bit in it.
     var dayDisplayStatesVersion: Int = 0
+
+    /// The last write the database refused, until the user acknowledges it.
+    ///
+    /// It holds one failure rather than a queue, and the last one wins. A queue would be
+    /// describing a situation that does not happen: these are single-row local transactions on a
+    /// file the app owns, so a failure means the store itself is in trouble — a disk that is full
+    /// or a database that will not open — and the second failure is the first one again. What
+    /// matters is that the user learns their edit did not land, once, not that they are told five
+    /// times.
+    ///
+    /// Lives here rather than at the top of `AppState` so that it clears with the rest of the
+    /// day data on logout.
+    var writeFailure: DataWriteOperation?
 }

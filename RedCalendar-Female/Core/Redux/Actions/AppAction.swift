@@ -5,46 +5,87 @@
 //  Created by Артём Болотов on 04.06.2025.
 //
 
+/// Grouped by domain rather than flat, and the grouping buys one thing: a middleware that owns a
+/// domain can switch over that domain **exhaustively**.
+///
+/// Flat, every middleware ended in `default: break`, so a new case compiled everywhere and was
+/// handled nowhere — the compiler had nothing to say about a `.markPeriodEnd` that no middleware
+/// wrote to the database. Now `DatabaseMiddleware` switches `DataAction` with no `default`,
+/// `AuthMiddleware` switches `AuthAction` with no `default`, and adding a case to either is a
+/// build error in the file that would have had to handle it.
+///
+/// The outer switch still takes a `default`, and has to: every middleware sees every action.
+/// What each one *owns* is the inner switch, and that is where the exhaustiveness is worth
+/// having. A middleware that merely observes another domain — `PushNotificationsMiddleware`
+/// watching for authentication, `FeedbackMiddleware` watching for almost everything — matches the
+/// cases it cares about and takes a `default`, because a new auth action genuinely is none of its
+/// business.
 enum AppAction: Sendable {
-    // Auth actions
-    case checkAuthState
-    case setAuthState(_ state: AuthState)
+    case auth(AuthAction)
+    case calendar(CalendarAction)
+    case data(DataAction)
+    case push(PushAction)
+    case analytics(AnalyticsAction)
+    case appearance(AppearanceAction)
+
+    /// Deliberately outside every group: it is dispatched when the app becomes active and asks
+    /// whoever has unfinished work to try again. Today that is only the APNs token; the sync
+    /// this app does not have yet is the other obvious claimant, which is exactly why it does not
+    /// belong to `push`.
+    case retryFailedTasks
+}
+
+enum AuthAction: Sendable {
+    case check
+    case set(AuthState)
     case logout
-    
-    // Calendar actions
-    case updateTodayDayStamp
-    case setSelectedDayStamp(_ dayStamp: Daystamp?)
+}
 
-    // Database → Store
-    case setCycles(_ cycles: [CycleRecord])
-    case setUserTags(_ tags: [UserTagRecord])
-    case setVisibleComments(_ comments: [Daystamp: String])
-    case setVisibleDayTags(_ dayTags: [Daystamp: [String]])
-    case setLoadedRange(_ range: ClosedRange<Daystamp>)
+enum CalendarAction: Sendable {
+    case updateToday
+    case selectDay(Daystamp?)
+    /// The viewport's centre, reported as the user scrolls, so the loaded range can follow it.
+    case scrolledTo(center: Daystamp)
+}
 
-    // CalendarView → DatabaseMiddleware
-    case calendarScrolledTo(center: Daystamp)
+/// The day data: what the database says, and what the user asks it to become.
+///
+/// Both halves are one domain because `DatabaseMiddleware` owns both of them — the reads are the
+/// observations it starts, the writes are the transactions it runs. Splitting them would give it
+/// two exhaustive switches over halves that only make sense together.
+enum DataAction: Sendable {
+    // Database → store
+    case setCycles([CycleRecord])
+    case setUserTags([UserTagRecord])
+    case setVisibleComments([Daystamp: String])
+    case setVisibleDayTags([Daystamp: [String]])
+    case setLoadedRange(ClosedRange<Daystamp>)
 
     // Day editing
-    case markPeriodStart(_ dayStamp: Daystamp)
-    case markPeriodEnd(_ dayStamp: Daystamp)
-    case unmarkPeriodEnd(_ dayStamp: Daystamp)
-    case setFlowLevel(_ dayStamp: Daystamp, _ level: Int?)
-    case saveComment(_ dayStamp: Daystamp, _ text: String)
-    case setDayTags(_ dayStamp: Daystamp, _ tagIds: [String])
-    
-    // Push notification actions
-    case setAPNSToken(_ token: APNSToken)
-    case setPushPermissionState(_ state: PushPermissionState?)
-    
-    // Analytics actions
-    case checkAnalyticsStatus
-    case setAnalyticsActivated(_ activated: Bool)
+    case markPeriodStart(Daystamp)
+    case markPeriodEnd(Daystamp)
+    case unmarkPeriodEnd(Daystamp)
+    case setFlowLevel(Daystamp, Int?)
+    case saveComment(Daystamp, String)
+    case setDayTags(Daystamp, [String])
 
-    // Appearance actions
+    // Write outcome
+    case writeFailed(DataWriteOperation)
+    case dismissWriteFailure
+}
+
+enum PushAction: Sendable {
+    case setAPNSToken(APNSToken)
+    /// `nil` asks the middleware to go and read the real state from the system.
+    case setPermissionState(PushPermissionState?)
+}
+
+enum AnalyticsAction: Sendable {
+    case checkStatus
+    case setActivated(Bool)
+}
+
+enum AppearanceAction: Sendable {
     case checkAccentTheme
-    case setAccentTheme(_ theme: AccentTheme)
-
-    // Retry actions
-    case retryFailedTasks
+    case setAccentTheme(AccentTheme)
 }

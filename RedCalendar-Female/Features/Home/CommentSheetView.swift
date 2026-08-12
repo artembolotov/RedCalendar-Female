@@ -90,7 +90,7 @@ struct CommentSheetView: View {
         guard trimmed != savedComment else { return }
         // An empty string is how a comment is deleted — `DatabaseMiddleware` stores it as `nil`,
         // which is this table's soft delete.
-        store.send(.saveComment(dayStamp, trimmed))
+        store.send(.data(.saveComment(dayStamp, trimmed)))
     }
 }
 

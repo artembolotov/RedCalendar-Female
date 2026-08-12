@@ -8,14 +8,15 @@
 // MARK: - Analytics Middleware
 let analyticsMiddleware: Middleware = { state, action, dispatch in
     @Injected var analytics: AnalyticsServiceProtocol
-    
-    switch action {
 
-    case .checkAnalyticsStatus:
-        dispatch(.setAnalyticsActivated(analytics.isActivated))
+    guard case .analytics(let analyticsAction) = action else { return }
 
-    default:
+    switch analyticsAction {
+
+    case .checkStatus:
+        dispatch(.analytics(.setActivated(analytics.isActivated)))
+
+    case .setActivated:
         break
     }
-    
 }

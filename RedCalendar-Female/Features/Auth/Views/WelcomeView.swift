@@ -25,7 +25,7 @@ struct WelcomeView: View {
             },
             set: { isPresented in
                 if !isPresented && shouldSetNotAuthenificated {
-                    store.send(.setAuthState(.notAuthenticated))
+                    store.send(.auth(.set(.notAuthenticated)))
                 }
             }
         )
@@ -95,7 +95,7 @@ struct WelcomeView: View {
             Spacer()
             
             PrimaryButton(accent: accent) {
-                store.send(.setAuthState(.authenticating(.email(.entry()))))
+                store.send(.auth(.set(.authenticating(.email(.entry())))))
             } content: {
                 Text("Войти")
                     .font(.headline)

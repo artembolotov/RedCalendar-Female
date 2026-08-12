@@ -124,12 +124,39 @@ struct HomeView: View {
                 // *that stack* escape an inset — it cannot give back height the reader above it
                 // was never proposed.
                 .ignoresSafeArea(.keyboard)
+                // Presented from state rather than from a one-shot trigger, and here rather than
+                // on the sheet that caused it. A comment is saved as its sheet is dismissing, so
+                // the failure arrives while a presentation is already in flight and an alert
+                // asked for at that moment can be dropped. Driven by a binding over state it
+                // cannot be: the flag stays true until the user answers, so SwiftUI presents it
+                // on the first pass where it is able to.
+                .alert(
+                    "Не удалось сохранить",
+                    isPresented: writeFailurePresented,
+                    presenting: store.state.calendarState.writeFailure
+                ) { _ in
+                    // No action of its own — dismissal goes through the binding below, so there
+                    // is one path that clears the failure rather than two that both have to.
+                    Button("Понятно", role: .cancel) {}
+                } message: { failure in
+                    Text(failure.failureMessage)
+                }
             }
         }
     }
-    
+
+    private var writeFailurePresented: Binding<Bool> {
+        Binding(
+            get: { store.state.calendarState.writeFailure != nil },
+            set: { isPresented in
+                guard !isPresented else { return }
+                store.send(.data(.dismissWriteFailure))
+            }
+        )
+    }
+
     private func setTodaySelected() {
-        store.send(.setSelectedDayStamp(store.state.calendarState.todayDayStamp))
+        store.send(.calendar(.selectDay(store.state.calendarState.todayDayStamp)))
     }
 }
 

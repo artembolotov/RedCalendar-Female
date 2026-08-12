@@ -154,10 +154,10 @@ struct CodeEntryView: View {
     
     private func goBackToWelcome(email: String) {
         // Return to email entry screen with current email preserved
-        store.send(.setAuthState(.authenticating(.email(.entry(
+        store.send(.auth(.set(.authenticating(.email(.entry(
             email: email,
             error: nil
-        )))))
+        ))))))
     }
     
     private func setupInitialState(code: String?, name: String?, isRegistration: Bool) {
@@ -171,17 +171,17 @@ struct CodeEntryView: View {
     private func submitAction(email: String, isRegistration: Bool, name: String?) {
         if isRegistration {
             let trimmedName = nameInput.trimmingCharacters(in: .whitespacesAndNewlines)
-            store.send(.setAuthState(.authenticating(.email(.registering(
+            store.send(.auth(.set(.authenticating(.email(.registering(
                 email: email,
                 code: codeInput,
                 name: trimmedName.isEmpty ? nil : trimmedName
-            )))))
+            ))))))
         } else {
-            store.send(.setAuthState(.authenticating(.email(.verifying(
+            store.send(.auth(.set(.authenticating(.email(.verifying(
                 email: email,
                 code: codeInput,
                 name: name
-            )))))
+            ))))))
         }
     }
     
@@ -189,9 +189,9 @@ struct CodeEntryView: View {
         if isRegistration {
             let trimmedName = nameInput.trimmingCharacters(in: .whitespacesAndNewlines)
             let nameToPreserve = trimmedName.isEmpty ? nil : trimmedName
-            store.send(.setAuthState(.authenticating(.email(.checking(email: email, name: nameToPreserve)))))
+            store.send(.auth(.set(.authenticating(.email(.checking(email: email, name: nameToPreserve))))))
         } else {
-            store.send(.setAuthState(.authenticating(.email(.checking(email: email, name: nil)))))
+            store.send(.auth(.set(.authenticating(.email(.checking(email: email, name: nil))))))
         }
     }
 }

@@ -44,7 +44,7 @@ struct SettingsView: View {
                         // The warning that red would carry is not owed here anyway: logout drops
                         // the session, not the local database.
                         Button("Выйти") {
-                            store.send(.logout)
+                            store.send(.auth(.logout))
                         }
                     }
                 }
@@ -66,7 +66,7 @@ struct SettingsView: View {
                 let isSelected = store.state.accentTheme == theme
 
                 Button {
-                    store.send(.setAccentTheme(theme))
+                    store.send(.appearance(.setAccentTheme(theme)))
                 } label: {
                     HStack(spacing: 12) {
                         Circle()

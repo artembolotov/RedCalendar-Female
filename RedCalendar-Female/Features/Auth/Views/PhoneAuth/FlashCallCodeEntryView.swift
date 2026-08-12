@@ -173,31 +173,31 @@ struct FlashCallCodeEntryView: View {
     }
     
     private func goBackToPhoneEntry(prettyPhoneNumber: String) {
-        store.send(.setAuthState(.authenticating(.phone(.entry(
+        store.send(.auth(.set(.authenticating(.phone(.entry(
             prettyPhoneNumber: prettyPhoneNumber,
             error: nil
-        )))))
+        ))))))
     }
     
     private func submitCode(prettyPhoneNumber: String, e164PhoneNumber: String, maskedCallerNumber: String, requestId: String) {
         guard codeInput.count == 4 && codeInput.allSatisfy({ $0.isNumber }) else { return }
         
         // Send Redux action to verify flash call code
-        store.send(.setAuthState(.authenticating(.phone(.verifying(
+        store.send(.auth(.set(.authenticating(.phone(.verifying(
             prettyPhoneNumber: prettyPhoneNumber,
             e164PhoneNumber: e164PhoneNumber,
             maskedCallerNumber: maskedCallerNumber,
             requestId: requestId,
             verificationCode: codeInput
-        )))))
+        ))))))
     }
     
     private func requestNewFlashCall(prettyPhoneNumber: String, e164PhoneNumber: String) {
         // Request new flash call directly
-        store.send(.setAuthState(.authenticating(.phone(.requesting(
+        store.send(.auth(.set(.authenticating(.phone(.requesting(
             prettyPhoneNumber: prettyPhoneNumber,
             e164PhoneNumber: e164PhoneNumber
-        )))))
+        ))))))
     }
 }
 

@@ -36,7 +36,7 @@ struct RootView: View {
                             .padding(.horizontal)
                         
                         Button("Повторить") {
-                            store.send(.setAuthState(.migrating(userId: userId, error: nil)))
+                            store.send(.auth(.set(.migrating(userId: userId, error: nil))))
                         }
                         .buttonStyle(.borderedProminent)
                         .controlSize(.large)
