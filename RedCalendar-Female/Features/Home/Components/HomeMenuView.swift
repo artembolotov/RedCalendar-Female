@@ -46,9 +46,29 @@ struct HomeMenuView: View {
         if #available(iOS 26.0, *) {
             menu
         } else {
-            menu
-                .frame(width: fallbackDiameter, height: fallbackDiameter)
-                .background(Circle().fill(.ultraThinMaterial))
+            // `Menu`'s own rendering of an icon-only label is off-centre on iOS <26 — measured
+            // ~4pt right of the circle's true centre, and unaffected by any `.frame` put on the
+            // `Menu` or on the label's `Image`, because the misregistration happens inside the
+            // control's own layout before either frame is applied. So the control's own glyph is
+            // never what gets drawn: it stays `.clear` (see `menu`), while a second,
+            // non-interactive `Image` — positioned by nothing but this `ZStack` — is what the
+            // user actually sees. The `Menu` itself is left fully opaque and untouched, because
+            // it also has to stay tappable: UIKit's hit-testing drops a view below a small alpha
+            // threshold, which cost an earlier version of this its interaction entirely at
+            // `.opacity(0)` — and still failed, silently, all the way up to `.opacity(0.02)`. That
+            // threshold is undocumented and not something to build reliability on, so the fix
+            // makes the glyph transparent instead of the control.
+            ZStack {
+                Circle().fill(.ultraThinMaterial)
+                menu
+                // `Menu`'s own label picks up the accent as its tint; a plain `Image` outside
+                // that context does not, and needs it spelled out or it renders in the default
+                // (black/white) foreground.
+                Image(systemName: "ellipsis")
+                    .foregroundStyle(accent)
+                    .allowsHitTesting(false)
+            }
+            .frame(width: fallbackDiameter, height: fallbackDiameter)
         }
     }
 
@@ -82,7 +102,16 @@ struct HomeMenuView: View {
                 }
             }
         } label: {
-            Image(systemName: "ellipsis")
+            if #available(iOS 26.0, *) {
+                Image(systemName: "ellipsis")
+            } else {
+                // Invisible, not absent: the overlay in `button` draws the glyph the user
+                // actually sees. Kept as a real `Image` (rather than swapped for `EmptyView`)
+                // so the control's own hit-target sizing and VoiceOver behaviour stay exactly
+                // what an icon-only `Menu` would otherwise have.
+                Image(systemName: "ellipsis")
+                    .foregroundStyle(.clear)
+            }
         }
         .accessibilityLabel("Меню")
     }
