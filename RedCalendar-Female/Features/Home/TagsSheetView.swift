@@ -40,7 +40,6 @@ struct TagsSheetView: View {
             }) {
                 Text("Готово")
                     .fontWeight(.medium)
-                    .foregroundColor(.red)
             }
         }
         .padding()
@@ -113,10 +112,8 @@ struct TagsSheetView: View {
     private var bottomActions: some View {
         HStack {
             Button("Новый тег") { /* next stage */ }
-                .foregroundColor(.red)
             Spacer()
             Button("Редактировать") { /* next stage */ }
-                .foregroundColor(.red)
         }
         .padding()
     }

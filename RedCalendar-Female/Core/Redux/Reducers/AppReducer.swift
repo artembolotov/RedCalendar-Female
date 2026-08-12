@@ -68,11 +68,37 @@ func appReducer(state: AppState, action: AppAction) -> AppState {
     case .calendarScrolledTo:
         break
 
+    // The one write action that also reduces, and it is a latency decision rather than a
+    // difference in kind. Everything below it reaches the screen the long way round: the
+    // middleware writes, GRDB's observation notices, and `.setVisibleComments` and friends come
+    // back to the reducer a round trip later. That is invisible for a tap on a flow level, whose
+    // sheet does not move — and it is not invisible for a comment, because the editing sheet is
+    // dismissing at the same moment and the day card underneath is already on screen, showing
+    // the old text, waiting for the trip to finish.
+    //
+    // Reducing here puts the new text on screen in the frame `send` returns in (see `AppStore.
+    // send`), and the write still goes to the database exactly as it did. The trip still happens;
+    // when it lands, `.setVisibleComments` carries the value already sitting here, so
+    // `if newState != state` swallows it and nothing redraws twice.
+    //
+    // The cost is that state now leads the disk instead of mirroring it. `DatabaseMiddleware.
+    // write` only logs a failed write, so a comment that fails to save stays on screen as if it
+    // had — until the observation is restarted by a scroll and quietly replaces it. Worth knowing
+    // before this is extended to the actions below it.
+    case .saveComment(let dayStamp, let text):
+        // Absence, not an empty string: `visibleComments` is sparse, and the middleware stores
+        // the same emptiness as a `nil` comment — this table's soft delete.
+        if text.isEmpty {
+            state.calendarState.visibleComments.removeValue(forKey: dayStamp)
+        } else {
+            state.calendarState.visibleComments[dayStamp] = text
+        }
+        recomputeDayDisplayStates = true
+
     case .markPeriodStart,
          .markPeriodEnd,
          .unmarkPeriodEnd,
          .setFlowLevel,
-         .saveComment,
          .setDayTags:
         break
 
