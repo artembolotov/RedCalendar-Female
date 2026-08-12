@@ -341,6 +341,19 @@ struct DayDetailsView: View {
         .padding(.bottom, -dragOffset)
         // A `nil` height is the natural one, so the two cases need no branch here.
         .frame(height: drawnBoxHeight, alignment: .top)
+        // `drawnBoxHeight` is `nil` for exactly one window: between mount and the first
+        // `DayCardNaturalHeightKey` measurement landing, which is also when `.move(edge: .bottom)`
+        // (see `HomeView`) takes its offset from this view's own current height. Left
+        // unconstrained, a long comment draws its full natural height there — well past
+        // `maxHeight` — and the entrance spring leaves from that inflated height only to have it
+        // snap down, without animation, the instant the measurement arrives (`applyLevel` in
+        // `DayDetailsPagerView`). The transition's offset, recomputed from the now-smaller box,
+        // jumps with it and tears the card's bottom edge away from the screen mid-flight — the
+        // rubber-band drag never shows this because its `drawnBoxHeight` is exact from the first
+        // frame. Capping this pre-measurement frame at the same ceiling the settled one already
+        // obeys removes the inflated starting point instead of papering over its landing: a short
+        // card's natural height never reaches it, so nothing here changes for it.
+        .frame(maxHeight: levelHeight == nil ? maxHeight + globalBottomOffset : nil, alignment: .top)
         // The card is a fixed box: the open flow picker and the notes it pushes down run past
         // the bottom edge and are cut there instead of making the card taller. A comment long
         // enough to hit `maxHeight` is cut the same way — the fade below is what tells the two
