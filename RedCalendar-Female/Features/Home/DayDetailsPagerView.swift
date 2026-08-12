@@ -23,6 +23,9 @@ struct DayDetailsPagerView: View {
     // The height the calendar centres against, published for the day it belongs to — see
     // `DayCardHeight`. Every path that settles what height a day's card stands at writes it.
     @Binding var height: DayCardHeight
+    // The ceiling every card is drawn under — see `CalendarView.resolvedMaxCardHeight`. Handed
+    // straight to each `DayDetailsView`, which is where a card too tall for it is clipped.
+    let maxHeight: CGFloat
 
     @StateObject private var animator = CardPagingAnimator()
 
@@ -113,12 +116,14 @@ struct DayDetailsPagerView: View {
         dayStamp: Daystamp,
         width: CGFloat,
         dragOffset: Binding<CGFloat>,
-        height: Binding<DayCardHeight>
+        height: Binding<DayCardHeight>,
+        maxHeight: CGFloat = .infinity
     ) {
         self.dayStamp = dayStamp
         self.width = width
         self._dragOffset = dragOffset
         self._height = height
+        self.maxHeight = maxHeight
         // Fixed when the card opens. The anchor must not follow `dayStamp`: that moves under
         // the pager exactly when the store catches up with a page the pager has already
         // committed, which would carry `activeDay` a further day along with it.
@@ -150,7 +155,8 @@ struct DayDetailsPagerView: View {
                     dayStamp: day,
                     isActive: day == activeDay,
                     dragOffset: day == activeDay ? dragOffset : 0,
-                    levelHeight: levelHeight
+                    levelHeight: levelHeight,
+                    maxHeight: maxHeight
                 )
                 .offset(x: CGFloat(day - anchor) * pageStride + animator.offset)
             }

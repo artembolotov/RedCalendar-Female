@@ -80,6 +80,18 @@ struct DayCardNaturalHeightKey: PreferenceKey {
     }
 }
 
+// Whether the active card's content is taller than the ceiling it is being held to, reported
+// from the same measurement `DayCardNaturalHeightKey` carries. Read back inside the same view
+// that writes it — see the `.onPreferenceChange` in `DayDetailsView.body` — so it never picks up
+// a sibling card's overflow while paging.
+private struct DayCardClippedKey: PreferenceKey {
+    static var defaultValue: Bool { false }
+
+    static func reduce(value: inout Bool, nextValue: () -> Bool) {
+        value = value || nextValue()
+    }
+}
+
 // The active card's box, reported up to the pager: it drives the drag gesture's hit test.
 // Inactive cards contribute `.zero`. The calendar's centering does not come from here — it is
 // written from the level, in `reportedHeight`'s unit, which is the card alone.
@@ -106,6 +118,10 @@ struct DayDetailsView: View {
     // The level every card in the pager is drawn at, in the same units `reportedHeight` uses.
     // `nil` means "your own content decides" — the state of the very first card of an opening.
     let levelHeight: CGFloat?
+    // The ceiling on the card's own box, in `reportedHeight`'s unit — see
+    // `CalendarView.resolvedMaxCardHeight`. A day whose content asks for more than this is
+    // clipped to it rather than pushing its own selected week under the chrome band.
+    let maxHeight: CGFloat
 
     @State private var showFlowPicker = false
     @State private var showTagsSheet = false
@@ -113,6 +129,10 @@ struct DayDetailsView: View {
     // Measured from the options themselves rather than assumed, so the notes travel the right
     // distance at any Dynamic Type size.
     @State private var flowPickerHeight: CGFloat = 0
+    // Whether the content this frame asked for is taller than `maxHeight` — set from the same
+    // measurement `reportedHeight` clips, so the two never disagree about whether a cut
+    // happened. Drives the fade at the bottom edge that stands in for the part that got cut.
+    @State private var isContentClipped = false
 
     private let globalBottomOffset: CGFloat = 25
     private let cardPadding: CGFloat = 16
@@ -304,6 +324,10 @@ struct DayDetailsView: View {
                             ? DayCardHeight(day: dayStamp, height: reportedHeight(boxHeight: geometry.size.height))
                             : .none
                     )
+                    .preference(
+                        key: DayCardClippedKey.self,
+                        value: isActive && naturalHeight(boxHeight: geometry.size.height) > maxHeight
+                    )
             }
         )
         // The pull's stretch, and it belongs on this side of the measurement above — which is
@@ -318,7 +342,20 @@ struct DayDetailsView: View {
         // A `nil` height is the natural one, so the two cases need no branch here.
         .frame(height: drawnBoxHeight, alignment: .top)
         // The card is a fixed box: the open flow picker and the notes it pushes down run past
-        // the bottom edge and are cut there instead of making the card taller.
+        // the bottom edge and are cut there instead of making the card taller. A comment long
+        // enough to hit `maxHeight` is cut the same way — the fade below is what tells the two
+        // apart from a card that simply ends.
+        .overlay(alignment: .bottom) {
+            if isContentClipped {
+                LinearGradient(
+                    colors: [cardBackgroundColor.opacity(0), cardBackgroundColor],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .frame(height: truncationFadeHeight)
+                .allowsHitTesting(false)
+            }
+        }
         .clipShape(RoundedRectangle(cornerRadius: cardCornerRadius))
         // Clipping hides the rows pushed past the edge but still lets them take a tap, so the
         // hit area is cut back to the card as well.
@@ -351,6 +388,9 @@ struct DayDetailsView: View {
             // means the notes have a distance to travel on the very first frame of an opening.
             guard height > 0 else { return }
             flowPickerHeight = height
+        }
+        .onPreferenceChange(DayCardClippedKey.self) { clipped in
+            isContentClipped = clipped
         }
     }
 
@@ -596,14 +636,35 @@ struct DayDetailsView: View {
 
     // MARK: - Frame reporting
 
+    // How tall the content actually asked to be, in the same unit `reportedHeight` reports in.
+    // Kept separate from it so both `reportedHeight` (which clips) and the clipped-detection
+    // preference (which needs the *un*clipped number to notice the clip happened) read off one
+    // calculation instead of two that could drift apart.
+    private func naturalHeight(boxHeight: CGFloat) -> CGFloat {
+        boxHeight - globalBottomOffset
+    }
+
     // The level the pager works in is the card's own box as it stands on screen: the measured
-    // height less the bottom offset that hangs off the screen edge. The inset above the box is
+    // height less the bottom offset that hangs off the screen edge, and never past `maxHeight` —
+    // the calendar centres the selected day in the space above this box, and a box taller than
+    // that ceiling would push the day itself under the chrome band. The inset above the box is
     // deliberately *not* part of it — that band is where the shadow is drawn, and counting it
     // centred the selected day in the space above the shadow rather than above the card. Both
     // conversions live here so the pager only ever handles one unit.
     private func reportedHeight(boxHeight: CGFloat) -> CGFloat {
-        boxHeight - globalBottomOffset
+        min(naturalHeight(boxHeight: boxHeight), maxHeight)
     }
+
+    // Matches `.adaptiveBackground(colorScheme:)`'s two fills exactly, so the fade dissolves
+    // into a colour the card's own surface actually is rather than an approximation of it.
+    private var cardBackgroundColor: Color {
+        colorScheme == .dark ? Color(.secondarySystemBackground) : Color(.systemBackground)
+    }
+
+    // Tall enough to read as a dissolve rather than a stripe — measured against the same
+    // `commentRowMinimumHeight` floor the row itself keeps, so the fade never claims more than
+    // a fraction of even the shortest comment box.
+    private let truncationFadeHeight: CGFloat = 40
 
     private var drawnBoxHeight: CGFloat? {
         guard let levelHeight = levelHeight else { return nil }
@@ -639,7 +700,8 @@ struct DayDetailsView: View {
             dayStamp: 2000,
             isActive: true,
             dragOffset: 0,
-            levelHeight: nil
+            levelHeight: nil,
+            maxHeight: .infinity
         )
     }
     .environmentObject(

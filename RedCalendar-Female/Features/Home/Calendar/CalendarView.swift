@@ -18,6 +18,11 @@ struct CalendarView: View {
     @Binding var cardHeight: DayCardHeight
     @Binding var floatingButtonState: FloatingButtonState
     @Binding var scrollCommand: ScrollCommand
+    /// The tallest the day card may draw without its own selected week disappearing under the
+    /// chrome band — see `recalculateMaxCardHeight()`. Written by this view, in the opposite
+    /// direction from `cardHeight`: the calendar is what knows the screen and the chrome, the
+    /// card is what has to obey the number.
+    @Binding var maxCardHeight: CGFloat
     /// Status bar plus navigation bar — everything the grid runs underneath.
     ///
     /// Handed in rather than read from this view's own `GeometryReader`, and that is the whole
@@ -107,6 +112,27 @@ struct CalendarView: View {
         max(0, calendarHeight - chromeHeight)
     }
 
+    /// The ceiling on the card's own box (`DayDetailsView.reportedHeight`'s unit — the card
+    /// excluding the elastic hang-off below the screen, same as `pendingBottomOffset`).
+    ///
+    /// The calendar centres the selected week in the space *above* the card: at box height `H`
+    /// that week's centre lands at `(calendarHeight - H) / 2` (see `effectiveOffset`). For the
+    /// week not to sit under the chrome band, its top edge — half a week above its centre — must
+    /// clear `chromeHeight`:
+    ///
+    ///     (calendarHeight - H) / 2 - weekHeight / 2 >= chromeHeight
+    ///
+    /// Solved for `H`, that is the ceiling below. A card asking for more is clipped to it by
+    /// `DayDetailsView` rather than pushing the centring point up under the band, which is what
+    /// let an unbounded multi-line comment grow the card to cover the whole screen.
+    ///
+    /// `.infinity` before the calculator exists — the very first geometry pass, which no card
+    /// can be open during — so nothing is clipped against a limit that has no meaning yet.
+    private var resolvedMaxCardHeight: CGFloat {
+        guard let calc = calculator, calendarHeight > 0 else { return .infinity }
+        return max(0, calendarHeight - chromeHeight * 2 - calc.weekHeight)
+    }
+
     /// The height of the card for the day currently selected — the panel the calendar has to
     /// centre above. Falls back to the last height seen only while the card for that day has
     /// not reported yet, which is a window nothing normally scrolls in.
@@ -164,11 +190,13 @@ struct CalendarView: View {
         cardHeight: Binding<DayCardHeight> = .constant(.none),
         floatingButtonState: Binding<FloatingButtonState>,
         scrollCommand: Binding<ScrollCommand>,
+        maxCardHeight: Binding<CGFloat> = .constant(.infinity),
         topInset: CGFloat = 0
     ) {
         self._cardHeight = cardHeight
         self._floatingButtonState = floatingButtonState
         self._scrollCommand = scrollCommand
+        self._maxCardHeight = maxCardHeight
         self.topInset = topInset
     }
 
@@ -598,6 +626,7 @@ struct CalendarView: View {
         localizedWeekdays = newCalculator.getLocalizedWeekdays()
 
         calculator = newCalculator
+        maxCardHeight = resolvedMaxCardHeight
 
         // Calculate all offset components
         recalculateOffsets(calculator: newCalculator)
@@ -626,6 +655,7 @@ struct CalendarView: View {
             localizedWeekdays = newCalculator.getLocalizedWeekdays()
 
             calculator = newCalculator
+            maxCardHeight = resolvedMaxCardHeight
 
             scrollOffset -= originShift(from: currentCalculator, to: newCalculator)
 

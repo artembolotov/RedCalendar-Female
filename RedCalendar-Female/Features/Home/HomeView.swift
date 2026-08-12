@@ -12,6 +12,9 @@ struct HomeView: View {
     @State private var dayCardHeight: DayCardHeight = .none
     @State private var floatingButtonState: FloatingButtonState = .plus
     @State private var scrollCommand: ScrollCommand = .none
+    // Written by CalendarView, which is what knows the screen and the chrome band; read by the
+    // pager, which is what has to keep the card under it. See `CalendarView.resolvedMaxCardHeight`.
+    @State private var maxDayCardHeight: CGFloat = .infinity
     @State private var dragOffset: CGFloat = 0
     // Bumped every time the card closes, so the next one is a new view rather than the one
     // still on its way out.
@@ -26,6 +29,7 @@ struct HomeView: View {
                             cardHeight: $dayCardHeight,
                             floatingButtonState: $floatingButtonState,
                             scrollCommand: $scrollCommand,
+                            maxCardHeight: $maxDayCardHeight,
                             // Read here and handed down, because here is the last place it
                             // can be read: a reader inside a view that has already escaped
                             // the safe area has none left to report and hands back zero.
@@ -41,7 +45,8 @@ struct HomeView: View {
                                     dayStamp: dayStamp,
                                     width: geometry.size.width,
                                     dragOffset: $dragOffset,
-                                    height: $dayCardHeight
+                                    height: $dayCardHeight,
+                                    maxHeight: maxDayCardHeight
                                 )
                                 // Reopening while the previous card is still transitioning out
                                 // would revive that one, and a revived view keeps the position it
