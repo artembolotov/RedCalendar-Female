@@ -33,14 +33,6 @@ struct CommentSheetView: View {
                     save()
                     isPresented = false
                 }
-                .toolbar {
-                    ToolbarItem(placement: .navigationBarLeading) {
-                        // No colour of its own: the sheet is handed `.tint(accentTheme.accent)`
-                        // by the day card, and a `.foregroundColor` here would be the second red.
-                        Button("Очистить") { text = "" }
-                            .disabled(text.isEmpty)
-                    }
-                }
         }
         .onAppear { text = savedComment }
         // Set from `.task` rather than `.onAppear`: the focus lands after the first render pass
@@ -96,8 +88,8 @@ struct CommentSheetView: View {
 
 #Preview {
     // The sheet takes its accent from whoever presents it, so the preview has to stand in for
-    // the `.tint` the day card applies — without it "Очистить" renders in the system blue and
-    // the preview lies about the one thing this screen's colour depends on.
+    // the `.tint` the day card applies — without it the editor's caret renders in the system
+    // blue and the preview lies about the one thing this screen's colour depends on.
     CommentSheetView(dayStamp: 2000, isPresented: .constant(true))
         .tint(AccentTheme.coral.accent)
         .environmentObject(
