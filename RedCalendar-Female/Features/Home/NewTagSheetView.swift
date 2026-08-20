@@ -50,7 +50,6 @@ struct NewTagSheetView: View {
         // after the first render pass instead of during it, which is what lets the keyboard come
         // up with the sheet rather than fighting the frame it is being presented in.
         .task { isFocused = true }
-        .duckKeyboardOnInteractiveDismiss(isFocused: $isFocused)
     }
 
     // MARK: - Name

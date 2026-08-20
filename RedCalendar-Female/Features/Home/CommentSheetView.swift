@@ -39,9 +39,6 @@ struct CommentSheetView: View {
         // instead of during it, which is what lets the keyboard come up with the sheet rather
         // than fighting the frame it is being presented in.
         .task { isFocused = true }
-        // Independent of the save-on-exit above: this only moves the keyboard as the swipe
-        // starts and cancels, it never touches `text` or dispatches anything.
-        .duckKeyboardOnInteractiveDismiss(isFocused: $isFocused)
         // The swipe down never reaches the close button, and SwiftUI offers a sheet no hook for
         // the *start* of an interactive dismissal — so that exit is still caught here, a beat
         // later than the button's. Calling it twice on the button's path costs nothing: the
