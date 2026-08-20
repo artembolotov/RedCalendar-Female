@@ -34,7 +34,7 @@ struct TagsSheetView: View {
             // actually happened is that the user has not started. So the empty catalogue gets
             // the explanation and one thing to do, and the picker appears with the first tag.
             Group {
-                if store.state.calendarState.userTags.isEmpty {
+                if availableTags.isEmpty {
                     introduction
                 } else {
                     picker
@@ -150,7 +150,7 @@ struct TagsSheetView: View {
             VStack(alignment: .leading, spacing: categorySpacing) {
                 ForEach(tagsByCategory) { group in
                     FlowLayout(data: group.tags, id: \.id, spacing: 8, rowSpacing: 8) { tag in
-                        tagChip(tag, color: Color.tagColor(for: group.category))
+                        tagChip(tag)
                     }
                 }
             }
@@ -169,10 +169,16 @@ struct TagsSheetView: View {
     }
 
     // Filled means the tag is on the day; see `TagChip` for why that is a fill and not a shade.
-    private func tagChip(_ tag: UserTagRecord, color: Color) -> some View {
+    //
+    // The colour comes from the tag's own category rather than from the group it was sorted
+    // into, and the two differ for a tag whose category is `nil`: the group folds those in with
+    // the symptoms so they have somewhere to sit, while `Color.tagColor(for:)` answers grey for
+    // them — which is what the day card already draws the same tag as. Colouring by the group
+    // made one tag blue here and grey there.
+    private func tagChip(_ tag: UserTagRecord) -> some View {
         let isSelected = selectedIds.contains(tag.id)
 
-        return TagChip(title: tag.name ?? "", color: color, isFilled: isSelected) {
+        return TagChip(title: tag.name ?? "", color: Color.tagColor(for: tag.category), isFilled: isSelected) {
             if isSelected {
                 selectedIds.remove(tag.id)
             } else {
@@ -186,14 +192,22 @@ struct TagsSheetView: View {
     /// Grouped the way the day card sorts the same tags — by category, then by name — so a tag
     /// sits in the same place relative to its neighbours in both.
     private var tagsByCategory: [TagCategoryGroup] {
-        let allTags = store.state.calendarState.userTags
         let filtered = searchText.isEmpty
-            ? allTags
-            : allTags.filter { $0.name?.localizedCaseInsensitiveContains(searchText) == true }
+            ? availableTags
+            : availableTags.filter { $0.name?.localizedCaseInsensitiveContains(searchText) == true }
 
         return Dictionary(grouping: filtered) { $0.category ?? 0 }
             .sorted { $0.key < $1.key }
             .map { TagCategoryGroup(category: $0.key, tags: $0.value.sorted { ($0.name ?? "") < ($1.name ?? "") }) }
+    }
+
+    /// The catalogue as this screen sees it. A deleted tag is a row whose name is `nil` — the
+    /// table has no hard delete — so it would otherwise draw as a nameless chip that can still
+    /// be put on a day, and a catalogue with nothing but deleted rows in it would show the
+    /// picker with no tags in it rather than the introduction. The day card drops them the
+    /// same way.
+    private var availableTags: [UserTagRecord] {
+        store.state.calendarState.userTags.filter { $0.name != nil }
     }
 
     private var accent: Color {

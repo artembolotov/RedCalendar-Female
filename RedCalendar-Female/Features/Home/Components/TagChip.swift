@@ -5,14 +5,14 @@
 
 import SwiftUI
 
-/// The vocabulary both tag screens are written in: outlined when the thing is not chosen and
+/// The vocabulary the tag picker is written in: outlined when the tag is not on the day and
 /// filled when it is, rather than a difference in shade. A chip is small enough that a step in
 /// density has no area to read in, and the day card already draws an assigned tag as an outline
 /// of its category's colour.
 ///
-/// One type rather than one per screen, because the picker's tags and the creation form's
-/// categories sit one sheet apart and a category chip is a promise about what the tag chip is
-/// going to look like. Two copies of this would be two chances for that promise to go stale.
+/// The creation form draws bare colour swatches rather than these, because a category has no
+/// name to put in a chip — see `TagCategory`. What the two screens share is the colour, not the
+/// shape.
 struct TagChip: View {
     let title: String
     let color: Color
@@ -39,7 +39,13 @@ struct TagChip: View {
                     RoundedRectangle(cornerRadius: cornerRadius)
                         .strokeBorder(color, lineWidth: 1)
                 )
+                // The whole chip takes the tap, not just the glyphs in it. An unfilled chip is
+                // a word, a clear fill and a hairline outline, so without this the padding
+                // between the word and the outline is a hole in the target — on a chip six
+                // points tall either side of the text, a tap that missed by nothing at all.
+                .contentShape(RoundedRectangle(cornerRadius: cornerRadius))
         }
+        .accessibilityAddTraits(isFilled ? [.isSelected] : [])
     }
 }
 
