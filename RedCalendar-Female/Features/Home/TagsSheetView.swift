@@ -15,6 +15,12 @@ import SwiftUI
 // it, so "Готово" made a chosen tag the one edit that could be lost, and lost by the exit a user
 // expects to be safe: swiping the sheet down. Saving on the way out covers both exits and frees
 // the trailing corner for the `CloseButton`.
+//
+// A debounced autosave covers a third moment: while the sheet is still open. SwiftUI gives a
+// sheet no hook for the *start* of an interactive dismiss, only `onDisappear` at the end of it —
+// so without this, a swipe caught the selection a beat late (see below). A pause after the last
+// tag tap almost always precedes reaching for the edge of the screen, so by the time either exit
+// fires, the autosave has usually already applied the selection and both are no-ops.
 struct TagsSheetView: View {
     @EnvironmentObject var store: AppStore
     let dayStamp: Daystamp
@@ -77,12 +83,24 @@ struct TagsSheetView: View {
         // moved in with the presentation they would answer to the navigation container instead,
         // and the save that catches a swipe down would fire on a screen change.
         .onAppear { selectedIds = savedIds }
-        // The swipe down never reaches the close button, and SwiftUI offers a sheet no hook for
-        // the *start* of an interactive dismissal — so that exit is still caught here, a beat
-        // later than the button's. Calling it twice on the button's path costs nothing: the
-        // guard in `save` compares against state the reducer has already updated, so the second
-        // call finds nothing to do.
+        // The swipe down never reaches the close button, so this is the remaining safety net for
+        // whatever edit falls inside the debounce window below — a tag toggled too recently for
+        // the autosave to have fired yet. Calling it a second (or third) time costs nothing: the
+        // guard in `save` compares against state the reducer has already updated, so a call that
+        // finds nothing changed does nothing.
         .onDisappear(perform: save)
+        // Restarts on every tag toggle — `.task(id:)` cancels the previous sleep and starts a new
+        // one whenever `selectedIds` changes — so only the pause after the *last* tap ever reaches
+        // `save()`. A gesture-level fix for the swipe (catching the interactive dismiss itself)
+        // was tried and reverted (PRs #81–#84): it worked but "didn't feel right in real use."
+        // This sidesteps the gesture entirely by applying the edit while the sheet is still open.
+        .task(id: selectedIds) {
+            // `Task.sleep(for:)` is iOS 16+; the deployment target is 15.4, hence the
+            // nanoseconds form.
+            try? await Task.sleep(nanoseconds: Constants.Sheets.autosaveDebounceNanoseconds)
+            guard !Task.isCancelled else { return }
+            save()
+        }
     }
 
     // MARK: - Introduction

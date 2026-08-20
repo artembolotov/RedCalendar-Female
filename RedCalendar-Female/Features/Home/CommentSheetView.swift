@@ -11,6 +11,12 @@ import SwiftUI
 // exactly the way a user expects to be safe: by swiping the sheet down. Saving on the way out
 // covers both exits and frees the trailing corner for the `CloseButton` every other sheet in the
 // app closes from.
+//
+// A debounced autosave covers a third moment: while the sheet is still open. SwiftUI gives a
+// sheet no hook for the *start* of an interactive dismiss, only `onDisappear` at the end of it —
+// so without this, a swipe caught the edit a beat late (see below). A pause in typing almost
+// always precedes reaching for the edge of the screen, so by the time either exit fires, the
+// autosave has usually already applied the comment and both are no-ops.
 struct CommentSheetView: View {
     @EnvironmentObject var store: AppStore
     let dayStamp: Daystamp
@@ -39,12 +45,24 @@ struct CommentSheetView: View {
         // instead of during it, which is what lets the keyboard come up with the sheet rather
         // than fighting the frame it is being presented in.
         .task { isFocused = true }
-        // The swipe down never reaches the close button, and SwiftUI offers a sheet no hook for
-        // the *start* of an interactive dismissal — so that exit is still caught here, a beat
-        // later than the button's. Calling it twice on the button's path costs nothing: the
-        // guard in `save` compares against state the reducer has already updated, so the second
-        // call finds nothing to do.
+        // The swipe down never reaches the close button, so this is the remaining safety net for
+        // whatever edit falls inside the debounce window below — text changed too recently for
+        // the autosave to have fired yet. Calling it a second (or third) time costs nothing: the
+        // guard in `save` compares against state the reducer has already updated, so a call that
+        // finds nothing changed does nothing.
         .onDisappear(perform: save)
+        // Restarts on every keystroke — `.task(id:)` cancels the previous sleep and starts a new
+        // one whenever `text` changes — so only the pause after the *last* keystroke ever reaches
+        // `save()`. A gesture-level fix for the swipe (catching the interactive dismiss itself)
+        // was tried and reverted (PRs #81–#84): it worked but "didn't feel right in real use."
+        // This sidesteps the gesture entirely by applying the edit while the sheet is still open.
+        .task(id: text) {
+            // `Task.sleep(for:)` is iOS 16+; the deployment target is 15.4, hence the
+            // nanoseconds form.
+            try? await Task.sleep(nanoseconds: Constants.Sheets.autosaveDebounceNanoseconds)
+            guard !Task.isCancelled else { return }
+            save()
+        }
     }
 
     // MARK: - Editor
