@@ -39,18 +39,28 @@ struct NewTagSheetView: View {
 
     var body: some View {
         NavigationView {
-            VStack(alignment: .leading, spacing: sectionSpacing) {
-                nameField
-                categoryPicker
+            // A ScrollView, not a bare VStack pinned to the top: the field is focused the
+            // moment this screen appears (see `.task` below), so the keyboard is always up, and
+            // SwiftUI's keyboard avoidance for a plain VStack works by sliding the *whole* body
+            // upward, not by shrinking it — there is nothing under a VStack that can absorb that
+            // shift, so once the available height (title bar to keyboard) drops below the
+            // content's height, the excess slides out past the top of the frame and under the
+            // opaque navigation bar, which is a fixed layer on top of it. That height keeps
+            // shrinking through a slow interactive dismiss, since the sheet card's top edge
+            // keeps moving down while the keyboard stays put, so the overlap isn't a one-time
+            // layout question, it recurs continuously as the drag proceeds. A `ScrollView`
+            // absorbs the same keyboard inset by scrolling its content within its own clipped
+            // bounds instead of translating the layer that bounds are computed from — the same
+            // fix `TagsSheetView.tagsList` already uses for its own always-focusable search field.
+            ScrollView {
+                VStack(alignment: .leading, spacing: sectionSpacing) {
+                    nameField
+                    categoryPicker
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, DayDetailsMetrics.screenInset)
+                .padding(.vertical, sectionSpacing)
             }
-            // Pinned to the top explicitly: without `maxHeight`, a VStack this short is
-            // centered in whatever height the sheet is proposed — invisible at full height,
-            // but during a slow interactive dismiss the sheet's height shrinks continuously,
-            // and a vertically-centered VStack tracks that shrinking center upward, walking the
-            // fields under the navigation title instead of staying put beneath it.
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .padding(.horizontal, DayDetailsMetrics.screenInset)
-            .padding(.vertical, sectionSpacing)
             .navigationTitle("Новый тег")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
