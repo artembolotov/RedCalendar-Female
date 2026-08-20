@@ -106,5 +106,32 @@ struct SheetDismissGestureTracker: UIViewRepresentable {
         ) -> Bool {
             true
         }
+
+        // A downward drag that starts *inside* a scrolled-away-from-top `TextEditor` is
+        // indistinguishable from a dismiss swipe by translation alone — scrolling a long
+        // comment back up drags down too. This is the same ambiguity the system's own
+        // dismiss recognizer resolves by reading the scroll view's `contentOffset` before it
+        // starts tracking anything, so this reads the same public property to make the same
+        // call instead of guessing from a distance threshold. A touch that begins while its
+        // enclosing scroll view isn't at rest at the top is declined outright, so the pan
+        // recognizer never starts for it — an in-progress scroll can't produce even a
+        // momentary duck. Content with no scroll view (`NewTagSheetView`'s `TextField`, or a
+        // touch starting on the sheet's own chrome) is unaffected.
+        func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
+            guard let scrollView = Self.enclosingScrollView(of: touch.view) else { return true }
+            let topOffset = -scrollView.adjustedContentInset.top
+            return scrollView.contentOffset.y <= topOffset + Self.scrollAtTopTolerance
+        }
+
+        private static let scrollAtTopTolerance: CGFloat = 0.5
+
+        private static func enclosingScrollView(of view: UIView?) -> UIScrollView? {
+            var current = view
+            while let candidate = current {
+                if let scrollView = candidate as? UIScrollView { return scrollView }
+                current = candidate.superview
+            }
+            return nil
+        }
     }
 }
