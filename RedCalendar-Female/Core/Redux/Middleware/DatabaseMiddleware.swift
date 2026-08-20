@@ -168,11 +168,7 @@ final class DatabaseMiddleware {
         }
 
         dayTagsToken = service.observeDayTags(in: range) { records in
-            let dict = Dictionary(
-                records.map { ($0.dayNumber, $0.tagIds) },
-                uniquingKeysWith: { $1 }
-            )
-            dispatch(.data(.setVisibleDayTags(dict)))
+            dispatch(.data(.setVisibleDayTags(Self.dayTagsByDay(records))))
         }
     }
 
@@ -181,6 +177,16 @@ final class DatabaseMiddleware {
     private static func commentsByDay(_ records: [CommentRecord]) -> [Daystamp: String] {
         Dictionary(
             records.compactMap { record in record.comment.map { (record.dayNumber, $0) } },
+            uniquingKeysWith: { $1 }
+        )
+    }
+
+    /// The same sharing, for the same reason. `day_tags` has no soft delete, so a day stripped of
+    /// its tags keeps an empty row and an empty list — which is what `appReducer` writes when the
+    /// edit is made, and what this has to keep writing for the round trip to change nothing.
+    private static func dayTagsByDay(_ records: [DayTagsRecord]) -> [Daystamp: [String]] {
+        Dictionary(
+            records.map { ($0.dayNumber, $0.tagIds) },
             uniquingKeysWith: { $1 }
         )
     }
@@ -311,9 +317,9 @@ final class DatabaseMiddleware {
     /// The log alone was what this did, and it was defensible only while every one of these
     /// writes was invisible in state — the day card redraws from the observation, so a write that
     /// failed simply left the old value on screen and the user saw their tap do nothing. That
-    /// stopped being true for the comment, which the reducer puts on screen before the disk has
-    /// taken it, and it will stop being true for anything else that follows it. So the failure
-    /// goes into `CalendarState.writeFailure` and the UI says so.
+    /// stopped being true for the comment and for the day's tags, which the reducer puts on
+    /// screen before the disk has taken them, and it will stop being true for anything else that
+    /// follows them. So the failure goes into `CalendarState.writeFailure` and the UI says so.
     ///
     /// The transaction goes to the GRDB queue and is awaited, so the main thread never stands on
     /// it. Order is preserved: requests reach that queue in the order the main actor reached the
@@ -331,12 +337,18 @@ final class DatabaseMiddleware {
             AppLogger.error("Database write failed: \(label)", error: error)
             dispatch(.data(.writeFailed(operation)))
 
-            // The comment is the one edit whose new value is already in state, so telling the
-            // user it failed is not enough on its own — the text they were told was lost is
-            // still on the card. Re-reading the range puts the stored comment back, which is
-            // what the observation would have done had the write changed anything.
-            if operation == .comment {
+            // These two are the edits whose new value is already in state, so telling the user
+            // it failed is not enough on its own — what they were told was lost is still on the
+            // card. Re-reading the range puts the stored value back, which is what the
+            // observation would have done had the write changed anything. Spelled out rather
+            // than defaulted, so an edit that starts reducing has to say which side it is on.
+            switch operation {
+            case .comment:
                 await reloadComments(dispatch: dispatch)
+            case .dayTags:
+                await reloadDayTags(dispatch: dispatch)
+            case .periodStart, .periodEnd, .flowLevel:
+                break
             }
         }
     }
@@ -348,6 +360,16 @@ final class DatabaseMiddleware {
             dispatch(.data(.setVisibleComments(Self.commentsByDay(records))))
         } catch {
             AppLogger.error("Failed to re-read comments after a failed write", error: error)
+        }
+    }
+
+    private func reloadDayTags(dispatch: @escaping Dispatch) async {
+        guard let range = observedRange else { return }
+        do {
+            let records = try await dbService.fetchDayTags(in: range)
+            dispatch(.data(.setVisibleDayTags(Self.dayTagsByDay(records))))
+        } catch {
+            AppLogger.error("Failed to re-read day tags after a failed write", error: error)
         }
     }
 }
