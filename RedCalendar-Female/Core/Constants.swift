@@ -29,6 +29,16 @@ struct Constants {
         static let centerReportStep = 15
     }
 
+    struct Sheets {
+        // How long the comment/tag editors wait after the last edit before autosaving in the
+        // background. Long enough that normal typing/tapping doesn't trigger a write per
+        // keystroke, short enough that the save has almost always already landed by the time a
+        // user who paused then swipes down reaches `onDisappear`. `UInt64` nanoseconds because
+        // `Task.sleep(nanoseconds:)` is what the 15.4 deployment target allows — `Task.sleep(for:)`
+        // and `Duration` are iOS 16+.
+        static let autosaveDebounceNanoseconds: UInt64 = 600_000_000
+    }
+
     struct Cycle {
         static let minCycleLength = 20
         static let maxCycleLength = 90
