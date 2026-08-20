@@ -11,7 +11,10 @@ import SwiftUI
 // touch stream the system's own dismiss-tracking pan gesture is already following, without
 // claiming exclusivity over it, so this never competes with or delays the native swipe.
 private struct KeyboardDismissGestureModifier: ViewModifier {
-    @Binding var isFocused: Bool
+    // `$isFocused` off an `@FocusState` projects `FocusState<Bool>.Binding`, not
+    // `SwiftUI.Binding<Bool>` — the two don't implicitly convert, so the modifier takes the
+    // type `@FocusState` actually produces rather than forcing call sites to wrap it.
+    var isFocused: FocusState<Bool>.Binding
 
     // Guards against re-ducking on every `.onChanged` tick once the threshold has been crossed
     // for this gesture — `isFocused = false` only needs to be sent once per swipe.
@@ -30,7 +33,7 @@ private struct KeyboardDismissGestureModifier: ViewModifier {
                 .onChanged { value in
                     guard !hasDucked, value.translation.height > duckThreshold else { return }
                     hasDucked = true
-                    isFocused = false
+                    isFocused.wrappedValue = false
                 }
                 .onEnded { _ in
                     // Unconditional, not gated on how far the drag went: at touch-up there is no
@@ -40,7 +43,7 @@ private struct KeyboardDismissGestureModifier: ViewModifier {
                     // back; a confirmed one is tearing this view down anyway, so refocusing here
                     // costs at most a brief flicker during the closing animation.
                     hasDucked = false
-                    isFocused = true
+                    isFocused.wrappedValue = true
                 }
         )
     }
@@ -51,7 +54,7 @@ extension View {
     /// the swipe is released without crossing the sheet's own dismiss point. Attach to the same
     /// node that owns `isFocused` (typically the sheet's root `NavigationView`), alongside the
     /// existing `.task { isFocused = true }` that sets initial focus.
-    func duckKeyboardOnInteractiveDismiss(isFocused: Binding<Bool>) -> some View {
+    func duckKeyboardOnInteractiveDismiss(isFocused: FocusState<Bool>.Binding) -> some View {
         modifier(KeyboardDismissGestureModifier(isFocused: isFocused))
     }
 }
