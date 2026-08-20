@@ -10,8 +10,17 @@ import SwiftUI
 // to a day that already exists, so the safe reading of a swipe down is "keep what I typed"; a
 // half-filled creation form has no such prior — dismissing it means the tag was never made, and
 // saving one out from under the user would leave an unnamed row in a catalogue they then have to
-// go and clean up. So the close button and the swipe both cancel, and "Сохранить" is the only
-// thing that writes.
+// go and clean up. So "Отмена" and the swipe both cancel, and "Готово" is the only thing that
+// writes.
+//
+// The two live in the navigation bar rather than as a `CloseButton` plus a full-width button
+// under the form, unlike every other sheet in this corner of the app: those close on one action
+// and save (if at all) as a side effect of typing, where this screen has two actions that are
+// genuinely different — cancel and create — so both get a named button instead of one of them
+// hiding behind an X. `.cancellationAction` / `.confirmationAction` are plain `ToolbarItem`
+// placements, not a role like `CloseButton`'s `.close` — they have carried a leading and a
+// trailing bar button since long before iOS 26, so unlike `CloseButton` there is no
+// `#available` split to make here.
 struct NewTagSheetView: View {
     @EnvironmentObject var store: AppStore
     @Binding var isPresented: Bool
@@ -32,19 +41,21 @@ struct NewTagSheetView: View {
             VStack(alignment: .leading, spacing: sectionSpacing) {
                 nameField
                 categoryPicker
-
-                Spacer(minLength: sectionSpacing)
-
-                // The accent is passed in rather than read from the asset: `PrimaryButton`
-                // fills with it, and a fill has to answer to the theme the user chose.
-                PrimaryButton("Сохранить", isEnabled: canSave, accent: accent, action: save)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, DayDetailsMetrics.screenInset)
             .padding(.vertical, sectionSpacing)
             .navigationTitle("Новый тег")
             .navigationBarTitleDisplayMode(.inline)
-            .closeButtonToolbar { isPresented = false }
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Отмена") { isPresented = false }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Готово", action: save)
+                        .disabled(!canSave)
+                }
+            }
         }
         // Set from `.task` rather than `.onAppear`, as the comment editor does: the focus lands
         // after the first render pass instead of during it, which is what lets the keyboard come
@@ -121,10 +132,6 @@ struct NewTagSheetView: View {
     }
 
     // MARK: - Private Methods
-
-    private var accent: Color {
-        store.state.accentTheme.accent
-    }
 
     private var trimmedName: String {
         name.trimmingCharacters(in: .whitespacesAndNewlines)
