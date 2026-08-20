@@ -18,9 +18,10 @@ import SwiftUI
 // and save (if at all) as a side effect of typing, where this screen has two actions that are
 // genuinely different — cancel and create — so both get a named button instead of one of them
 // hiding behind an X. `.cancellationAction` / `.confirmationAction` are plain `ToolbarItem`
-// placements, not a role like `CloseButton`'s `.close` — they have carried a leading and a
-// trailing bar button since long before iOS 26, so unlike `CloseButton` there is no
-// `#available` split to make here.
+// placements and have carried a leading and a trailing bar button since long before iOS 26; the
+// `#available` split lives one level down, in `ConfirmButton`, because from iOS 26 the confirm
+// side renders as the platform's own blue checkmark (`ButtonRole.confirm`) rather than the word
+// "Готово", the same way `CloseButton` renders an X instead of a word.
 struct NewTagSheetView: View {
     @EnvironmentObject var store: AppStore
     @Binding var isPresented: Bool
@@ -52,8 +53,7 @@ struct NewTagSheetView: View {
                     Button("Отмена") { isPresented = false }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Готово", action: save)
-                        .disabled(!canSave)
+                    ConfirmButton("Готово", isEnabled: canSave, action: save)
                 }
             }
         }
