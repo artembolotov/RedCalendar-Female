@@ -7,35 +7,37 @@ import SwiftUI
 
 // `.sheet` offers no hook for the *start* of an interactive dismissal — only `.onDisappear`,
 // which fires once the closing animation has already finished, the same "too late" problem
-// `CommentSheetView`'s own comment describes for saving. `.simultaneousGesture` reads the same
-// touch stream the system's own dismiss-tracking pan gesture is already following, without
-// claiming exclusivity over it, so this never competes with or delays the native swipe.
+// `CommentSheetView`'s own comment describes for saving. `SheetDismissGestureTracker` reads the
+// same touch stream the system's own dismiss-tracking pan gesture is already following, without
+// claiming exclusivity over it — see that file for why a plain SwiftUI `DragGesture` could not
+// do this instead.
 private struct KeyboardDismissGestureModifier: ViewModifier {
     // `$isFocused` off an `@FocusState` projects `FocusState<Bool>.Binding`, not
     // `SwiftUI.Binding<Bool>` — the two don't implicitly convert, so the modifier takes the
     // type `@FocusState` actually produces rather than forcing call sites to wrap it.
     var isFocused: FocusState<Bool>.Binding
 
-    // Guards against re-ducking on every `.onChanged` tick once the threshold has been crossed
+    // Guards against re-ducking on every `.changed` tick once the threshold has been crossed
     // for this gesture — `isFocused = false` only needs to be sent once per swipe.
     @State private var hasDucked = false
 
-    // A couple of points, not zero: `minimumDistance: 0` means a tap that merely places the
-    // caret already carries a point or two of incidental translation, and that must not duck
-    // the keyboard. Mirrors `WindowGestureHandler.gestureDetectionThreshold` (5pt) for the same
-    // "is this an intentional move" question, with a bit more margin — the cost of a false
-    // positive here is a keyboard flicker rather than a paging decision.
+    // Not zero: a stray couple of points of vertical drift before `UIPanGestureRecognizer`'s
+    // own recognition slop kicks in must not duck the keyboard on its own. Mirrors
+    // `WindowGestureHandler.gestureDetectionThreshold` (5pt) for the same "is this an
+    // intentional move" question, with a bit more margin — the cost of a false positive here is
+    // a keyboard flicker rather than a paging decision.
     private let duckThreshold: CGFloat = 8
 
     func body(content: Content) -> some View {
-        content.simultaneousGesture(
-            DragGesture(minimumDistance: 0)
-                .onChanged { value in
-                    guard !hasDucked, value.translation.height > duckThreshold else { return }
+        content.background(
+            SheetDismissGestureTracker { translationY, state in
+                switch state {
+                case .changed:
+                    guard !hasDucked, translationY > duckThreshold else { return }
                     hasDucked = true
                     isFocused.wrappedValue = false
-                }
-                .onEnded { _ in
+
+                case .ended, .cancelled, .failed:
                     // Unconditional, not gated on how far the drag went: at touch-up there is no
                     // public way to know whether UIKit is about to confirm the dismissal or
                     // spring the sheet back — that decision is the system recognizer's own,
@@ -44,7 +46,11 @@ private struct KeyboardDismissGestureModifier: ViewModifier {
                     // costs at most a brief flicker during the closing animation.
                     hasDucked = false
                     isFocused.wrappedValue = true
+
+                default:
+                    break
                 }
+            }
         )
     }
 }
