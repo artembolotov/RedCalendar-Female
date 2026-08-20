@@ -21,6 +21,11 @@ struct NewTagSheetView: View {
     @FocusState private var isFocused: Bool
 
     private let sectionSpacing: CGFloat = 24
+    private let swatchDiameter: CGFloat = 32
+    private let swatchSpacing: CGFloat = 16
+    // Padding first, ring inside it: the gap between the swatch and its ring is the difference.
+    private let swatchRingInset: CGFloat = 4
+    private let swatchRingWidth: CGFloat = 2
 
     var body: some View {
         NavigationView {
@@ -70,27 +75,49 @@ struct NewTagSheetView: View {
 
     // MARK: - Category
 
-    // Chips rather than a segmented control or a wheel, and they are the chips the picker draws:
-    // the category is a colour as much as it is a word, and this is where the user finds out
-    // which colour they are choosing. `FlowLayout` because four titles at a large Dynamic Type
-    // size do not fit on one line, and a segment that has to truncate loses exactly the word
-    // that was being chosen.
+    // Four swatches and no words. A category is a colour on the day's dots and a colour on the
+    // chips in the picker; it is not read out as anything anywhere else in the app, so the one
+    // screen where it is chosen must not be the one place that gives it a name. `FlowLayout`
+    // went with the names — four colours fit on any line at any Dynamic Type size.
     private var categoryPicker: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Категория")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
 
-            FlowLayout(data: TagCategory.allCases, id: \.id, spacing: 8, rowSpacing: 8) { candidate in
-                TagChip(
-                    title: candidate.title,
-                    color: candidate.color,
-                    isFilled: candidate == category
-                ) {
-                    category = candidate
+            HStack(spacing: swatchSpacing) {
+                ForEach(TagCategory.allCases) { candidate in
+                    swatch(candidate)
                 }
             }
         }
+    }
+
+    private func swatch(_ candidate: TagCategory) -> some View {
+        let isSelected = candidate == category
+
+        return Button {
+            category = candidate
+        } label: {
+            Circle()
+                .fill(candidate.color)
+                .frame(width: swatchDiameter, height: swatchDiameter)
+                // The ring is drawn around the padding rather than on the swatch itself, the
+                // way the calendar rings the selected day: a chosen swatch grows a ring instead
+                // of losing a ring's width of its own colour, and the row cannot reflow when
+                // the choice moves, because the space is taken either way.
+                .padding(swatchRingInset)
+                .overlay(
+                    Circle()
+                        .strokeBorder(isSelected ? candidate.color : Color.clear, lineWidth: swatchRingWidth)
+                )
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        // A colour has nothing to say to VoiceOver, so the swatches are numbered rather than
+        // named — the position in the row is the only thing about them that is stable.
+        .accessibilityLabel(Text("Категория \(candidate.rawValue + 1)"))
+        .accessibilityAddTraits(isSelected ? [.isSelected] : [])
     }
 
     // MARK: - Private Methods

@@ -174,8 +174,15 @@ struct WindowGestureHandler: UIViewRepresentable {
             }
         }
 
+        // A sheet is presented into the same window this recognizer is attached to, so it goes
+        // on seeing touches that belong to the sheet: a drag anywhere in the tag picker was
+        // moving the card underneath it, and — since this recognizer refuses to run alongside
+        // any other — the picker's own scroll view had to win a race against it to scroll at
+        // all. Only the topmost thing on screen answers a drag, so nothing does while anything
+        // is presented over the app.
         func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
-            return true
+            let window = gestureRecognizer.view as? UIWindow ?? gestureRecognizer.view?.window
+            return window?.rootViewController?.presentedViewController == nil
         }
 
         func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer,

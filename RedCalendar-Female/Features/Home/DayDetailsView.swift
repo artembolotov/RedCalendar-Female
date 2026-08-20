@@ -190,7 +190,7 @@ struct DayDetailsView: View {
         return tagIds
             .compactMap { tagsById[$0] }
             .filter { $0.name != nil }
-            .sorted { ($0.category ?? 0, $0.name ?? "") < ($1.category ?? 0, $1.name ?? "") }
+            .sorted { ($0.category, $0.name ?? "") < ($1.category, $1.name ?? "") }
     }
 
     private func flowLevelLabel(for level: Int?) -> String {
