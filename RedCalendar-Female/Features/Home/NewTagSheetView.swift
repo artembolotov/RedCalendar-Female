@@ -43,7 +43,12 @@ struct NewTagSheetView: View {
                 nameField
                 categoryPicker
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            // Pinned to the top explicitly: without `maxHeight`, a VStack this short is
+            // centered in whatever height the sheet is proposed — invisible at full height,
+            // but during a slow interactive dismiss the sheet's height shrinks continuously,
+            // and a vertically-centered VStack tracks that shrinking center upward, walking the
+            // fields under the navigation title instead of staying put beneath it.
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .padding(.horizontal, DayDetailsMetrics.screenInset)
             .padding(.vertical, sectionSpacing)
             .navigationTitle("Новый тег")
