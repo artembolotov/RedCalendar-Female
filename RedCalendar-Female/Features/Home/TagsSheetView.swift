@@ -169,14 +169,9 @@ struct TagsSheetView: View {
     }
 
     // Filled means the tag is on the day; see `TagChip` for why that is a fill and not a shade.
-    // The colour is read from the tag rather than from the group it was sorted into — the two
-    // are the same number now that the grouping is the category itself, and the tag is the one
-    // of them the day card also reads.
-    private func tagChip(_ tag: UserTagRecord) -> some View {
-        let isSelected = selectedIds.contains(tag.id)
-
-        return TagChip(title: tag.name ?? "", color: Color.tagColor(for: tag.category), isFilled: isSelected) {
-            if isSelected {
+    private func tagChip(_ tag: PickerTag) -> some View {
+        TagChip(title: tag.name, color: Color.tagColor(for: tag.category), isFilled: tag.isSelected) {
+            if tag.isSelected {
                 selectedIds.remove(tag.id)
             } else {
                 selectedIds.insert(tag.id)
@@ -190,6 +185,12 @@ struct TagsSheetView: View {
     /// sits in the same place relative to its neighbours in both. A category this build does not
     /// know is a group of its own rather than a tag folded in somewhere it does not belong; it
     /// sorts after the four by its own number and draws grey.
+    ///
+    /// Whether a tag is on the day is resolved here, into the value the rows are drawn from,
+    /// rather than being read out of `selectedIds` inside the chip builder. Both spellings put
+    /// the same chip on screen; only this one makes picking a tag a *difference* in what the
+    /// list below is handed, which is what a `ForEach` and a `FlowLayout` compare before they
+    /// decide whether anything needs redrawing.
     private var tagsByCategory: [TagCategoryGroup] {
         let filtered = searchText.isEmpty
             ? availableTags
@@ -197,7 +198,21 @@ struct TagsSheetView: View {
 
         return Dictionary(grouping: filtered) { $0.category }
             .sorted { $0.key < $1.key }
-            .map { TagCategoryGroup(category: $0.key, tags: $0.value.sorted { ($0.name ?? "") < ($1.name ?? "") }) }
+            .map { entry in
+                TagCategoryGroup(
+                    category: entry.key,
+                    tags: entry.value
+                        .sorted { ($0.name ?? "") < ($1.name ?? "") }
+                        .map { tag in
+                            PickerTag(
+                                id: tag.id,
+                                name: tag.name ?? "",
+                                category: tag.category,
+                                isSelected: selectedIds.contains(tag.id)
+                            )
+                        }
+                )
+            }
     }
 
     /// The catalogue as this screen sees it. A deleted tag is a row whose name is `nil` — the
@@ -227,11 +242,21 @@ struct TagsSheetView: View {
 
 /// One category's tags, in the order they are drawn. A named type rather than the tuple this
 /// was, because `ForEach` needs an identity and a key path cannot name a tuple's element.
-private struct TagCategoryGroup: Identifiable {
+private struct TagCategoryGroup: Identifiable, Equatable {
     let category: Int
-    let tags: [UserTagRecord]
+    let tags: [PickerTag]
 
     var id: Int { category }
+}
+
+/// A tag as one row of the picker draws it — everything the chip needs and nothing else, the
+/// selection included. See `tagsByCategory` for why the selection belongs in the value rather
+/// than in a lookup the chip builder does for itself.
+private struct PickerTag: Identifiable, Equatable {
+    let id: String
+    let name: String
+    let category: Int
+    let isSelected: Bool
 }
 
 #Preview {

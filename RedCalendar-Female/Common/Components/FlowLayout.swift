@@ -8,14 +8,28 @@ import SwiftUI
 // Data-driven flow layout. Compatible with iOS 15+ — uses alignmentGuide-based
 // wrapping rather than the iOS 16 Layout protocol.
 //
-// **The per-element views are built in `init`, not in `body`, and that is what makes a chip
-// answer a tap.** The content used to be stored as a closure and called from inside the
-// `GeometryReader` — so the one thing that changed when a tag was selected (the `isFilled` the
-// closure would have produced) was not visible anywhere in this view's own value. Every stored
-// property compared equal, `body` was never re-run, and the tag picker's chips drew their
-// original state for the life of the sheet however many times they were tapped. Building the
-// views up front puts that difference back where SwiftUI looks for it. It costs nothing: the
-// same views were being built on the same body pass, one call deeper.
+// **Nothing on the path from a changed input to a redrawn chip is a closure, and that is the
+// whole design of this file.** Two things here used to be, and each of them swallowed a tag
+// selection whole:
+//
+// The per-element content was stored as a closure and called during layout, so the one thing
+// that differed when a tag was picked — the `isFilled` that closure would have produced — was
+// invisible in this view's own value. `data` compared equal, the closure compared equal, and
+// `body` was never re-run. The item views are built in `init` now and stored, the way SwiftUI's
+// own containers store the content they are handed.
+//
+// And the content itself was returned from inside a `GeometryReader`, whose one stored property
+// is *also* a closure: rebuilding it produced a value indistinguishable from the last one, so
+// the chips inside it stayed as they were. That is why the picker used to come alive the moment
+// anything was typed into its search field — filtering changes how many rows there are, the
+// height changes with it, and a `GeometryReader` does re-read its content when the geometry
+// under it moves. Selecting a tag changes no size at all. The width is read from a background
+// preference into `@State` instead, and the wrapped stack is built in `body` where an ordinary
+// rebuild reaches it.
+//
+// Losing the reader took the height feedback loop with it: the `ZStack` sizes itself to the
+// union of its guide-shifted children, which is the number the old `.frame(height:)` was being
+// fed anyway.
 struct FlowLayout<ItemID: Hashable, Content: View>: View {
     private struct Item: Identifiable {
         let id: ItemID
@@ -26,7 +40,7 @@ struct FlowLayout<ItemID: Hashable, Content: View>: View {
     private let spacing: CGFloat
     private let rowSpacing: CGFloat
 
-    @State private var totalHeight: CGFloat = 0
+    @State private var availableWidth: CGFloat = 0
 
     init<Data: RandomAccessCollection>(
         data: Data,
@@ -41,16 +55,23 @@ struct FlowLayout<ItemID: Hashable, Content: View>: View {
     }
 
     var body: some View {
-        GeometryReader { geometry in
-            self.generate(in: geometry)
+        Group {
+            if availableWidth > 0 {
+                wrapped(in: availableWidth)
+            } else {
+                // A stand-in rather than nothing at all: the width has to be measured off
+                // something that fills the offered width, and this is the same zero height the
+                // layout used to have on its first pass while it waited for its own reader.
+                Color.clear.frame(height: 0)
+            }
         }
-        .frame(height: totalHeight)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+        .background(widthReader)
     }
 
-    private func generate(in geometry: GeometryProxy) -> some View {
+    private func wrapped(in availableWidth: CGFloat) -> some View {
         let cursor = FlowLayoutCursor()
         let lastID = items.last?.id
-        let availableWidth = geometry.size.width
 
         return ZStack(alignment: .topLeading) {
             ForEach(items) { item in
@@ -77,21 +98,23 @@ struct FlowLayout<ItemID: Hashable, Content: View>: View {
                     }
             }
         }
-        .background(heightReader)
     }
 
-    private var heightReader: some View {
+    // The one `GeometryReader` left, and it is behind the content rather than around it: what
+    // it measures is the offered width, which does not depend on anything the items draw, so
+    // there is no loop and nothing downstream of it to go stale.
+    private var widthReader: some View {
         GeometryReader { geo in
             Color.clear
-                .preference(key: FlowLayoutHeightKey.self, value: geo.size.height)
+                .preference(key: FlowLayoutWidthKey.self, value: geo.size.width)
         }
-        .onPreferenceChange(FlowLayoutHeightKey.self) { value in
-            totalHeight = value
+        .onPreferenceChange(FlowLayoutWidthKey.self) { value in
+            availableWidth = value
         }
     }
 }
 
-private struct FlowLayoutHeightKey: PreferenceKey {
+private struct FlowLayoutWidthKey: PreferenceKey {
     static var defaultValue: CGFloat { 0 }
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
         value = max(value, nextValue())
