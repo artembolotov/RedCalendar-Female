@@ -608,21 +608,26 @@ struct DayDetailsView: View {
                 Text("Теги")
                     .foregroundColor(Color(UIColor.tertiaryLabel))
             } else {
-                FlowLayout(data: resolvedTags, id: \.id, spacing: 6, rowSpacing: 6) { tag in
-                    Text(tag.name ?? "")
-                        .font(.caption)
-                        .foregroundColor(Color.tagColor(for: tag.category))
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 6)
-                                .strokeBorder(Color.tagColor(for: tag.category), lineWidth: 1)
-                        )
-                }
+                tagsText
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, 12)
+    }
+
+    // Concatenated `Text` rather than `FlowLayout`: wrapping is resolved by SwiftUI's own text
+    // layout in the same pass as the rest of the card, so it rides the `.cardEntrance` transition
+    // like every other label here. `FlowLayout` needs a `GeometryReader`-measured width first,
+    // and that measurement lands in its own untransacted `@State` write — the chips pop into
+    // their final layout outside the entrance animation instead of sliding in with the card.
+    private var tagsText: Text {
+        resolvedTags.enumerated().reduce(Text("")) { partial, element in
+            let (index, tag) = element
+            let segment = Text("#\(tag.name ?? "")")
+                .font(.caption)
+                .foregroundColor(Color.tagColor(for: tag.category))
+            return index == 0 ? segment : partial + Text("  ") + segment
+        }
     }
 
     // The row reads as a writing area rather than a one-line strip, so it keeps a floor of
