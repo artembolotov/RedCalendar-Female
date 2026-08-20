@@ -1,10 +1,20 @@
 import Foundation
 import GRDB
 
+/// A tag in the user's catalogue.
+///
+/// **The category is not optional, and the name is.** They look like a pair and they are
+/// opposites: every tag belongs to one of the four groups, which is what gives it a colour on
+/// the day's dots and in the picker, so there is no such thing as a tag without one. The name is
+/// optional because clearing it is how this table deletes — see the soft delete below.
+///
+/// The category stays an `Int` rather than becoming a `TagCategory`: a record can carry a number
+/// this build has never heard of, and it still has to draw rather than vanish
+/// (`Color.tagColor(for:)` answers grey). What `TagCategory` decides is what can be *made*.
 struct UserTagRecord: Codable, FetchableRecord, PersistableRecord {
     var id: String
     var name: String?
-    var category: Int?
+    var category: Int
     var updatedAt: Int?
 
     static let databaseTableName = "user_tags"

@@ -5,12 +5,13 @@
 
 /// The four groups a tag can belong to.
 ///
-/// The storage format stays the integer it already was — `UserTagRecord.category` is an `Int?`,
+/// The storage format stays the integer it already was — `UserTagRecord.category` is an `Int`,
 /// the day's dots are a `Set<Int>` — and every *reader* goes on taking that integer, because a
-/// record whose category is absent, or is a number this build has never heard of, still has to
-/// draw rather than vanish (`Color.tagColor(for:)` answers grey for both). This enum is the
-/// other half: what the user is *offered*. A tag can arrive carrying any integer; it can only be
-/// made carrying one of these.
+/// record carrying a number this build has never heard of still has to draw rather than vanish
+/// (`Color.tagColor(for:)` answers grey). This enum is the other half: what the user is
+/// *offered*. A tag can arrive carrying any integer; it can only be made carrying one of these.
+/// What it can never do is arrive without one — the category is required, in the column and in
+/// the record both.
 ///
 /// **A category has no name, by design.** It is a colour on the day's dots, a colour on the
 /// chips in the picker, and a colour on the four swatches the creation form offers — nowhere in

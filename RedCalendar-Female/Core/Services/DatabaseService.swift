@@ -54,6 +54,32 @@ final class DatabaseService: DatabaseServiceProtocol {
             }
         }
 
+        // A tag has always had a category in every build that could make one — the creation form
+        // starts on the first swatch and there is no way to clear it — but `v1_initial` let the
+        // column be NULL, and `UserTagRecord.category` was optional to match. It is not optional
+        // any more: a tag without a category has no colour, so it has nothing to draw as on the
+        // day's dots or in the picker.
+        //
+        // SQLite cannot add NOT NULL to an existing column, so the table is rebuilt. The
+        // backfill is a literal 0 rather than `TagCategory.fallback.rawValue`: a migration that
+        // has already run somewhere must never change meaning, and a constant can be edited.
+        migrator.registerMigration("v2_tag_category_not_null") { db in
+            try db.execute(sql: "UPDATE user_tags SET category = 0 WHERE category IS NULL")
+
+            try db.create(table: "user_tags_new") { t in
+                t.column("id", .text).notNull().primaryKey()
+                t.column("name", .text)
+                t.column("category", .integer).notNull()
+                t.column("updated_at", .integer)
+            }
+            try db.execute(sql: """
+                INSERT INTO user_tags_new (id, name, category, updated_at)
+                SELECT id, name, category, updated_at FROM user_tags
+                """)
+            try db.drop(table: "user_tags")
+            try db.rename(table: "user_tags_new", to: "user_tags")
+        }
+
         try migrator.migrate(dbQueue)
     }
 

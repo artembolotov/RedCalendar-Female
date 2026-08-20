@@ -24,7 +24,7 @@ func computeDayDisplayStates(
     }
 
     let categoryByTagId = Dictionary(
-        calendarState.userTags.compactMap { tag in tag.category.map { (tag.id, $0) } },
+        calendarState.userTags.map { ($0.id, $0.category) },
         uniquingKeysWith: { $1 }
     )
     for (daystamp, tagIds) in calendarState.visibleDayTags where loadedRange.contains(daystamp) {

@@ -169,12 +169,9 @@ struct TagsSheetView: View {
     }
 
     // Filled means the tag is on the day; see `TagChip` for why that is a fill and not a shade.
-    //
-    // The colour comes from the tag's own category rather than from the group it was sorted
-    // into, and the two differ for a tag whose category is `nil`: the group folds those in with
-    // the symptoms so they have somewhere to sit, while `Color.tagColor(for:)` answers grey for
-    // them — which is what the day card already draws the same tag as. Colouring by the group
-    // made one tag blue here and grey there.
+    // The colour is read from the tag rather than from the group it was sorted into — the two
+    // are the same number now that the grouping is the category itself, and the tag is the one
+    // of them the day card also reads.
     private func tagChip(_ tag: UserTagRecord) -> some View {
         let isSelected = selectedIds.contains(tag.id)
 
@@ -190,13 +187,15 @@ struct TagsSheetView: View {
     // MARK: - Private Methods
 
     /// Grouped the way the day card sorts the same tags — by category, then by name — so a tag
-    /// sits in the same place relative to its neighbours in both.
+    /// sits in the same place relative to its neighbours in both. A category this build does not
+    /// know is a group of its own rather than a tag folded in somewhere it does not belong; it
+    /// sorts after the four by its own number and draws grey.
     private var tagsByCategory: [TagCategoryGroup] {
         let filtered = searchText.isEmpty
             ? availableTags
             : availableTags.filter { $0.name?.localizedCaseInsensitiveContains(searchText) == true }
 
-        return Dictionary(grouping: filtered) { $0.category ?? 0 }
+        return Dictionary(grouping: filtered) { $0.category }
             .sorted { $0.key < $1.key }
             .map { TagCategoryGroup(category: $0.key, tags: $0.value.sorted { ($0.name ?? "") < ($1.name ?? "") }) }
     }
