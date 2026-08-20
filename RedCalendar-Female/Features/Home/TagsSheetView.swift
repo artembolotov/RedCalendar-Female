@@ -28,33 +28,27 @@ struct TagsSheetView: View {
 
     var body: some View {
         NavigationView {
-            tagsList
-                .navigationTitle("Теги")
-                .navigationBarTitleDisplayMode(.inline)
-                // Always drawn rather than revealed by a pull: the list is grouped by category
-                // with no headings to scroll back to, so search is how a long list is navigated
-                // and not an occasional extra.
-                .searchable(
-                    text: $searchText,
-                    placement: .navigationBarDrawer(displayMode: .always),
-                    prompt: "Поиск"
-                )
-                // Saved before the dismissal rather than after it. `onDisappear` fires at the
-                // *end* of the sheet's animation, so hanging the only save off it meant the day
-                // card sat visible for the length of that animation still showing the old tags.
-                .closeButtonToolbar {
-                    save()
-                    isPresented = false
+            // Two screens, not one screen with things hidden. With no tags yet there is nothing
+            // to search, nothing to edit and nothing a chip could say — a search field over an
+            // empty page and a "Ничего не найдено" under it describe a failure, when what has
+            // actually happened is that the user has not started. So the empty catalogue gets
+            // the explanation and one thing to do, and the picker appears with the first tag.
+            Group {
+                if store.state.calendarState.userTags.isEmpty {
+                    introduction
+                } else {
+                    picker
                 }
-                .toolbar {
-                    ToolbarItemGroup(placement: .bottomBar) {
-                        // No colour of their own: the sheet is handed `.tint(accentTheme.accent)`
-                        // by the day card, and a `.foregroundColor` here would be the second red.
-                        Button("Новый тег") { /* next stage */ }
-                        Spacer()
-                        Button("Редактировать") { /* next stage */ }
-                    }
-                }
+            }
+            .navigationTitle("Теги")
+            .navigationBarTitleDisplayMode(.inline)
+            // Saved before the dismissal rather than after it. `onDisappear` fires at the
+            // *end* of the sheet's animation, so hanging the only save off it meant the day
+            // card sat visible for the length of that animation still showing the old tags.
+            .closeButtonToolbar {
+                save()
+                isPresented = false
+            }
         }
         .onAppear { selectedIds = savedIds }
         // The swipe down never reaches the close button, and SwiftUI offers a sheet no hook for
@@ -63,6 +57,64 @@ struct TagsSheetView: View {
         // guard in `save` compares against state the reducer has already updated, so the second
         // call finds nothing to do.
         .onDisappear(perform: save)
+    }
+
+    // MARK: - Introduction
+
+    // The onboarding slides' shape — glyph, title, a sentence of why — because this is the same
+    // kind of moment: a part of the app the user has not met yet, explained where they arrived
+    // rather than in a place they would have to go and find.
+    private var introduction: some View {
+        VStack(spacing: 24) {
+            Spacer()
+
+            Image(systemName: "tag")
+                .font(.system(size: 56))
+                .foregroundColor(accent)
+
+            VStack(spacing: 12) {
+                Text("Отмечайте, как прошёл день")
+                    .font(.title3)
+                    .fontWeight(.bold)
+                    .multilineTextAlignment(.center)
+
+                Text("Тег — короткая пометка: симптом, настроение, лекарство. Дни с тегами видно в календаре, и со временем заметно, что повторяется из цикла в цикл.")
+                    .font(.body)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+
+            Spacer()
+
+            // The accent is passed in rather than read from the asset: `PrimaryButton` fills
+            // with it, and a fill has to answer to the theme the user chose.
+            PrimaryButton("Новый тег", accent: accent) { /* next stage */ }
+        }
+        .padding(.horizontal, 24)
+        .padding(.bottom, 24)
+    }
+
+    // MARK: - Picker
+
+    private var picker: some View {
+        tagsList
+            // Always drawn rather than revealed by a pull: the list is grouped by category
+            // with no headings to scroll back to, so search is how a long list is navigated
+            // and not an occasional extra.
+            .searchable(
+                text: $searchText,
+                placement: .navigationBarDrawer(displayMode: .always),
+                prompt: "Поиск"
+            )
+            .toolbar {
+                ToolbarItemGroup(placement: .bottomBar) {
+                    // No colour of their own: the sheet is handed `.tint(accentTheme.accent)`
+                    // by the day card, and a `.foregroundColor` here would be the second red.
+                    Button("Новый тег") { /* next stage */ }
+                    Spacer()
+                    Button("Редактировать") { /* next stage */ }
+                }
+            }
     }
 
     // MARK: - Tags list
@@ -82,9 +134,8 @@ struct TagsSheetView: View {
         }
         .overlay {
             if tagsByCategory.isEmpty {
-                // Covers both empty lists: a search that matched nothing, and the moment before
-                // the tag catalogue has been synced at all. The wording fits either, and the
-                // second one has "Новый тег" sitting right below it.
+                // Only a search that matched nothing reaches this: an empty catalogue never
+                // draws the list at all.
                 Text("Ничего не найдено")
                     .foregroundColor(.secondary)
             }
@@ -138,6 +189,10 @@ struct TagsSheetView: View {
             .map { TagCategoryGroup(category: $0.key, tags: $0.value.sorted { ($0.name ?? "") < ($1.name ?? "") }) }
     }
 
+    private var accent: Color {
+        store.state.accentTheme.accent
+    }
+
     private var savedIds: Set<String> {
         Set(store.state.calendarState.visibleDayTags[dayStamp] ?? [])
     }
@@ -178,6 +233,22 @@ private struct TagCategoryGroup: Identifiable {
                             UserTagRecord(id: "5", name: "Тренировка", category: 2)
                         ]
                     )
+                ),
+                reducer: appReducer,
+                middlewares: []
+            )
+        )
+}
+
+#Preview("Без тегов") {
+    // The catalogue is empty until the first sync lands or the user makes a tag, and that is
+    // the first thing most people will see here — so it gets a preview of its own.
+    TagsSheetView(dayStamp: 2000, isPresented: .constant(true))
+        .tint(AccentTheme.coral.accent)
+        .environmentObject(
+            AppStore(
+                initialState: AppState(
+                    authState: .authenticated(deviceId: "test", userDetails: nil)
                 ),
                 reducer: appReducer,
                 middlewares: []
