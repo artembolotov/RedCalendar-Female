@@ -49,20 +49,34 @@ struct TagsSheetView: View {
                 save()
                 isPresented = false
             }
+            // A sheet over this one rather than a push, so the creation form closes from the same
+            // trailing corner every other sheet in the app does. The store and the tint are
+            // handed over explicitly, the way the day card hands them to this sheet.
+            //
+            // Attached to the content *inside* the `NavigationView` rather than to the
+            // `NavigationView` itself, which is where it was when neither the empty screen's
+            // button nor the picker's bottom bar could open it. This is the app's first sheet
+            // presented from inside another sheet, and it was also the only `.sheet` in the app
+            // hanging off a navigation container instead of off ordinary content — `HomeMenuView`
+            // attaches its two to the button, `WelcomeView` to its stack, the day card to the
+            // card. A presentation on the root of a sheet's own content has the sheet that is
+            // already on screen between it and anything that could present it; on the content it
+            // is the navigation container's own, which is what the working three are.
+            //
+            // On the `Group` rather than inside a branch, because the branch is not stable: the
+            // catalogue stops being empty the moment "Сохранить" reduces, so `introduction` is
+            // replaced by `picker` while the form it presented is still dismissing. The `Group`
+            // outlives that swap, as `navigationTitle` and the close button already do.
+            .sheet(isPresented: $showNewTagSheet) {
+                NewTagSheetView(isPresented: $showNewTagSheet)
+                    .environmentObject(store)
+                    .tint(accent)
+            }
         }
+        // These two stay on the outside, where the sheet's own appearance and dismissal are:
+        // moved in with the presentation they would answer to the navigation container instead,
+        // and the save that catches a swipe down would fire on a screen change.
         .onAppear { selectedIds = savedIds }
-        // A sheet over this one rather than a push, so the creation form closes from the same
-        // trailing corner every other sheet in the app does. The store and the tint are handed
-        // over explicitly, the way the day card hands them to this sheet.
-        //
-        // Presenting it does not disappear this view, so nothing here is saved or reloaded on
-        // the way in or out — and were that ever to change, both hooks are idempotent: `save`
-        // compares against state, and a re-run of `onAppear` reads back the ids it just wrote.
-        .sheet(isPresented: $showNewTagSheet) {
-            NewTagSheetView(isPresented: $showNewTagSheet)
-                .environmentObject(store)
-                .tint(accent)
-        }
         // The swipe down never reaches the close button, and SwiftUI offers a sheet no hook for
         // the *start* of an interactive dismissal — so that exit is still caught here, a beat
         // later than the button's. Calling it twice on the button's path costs nothing: the
