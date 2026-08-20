@@ -128,6 +128,9 @@ final class DatabaseMiddleware {
             case .setDayTags(let stamp, let tagIds):
                 await handleSetDayTags(stamp: stamp, tagIds: tagIds, dispatch: dispatch)
 
+            case .createUserTag(let tag):
+                await write(.userTag, dispatch: dispatch) { try await dbService.upsert([tag]) }
+
             // Values this middleware produced, on their way to the reducer.
             case .setCycles, .setUserTags, .setVisibleComments, .setVisibleDayTags, .setLoadedRange:
                 break
@@ -337,9 +340,9 @@ final class DatabaseMiddleware {
             AppLogger.error("Database write failed: \(label)", error: error)
             dispatch(.data(.writeFailed(operation)))
 
-            // These two are the edits whose new value is already in state, so telling the user
+            // These are the edits whose new value is already in state, so telling the user
             // it failed is not enough on its own — what they were told was lost is still on the
-            // card. Re-reading the range puts the stored value back, which is what the
+            // card. Re-reading puts the stored value back, which is what the
             // observation would have done had the write changed anything. Spelled out rather
             // than defaulted, so an edit that starts reducing has to say which side it is on.
             switch operation {
@@ -347,6 +350,8 @@ final class DatabaseMiddleware {
                 await reloadComments(dispatch: dispatch)
             case .dayTags:
                 await reloadDayTags(dispatch: dispatch)
+            case .userTag:
+                await reloadUserTags(dispatch: dispatch)
             case .periodStart, .periodEnd, .flowLevel:
                 break
             }
@@ -360,6 +365,17 @@ final class DatabaseMiddleware {
             dispatch(.data(.setVisibleComments(Self.commentsByDay(records))))
         } catch {
             AppLogger.error("Failed to re-read comments after a failed write", error: error)
+        }
+    }
+
+    /// No range to guard on, unlike the two either side of it: the catalogue's observation is
+    /// one of the permanent pair, so what was subscribed is the whole table.
+    private func reloadUserTags(dispatch: @escaping Dispatch) async {
+        do {
+            let records = try await dbService.fetchUserTags()
+            dispatch(.data(.setUserTags(records)))
+        } catch {
+            AppLogger.error("Failed to re-read user tags after a failed write", error: error)
         }
     }
 

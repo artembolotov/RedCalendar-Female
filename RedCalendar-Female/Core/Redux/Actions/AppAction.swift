@@ -69,6 +69,13 @@ enum DataAction: Sendable {
     case saveComment(Daystamp, String)
     case setDayTags(Daystamp, [String])
 
+    // The catalogue the day's tags are chosen from
+    /// Carried whole rather than as a name and a category: the reducer puts this exact record
+    /// into `userTags` on the way past and the middleware writes this exact record to the disk,
+    /// so there is one of it. It also keeps the reducer a pure function of its inputs — a
+    /// reducer that minted the tag's id itself would not be.
+    case createUserTag(UserTagRecord)
+
     // Write outcome
     case writeFailed(DataWriteOperation)
     case dismissWriteFailure

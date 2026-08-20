@@ -76,7 +76,7 @@ func appReducer(state: AppState, action: AppAction) -> AppState {
             state.calendarState.loadedRange = range
             recomputeDayDisplayStates = true
 
-        // The two write actions that also reduce, and it is a latency decision rather than a
+        // The write actions that also reduce, and it is a latency decision rather than a
         // difference in kind. Everything below them reaches the screen the long way round: the
         // middleware writes, GRDB's observation notices, and `.setVisibleComments` and friends
         // come back to the reducer a round trip later. That is invisible for a tap on a flow
@@ -112,6 +112,18 @@ func appReducer(state: AppState, action: AppAction) -> AppState {
             // instead would make the round trip land a *different* value and redraw a second
             // time.
             state.calendarState.visibleDayTags[dayStamp] = tagIds
+            recomputeDayDisplayStates = true
+
+        // Reduces for the same reason the two above do, one screen further in: the picker is
+        // on screen while the creation sheet dismisses, so a tag that arrived a round trip
+        // later would appear after the sheet had already gone — and on an empty catalogue the
+        // whole screen changes with it, from the explanation to the picker.
+        //
+        // Appended rather than sorted in: nothing reads `userTags` in order — the sheet groups
+        // and sorts them for itself — and appending is where the unordered fetch puts the new
+        // row too, so the round trip lands the same array and redraws nothing.
+        case .createUserTag(let tag):
+            state.calendarState.userTags.append(tag)
             recomputeDayDisplayStates = true
 
         case .markPeriodStart,

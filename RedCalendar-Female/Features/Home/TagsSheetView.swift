@@ -22,9 +22,9 @@ struct TagsSheetView: View {
 
     @State private var searchText = ""
     @State private var selectedIds: Set<String> = []
+    @State private var showNewTagSheet = false
 
     private let categorySpacing: CGFloat = 24
-    private let chipCornerRadius: CGFloat = 8
 
     var body: some View {
         NavigationView {
@@ -51,6 +51,18 @@ struct TagsSheetView: View {
             }
         }
         .onAppear { selectedIds = savedIds }
+        // A sheet over this one rather than a push, so the creation form closes from the same
+        // trailing corner every other sheet in the app does. The store and the tint are handed
+        // over explicitly, the way the day card hands them to this sheet.
+        //
+        // Presenting it does not disappear this view, so nothing here is saved or reloaded on
+        // the way in or out — and were that ever to change, both hooks are idempotent: `save`
+        // compares against state, and a re-run of `onAppear` reads back the ids it just wrote.
+        .sheet(isPresented: $showNewTagSheet) {
+            NewTagSheetView(isPresented: $showNewTagSheet)
+                .environmentObject(store)
+                .tint(accent)
+        }
         // The swipe down never reaches the close button, and SwiftUI offers a sheet no hook for
         // the *start* of an interactive dismissal — so that exit is still caught here, a beat
         // later than the button's. Calling it twice on the button's path costs nothing: the
@@ -88,7 +100,7 @@ struct TagsSheetView: View {
 
             // The accent is passed in rather than read from the asset: `PrimaryButton` fills
             // with it, and a fill has to answer to the theme the user chose.
-            PrimaryButton("Новый тег", accent: accent) { /* next stage */ }
+            PrimaryButton("Новый тег", accent: accent) { showNewTagSheet = true }
         }
         .padding(.horizontal, 24)
         .padding(.bottom, 24)
@@ -110,7 +122,7 @@ struct TagsSheetView: View {
                 ToolbarItemGroup(placement: .bottomBar) {
                     // No colour of their own: the sheet is handed `.tint(accentTheme.accent)`
                     // by the day card, and a `.foregroundColor` here would be the second red.
-                    Button("Новый тег") { /* next stage */ }
+                    Button("Новый тег") { showNewTagSheet = true }
                     Spacer()
                     Button("Редактировать") { /* next stage */ }
                 }
@@ -142,35 +154,16 @@ struct TagsSheetView: View {
         }
     }
 
-    // Outlined when the tag is not on the day and filled when it is, rather than a difference in
-    // shade: a chip is small enough that a step in density has no area to read in, and the day
-    // card already draws an assigned tag as an outline of the category's colour.
+    // Filled means the tag is on the day; see `TagChip` for why that is a fill and not a shade.
     private func tagChip(_ tag: UserTagRecord, color: Color) -> some View {
         let isSelected = selectedIds.contains(tag.id)
 
-        return Button {
+        return TagChip(title: tag.name ?? "", color: color, isFilled: isSelected) {
             if isSelected {
                 selectedIds.remove(tag.id)
             } else {
                 selectedIds.insert(tag.id)
             }
-        } label: {
-            Text(tag.name ?? "")
-                .font(.subheadline)
-                .foregroundColor(isSelected ? .white : color)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(
-                    RoundedRectangle(cornerRadius: chipCornerRadius)
-                        .fill(isSelected ? color : Color.clear)
-                )
-                // `strokeBorder` rather than `stroke`, so the outline stays inside the chip's
-                // own bounds instead of straddling them — that is what keeps the outlined and
-                // the filled chip exactly the same size, and it is what the day card draws.
-                .overlay(
-                    RoundedRectangle(cornerRadius: chipCornerRadius)
-                        .strokeBorder(color, lineWidth: 1)
-                )
         }
     }
 
