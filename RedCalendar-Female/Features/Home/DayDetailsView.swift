@@ -610,7 +610,8 @@ struct DayDetailsView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.vertical, 12)
+        .padding(.top, 12)
+        .padding(.bottom, 4)
     }
 
     // Concatenated `Text` rather than `FlowLayout`: wrapping is resolved by SwiftUI's own text
@@ -646,7 +647,8 @@ struct DayDetailsView: View {
             }
         }
         .frame(maxWidth: .infinity, minHeight: commentRowMinimumHeight, alignment: .topLeading)
-        .padding(.vertical, 12)
+        .padding(.top, 4)
+        .padding(.bottom, 12)
     }
 
     // MARK: - Frame reporting
