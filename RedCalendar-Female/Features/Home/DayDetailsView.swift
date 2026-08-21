@@ -594,8 +594,6 @@ struct DayDetailsView: View {
                 tagsRowContent
             }
 
-            Divider()
-
             Button(action: { showCommentSheet = true }) {
                 commentRowContent
             }
@@ -624,7 +622,6 @@ struct DayDetailsView: View {
         resolvedTags.enumerated().reduce(Text("")) { partial, element in
             let (index, tag) = element
             let segment = Text("#\(tag.name ?? "")")
-                .font(.caption)
                 .foregroundColor(Color.tagColor(for: tag.category))
             return index == 0 ? segment : partial + Text("  ") + segment
         }
