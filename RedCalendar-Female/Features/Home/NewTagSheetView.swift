@@ -35,6 +35,9 @@ struct NewTagSheetView: View {
     @State private var name: String
     @State private var category: TagCategory
     @FocusState private var isFocused: Bool
+    /// Only ever set while `editingTag != nil` — the button that sets it doesn't exist on the
+    /// creation form (see `deleteSection`), so there's nothing on that path to set it from.
+    @State private var showDeleteConfirmation = false
 
     private let sectionSpacing: CGFloat = 24
     private let swatchDiameter: CGFloat = 32
@@ -69,6 +72,13 @@ struct NewTagSheetView: View {
                 VStack(alignment: .leading, spacing: sectionSpacing) {
                     nameField
                     categoryPicker
+
+                    // Only on the form this tag already has a row to remove. `editingTag` is
+                    // exactly that test — a fresh tag isn't in the catalogue yet, so there is
+                    // nothing here for "Удалить тег" to act on.
+                    if editingTag != nil {
+                        deleteSection
+                    }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, DayDetailsMetrics.screenInset)
@@ -83,6 +93,19 @@ struct NewTagSheetView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     ConfirmButton("Готово", isEnabled: canSave, action: save)
                 }
+            }
+            // Named after what it warns about rather than after the action, so the one line a
+            // user actually reads says the consequence — a tag lives on every day it was put on,
+            // and deleting it here does not ask those days first.
+            .confirmationDialog(
+                "Удалить тег?",
+                isPresented: $showDeleteConfirmation,
+                titleVisibility: .visible
+            ) {
+                Button("Удалить тег", role: .destructive, action: delete)
+                Button("Отмена", role: .cancel) {}
+            } message: {
+                Text("«\(editingTag?.name ?? "")» пропадёт со всех дней, где он был проставлен.")
             }
         }
         // Set from `.task` rather than `.onAppear`, as the comment editor does: the focus lands
@@ -159,6 +182,19 @@ struct NewTagSheetView: View {
         .accessibilityAddTraits(isSelected ? [.isSelected] : [])
     }
 
+    // MARK: - Delete
+
+    // A plain row rather than a second toolbar button: the two toolbar slots already read as
+    // "cancel this form" and "commit this form", and a third destructive action up there would
+    // have to fight both of them for a corner. Placed under the fields it edits instead, the way
+    // a destructive action sits at the bottom of its own form on this platform generally — one
+    // more thing to scroll past, not a third top-level choice next to "Отмена" and "Готово".
+    private var deleteSection: some View {
+        Button("Удалить тег", role: .destructive) {
+            showDeleteConfirmation = true
+        }
+    }
+
     // MARK: - Private Methods
 
     private var trimmedName: String {
@@ -193,6 +229,18 @@ struct NewTagSheetView: View {
         } else {
             store.send(.data(.createUserTag(.newLocal(name: trimmedName, category: category))))
         }
+        isPresented = false
+    }
+
+    /// Called only from the confirmation dialog's own destructive button — `deleteSection` only
+    /// asks for that dialog, never for this directly. `editingTag` is always set by the time this
+    /// runs: the row that opens the dialog exists only while it is.
+    private func delete() {
+        guard let editingTag else { return }
+        var deleted = editingTag
+        deleted.name = nil
+        deleted.updatedAt = nil
+        store.send(.data(.deleteUserTag(deleted)))
         isPresented = false
     }
 }
