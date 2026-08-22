@@ -36,6 +36,10 @@ struct TagChip: View {
     @State private var isPressed = false
 
     private let pressedScale: CGFloat = 0.93
+    // Named rather than left as `.onLongPressGesture`'s own default: the press-in animation in
+    // `pressing:` below has to run for exactly this long, so the same value has to reach both.
+    private let longPressMinimumDuration: TimeInterval = 0.5
+    private let releaseAnimationDuration: TimeInterval = 0.15
 
     var body: some View {
         Text(title)
@@ -67,7 +71,6 @@ struct TagChip: View {
             // stays as the reinforcement it was always meant to be, not the whole cue.
             .scaleEffect(isPressed ? pressedScale : 1)
             .opacity(isPressed ? 0.5 : 1)
-            .animation(.easeOut(duration: 0.15), value: isPressed)
             // Not a `Button`, so `.onTapGesture` and `.onLongPressGesture` can sit on the same
             // view and stay mutually exclusive on their own: a quick release fails the long-press
             // recognizer before it ever fires, a held one fires it and never reaches the tap.
@@ -77,7 +80,28 @@ struct TagChip: View {
             // has the same kind of trouble: nothing here promises the two won't both fire once.
             .onTapGesture(perform: action)
             .onLongPressGesture(
-                pressing: { isPressed = $0 },
+                minimumDuration: longPressMinimumDuration,
+                // A single fixed-duration `.animation(value:)` on `isPressed` was tried here
+                // first, and it was wrong: any fixed duration well under the hold itself finishes
+                // almost as soon as the finger lands, so the chip reaches its pressed look and
+                // then just sits there for whatever's left of the wait — no different from a
+                // press that resolved instantly. The shrink is supposed to read as *how close*
+                // the hold is to completing, which only happens if the animation's own duration
+                // *is* `longPressMinimumDuration`: pressing in eases continuously across the same
+                // window `.onLongPressGesture` is timing, and lands exactly as the editor opens.
+                // Releasing early has nothing left to track, so it snaps back on its own, quicker,
+                // separately-timed animation instead.
+                pressing: { pressing in
+                    if pressing {
+                        withAnimation(.easeInOut(duration: longPressMinimumDuration)) {
+                            isPressed = true
+                        }
+                    } else {
+                        withAnimation(.easeOut(duration: releaseAnimationDuration)) {
+                            isPressed = false
+                        }
+                    }
+                },
                 perform: onLongPress
             )
             .accessibilityAddTraits(isFilled ? [.isButton, .isSelected] : [.isButton])
