@@ -26,6 +26,15 @@ struct TagChip: View {
 
     private let cornerRadius: CGFloat = 8
 
+    // `Button` used to give this for free — every press dimmed its label the instant a finger
+    // came down, tap or hold alike, and let go the instant it lifted. Dropping `Button` (see the
+    // gesture comment below) dropped that with it: nothing here told a finger holding still on a
+    // chip that anything was happening, right up until either a tap toggled the day's tag or a
+    // held one opened the editor. `isPressed` is what puts it back — read by `.onLongPressGesture`
+    // `pressing:`, which reports the finger down at touch-down and up at release, independent of
+    // whether the hold ever reaches `onLongPress`.
+    @State private var isPressed = false
+
     var body: some View {
         Text(title)
             .font(.subheadline)
@@ -48,6 +57,10 @@ struct TagChip: View {
             // between the word and the outline is a hole in the target — on a chip six
             // points tall either side of the text, a tap that missed by nothing at all.
             .contentShape(RoundedRectangle(cornerRadius: cornerRadius))
+            // The same dim a plain `Button` gives its label while held, restored by hand: half
+            // opacity, gone the instant the finger lifts whichever way the press resolved.
+            .opacity(isPressed ? 0.5 : 1)
+            .animation(.easeOut(duration: 0.15), value: isPressed)
             // Not a `Button`, so `.onTapGesture` and `.onLongPressGesture` can sit on the same
             // view and stay mutually exclusive on their own: a quick release fails the long-press
             // recognizer before it ever fires, a held one fires it and never reaches the tap.
@@ -56,7 +69,10 @@ struct TagChip: View {
             // used to carry (see git history), and stacking `.onLongPressGesture` on a `Button`
             // has the same kind of trouble: nothing here promises the two won't both fire once.
             .onTapGesture(perform: action)
-            .onLongPressGesture(perform: onLongPress)
+            .onLongPressGesture(
+                pressing: { isPressed = $0 },
+                perform: onLongPress
+            )
             .accessibilityAddTraits(isFilled ? [.isButton, .isSelected] : [.isButton])
     }
 }
