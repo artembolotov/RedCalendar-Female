@@ -127,6 +127,10 @@ struct TagsSheetView: View {
     // The onboarding slides' shape — glyph, title, a sentence of why — because this is the same
     // kind of moment: a part of the app the user has not met yet, explained where they arrived
     // rather than in a place they would have to go and find.
+    //
+    // "Новый тег" itself is the picker's bottom-bar command, not a button of its own: the two
+    // screens differ in whether there is anything to pick, not in how a tag gets made, and a
+    // full-width coloured button here would say otherwise.
     private var introduction: some View {
         VStack(spacing: 24) {
             Spacer()
@@ -148,13 +152,14 @@ struct TagsSheetView: View {
             }
 
             Spacer()
-
-            // The accent is passed in rather than read from the asset: `PrimaryButton` fills
-            // with it, and a fill has to answer to the theme the user chose.
-            PrimaryButton("Новый тег", accent: accent) { showNewTagSheet = true }
         }
         .padding(.horizontal, 24)
         .padding(.bottom, 24)
+        .toolbar {
+            ToolbarItemGroup(placement: .bottomBar) {
+                Button("Новый тег") { showNewTagSheet = true }
+            }
+        }
     }
 
     // MARK: - Picker
