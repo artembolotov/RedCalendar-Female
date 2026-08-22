@@ -19,39 +19,38 @@ struct TagChip: View {
     let isFilled: Bool
     let action: () -> Void
 
-    private let cornerRadius: CGFloat = 8
+    /// `static` rather than a plain instance constant: `TagsSheetView` needs this same radius to
+    /// tell `.contextMenu` what shape its long-press preview should lift as (see
+    /// `View.contextMenuPreviewShape`) — the chip's own corner and that preview have to agree, or
+    /// the system falls back to a plain rectangle around a rounded chip.
+    static let cornerRadius: CGFloat = 8
 
     var body: some View {
-        Text(title)
-            .font(.subheadline)
-            .foregroundColor(isFilled ? .white : color)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .background(
-                RoundedRectangle(cornerRadius: cornerRadius)
-                    .fill(isFilled ? color : Color.clear)
-            )
-            // `strokeBorder` rather than `stroke`, so the outline stays inside the chip's
-            // own bounds instead of straddling them — that is what keeps the outlined and
-            // the filled chip exactly the same size, and it is what the day card draws.
-            .overlay(
-                RoundedRectangle(cornerRadius: cornerRadius)
-                    .strokeBorder(color, lineWidth: 1)
-            )
-            // The whole chip takes the tap, not just the glyphs in it. An unfilled chip is
-            // a word, a clear fill and a hairline outline, so without this the padding
-            // between the word and the outline is a hole in the target — on a chip six
-            // points tall either side of the text, a tap that missed by nothing at all.
-            .contentShape(RoundedRectangle(cornerRadius: cornerRadius))
-            // Not a `Button`, on purpose — and not a styling choice, a `.contextMenu`
-            // one. However it is styled, a `Button`'s long-press "lift" preview is generated
-            // from the button's own interactive representation, not a plain snapshot of its
-            // label, so the system substitutes its own chrome for it (`.buttonStyle(.plain)`
-            // was tried here first and changed nothing, which is what confirmed the style was
-            // never the variable). This chip is a `Text` with `.onTapGesture` instead, so the
-            // one thing SwiftUI ever has to draw for the preview is what is already on screen.
-            .onTapGesture(perform: action)
-            .accessibilityAddTraits(isFilled ? [.isButton, .isSelected] : [.isButton])
+        Button(action: action) {
+            Text(title)
+                .font(.subheadline)
+                .foregroundColor(isFilled ? .white : color)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(
+                    RoundedRectangle(cornerRadius: Self.cornerRadius)
+                        .fill(isFilled ? color : Color.clear)
+                )
+                // `strokeBorder` rather than `stroke`, so the outline stays inside the chip's
+                // own bounds instead of straddling them — that is what keeps the outlined and
+                // the filled chip exactly the same size, and it is what the day card draws.
+                .overlay(
+                    RoundedRectangle(cornerRadius: Self.cornerRadius)
+                        .strokeBorder(color, lineWidth: 1)
+                )
+                // The whole chip takes the tap, not just the glyphs in it. An unfilled chip is
+                // a word, a clear fill and a hairline outline, so without this the padding
+                // between the word and the outline is a hole in the target — on a chip six
+                // points tall either side of the text, a tap that missed by nothing at all.
+                .contentShape(RoundedRectangle(cornerRadius: Self.cornerRadius))
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(isFilled ? [.isSelected] : [])
     }
 }
 

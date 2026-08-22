@@ -228,6 +228,10 @@ struct TagsSheetView: View {
                 selectedIds.insert(tag.id)
             }
         }
+        // Told what shape to lift as before being told what to lift for — see
+        // `contextMenuPreviewShape` for why the chip needs this and most `.contextMenu` views
+        // don't.
+        .contextMenuPreviewShape(RoundedRectangle(cornerRadius: TagChip.cornerRadius))
         // A long press rather than the bottom bar's old button, so the command reaches the tag
         // it acts on directly instead of needing a separate mode to pick one in first.
         .contextMenu {
