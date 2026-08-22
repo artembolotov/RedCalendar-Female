@@ -45,6 +45,12 @@ struct TagChip: View {
                 // points tall either side of the text, a tap that missed by nothing at all.
                 .contentShape(RoundedRectangle(cornerRadius: cornerRadius))
         }
+        // Without an explicit style, a `Button` renders its `.contextMenu` lift preview in the
+        // system's default appearance rather than this view's own — the label loses its colour
+        // and background and picks up an underline, which is what showed as brackets around the
+        // text when the tag picker gained a long-press menu. `.plain` tells SwiftUI the chip's
+        // own drawing already *is* the interactive appearance, so the preview matches the chip.
+        .buttonStyle(.plain)
         .accessibilityAddTraits(isFilled ? [.isSelected] : [])
     }
 }
