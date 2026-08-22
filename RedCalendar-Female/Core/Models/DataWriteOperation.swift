@@ -38,7 +38,7 @@ enum DataWriteOperation: Sendable, Equatable {
         case .flowLevel:   return "setFlowLevel"
         case .comment:     return "saveComment"
         case .dayTags:     return "setDayTags"
-        case .userTag:     return "createUserTag"
+        case .userTag:     return "userTag"
         }
     }
 }

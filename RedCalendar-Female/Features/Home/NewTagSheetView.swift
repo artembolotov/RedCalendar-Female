@@ -5,13 +5,13 @@
 
 import SwiftUI
 
-// The one sheet in this corner of the app that does *not* save on the way out, and the
-// difference is that this one creates rather than edits. A comment and a day's tags are changes
-// to a day that already exists, so the safe reading of a swipe down is "keep what I typed"; a
-// half-filled creation form has no such prior — dismissing it means the tag was never made, and
-// saving one out from under the user would leave an unnamed row in a catalogue they then have to
-// go and clean up. So "Отмена" and the swipe both cancel, and "Готово" is the only thing that
-// writes.
+// The one sheet in this corner of the app that does *not* save on the way out, whether it is
+// making a tag or changing one. A comment and a day's tags are changes to a day that already
+// exists, so the safe reading of a swipe down is "keep what I typed"; a half-filled tag form has
+// no such prior — dismissing a new one means the tag was never made, and dismissing an edit means
+// the rename or recolour was never applied, so saving either out from under the user would leave
+// a change (or an unnamed row) they never confirmed. So "Отмена" and the swipe both cancel, and
+// "Готово" is the only thing that writes.
 //
 // The two live in the navigation bar rather than as a `CloseButton` plus a full-width button
 // under the form, unlike every other sheet in this corner of the app: those close on one action
@@ -26,8 +26,14 @@ struct NewTagSheetView: View {
     @EnvironmentObject var store: AppStore
     @Binding var isPresented: Bool
 
-    @State private var name = ""
-    @State private var category: TagCategory = .fallback
+    /// The tag this screen is changing, or `nil` for a fresh one. The one difference between
+    /// the two modes this screen has: everywhere else — the fields, the validation, the layout —
+    /// creating and editing are the same form, which is the point of reusing it rather than
+    /// building a second screen.
+    private let editingTag: UserTagRecord?
+
+    @State private var name: String
+    @State private var category: TagCategory
     @FocusState private var isFocused: Bool
 
     private let sectionSpacing: CGFloat = 24
@@ -36,6 +42,13 @@ struct NewTagSheetView: View {
     // Padding first, ring inside it: the gap between the swatch and its ring is the difference.
     private let swatchRingInset: CGFloat = 4
     private let swatchRingWidth: CGFloat = 2
+
+    init(isPresented: Binding<Bool>, editingTag: UserTagRecord? = nil) {
+        self._isPresented = isPresented
+        self.editingTag = editingTag
+        self._name = State(initialValue: editingTag?.name ?? "")
+        self._category = State(initialValue: editingTag.flatMap { TagCategory(rawValue: $0.category) } ?? .fallback)
+    }
 
     var body: some View {
         NavigationView {
@@ -61,7 +74,7 @@ struct NewTagSheetView: View {
                 .padding(.horizontal, DayDetailsMetrics.screenInset)
                 .padding(.vertical, sectionSpacing)
             }
-            .navigationTitle("Новый тег")
+            .navigationTitle(editingTag == nil ? "Новый тег" : "Тег")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -158,17 +171,28 @@ struct NewTagSheetView: View {
 
     /// Compared against the whole catalogue rather than against the chosen category alone: a
     /// chip carries a name and a colour and nothing else, so two tags reading the same in two
-    /// colours pose the user a question they have no way to answer from the picker.
+    /// colours pose the user a question they have no way to answer from the picker. The tag
+    /// being edited is excluded from its own check — leaving the name untouched is not a
+    /// collision with itself.
     private var isDuplicate: Bool {
         guard !trimmedName.isEmpty else { return false }
         return store.state.calendarState.userTags.contains {
+            $0.id != editingTag?.id &&
             $0.name?.localizedCaseInsensitiveCompare(trimmedName) == .orderedSame
         }
     }
 
     private func save() {
         guard canSave else { return }
-        store.send(.data(.createUserTag(.newLocal(name: trimmedName, category: category))))
+        if let editingTag {
+            var updated = editingTag
+            updated.name = trimmedName
+            updated.category = category.rawValue
+            updated.updatedAt = nil
+            store.send(.data(.updateUserTag(updated)))
+        } else {
+            store.send(.data(.createUserTag(.newLocal(name: trimmedName, category: category))))
+        }
         isPresented = false
     }
 }
@@ -179,6 +203,28 @@ struct NewTagSheetView: View {
     // the preview has to stand in for that too, or it lies about the one thing this screen's
     // colour depends on.
     NewTagSheetView(isPresented: .constant(true))
+        .tint(AccentTheme.coral.accent)
+        .environmentObject(
+            AppStore(
+                initialState: AppState(
+                    authState: .authenticated(deviceId: "test", userDetails: nil),
+                    calendarState: CalendarState(
+                        userTags: [
+                            UserTagRecord(id: "1", name: "Головная боль", category: 0)
+                        ]
+                    )
+                ),
+                reducer: appReducer,
+                middlewares: []
+            )
+        )
+}
+
+#Preview("Редактирование") {
+    NewTagSheetView(
+        isPresented: .constant(true),
+        editingTag: UserTagRecord(id: "1", name: "Головная боль", category: 0)
+    )
         .tint(AccentTheme.coral.accent)
         .environmentObject(
             AppStore(

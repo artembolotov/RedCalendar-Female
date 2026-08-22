@@ -29,6 +29,14 @@ struct TagsSheetView: View {
     @State private var searchText = ""
     @State private var selectedIds: Set<String> = []
     @State private var showNewTagSheet = false
+    /// The tag the long-press menu's "Редактировать" opened, or `nil` when nothing is being
+    /// edited. Doubles as the edit sheet's presentation state — see `editingTagPresented` —
+    /// rather than a separate `Bool`, so there is one flag instead of two that could disagree
+    /// about which tag the open sheet is for.
+    @State private var editingTag: UserTagRecord?
+    /// Same shape, for "Удалить": the confirmation dialog needs the tag to name it and to build
+    /// the soft-deleted record from, not just a flag that something is pending.
+    @State private var tagPendingDeletion: UserTagRecord?
 
     private let categorySpacing: CGFloat = 24
 
@@ -77,6 +85,31 @@ struct TagsSheetView: View {
                 NewTagSheetView(isPresented: $showNewTagSheet)
                     .environmentObject(store)
                     .tint(accent)
+            }
+            // A second sheet rather than reusing `showNewTagSheet`: the two can never be true at
+            // once, but they answer different gestures (the bottom bar vs. the long-press menu),
+            // and sharing one flag would mean deciding here which tag it was for. Attached to the
+            // same content the creation sheet is, for the reasons given above.
+            .sheet(isPresented: editingTagPresented) {
+                if let editingTag {
+                    NewTagSheetView(isPresented: editingTagPresented, editingTag: editingTag)
+                        .environmentObject(store)
+                        .tint(accent)
+                }
+            }
+            // Named after what it warns about rather than after the action, so the one line a
+            // user actually reads says the consequence — a tag lives on every day it was put on,
+            // and deleting it here does not ask those days first.
+            .confirmationDialog(
+                "Удалить тег?",
+                isPresented: tagPendingDeletionPresented,
+                titleVisibility: .visible,
+                presenting: tagPendingDeletion
+            ) { tag in
+                Button("Удалить тег", role: .destructive) { delete(tag) }
+                Button("Отмена", role: .cancel) {}
+            } message: { tag in
+                Text("«\(tag.name ?? "")» пропадёт со всех дней, где он был проставлен.")
             }
         }
         // These two stay on the outside, where the sheet's own appearance and dismissal are:
@@ -152,11 +185,11 @@ struct TagsSheetView: View {
             )
             .toolbar {
                 ToolbarItemGroup(placement: .bottomBar) {
-                    // No colour of their own: the sheet is handed `.tint(accentTheme.accent)`
-                    // by the day card, and a `.foregroundColor` here would be the second red.
+                    // No colour of its own: the sheet is handed `.tint(accentTheme.accent)` by
+                    // the day card, and a `.foregroundColor` here would be the second red.
+                    // Editing and deleting moved to a long-press on the chip itself, so this bar
+                    // has one job again.
                     Button("Новый тег") { showNewTagSheet = true }
-                    Spacer()
-                    Button("Редактировать") { /* next stage */ }
                 }
             }
     }
@@ -193,6 +226,25 @@ struct TagsSheetView: View {
                 selectedIds.remove(tag.id)
             } else {
                 selectedIds.insert(tag.id)
+            }
+        }
+        // A long press rather than the bottom bar's old button, so the command reaches the tag
+        // it acts on directly instead of needing a separate mode to pick one in first.
+        .contextMenu {
+            Button {
+                if let record = userTag(withId: tag.id) {
+                    editingTag = record
+                }
+            } label: {
+                Label("Редактировать", systemImage: "pencil")
+            }
+
+            Button(role: .destructive) {
+                if let record = userTag(withId: tag.id) {
+                    tagPendingDeletion = record
+                }
+            } label: {
+                Label("Удалить", systemImage: "trash")
             }
         }
     }
@@ -255,6 +307,45 @@ struct TagsSheetView: View {
         // Sorted for deterministic storage — `Set` iteration order is random, and the row would
         // otherwise be rewritten with the same tags in a different order.
         store.send(.data(.setDayTags(dayStamp, selectedIds.sorted())))
+    }
+
+    /// The full record behind a chip's id — the context menu's `PickerTag` carries only what
+    /// drawing it needs, and editing or deleting needs the record itself.
+    private func userTag(withId id: String) -> UserTagRecord? {
+        store.state.calendarState.userTags.first { $0.id == id }
+    }
+
+    private func delete(_ tag: UserTagRecord) {
+        var deleted = tag
+        deleted.name = nil
+        deleted.updatedAt = nil
+        store.send(.data(.deleteUserTag(deleted)))
+    }
+
+    // MARK: - Long-press menu presentation
+
+    /// Doing double duty as the edit sheet's `isPresented`: dismissing the sheet — "Отмена",
+    /// "Готово", or the swipe — sets this to `false`, which this binding turns into clearing
+    /// `editingTag`, the same one-flag-instead-of-two shape `HomeView.writeFailurePresented`
+    /// uses for its alert.
+    private var editingTagPresented: Binding<Bool> {
+        Binding(
+            get: { editingTag != nil },
+            set: { isPresented in
+                guard !isPresented else { return }
+                editingTag = nil
+            }
+        )
+    }
+
+    private var tagPendingDeletionPresented: Binding<Bool> {
+        Binding(
+            get: { tagPendingDeletion != nil },
+            set: { isPresented in
+                guard !isPresented else { return }
+                tagPendingDeletion = nil
+            }
+        )
     }
 }
 
