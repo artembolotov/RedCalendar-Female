@@ -221,35 +221,58 @@ struct TagsSheetView: View {
 
     // Filled means the tag is on the day; see `TagChip` for why that is a fill and not a shade.
     private func tagChip(_ tag: PickerTag) -> some View {
-        TagChip(title: tag.name, color: Color.tagColor(for: tag.category), isFilled: tag.isSelected) {
+        let chip = TagChip(title: tag.name, color: Color.tagColor(for: tag.category), isFilled: tag.isSelected) {
             if tag.isSelected {
                 selectedIds.remove(tag.id)
             } else {
                 selectedIds.insert(tag.id)
             }
         }
-        // Told what shape to lift as before being told what to lift for — see
-        // `contextMenuPreviewShape` for why the chip needs this and most `.contextMenu` views
-        // don't.
-        .contextMenuPreviewShape(RoundedRectangle(cornerRadius: TagChip.cornerRadius))
-        // A long press rather than the bottom bar's old button, so the command reaches the tag
-        // it acts on directly instead of needing a separate mode to pick one in first.
-        .contextMenu {
-            Button {
-                if let record = userTag(withId: tag.id) {
-                    editingTag = record
-                }
-            } label: {
-                Label("Редактировать", systemImage: "pencil")
-            }
 
-            Button(role: .destructive) {
-                if let record = userTag(withId: tag.id) {
-                    tagPendingDeletion = record
+        // Two different `.contextMenu` overloads, not one plus a shape hint on top of it.
+        // `.contentShape(.contextMenuPreview:)` only tells the system which pixels to lift; it
+        // still supplies the backing card and its shadow from its own snapshot of the chip, and
+        // that snapshot doesn't quite agree with the chip's *own* background and stroke — which
+        // is what read as the fill flashing transparent mid-lift, with a shadow briefly on both
+        // sides of it. `.contextMenu(menuItems:preview:)` (iOS 16+) replaces that snapshot
+        // outright: the preview closure below is the same `TagChip` call the resting chip is,
+        // so there is one rendering of the chip, not a system approximation of it that has to be
+        // crossfaded away.
+        return Group {
+            if #available(iOS 16.0, *) {
+                chip.contextMenu {
+                    tagMenuItems(for: tag)
+                } preview: {
+                    TagChip(title: tag.name, color: Color.tagColor(for: tag.category), isFilled: tag.isSelected) {}
                 }
-            } label: {
-                Label("Удалить", systemImage: "trash")
+            } else {
+                chip
+                    .contextMenuPreviewShape(RoundedRectangle(cornerRadius: TagChip.cornerRadius))
+                    .contextMenu {
+                        tagMenuItems(for: tag)
+                    }
             }
+        }
+    }
+
+    // A long press rather than the bottom bar's old button, so the command reaches the tag it
+    // acts on directly instead of needing a separate mode to pick one in first.
+    @ViewBuilder
+    private func tagMenuItems(for tag: PickerTag) -> some View {
+        Button {
+            if let record = userTag(withId: tag.id) {
+                editingTag = record
+            }
+        } label: {
+            Label("Редактировать", systemImage: "pencil")
+        }
+
+        Button(role: .destructive) {
+            if let record = userTag(withId: tag.id) {
+                tagPendingDeletion = record
+            }
+        } label: {
+            Label("Удалить", systemImage: "trash")
         }
     }
 
