@@ -138,6 +138,10 @@ func appReducer(state: AppState, action: AppAction) -> AppState {
             }
             recomputeDayDisplayStates = true
 
+        // Carries nothing to reduce — see the case's own doc comment in AppAction.swift.
+        case .beganEditingUserTag:
+            break
+
         case .markPeriodStart,
              .markPeriodEnd,
              .unmarkPeriodEnd,

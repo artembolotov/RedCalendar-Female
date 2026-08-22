@@ -25,6 +25,7 @@ protocol TapticFeedbackServiceProtocol {
     func playError()
     func playWarning()
     func playSelection()
+    func playImpact()
     func prepare()
 }
 
@@ -38,6 +39,11 @@ final class TapticFeedbackService: TapticFeedbackServiceProtocol {
     // `UISelectionFeedbackGenerator` is the tick a picker gives — light enough to fire on
     // every day the user swipes past, where a notification haptic would be a thud.
     private let selectionFeedbackGenerator = UISelectionFeedbackGenerator()
+    // A third class again: `.medium` is the knock a `.contextMenu` gives for free the moment it
+    // recognises a long press. `TagsSheetView` lost that for free version when it dropped the
+    // menu for a direct transition into the edit sheet — `playImpact()` is what puts the same
+    // weight of feedback back on that same gesture.
+    private let impactFeedbackGenerator = UIImpactFeedbackGenerator(style: .medium)
 
     // MARK: - Initialization
     init() {
@@ -70,6 +76,11 @@ final class TapticFeedbackService: TapticFeedbackServiceProtocol {
     /// few milliseconds late is worth less than that risk.
     func playSelection() {
         selectionFeedbackGenerator.selectionChanged()
+    }
+
+    /// Plays the firmer knock that marks a long press being recognised
+    func playImpact() {
+        impactFeedbackGenerator.impactOccurred()
     }
 
     /// Prepares haptic generators for immediate use

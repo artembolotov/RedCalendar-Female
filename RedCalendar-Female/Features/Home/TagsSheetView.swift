@@ -222,6 +222,11 @@ struct TagsSheetView: View {
             }
         } onLongPress: {
             if let record = userTag(withId: tag.id) {
+                // Dispatched before the local state change: `store.send` reduces synchronously,
+                // so the haptic and the sheet's presentation both land in the same run-loop turn
+                // either way, and this keeps the ordering the same as every other place a
+                // dispatch and a view effect happen together.
+                store.send(.data(.beganEditingUserTag))
                 editingTag = record
             }
         }
