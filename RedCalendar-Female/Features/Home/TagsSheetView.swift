@@ -29,14 +29,12 @@ struct TagsSheetView: View {
     @State private var searchText = ""
     @State private var selectedIds: Set<String> = []
     @State private var showNewTagSheet = false
-    /// The tag the long-press menu's "Редактировать" opened, or `nil` when nothing is being
-    /// edited. Doubles as the edit sheet's presentation state — see `editingTagPresented` —
-    /// rather than a separate `Bool`, so there is one flag instead of two that could disagree
-    /// about which tag the open sheet is for.
+    /// The tag a long press opened, or `nil` when nothing is being edited. Doubles as the edit
+    /// sheet's presentation state — see `editingTagPresented` — rather than a separate `Bool`, so
+    /// there is one flag instead of two that could disagree about which tag the open sheet is
+    /// for. Deleting lives inside that sheet now (see `NewTagSheetView`), so this is the only
+    /// piece of state a long press needs.
     @State private var editingTag: UserTagRecord?
-    /// Same shape, for "Удалить": the confirmation dialog needs the tag to name it and to build
-    /// the soft-deleted record from, not just a flag that something is pending.
-    @State private var tagPendingDeletion: UserTagRecord?
 
     private let categorySpacing: CGFloat = 24
 
@@ -87,29 +85,17 @@ struct TagsSheetView: View {
                     .tint(accent)
             }
             // A second sheet rather than reusing `showNewTagSheet`: the two can never be true at
-            // once, but they answer different gestures (the bottom bar vs. the long-press menu),
-            // and sharing one flag would mean deciding here which tag it was for. Attached to the
-            // same content the creation sheet is, for the reasons given above.
+            // once, but they answer different gestures (the bottom bar vs. the long press), and
+            // sharing one flag would mean deciding here which tag it was for. Attached to the
+            // same content the creation sheet is, for the reasons given above. Deleting has no
+            // presentation of its own here any more — it is a command inside this same sheet now
+            // (see `NewTagSheetView`), not a second thing this screen has to present.
             .sheet(isPresented: editingTagPresented) {
                 if let editingTag {
                     NewTagSheetView(isPresented: editingTagPresented, editingTag: editingTag)
                         .environmentObject(store)
                         .tint(accent)
                 }
-            }
-            // Named after what it warns about rather than after the action, so the one line a
-            // user actually reads says the consequence — a tag lives on every day it was put on,
-            // and deleting it here does not ask those days first.
-            .confirmationDialog(
-                "Удалить тег?",
-                isPresented: tagPendingDeletionPresented,
-                titleVisibility: .visible,
-                presenting: tagPendingDeletion
-            ) { tag in
-                Button("Удалить тег", role: .destructive) { delete(tag) }
-                Button("Отмена", role: .cancel) {}
-            } message: { tag in
-                Text("«\(tag.name ?? "")» пропадёт со всех дней, где он был проставлен.")
             }
         }
         // These two stay on the outside, where the sheet's own appearance and dismissal are:
@@ -187,8 +173,8 @@ struct TagsSheetView: View {
                 ToolbarItemGroup(placement: .bottomBar) {
                     // No colour of its own: the sheet is handed `.tint(accentTheme.accent)` by
                     // the day card, and a `.foregroundColor` here would be the second red.
-                    // Editing and deleting moved to a long-press on the chip itself, so this bar
-                    // has one job again.
+                    // Editing moved to a long-press on the chip itself, so this bar has one job
+                    // again.
                     Button("Новый тег") { showNewTagSheet = true }
                 }
             }
@@ -220,62 +206,24 @@ struct TagsSheetView: View {
     }
 
     // Filled means the tag is on the day; see `TagChip` for why that is a fill and not a shade.
+    //
+    // No `.contextMenu` any more. It went through three attempts to make the lift preview and
+    // the menu's own arrow agree with the chip's shape — the last one got the preview right and
+    // still left the arrow pointing at an arbitrary spot, which is a UIKit-side interaction
+    // anchor this view has no further lever over. A long press instead opens the tag straight
+    // into `NewTagSheetView`, pre-filled, with the delete command living inside that screen —
+    // one working transition instead of a menu this chip's shape could never quite hand off to.
     private func tagChip(_ tag: PickerTag) -> some View {
-        // The shape belongs to both branches below, not just the iOS-15 fallback. `preview:`
-        // decides what is *drawn* inside the lift card; it says nothing about the card's own
-        // outline. Left unset, that outline defaults to a wider, more rounded shape than the
-        // chip's own — which is what showed as a white edge breaking out past the chip's
-        // border, and is very likely what threw the menu's arrow off too, since the arrow
-        // anchors to that outline's geometry, not to the content drawn inside it.
-        let chip = TagChip(title: tag.name, color: Color.tagColor(for: tag.category), isFilled: tag.isSelected) {
+        TagChip(title: tag.name, color: Color.tagColor(for: tag.category), isFilled: tag.isSelected) {
             if tag.isSelected {
                 selectedIds.remove(tag.id)
             } else {
                 selectedIds.insert(tag.id)
             }
-        }
-        .contextMenuPreviewShape(RoundedRectangle(cornerRadius: TagChip.cornerRadius))
-
-        // Two different `.contextMenu` overloads. `.contentShape(.contextMenuPreview:)` alone
-        // still built the lift card's *content* from its own snapshot of the chip, and that
-        // snapshot didn't quite agree with the chip's own background and stroke — which is what
-        // read as the fill flashing transparent mid-lift, with a shadow briefly on both sides of
-        // it. `.contextMenu(menuItems:preview:)` (iOS 16+) replaces that snapshot outright: the
-        // preview closure below is the same `TagChip` call the resting chip is, so there is one
-        // rendering of the chip, not a system approximation of it that has to be crossfaded away.
-        return Group {
-            if #available(iOS 16.0, *) {
-                chip.contextMenu {
-                    tagMenuItems(for: tag)
-                } preview: {
-                    TagChip(title: tag.name, color: Color.tagColor(for: tag.category), isFilled: tag.isSelected) {}
-                }
-            } else {
-                chip.contextMenu {
-                    tagMenuItems(for: tag)
-                }
-            }
-        }
-    }
-
-    // A long press rather than the bottom bar's old button, so the command reaches the tag it
-    // acts on directly instead of needing a separate mode to pick one in first.
-    @ViewBuilder
-    private func tagMenuItems(for tag: PickerTag) -> some View {
-        Button {
+        } onLongPress: {
             if let record = userTag(withId: tag.id) {
                 editingTag = record
             }
-        } label: {
-            Label("Редактировать", systemImage: "pencil")
-        }
-
-        Button(role: .destructive) {
-            if let record = userTag(withId: tag.id) {
-                tagPendingDeletion = record
-            }
-        } label: {
-            Label("Удалить", systemImage: "trash")
         }
     }
 
@@ -339,41 +287,24 @@ struct TagsSheetView: View {
         store.send(.data(.setDayTags(dayStamp, selectedIds.sorted())))
     }
 
-    /// The full record behind a chip's id — the context menu's `PickerTag` carries only what
-    /// drawing it needs, and editing or deleting needs the record itself.
+    /// The full record behind a chip's id — `PickerTag` carries only what drawing it needs, and
+    /// opening it for editing needs the record itself.
     private func userTag(withId id: String) -> UserTagRecord? {
         store.state.calendarState.userTags.first { $0.id == id }
     }
 
-    private func delete(_ tag: UserTagRecord) {
-        var deleted = tag
-        deleted.name = nil
-        deleted.updatedAt = nil
-        store.send(.data(.deleteUserTag(deleted)))
-    }
-
-    // MARK: - Long-press menu presentation
+    // MARK: - Edit sheet presentation
 
     /// Doing double duty as the edit sheet's `isPresented`: dismissing the sheet — "Отмена",
-    /// "Готово", or the swipe — sets this to `false`, which this binding turns into clearing
-    /// `editingTag`, the same one-flag-instead-of-two shape `HomeView.writeFailurePresented`
-    /// uses for its alert.
+    /// "Готово", the swipe, or "Удалить тег" inside it — sets this to `false`, which this
+    /// binding turns into clearing `editingTag`, the same one-flag-instead-of-two shape
+    /// `HomeView.writeFailurePresented` uses for its alert.
     private var editingTagPresented: Binding<Bool> {
         Binding(
             get: { editingTag != nil },
             set: { isPresented in
                 guard !isPresented else { return }
                 editingTag = nil
-            }
-        )
-    }
-
-    private var tagPendingDeletionPresented: Binding<Bool> {
-        Binding(
-            get: { tagPendingDeletion != nil },
-            set: { isPresented in
-                guard !isPresented else { return }
-                tagPendingDeletion = nil
             }
         )
     }
