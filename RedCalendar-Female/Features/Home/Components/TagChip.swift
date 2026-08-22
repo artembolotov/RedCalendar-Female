@@ -35,6 +35,8 @@ struct TagChip: View {
     // whether the hold ever reaches `onLongPress`.
     @State private var isPressed = false
 
+    private let pressedScale: CGFloat = 0.93
+
     var body: some View {
         Text(title)
             .font(.subheadline)
@@ -57,8 +59,13 @@ struct TagChip: View {
             // between the word and the outline is a hole in the target — on a chip six
             // points tall either side of the text, a tap that missed by nothing at all.
             .contentShape(RoundedRectangle(cornerRadius: cornerRadius))
-            // The same dim a plain `Button` gives its label while held, restored by hand: half
-            // opacity, gone the instant the finger lifts whichever way the press resolved.
+            // The dim alone read as barely-there in practice: a finger holding a chip down is
+            // looking at the fingertip, not studying the chip's edges, and an alpha change is
+            // exactly the kind of difference peripheral vision is worst at picking up. A change
+            // of size is not — it moves the chip's own edges, which is what peripheral vision is
+            // built to notice — so the shrink carries the "this is happening" signal and the dim
+            // stays as the reinforcement it was always meant to be, not the whole cue.
+            .scaleEffect(isPressed ? pressedScale : 1)
             .opacity(isPressed ? 0.5 : 1)
             .animation(.easeOut(duration: 0.15), value: isPressed)
             // Not a `Button`, so `.onTapGesture` and `.onLongPressGesture` can sit on the same
