@@ -221,6 +221,12 @@ struct TagsSheetView: View {
 
     // Filled means the tag is on the day; see `TagChip` for why that is a fill and not a shade.
     private func tagChip(_ tag: PickerTag) -> some View {
+        // The shape belongs to both branches below, not just the iOS-15 fallback. `preview:`
+        // decides what is *drawn* inside the lift card; it says nothing about the card's own
+        // outline. Left unset, that outline defaults to a wider, more rounded shape than the
+        // chip's own — which is what showed as a white edge breaking out past the chip's
+        // border, and is very likely what threw the menu's arrow off too, since the arrow
+        // anchors to that outline's geometry, not to the content drawn inside it.
         let chip = TagChip(title: tag.name, color: Color.tagColor(for: tag.category), isFilled: tag.isSelected) {
             if tag.isSelected {
                 selectedIds.remove(tag.id)
@@ -228,16 +234,15 @@ struct TagsSheetView: View {
                 selectedIds.insert(tag.id)
             }
         }
+        .contextMenuPreviewShape(RoundedRectangle(cornerRadius: TagChip.cornerRadius))
 
-        // Two different `.contextMenu` overloads, not one plus a shape hint on top of it.
-        // `.contentShape(.contextMenuPreview:)` only tells the system which pixels to lift; it
-        // still supplies the backing card and its shadow from its own snapshot of the chip, and
-        // that snapshot doesn't quite agree with the chip's *own* background and stroke — which
-        // is what read as the fill flashing transparent mid-lift, with a shadow briefly on both
-        // sides of it. `.contextMenu(menuItems:preview:)` (iOS 16+) replaces that snapshot
-        // outright: the preview closure below is the same `TagChip` call the resting chip is,
-        // so there is one rendering of the chip, not a system approximation of it that has to be
-        // crossfaded away.
+        // Two different `.contextMenu` overloads. `.contentShape(.contextMenuPreview:)` alone
+        // still built the lift card's *content* from its own snapshot of the chip, and that
+        // snapshot didn't quite agree with the chip's own background and stroke — which is what
+        // read as the fill flashing transparent mid-lift, with a shadow briefly on both sides of
+        // it. `.contextMenu(menuItems:preview:)` (iOS 16+) replaces that snapshot outright: the
+        // preview closure below is the same `TagChip` call the resting chip is, so there is one
+        // rendering of the chip, not a system approximation of it that has to be crossfaded away.
         return Group {
             if #available(iOS 16.0, *) {
                 chip.contextMenu {
@@ -246,11 +251,9 @@ struct TagsSheetView: View {
                     TagChip(title: tag.name, color: Color.tagColor(for: tag.category), isFilled: tag.isSelected) {}
                 }
             } else {
-                chip
-                    .contextMenuPreviewShape(RoundedRectangle(cornerRadius: TagChip.cornerRadius))
-                    .contextMenu {
-                        tagMenuItems(for: tag)
-                    }
+                chip.contextMenu {
+                    tagMenuItems(for: tag)
+                }
             }
         }
     }
