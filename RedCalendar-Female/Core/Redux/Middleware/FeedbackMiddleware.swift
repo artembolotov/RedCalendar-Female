@@ -29,6 +29,13 @@ let feedbackMiddleware: Middleware = { state, action, dispatch in
 
         feedbackService.playSelection()
 
+    // MARK: - Impact Events
+    // A firmer knock than a selection tick, for a long press being recognised rather than a
+    // value merely changing — see `DataAction.beganEditingUserTag`.
+    case .data(.beganEditingUserTag):
+
+        feedbackService.playImpact()
+
     // MARK: - Error Events
     case .auth(.set(.authenticating(.email(.entry(_, .some(_)))))),
          .auth(.set(.authenticating(.email(.registration(_, _, _, .some(_)))))),

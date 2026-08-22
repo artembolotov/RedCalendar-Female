@@ -94,19 +94,6 @@ struct NewTagSheetView: View {
                     ConfirmButton("Готово", isEnabled: canSave, action: save)
                 }
             }
-            // Named after what it warns about rather than after the action, so the one line a
-            // user actually reads says the consequence — a tag lives on every day it was put on,
-            // and deleting it here does not ask those days first.
-            .confirmationDialog(
-                "Удалить тег?",
-                isPresented: $showDeleteConfirmation,
-                titleVisibility: .visible
-            ) {
-                Button("Удалить тег", role: .destructive, action: delete)
-                Button("Отмена", role: .cancel) {}
-            } message: {
-                Text("«\(editingTag?.name ?? "")» пропадёт со всех дней, где он был проставлен.")
-            }
         }
         // Set from `.task` rather than `.onAppear`, as the comment editor does: the focus lands
         // after the first render pass instead of during it, which is what lets the keyboard come
@@ -192,6 +179,22 @@ struct NewTagSheetView: View {
     private var deleteSection: some View {
         Button("Удалить тег", role: .destructive) {
             showDeleteConfirmation = true
+        }
+        // On the button itself rather than on the `NavigationView`, which is where this sat
+        // before: a popover-style dialog is anchored to the exact view carrying the modifier, so
+        // hanging it off the whole screen pointed its tail at the screen's centre instead of at
+        // this row. Named after what it warns about rather than after the action, so the one
+        // line a user actually reads says the consequence — a tag lives on every day it was put
+        // on, and deleting it here does not ask those days first.
+        .confirmationDialog(
+            "Удалить тег?",
+            isPresented: $showDeleteConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Удалить тег", role: .destructive, action: delete)
+            Button("Отмена", role: .cancel) {}
+        } message: {
+            Text("«\(editingTag?.name ?? "")» пропадёт со всех дней, где он был проставлен.")
         }
     }
 

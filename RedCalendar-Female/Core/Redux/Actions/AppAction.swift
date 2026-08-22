@@ -83,6 +83,11 @@ enum DataAction: Sendable {
     /// built by the caller exactly as `updateUserTag`'s is, so the reducer and the middleware
     /// both just write what they are handed.
     case deleteUserTag(UserTagRecord)
+    /// Dispatched by `TagsSheetView` the moment a long press opens a tag into its edit form.
+    /// Nothing about the tag changes — this exists only so `FeedbackMiddleware` has something to
+    /// react to. A `.contextMenu` gives its own activation haptic for free; the direct transition
+    /// that replaced it does not, and this is what puts an equivalent one back on the gesture.
+    case beganEditingUserTag
 
     // Write outcome
     case writeFailed(DataWriteOperation)

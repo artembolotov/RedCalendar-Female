@@ -141,6 +141,10 @@ final class DatabaseMiddleware {
             case .setCycles, .setUserTags, .setVisibleComments, .setVisibleDayTags, .setLoadedRange:
                 break
 
+            // A UI signal with nothing to write — `FeedbackMiddleware` is what reacts to it.
+            case .beganEditingUserTag:
+                break
+
             // The outcome of a write, which the reducer and the UI deal with.
             case .writeFailed, .dismissWriteFailure:
                 break
