@@ -131,6 +131,12 @@ final class DatabaseMiddleware {
             case .createUserTag(let tag):
                 await write(.userTag, dispatch: dispatch) { try await dbService.upsert([tag]) }
 
+            case .updateUserTag(let tag):
+                await write(.userTag, detail: "update", dispatch: dispatch) { try await dbService.upsert([tag]) }
+
+            case .deleteUserTag(let tag):
+                await write(.userTag, detail: "delete", dispatch: dispatch) { try await dbService.upsert([tag]) }
+
             // Values this middleware produced, on their way to the reducer.
             case .setCycles, .setUserTags, .setVisibleComments, .setVisibleDayTags, .setLoadedRange:
                 break

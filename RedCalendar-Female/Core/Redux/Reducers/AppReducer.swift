@@ -126,6 +126,18 @@ func appReducer(state: AppState, action: AppAction) -> AppState {
             state.calendarState.userTags.append(tag)
             recomputeDayDisplayStates = true
 
+        // Both replace the existing row in place with the record the caller already built —
+        // for a delete that record carries `name == nil`, which is exactly what the soft-deleted
+        // row looks like once the observation reads it back, and exactly what every reader of
+        // `userTags` already filters out (see `TagsSheetView.availableTags`). Reducing here
+        // rather than waiting on the round trip is the same latency decision as `createUserTag`:
+        // the edit form and the confirmation dialog are both dismissing at this moment.
+        case .updateUserTag(let tag), .deleteUserTag(let tag):
+            if let index = state.calendarState.userTags.firstIndex(where: { $0.id == tag.id }) {
+                state.calendarState.userTags[index] = tag
+            }
+            recomputeDayDisplayStates = true
+
         case .markPeriodStart,
              .markPeriodEnd,
              .unmarkPeriodEnd,

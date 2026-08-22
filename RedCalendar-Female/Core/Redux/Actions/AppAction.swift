@@ -75,6 +75,14 @@ enum DataAction: Sendable {
     /// so there is one of it. It also keeps the reducer a pure function of its inputs — a
     /// reducer that minted the tag's id itself would not be.
     case createUserTag(UserTagRecord)
+    /// Same shape as `createUserTag`, for the same reason: the edit form already holds the
+    /// record it is changing, so it hands over the whole updated one rather than an id plus the
+    /// fields that moved.
+    case updateUserTag(UserTagRecord)
+    /// The record with `name` already `nil` — this table's soft delete (see `UserTagRecord`) —
+    /// built by the caller exactly as `updateUserTag`'s is, so the reducer and the middleware
+    /// both just write what they are handed.
+    case deleteUserTag(UserTagRecord)
 
     // Write outcome
     case writeFailed(DataWriteOperation)
