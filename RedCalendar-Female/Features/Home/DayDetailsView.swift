@@ -607,6 +607,7 @@ struct DayDetailsView: View {
                     .foregroundColor(Color(UIColor.tertiaryLabel))
             } else {
                 tagsText
+                    .multilineTextAlignment(.leading)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
