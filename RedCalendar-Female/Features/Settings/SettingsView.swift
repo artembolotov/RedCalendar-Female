@@ -23,6 +23,12 @@ struct SettingsView: View {
                 Form {
                     accentThemeSection
 
+                    Section("Теги") {
+                        NavigationLink("Редактировать") {
+                            TagsListView()
+                        }
+                    }
+
                     Section {
                         versionRow
                     }
