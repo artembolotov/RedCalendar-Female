@@ -92,11 +92,18 @@ struct TagsListView: View {
             }
         }
         .swipeActions(edge: .trailing) {
-            Button(role: .destructive) {
+            // No `role: .destructive` here — that role is what plays the row's own removal
+            // animation the instant the button is tapped, whatever the closure does. Nothing
+            // has been deleted yet at that point, only asked about, so the row collapsed and
+            // then snapped back once the confirmation dialog appeared instead of anything being
+            // gone. `.tint(.red)` gets back the same look without the built-in behaviour; the
+            // row only animates out once, when `performDelete` actually removes the tag.
+            Button {
                 pendingDeletion = tag
             } label: {
                 Label("Удалить", systemImage: "trash")
             }
+            .tint(.red)
         }
     }
 
