@@ -22,6 +22,11 @@ struct TagsListView: View {
     /// indistinguishable from a fast one — so the row only records *which* tag asked, and the
     /// dialog is what actually calls `deleteUserTag`.
     @State private var pendingDeletion: UserTagRecord?
+    /// Set by the trailing "+", separate from `editingTag` even though both present
+    /// `NewTagSheetView` — one is a fresh tag, the other a record already in the catalogue, and
+    /// `NewTagSheetView` itself tells the two apart by whether `editingTag` is `nil`. Sharing one
+    /// flag would mean this screen inventing an empty record to stand in for "new".
+    @State private var showNewTagSheet = false
 
     private let swatchSize: CGFloat = 14
 
@@ -36,6 +41,15 @@ struct TagsListView: View {
         }
         .navigationTitle("Теги")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button {
+                    showNewTagSheet = true
+                } label: {
+                    Image(systemName: "plus")
+                }
+            }
+        }
         // A sheet, not a push: the row it opens from is a tap on a tag, the same gesture that
         // opens it from the picker's long press, and that one is a sheet too.
         .sheet(isPresented: editingTagPresented) {
@@ -44,6 +58,11 @@ struct TagsListView: View {
                     .environmentObject(store)
                     .tint(accent)
             }
+        }
+        .sheet(isPresented: $showNewTagSheet) {
+            NewTagSheetView(isPresented: $showNewTagSheet)
+                .environmentObject(store)
+                .tint(accent)
         }
     }
 
