@@ -62,18 +62,6 @@ struct TagsListView: View {
             }
         }
         .listStyle(.insetGrouped)
-        // Named after the consequence, exactly as `NewTagSheetView.deleteSection` is, so the one
-        // line a user reads before confirming says the same thing wherever it appears.
-        .confirmationDialog(
-            "Удалить тег?",
-            isPresented: pendingDeletionPresented,
-            titleVisibility: .visible
-        ) {
-            Button("Удалить тег", role: .destructive, action: performDelete)
-            Button("Отмена", role: .cancel) {}
-        } message: {
-            Text("«\(pendingDeletion?.name ?? "")» пропадёт со всех дней, где он был проставлен.")
-        }
     }
 
     private func row(_ tag: UserTagRecord) -> some View {
@@ -104,6 +92,23 @@ struct TagsListView: View {
                 Label("Удалить", systemImage: "trash")
             }
             .tint(.red)
+        }
+        // On the row itself rather than on the whole `List`, for the reason
+        // `NewTagSheetView.deleteSection` already gives: a `confirmationDialog` is a popover on
+        // iPad, anchored to the exact view carrying the modifier, so hanging it off the whole
+        // list pointed it at the list's own centre for every row instead of at the one being
+        // deleted. `pendingDeletion == tag` (not merely non-nil) is what keeps that anchor
+        // correct — every row's own copy of this modifier would otherwise open together the
+        // moment any one of them set `pendingDeletion`.
+        .confirmationDialog(
+            "Удалить тег?",
+            isPresented: deletionConfirmationPresented(for: tag),
+            titleVisibility: .visible
+        ) {
+            Button("Удалить тег", role: .destructive, action: performDelete)
+            Button("Отмена", role: .cancel) {}
+        } message: {
+            Text("«\(tag.name ?? "")» пропадёт со всех дней, где он был проставлен.")
         }
     }
 
@@ -149,9 +154,9 @@ struct TagsListView: View {
         )
     }
 
-    private var pendingDeletionPresented: Binding<Bool> {
+    private func deletionConfirmationPresented(for tag: UserTagRecord) -> Binding<Bool> {
         Binding(
-            get: { pendingDeletion != nil },
+            get: { pendingDeletion == tag },
             set: { isPresented in
                 guard !isPresented else { return }
                 pendingDeletion = nil
