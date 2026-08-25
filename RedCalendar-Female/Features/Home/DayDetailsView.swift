@@ -450,7 +450,9 @@ struct DayDetailsView: View {
     // difference in meaning.
     //
     // The height is not borrowed. At the bar's 22pt the box stops growing with Dynamic Type and
-    // a large accessibility size clips the title, so the button keeps sizing to its own text.
+    // a large accessibility size clips the title, so the button keeps sizing to its own text —
+    // and it is sized to match `TagChip`'s padding (12/6) rather than a button's, since it sits
+    // directly above the tags this same card draws below it.
     private func periodButtonRow(buttonState: PeriodButtonState) -> some View {
         let isStart = buttonState == .startOutline || buttonState == .startFilled
         let isFilled = buttonState == .startFilled || buttonState == .endFilled
@@ -465,8 +467,8 @@ struct DayDetailsView: View {
                 .font(.subheadline)
                 .fontWeight(.medium)
                 .foregroundColor(isFilled ? .white : store.state.accentTheme.predictedDayText)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 8)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
                 .background(
                     Group {
                         if isFilled {
