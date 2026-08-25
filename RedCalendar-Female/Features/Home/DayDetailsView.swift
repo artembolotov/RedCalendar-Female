@@ -288,11 +288,14 @@ struct DayDetailsView: View {
         let context = cycles.dayContext(for: dayStamp)
         let buttonState = periodButtonState(context: context)
 
+        let subtitle = cycleSubtitleText(context: context)
+        let periodActionValid = isPeriodActionValid(context: context, buttonState: buttonState)
+
         VStack(alignment: .leading, spacing: 0) {
-            header(subtitle: cycleSubtitleText(context: context))
-            if isPeriodActionValid(context: context, buttonState: buttonState) {
-                periodButtonRow(buttonState: buttonState)
-                    .padding(.top, 12)
+            header
+            if !subtitle.isEmpty || periodActionValid {
+                chipsRow(subtitle: subtitle, buttonState: buttonState, periodActionValid: periodActionValid)
+                    .padding(.top, 8)
             }
 
             VStack(alignment: .leading, spacing: 0) {
@@ -413,18 +416,11 @@ struct DayDetailsView: View {
 
     // MARK: - Header
 
-    private func header(subtitle: String) -> some View {
+    private var header: some View {
         HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(titleText)
-                    .font(.title)
-                    .fontWeight(.bold)
-                if !subtitle.isEmpty {
-                    Text(subtitle)
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                }
-            }
+            Text(titleText)
+                .font(.title)
+                .fontWeight(.bold)
 
             Spacer()
 
@@ -439,34 +435,54 @@ struct DayDetailsView: View {
         }
     }
 
-    // MARK: - Period button
+    // MARK: - Chips row
 
-    // The button is the calendar's period bar with a word in it, and it borrows the bar's whole
-    // vocabulary rather than approximating it: `periodBarCornerRadius` with `.continuous`
-    // corners, a solid accent fill where the day is recorded, and where it is not, the same
-    // hollow `predictedBarStrokeWidth` outline the grid draws a prediction with — down to the
-    // label taking `predictedDayText`, which is the colour of a numeral inside such an outline.
-    // The two shapes mark the same thing, so a difference between them would read as a
-    // difference in meaning.
-    //
-    // The height is not borrowed. At the bar's 22pt the box stops growing with Dynamic Type and
-    // a large accessibility size clips the title, so the button keeps sizing to its own text —
-    // and it is sized to match `TagChip`'s padding (12/6) rather than a button's, since it sits
-    // directly above the tags this same card draws below it.
-    private func periodButtonRow(buttonState: PeriodButtonState) -> some View {
+    // The cycle day and the period action used to be a subtitle followed by a full-width button
+    // underneath it — two different vocabularies for two facts about the same day. Both are now
+    // chips, in the row `TagsSheetView`'s tag row already draws below: the day card reads as one
+    // row of facts about the day, then another. The period chip leads when it's shown — it's the
+    // one actionable thing in the row, and the tappable element leading reads as the row's point
+    // rather than an afterthought tacked onto a plain fact. The cycle-day chip is neutral and
+    // inert — it states a number, it does nothing — so only the period chip needs a tap target.
+    private func chipsRow(subtitle: String, buttonState: PeriodButtonState, periodActionValid: Bool) -> some View {
+        HStack(spacing: 6) {
+            if periodActionValid {
+                periodChip(buttonState: buttonState)
+            }
+            if !subtitle.isEmpty {
+                cycleDayChip(subtitle)
+            }
+        }
+    }
+
+    private func cycleDayChip(_ text: String) -> some View {
+        Text(text)
+            .font(.subheadline)
+            .foregroundColor(.secondary)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(
+                RoundedRectangle(cornerRadius: TagChipMetrics.cornerRadius)
+                    .fill(Color(UIColor.tertiarySystemFill))
+            )
+    }
+
+    // Drawn in `TagChip`'s own vocabulary now — 8pt corner, 12/6 padding, outline text in the
+    // chip's own colour — rather than the calendar period bar's shape, since it sits in the same
+    // row as the cycle-day chip instead of standing alone as a CTA under the title. What still
+    // carries over unchanged is `PeriodButtonState`'s meaning: solid accent once a day is
+    // recorded, a hollow accent outline while the tap would still start or end one.
+    private func periodChip(buttonState: PeriodButtonState) -> some View {
         let isStart = buttonState == .startOutline || buttonState == .startFilled
         let isFilled = buttonState == .startFilled || buttonState == .endFilled
         let title = isStart ? "Начало месячных" : "Конец месячных"
-        let shape = RoundedRectangle(
-            cornerRadius: CalendarConstants.periodBarCornerRadius,
-            style: .continuous
-        )
+        let shape = RoundedRectangle(cornerRadius: TagChipMetrics.cornerRadius)
 
         return Button(action: handlePeriodButton) {
             Text(title)
                 .font(.subheadline)
                 .fontWeight(.medium)
-                .foregroundColor(isFilled ? .white : store.state.accentTheme.predictedDayText)
+                .foregroundColor(isFilled ? .white : accent)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
                 .background(
@@ -474,13 +490,10 @@ struct DayDetailsView: View {
                         if isFilled {
                             shape.fill(accent)
                         } else {
-                            // `strokeBorder`, as in the grid: the outline stays inside the box
-                            // rather than straddling its edge, so the filled and hollow states
-                            // occupy exactly the same footprint.
-                            shape.strokeBorder(
-                                accent,
-                                lineWidth: CalendarConstants.predictedBarStrokeWidth
-                            )
+                            // `strokeBorder`, as `TagChip` draws it: the outline stays inside the
+                            // box rather than straddling its edge, so the filled and hollow
+                            // states occupy exactly the same footprint.
+                            shape.strokeBorder(accent, lineWidth: TagChipMetrics.lineWidth)
                         }
                     }
                 )
