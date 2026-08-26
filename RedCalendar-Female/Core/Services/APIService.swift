@@ -11,7 +11,6 @@ import UIKit
 // MARK: - Protocol
 protocol APIServiceProtocol: Sendable {
     func migrateUser(userId: String) async throws -> MigrationResponse
-    func verifyDevice(deviceId: String) async throws -> VerificationResponse
     func updateAPNSToken(deviceId: String, apnsToken: String) async throws -> APNSTokenResponse
     func logout(deviceId: String) async throws -> LogoutResponse
     func checkEmail(_ email: String) async throws -> CheckEmailResponse
@@ -90,24 +89,6 @@ struct MigrationResponse: Codable {
         enum CodingKeys: String, CodingKey {
             case deviceId = "device_id"
             case userId = "user_id"
-        }
-    }
-}
-
-struct VerificationResponse: Codable {
-    let success: Bool
-    let data: VerificationData?
-    let timestamp: String
-    
-    struct VerificationData: Codable {
-        let userId: String
-        let deviceId: String
-        let lastVisitAt: String
-        
-        enum CodingKeys: String, CodingKey {
-            case userId = "user_id"
-            case deviceId = "device_id"
-            case lastVisitAt = "last_visit_at"
         }
     }
 }
@@ -283,21 +264,6 @@ final class APIService: APIServiceProtocol, Sendable {
         try validateHTTPResponse(response, data: data)
         
         return try JSONDecoder().decode(MigrationResponse.self, from: data)
-    }
-    
-    /// Verifies device authentication
-    func verifyDevice(deviceId: String) async throws -> VerificationResponse {
-        let url = URL(string: "\(baseURL)/auth/verify")!
-        
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
-        request.setValue("Bearer \(deviceId)", forHTTPHeaderField: "Authorization")
-        
-        let (data, response) = try await performRequest(request)
-        
-        try validateHTTPResponse(response, data: data)
-        
-        return try JSONDecoder().decode(VerificationResponse.self, from: data)
     }
     
     /// Updates APNS token for push notifications
