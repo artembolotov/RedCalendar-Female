@@ -165,10 +165,7 @@ struct HomeView: View {
         .environmentObject(
             AppStore(
                 initialState: AppState(
-                    authState: .authenticated(
-                        deviceId: "B7DDU4pUigTiAhpNDWnQW83tGQ6R",
-                        userDetails: nil
-                    )
+                    authState: .authenticated(deviceId: "B7DDU4pUigTiAhpNDWnQW83tGQ6R")
                 ),
                 reducer: appReducer,
                 middlewares: []

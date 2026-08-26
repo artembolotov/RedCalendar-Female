@@ -199,7 +199,7 @@ private struct TagListSection: Identifiable {
             .environmentObject(
                 AppStore(
                     initialState: AppState(
-                        authState: .authenticated(deviceId: "test", userDetails: nil),
+                        authState: .authenticated(deviceId: "test"),
                         calendarState: CalendarState(
                             userTags: [
                                 UserTagRecord(id: "1", name: "Головная боль", category: 0),
@@ -224,7 +224,7 @@ private struct TagListSection: Identifiable {
             .environmentObject(
                 AppStore(
                     initialState: AppState(
-                        authState: .authenticated(deviceId: "test", userDetails: nil)
+                        authState: .authenticated(deviceId: "test")
                     ),
                     reducer: appReducer,
                     middlewares: []

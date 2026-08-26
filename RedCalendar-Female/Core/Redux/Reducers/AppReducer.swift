@@ -25,13 +25,6 @@ func appReducer(state: AppState, action: AppAction) -> AppState {
                 state.notifications.apnsToken = nil
                 state.calendarState = CalendarState()
             }
-            // Cycle settings ride along with the user details, so display states have to be
-            // rebuilt here too — otherwise settings changed on the server only take effect
-            // at the next unrelated cycle/tag/comment change. Only the authenticated case
-            // carries settings; the auth screens dispatch .authenticating on every step.
-            if case .authenticated = authState {
-                recomputeDayDisplayStates = true
-            }
 
         case .logout:
             break
@@ -78,6 +71,13 @@ func appReducer(state: AppState, action: AppAction) -> AppState {
 
         case .setLoadedRange(let range):
             state.calendarState.loadedRange = range
+            recomputeDayDisplayStates = true
+
+        // Cycle settings ride along with the profile, so display states have to be rebuilt
+        // here too — otherwise settings changed on another device only take effect at the next
+        // unrelated cycle/tag/comment change.
+        case .setUserProfile(let profile):
+            state.userProfile = profile
             recomputeDayDisplayStates = true
 
         // The write actions that also reduce, and it is a latency decision rather than a

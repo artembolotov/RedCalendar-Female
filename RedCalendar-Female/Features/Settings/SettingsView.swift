@@ -175,7 +175,7 @@ private struct DeveloperSectionView: View {
         .environmentObject(
             AppStore(
                 initialState: AppState(
-                    authState: .authenticated(deviceId: "test-device-id", userDetails: nil),
+                    authState: .authenticated(deviceId: "test-device-id"),
                     notifications: NotificationState(
                         apnsToken: APNSToken(value: "test-token", isSynced: true),
                         pushPermissionState: .authorized

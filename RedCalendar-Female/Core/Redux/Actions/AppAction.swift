@@ -61,6 +61,9 @@ enum DataAction: Sendable {
     case setVisibleDayTags([Daystamp: [String]])
     case setFlowLevels([Daystamp: Int])
     case setLoadedRange(ClosedRange<Daystamp>)
+    /// The `user_profile` row, or `nil` while the table is empty — today that's always, since
+    /// only a sync run (SYNC.md §12 item 8) ever writes it (§3.1).
+    case setUserProfile(UserDetails?)
 
     // Day editing
     case markPeriodStart(Daystamp)

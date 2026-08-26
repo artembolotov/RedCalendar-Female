@@ -19,6 +19,10 @@ struct AppState: Equatable, Sendable {
     // Seeded with the fallback rather than the stored value: the store is built before any
     // service is reachable, so `.checkAccentTheme` replaces this on launch.
     var accentTheme: AccentTheme = .fallback
+    // The one `user_profile` row (SYNC.md §3.1), observed independently of `authState` — it is
+    // sync's to fill, not login's (see `.data(.setUserProfile)`), so this stays `nil` until the
+    // first sync run lands (§12 item 8).
+    var userProfile: UserDetails?
 }
 
 extension AppState {
@@ -27,12 +31,9 @@ extension AppState {
     }
 
     var deviceId: String? {
-        guard case .authenticated(let id, _) = authState else { return nil }
+        guard case .authenticated(let id) = authState else { return nil }
         return id
     }
 
-    var currentUser: UserDetails? {
-        guard case .authenticated(_, let user) = authState else { return nil }
-        return user
-    }
+    var currentUser: UserDetails? { userProfile }
 }

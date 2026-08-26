@@ -113,7 +113,7 @@ struct CommentSheetView: View {
         .environmentObject(
             AppStore(
                 initialState: AppState(
-                    authState: .authenticated(deviceId: "test", userDetails: nil)
+                    authState: .authenticated(deviceId: "test")
                 ),
                 reducer: appReducer,
                 middlewares: []

@@ -7,7 +7,7 @@
 
 enum AuthState: Equatable {
     case notAuthenticated
-    case authenticated(deviceId: String, userDetails: UserDetails?)
+    case authenticated(deviceId: String)
     case migrating(userId: String, error: MigrationError? = nil)
     case authenticating(AuthenticationMethod)
 }

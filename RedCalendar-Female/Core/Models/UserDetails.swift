@@ -76,6 +76,17 @@ extension UserDetails {
         self.email = nil
         self.settings = nil
     }
+
+    /// From the local `user_profile` row (SYNC.md §3.1, §12 item 6). `nil` until the row has a
+    /// `user_id` — today that means the table is simply empty, since only a sync run (item 8)
+    /// ever writes it. `phoneNumber` has no home here yet: nothing reads it.
+    init?(_ record: UserProfileRecord) {
+        guard let userId = record.userId else { return nil }
+        let settings = record.settingsJSON
+            .flatMap { $0.data(using: .utf8) }
+            .flatMap { try? JSONDecoder().decode(UserSettings.self, from: $0) }
+        self.init(userId: userId, name: record.name, email: record.email, settings: settings)
+    }
 }
 
 // MARK: - API Response Helper (temporary type alias)

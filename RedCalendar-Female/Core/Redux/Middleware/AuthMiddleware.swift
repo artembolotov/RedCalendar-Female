@@ -22,7 +22,7 @@ let authMiddleware: Middleware = { state, action, dispatch in
     case .check:
         // Priority 1: Check for device_id (new system)
         if let deviceId = keychain.getDeviceID() {
-            dispatch(.auth(.set(.authenticated(deviceId: deviceId, userDetails: nil))))
+            dispatch(.auth(.set(.authenticated(deviceId: deviceId))))
             return
         }
 
@@ -80,10 +80,7 @@ let authMiddleware: Middleware = { state, action, dispatch in
                             keychain.saveDeviceID(data.deviceId)
                             keychain.deleteUserUID()
 
-                            dispatch(.auth(.set(.authenticated(
-                                deviceId: data.deviceId,
-                                userDetails: data.user
-                            ))))
+                            dispatch(.auth(.set(.authenticated(deviceId: data.deviceId))))
 
                         } catch {
                             let authError = AuthenticationError.from(error)
@@ -171,10 +168,7 @@ let authMiddleware: Middleware = { state, action, dispatch in
                             keychain.deleteUserUID()
 
                             // Move to authenticated state
-                            dispatch(.auth(.set(.authenticated(
-                                deviceId: data.deviceId,
-                                userDetails: data.user
-                            ))))
+                            dispatch(.auth(.set(.authenticated(deviceId: data.deviceId))))
 
                         } catch {
                             // Verification failed - return to verification screen with error (not entry)
@@ -204,7 +198,7 @@ let authMiddleware: Middleware = { state, action, dispatch in
             keychain.deleteDeviceID()
         }
 
-        if case .authenticated(_, _) = authState {
+        if case .authenticated = authState {
             UIApplication.shared.registerForRemoteNotifications()
             if state.notifications.pushPermissionState == .notAsked {
                 // In its own `Task` rather than awaited here: this call puts the system
@@ -218,7 +212,7 @@ let authMiddleware: Middleware = { state, action, dispatch in
         }
 
     case .logout:
-        if case .authenticated(let deviceId, _) = state.authState {
+        if case .authenticated(let deviceId) = state.authState {
             Task {
                 do {
                     let _ = try await apiService.logout(deviceId: deviceId)

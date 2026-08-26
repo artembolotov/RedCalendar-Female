@@ -48,10 +48,7 @@ let migrationMiddleware: Middleware = { state, action, dispatch in
                     
                     keychain.deleteUserUID()
                     
-                    dispatch(.auth(.set(.authenticated(
-                        deviceId: data.deviceId,
-                        userDetails: nil
-                    ))))
+                    dispatch(.auth(.set(.authenticated(deviceId: data.deviceId))))
                 } catch {
                     AppLogger.error("Migration failed", error: error)
                     // Not `AuthenticationError.from` — its `.unknownError` drops the message it

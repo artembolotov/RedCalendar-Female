@@ -19,7 +19,7 @@ let pushNotificationMiddleware: Middleware = { state, action, dispatch in
         switch pushAction {
 
         case .setAPNSToken(let token):
-            if case .authenticated(let deviceId, _) = state.authState, token.isSynced == false {
+            if case .authenticated(let deviceId) = state.authState, token.isSynced == false {
                 Task {
                     do {
                         let _ = try await apiService.updateAPNSToken(deviceId: deviceId, apnsToken: token.value)

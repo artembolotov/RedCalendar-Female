@@ -51,4 +51,7 @@ protocol DatabaseServiceProtocol: Sendable {
         in range: ClosedRange<Daystamp>,
         onChange: @escaping @MainActor @Sendable ([DayTagsRecord]) -> Void
     ) -> AnyDatabaseCancellable
+
+    @MainActor
+    func observeUserProfile(onChange: @escaping @MainActor @Sendable (UserProfileRecord?) -> Void) -> AnyDatabaseCancellable
 }

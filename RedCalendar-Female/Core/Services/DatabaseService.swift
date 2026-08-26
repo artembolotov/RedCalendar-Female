@@ -331,4 +331,21 @@ final class DatabaseService: DatabaseServiceProtocol {
             onChange: onChange
         )
     }
+
+    /// Whole, like the two permanent observations above rather than the three ranged ones: it's
+    /// a singleton row, not something a viewport windows.
+    @MainActor
+    func observeUserProfile(onChange: @escaping @MainActor @Sendable (UserProfileRecord?) -> Void) -> AnyDatabaseCancellable {
+        let observation = ValueObservation.tracking { db in
+            try UserProfileRecord.fetchOne(db)
+        }.removeDuplicates()
+
+        return observation.start(
+            in: dbQueue,
+            onError: { error in
+                AppLogger.error("UserProfile observation failed", error: error)
+            },
+            onChange: onChange
+        )
+    }
 }

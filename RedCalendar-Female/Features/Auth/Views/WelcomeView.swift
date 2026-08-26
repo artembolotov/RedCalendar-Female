@@ -37,7 +37,7 @@ struct WelcomeView: View {
         }
         
         switch authState {
-        case .authenticated(_, _), .notAuthenticated, .migrating(_, _):
+        case .authenticated, .notAuthenticated, .migrating(_, _):
             return false
        
         case .authenticating(_):

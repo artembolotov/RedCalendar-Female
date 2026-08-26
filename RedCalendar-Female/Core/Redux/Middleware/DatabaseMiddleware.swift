@@ -38,6 +38,7 @@ final class DatabaseMiddleware {
     private var commentsToken: AnyDatabaseCancellable?
     private var dayTagsToken: AnyDatabaseCancellable?
     private var flowLevelsToken: AnyDatabaseCancellable?
+    private var profileToken: AnyDatabaseCancellable?
 
     /// The range the three range observations are currently subscribed to.
     ///
@@ -62,7 +63,8 @@ final class DatabaseMiddleware {
 
         case .auth(.set(let authState)):
             if case .authenticated = authState {
-                // userDetails updates re-dispatch .authenticated — don't recreate observations
+                // Guards against starting a second, leaked set of observations if `.authenticated`
+                // is ever dispatched twice in a row — nothing does today, but nothing enforces it.
                 guard !observationsActive else { break }
                 startPermanentObservations(dispatch: dispatch)
                 startRangeObservations(for: state.calendarState.loadedRange, dispatch: dispatch)
@@ -140,7 +142,7 @@ final class DatabaseMiddleware {
 
             // Values this middleware produced, on their way to the reducer.
             case .setCycles, .setUserTags, .setVisibleComments, .setVisibleDayTags,
-                 .setFlowLevels, .setLoadedRange:
+                 .setFlowLevels, .setLoadedRange, .setUserProfile:
                 break
 
             // A UI signal with nothing to write — `FeedbackMiddleware` is what reacts to it.
@@ -166,6 +168,9 @@ final class DatabaseMiddleware {
         }
         userTagsToken = service.observeUserTags { records in
             dispatch(.data(.setUserTags(records)))
+        }
+        profileToken = service.observeUserProfile { record in
+            dispatch(.data(.setUserProfile(record.flatMap(UserDetails.init))))
         }
     }
 
@@ -231,12 +236,14 @@ final class DatabaseMiddleware {
         commentsToken?.cancel()
         dayTagsToken?.cancel()
         flowLevelsToken?.cancel()
+        profileToken?.cancel()
 
         cyclesToken = nil
         userTagsToken = nil
         commentsToken = nil
         dayTagsToken = nil
         flowLevelsToken = nil
+        profileToken = nil
         observedRange = nil
     }
 

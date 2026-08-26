@@ -747,7 +747,7 @@ struct DayDetailsView: View {
     .environmentObject(
         AppStore(
             initialState: AppState(
-                authState: .authenticated(deviceId: "test", userDetails: nil),
+                authState: .authenticated(deviceId: "test"),
                 calendarState: CalendarState(selectedDayStamp: Daystamp(rawValue: 100))
             ),
             reducer: appReducer,
