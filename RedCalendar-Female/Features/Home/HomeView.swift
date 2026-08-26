@@ -95,6 +95,12 @@ struct HomeView: View {
                     .ignoresSafeArea(edges: [.top, .bottom])
                     .navigationBarTitleDisplayMode(.inline)
                     .toolbar {
+                        ToolbarItem(placement: .navigationBarLeading) {
+                            SyncIndicatorView(
+                                syncState: store.state.syncState,
+                                accent: store.state.accentTheme.accent
+                            )
+                        }
                         ToolbarItem(placement: .navigationBarTrailing) {
                             HomeMenuView(accent: store.state.accentTheme.accent)
                         }
