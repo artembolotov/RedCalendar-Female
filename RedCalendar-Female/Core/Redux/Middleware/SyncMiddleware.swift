@@ -352,7 +352,7 @@ final class SyncMiddleware {
             // off like the rest and says so in the indicator.
             AppLogger.error("Sync run failed (\(reason.rawValue))", error: error)
             scheduleRetry(after: nextBackoff())
-            sink?(.sync(.setState(.failed)))
+            sink?(.sync(.setState(.failed(.syncRun))))
             return .failed
         }
     }

@@ -44,7 +44,7 @@ struct SyncIndicatorView: View {
             }
             .accessibilityLabel("Есть несохранённые данные")
 
-        case .failed:
+        case .failed(let origin):
             Button {
                 explanationPresented = true
             } label: {
@@ -56,7 +56,7 @@ struct SyncIndicatorView: View {
             .accessibilityLabel("Не удалось синхронизировать данные")
             .accessibilityHint("Нажмите, чтобы узнать больше")
             .popover(isPresented: $explanationPresented) {
-                explanation
+                explanation(for: origin)
             }
         }
     }
@@ -78,12 +78,26 @@ struct SyncIndicatorView: View {
         }
     }
 
-    // A popover rather than an alert: a retry is already scheduled on its own (§5.7), so this is
-    // something to look at, not something that needs answering.
-    private var explanation: some View {
-        Text("Не получилось синхронизировать данные. Приложение попробует ещё раз позже.")
+    // A popover rather than an alert: in neither case is there a decision to make, so this is
+    // something to look at rather than something that needs answering.
+    //
+    // Two texts, because only one of the two failures retries by itself. A failed run has its
+    // retry already scheduled by `handleFailure` (§5.7); a failed import has nothing scheduled —
+    // the poll follows `running`, and the server re-claims the import at the next sign-in
+    // (§10.4). Promising "later" there would promise what no one is going to do.
+    private func explanation(for origin: SyncState.FailureOrigin) -> some View {
+        Text(explanationText(for: origin))
             .padding()
             .frame(maxWidth: 260)
+    }
+
+    private func explanationText(for origin: SyncState.FailureOrigin) -> String {
+        switch origin {
+        case .syncRun:
+            "Не получилось синхронизировать данные. Приложение попробует ещё раз позже."
+        case .firebaseImport:
+            "Не получилось перенести данные из старого приложения. Попытка повторится при следующем входе."
+        }
     }
 }
 
@@ -93,7 +107,7 @@ struct SyncIndicatorView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    SyncIndicatorView(syncState: .failed, accent: .accentColor)
+                    SyncIndicatorView(syncState: .failed(.firebaseImport), accent: .accentColor)
                 }
             }
     }

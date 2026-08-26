@@ -18,7 +18,25 @@ enum SyncState: Equatable, Sendable {
     case idle
     case syncing
     case pending
-    case failed
+    case failed(FailureOrigin)
+
+    /// Which of the two failures §9 draws identically and explains differently. It changes no
+    /// glyph and adds no row to that table — the popover's text is its only reader.
+    ///
+    /// The distinction has to be carried rather than derived, because only the middleware knows
+    /// it: a `.syncRun` failure comes out of `handleFailure`, a `.firebaseImport` one out of the
+    /// cached `import_status`, and the view sees neither.
+    enum FailureOrigin: Equatable, Sendable {
+        /// A run that failed for good (§5.7). A retry is already scheduled, so the explanation
+        /// may promise one.
+        case syncRun
+
+        /// `import_status: failed` (§10.4). Nothing here schedules anything: the client polls
+        /// only while the import is `running`, and the server re-claims a `failed` import at the
+        /// next authentication and nowhere else. The explanation must not promise a retry that
+        /// no one will perform.
+        case firebaseImport
+    }
 }
 
 extension SyncState {
@@ -33,7 +51,7 @@ extension SyncState {
     init(afterImport status: String?) {
         switch status {
         case "running": self = .syncing
-        case "failed": self = .failed
+        case "failed": self = .failed(.firebaseImport)
         default: self = .idle
         }
     }
