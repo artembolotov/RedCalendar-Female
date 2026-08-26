@@ -30,53 +30,59 @@ struct SyncIndicatorView: View {
     private let fallbackDiameter: CGFloat = 36
 
     var body: some View {
-        Group {
-            switch displayedState {
-            case .idle:
-                // Nothing at all — not even the backing circle. There is nothing to send and
-                // nothing in flight, and an empty leading slot is what keeps the inline, textless
-                // title from shifting when this appears and disappears.
-                EmptyView()
-
-            case .syncing:
-                badge {
-                    ProgressView()
-                        .tint(accent)
-                }
-                .accessibilityLabel("Синхронизация")
-
-            case .pending:
-                badge {
-                    Image(systemName: "arrow.triangle.2.circlepath")
-                        .foregroundStyle(accent)
-                }
-                .accessibilityLabel("Есть несохранённые данные")
-
-            case .failed(let origin):
-                Button {
-                    explanationPresented = true
-                } label: {
-                    badge {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .symbolRenderingMode(.multicolor)
-                    }
-                }
-                .accessibilityLabel("Не удалось синхронизировать данные")
-                .accessibilityHint("Нажмите, чтобы узнать больше")
-                .popover(isPresented: $explanationPresented) {
-                    explanation(for: origin)
-                }
-            }
+        badge {
+            icon
         }
-        // The switch's cases are different view types, so this is what actually gets the
-        // crossfade — SwiftUI's default insertion/removal transition is `.opacity`, and this is
-        // the animation that applies to it. Keyed on `displayedState`, never `syncState`: the
-        // gate below is what decides *whether* a change reaches here, this only decides how it
-        // looks once it does.
+        // Fixed regardless of state, on both sides of the `#available` branch inside `badge` —
+        // that is what makes the fade below real. A `UIBarButtonItem`'s hosted content does not
+        // animate a *size* change; SwiftUI's own transaction reaches it, but the bar just
+        // re-lays-out in one frame. `.idle` used to be a literal `EmptyView()` at zero size next
+        // to a 36pt badge, which is exactly that case. Holding the frame constant and animating
+        // `.opacity` instead is the standard workaround, because that one SwiftUI *can* interpolate
+        // without asking the bar to re-layout.
+        .frame(width: fallbackDiameter, height: fallbackDiameter)
+        .opacity(displayedState == .idle ? 0 : 1)
+        .allowsHitTesting(displayedState != .idle)
+        // The frame is reserved at `.idle` for the fade above to work, but there is nothing to
+        // land on — VoiceOver must not stop on an empty circle.
+        .accessibilityHidden(displayedState == .idle)
         .animation(.easeInOut(duration: 0.2), value: displayedState)
         .onChange(of: syncState) { newValue in reconcile(to: newValue) }
         .onAppear { reconcile(to: syncState) }
         .onDisappear { appearTask?.cancel() }
+    }
+
+    @ViewBuilder
+    private var icon: some View {
+        switch displayedState {
+        case .idle:
+            // The `.opacity` above already hides this; kept empty rather than the last real
+            // glyph so nothing lingers wrongly labelled underneath a hidden frame.
+            EmptyView()
+
+        case .syncing:
+            ProgressView()
+                .tint(accent)
+                .accessibilityLabel("Синхронизация")
+
+        case .pending:
+            Image(systemName: "arrow.triangle.2.circlepath")
+                .foregroundStyle(accent)
+                .accessibilityLabel("Есть несохранённые данные")
+
+        case .failed(let origin):
+            Button {
+                explanationPresented = true
+            } label: {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .symbolRenderingMode(.multicolor)
+            }
+            .accessibilityLabel("Не удалось синхронизировать данные")
+            .accessibilityHint("Нажмите, чтобы узнать больше")
+            .popover(isPresented: $explanationPresented) {
+                explanation(for: origin)
+            }
+        }
     }
 
     // MARK: - Private Methods
