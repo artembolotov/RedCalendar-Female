@@ -8,8 +8,10 @@
 import Foundation
 
 // Main-actor isolated because it constructs `TapticFeedbackService`, which owns UIKit
-// feedback generators. `setup()` is called from `RedCalendarApp.init()`, which is already
-// on the main actor, so this annotation has no ripple beyond this file.
+// feedback generators. `setup()` is called from `AppDelegate.didFinishLaunchingWithOptions`,
+// which is already on the main actor, so this annotation has no ripple beyond this file. It has
+// to be the first thing that method does: `AppStore.shared` resolves services as it is built,
+// and an unregistered one is a `fatalError` in `ServiceLocator`.
 @MainActor
 final class Configurator {
     static let shared = Configurator()

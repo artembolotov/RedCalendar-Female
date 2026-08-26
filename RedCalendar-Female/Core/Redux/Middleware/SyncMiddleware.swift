@@ -108,8 +108,14 @@ final class SyncMiddleware {
     /// Returns a `UIBackgroundFetchResult` because the background push handler of §8 needs one and
     /// `send` returns nothing. `.sync(.requested)` leads here too: one implementation, two entry
     /// points, and the one that needs an answer gets it.
+    ///
+    /// `serverRevision` is the `r` a silent push carries (§7) — the revision the server had when
+    /// it sent it. A device already at or past it has nothing to fetch and says so without a
+    /// request, which is the whole reason APNs tolerates these pushes at all. It is compared
+    /// against the cursor read in the run's own first transaction rather than against one read
+    /// beforehand: a run may already be moving that cursor as the push lands.
     @discardableResult
-    func syncNow(reason: SyncReason) async -> UIBackgroundFetchResult {
+    func syncNow(reason: SyncReason, serverRevision: Int? = nil) async -> UIBackgroundFetchResult {
         guard !isRunning else {
             // Not "wait for the other one": the caller may be a push handler holding iOS's
             // completion handler open. Remembering the request is what keeps the edit that
@@ -170,6 +176,17 @@ final class SyncMiddleware {
                 // Step 1. Also the moment a grown `known_tables` resets the cursor, which is why
                 // it is re-read every round rather than once per run.
                 let local = try await dbService.prepareSyncState(knownTables: SyncTable.knownTables)
+
+                // Only on the first round, and only for the push path. Nothing has been pushed
+                // yet, so this is not "we are up to date" in general — it is "the change this
+                // push is about is already here". Local edits get their own trigger (§5.6).
+                if rounds == 1, let serverRevision, serverRevision <= local.cursor {
+                    AppLogger.info("Sync: push revision \(serverRevision) is not ahead of the cursor — nothing to do")
+                    // Explicit, because the `defer` above does not touch the indicator: it was set
+                    // `.syncing` a moment ago and nothing else on this path would take it down.
+                    sink?(.sync(.setState(.idle)))
+                    return .noData
+                }
 
                 // A run that starts from zero is a full resync however few rows it turns out to
                 // carry (§5.5), and the pause spans every page of it — hence the flag rather than

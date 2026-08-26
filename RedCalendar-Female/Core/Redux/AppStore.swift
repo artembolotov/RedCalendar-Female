@@ -143,3 +143,26 @@ final class AppStore: ObservableObject {
         }
     }
 }
+
+// MARK: - The App's Store
+
+extension AppStore {
+    /// The one store, owned by the process rather than by a scene (SYNC.md §8).
+    ///
+    /// It used to be a `@StateObject` initialiser expression in `RedCalendarApp`, which meant it
+    /// did not exist until `WindowGroup`'s closure ran. A background push launches the app with no
+    /// scene at all: the closure never ran, the autoclosure never evaluated, and the delegate's
+    /// store reference stayed `nil` — so `.auth(.check)` was never dispatched and the fetch
+    /// completion handler had nothing useful to report, which is what makes iOS throttle the
+    /// pushes.
+    ///
+    /// A `lazy static let`, like `ServiceLocator`, `Configurator` and `DatabaseMiddleware`. Lazy is
+    /// the load-bearing half: evaluating it calls `combineAppMiddlewares()`, and any service
+    /// resolved before `Configurator.shared.setup()` has registered it is a `fatalError`. Nothing
+    /// may touch this before that call — which is why `AppDelegate` makes it first.
+    static let shared = AppStore(
+        initialState: AppState(),
+        reducer: appReducer,
+        middlewares: combineAppMiddlewares()
+    )
+}

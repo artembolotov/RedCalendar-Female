@@ -12,15 +12,11 @@ struct RedCalendarApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @Environment(\.scenePhase) private var scenePhase
 
-    @StateObject private var store = AppStore(
-        initialState: AppState(),
-        reducer: appReducer,
-        middlewares: combineAppMiddlewares()
-    )
-
-    init() {
-        Configurator.shared.setup()
-    }
+    /// Observed, not owned: the store belongs to the process now (SYNC.md §8), and the scene is
+    /// only one of its readers. `@StateObject` over an already-built singleton keeps the
+    /// observation exactly as it was — including `.tint(store.state.accentTheme.accent)` in this
+    /// body, which a plain stored property would stop updating.
+    @StateObject private var store = AppStore.shared
 
     private func clearNotifications() {
         UIApplication.shared.applicationIconBadgeNumber = 0
@@ -35,12 +31,6 @@ struct RedCalendarApp: App {
                 // from here, so no view below needs its own `.tint`.
                 .tint(store.state.accentTheme.accent)
                 .environmentObject(store)
-                .onAppear {
-                    appDelegate.appStore = store
-                    store.send(.auth(.check))
-                    store.send(.analytics(.checkStatus))
-                    store.send(.appearance(.checkAccentTheme))
-                }
                 .onChange(of: scenePhase) { newPhase in
                     if newPhase == .active {
                         store.send(.calendar(.updateToday))
