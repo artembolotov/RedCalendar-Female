@@ -83,7 +83,17 @@ let authMiddleware: Middleware = { state, action, dispatch in
                             // database with the old device, or a clean one with the new (§6).
                             try await dbService.claimOwner(data.user.id)
 
-                            keychain.saveDeviceID(data.deviceId)
+                            // Checked, not fired and forgotten: a `device_id` that never
+                            // reached the keychain is a session that looks signed in and can
+                            // never sync. `SyncMiddleware` reads the id from the keychain rather
+                            // than from state (§8), so every run would exit at that guard before
+                            // it even sets `.syncing` — no request, no indicator, no complaint,
+                            // until the next launch drops the user on the welcome screen.
+                            // `MigrationMiddleware` has always treated this as fatal; these two
+                            // paths now agree with it.
+                            guard keychain.saveDeviceID(data.deviceId) else {
+                                throw AuthenticationError.deviceIdStorageFailed
+                            }
                             keychain.deleteUserUID()
 
                             dispatch(.auth(.set(.authenticated(deviceId: data.deviceId))))
@@ -172,8 +182,11 @@ let authMiddleware: Middleware = { state, action, dispatch in
                             // Owner check first, for the reason given on the email path above.
                             try await dbService.claimOwner(data.user.id)
 
-                            // Save device ID and clean up old Firebase user ID
-                            keychain.saveDeviceID(data.deviceId)
+                            // Checked rather than fired and forgotten, for the reason given on
+                            // the email path above.
+                            guard keychain.saveDeviceID(data.deviceId) else {
+                                throw AuthenticationError.deviceIdStorageFailed
+                            }
                             keychain.deleteUserUID()
 
                             // Move to authenticated state

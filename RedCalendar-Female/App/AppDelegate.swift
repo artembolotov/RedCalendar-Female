@@ -46,6 +46,11 @@ class AppDelegate: NSObject, UIApplicationDelegate {
     ///
     /// `syncNow` is called directly rather than through `.sync(.requested)`: `send` returns
     /// nothing, and iOS wants a `UIBackgroundFetchResult` here. Same implementation either way.
+    ///
+    /// The result is awaited even when a run is already in flight, in which case `syncNow` parks
+    /// this call until the run that actually serves it finishes (§8). What iOS is told here is
+    /// what it budgets future deliveries by, so the one answer worth avoiding is a `.noData` for
+    /// a push that did bring work.
     func application(
         _ application: UIApplication,
         didReceiveRemoteNotification userInfo: [AnyHashable: Any],

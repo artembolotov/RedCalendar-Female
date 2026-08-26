@@ -60,6 +60,14 @@ final class SyncMiddleware {
     private var importPollTask: Task<Void, Never>?
     private var importPoll: TimeInterval?
 
+    /// Push handlers parked on a run that was already going, each waiting for the run that will
+    /// actually serve its request. Keyed so that a waiter can be resumed by exactly one of the
+    /// two things that may claim it — the covering run, or its own budget running out — with the
+    /// removal from this dictionary being what decides which. Both do it on the main actor with
+    /// no `await` between taking and resuming, so a continuation cannot be resumed twice, and
+    /// every path out of a run empties it, so one cannot be left unresumed either.
+    private var resultWaiters: [UUID: CheckedContinuation<UIBackgroundFetchResult, Never>] = [:]
+
     private init() {}
 
     // MARK: - Handle
@@ -124,11 +132,19 @@ final class SyncMiddleware {
     @discardableResult
     func syncNow(reason: SyncReason, serverRevision: Int? = nil) async -> UIBackgroundFetchResult {
         guard !isRunning else {
-            // Not "wait for the other one": the caller may be a push handler holding iOS's
-            // completion handler open. Remembering the request is what keeps the edit that
-            // triggered it from being dropped.
+            // Remembered rather than dropped: an edit made in an unlucky second would otherwise
+            // wait for the next unrelated trigger, which in practice means until the app is
+            // backgrounded (§5.6).
             pendingRun = true
-            return .noData
+
+            // And the push handler waits for it. Its return value is not decoration — iOS
+            // budgets future deliveries by it — so a `.noData` for a push that did bring work is
+            // how a device teaches the system to stop waking it. Reporting on the run already in
+            // flight would be answering about a run that started before this revision existed;
+            // the honest answer belongs to the run this request is about to cause. Every other
+            // caller discards the result and must not be made to wait for it.
+            guard reason == .remoteNotification else { return .noData }
+            return await awaitCoveringRun()
         }
 
         // From the keychain, never from `state.deviceId`. The store reduces synchronously but
@@ -163,7 +179,22 @@ final class SyncMiddleware {
             }
             if pendingRun && epoch == sessionEpoch {
                 pendingRun = false
-                Task { await self.syncNow(reason: reason) }
+                // The waiters go with the request they were parked on: this next run is the one
+                // that covers them, so it is the one whose result they get.
+                let waiters = takeWaiters()
+                Task {
+                    let result = await self.syncNow(reason: reason)
+                    for waiter in waiters {
+                        waiter.resume(returning: result)
+                    }
+                }
+            } else {
+                // Nobody is going to run for them — the session ended under this run, or there
+                // was no pending request left to inherit them. An unresumed continuation here is
+                // a completion handler iOS never gets, so they are answered rather than dropped.
+                for waiter in takeWaiters() {
+                    waiter.resume(returning: .noData)
+                }
             }
         }
 
@@ -418,6 +449,37 @@ final class SyncMiddleware {
             // cancelled itself on its first `await` and reported the import as failed.
             self?.start(reason: .importPoll)
         }
+    }
+
+    /// Parks the caller until the run that covers its push finishes — or until the budget of §8
+    /// runs out, whichever comes first.
+    ///
+    /// The budget answers `.newData`, and that is a judgement rather than a shrug: the push named
+    /// a revision this device did not have, and the run fetching it is still going, so of the
+    /// three answers iOS accepts that is the one describing what is in fact arriving. `.noData`
+    /// would be the one lie that costs something — it is what the budget throttles on.
+    private func awaitCoveringRun() async -> UIBackgroundFetchResult {
+        let id = UUID()
+        let budget = Task {
+            try? await Task.sleep(nanoseconds: UInt64(Constants.Sync.pushResultBudget * 1_000_000_000))
+            guard !Task.isCancelled else { return }
+            self.resumeWaiter(id, with: .newData)
+        }
+        defer { budget.cancel() }
+
+        return await withCheckedContinuation { continuation in
+            resultWaiters[id] = continuation
+        }
+    }
+
+    private func resumeWaiter(_ id: UUID, with result: UIBackgroundFetchResult) {
+        resultWaiters.removeValue(forKey: id)?.resume(returning: result)
+    }
+
+    private func takeWaiters() -> [CheckedContinuation<UIBackgroundFetchResult, Never>] {
+        let waiters = Array(resultWaiters.values)
+        resultWaiters = [:]
+        return waiters
     }
 
     private func cancelImportPoll() {

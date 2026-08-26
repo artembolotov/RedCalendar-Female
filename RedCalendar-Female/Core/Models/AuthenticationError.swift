@@ -27,6 +27,7 @@ enum AuthenticationError: Error, LocalizedError, Equatable {
     
     // Registration errors
     case registrationFailed                       // Account creation failed
+    case deviceIdStorageFailed                    // Signed in, but device_id never reached the keychain
     case nameRequired                             // Name field is empty
     case emailVerificationFailed                  // Email verification failed
     
@@ -57,6 +58,8 @@ enum AuthenticationError: Error, LocalizedError, Equatable {
             return "Verification code has expired. Please request a new one."
         case .verificationCodeLimitExceeded:
             return "Too many attempts. Please try again later."
+        case .deviceIdStorageFailed:
+            return "Could not complete sign-in on this device. Please try again."
         case .registrationFailed:
             return "Failed to create account. Please try again."
         case .nameRequired:
@@ -76,6 +79,12 @@ enum AuthenticationError: Error, LocalizedError, Equatable {
 extension AuthenticationError {
     static func from(_ error: Error) -> AuthenticationError {
         switch error {
+        // Already one of ours — thrown by a sign-in path that failed on something other than the
+        // network. Passing it through keeps its case; the `default` below would flatten it into
+        // `.unknownError` and lose everything but the string.
+        case let authError as AuthenticationError:
+            return authError
+
         case APIServiceError.serverError(let message):
             return .serverError(message)
         case APIServiceError.rateLimited(_, let message):

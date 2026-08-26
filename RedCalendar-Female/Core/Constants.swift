@@ -55,6 +55,11 @@ struct Constants {
         static let minBackoff: TimeInterval = 2
         static let maxBackoff: TimeInterval = 60
 
+        /// How long the silent-push handler waits for the run that covers its push before it
+        /// answers iOS anyway (§8). Under the ~30 s a background delivery is given, with room
+        /// left for the handler itself: the point is to answer truthfully *and* to answer.
+        static let pushResultBudget: TimeInterval = 20
+
         /// A run follows `has_more` — and a wipe, and a `full_resync_required` — around this loop
         /// at most this many times before giving up until the next trigger. At the documented
         /// page size of 1000 rows against an observed maximum of ~260 per user, a second page is

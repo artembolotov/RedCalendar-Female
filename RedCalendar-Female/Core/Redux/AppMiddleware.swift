@@ -11,7 +11,11 @@ func combineAppMiddlewares() -> [Middleware] {
         loggerMiddleware,
         authMiddleware,
         migrationMiddleware,
-        pushNotificationMiddleware,
+        // A closure literal for the same reason the two below are: `handle` is a main-actor
+        // method on a main-actor singleton, and a partial application of it is not `@Sendable`.
+        { state, action, dispatch in
+            await PushNotificationsMiddleware.shared.handle(state: state, action: action, dispatch: dispatch)
+        },
         analyticsMiddleware,
         appearanceMiddleware,
         feedbackMiddleware,
