@@ -20,3 +20,21 @@ enum SyncState: Equatable, Sendable {
     case pending
     case failed
 }
+
+extension SyncState {
+    /// The two rows of §9's table the Firebase import owns (§10.4): a run that ends while the
+    /// server is still importing stays `.syncing` instead of dropping to an idle indicator over
+    /// an empty calendar, and an import that failed is a warning rather than "there is nothing".
+    ///
+    /// The status stays a `String` on the wire and in `sync_state` — a value this build does not
+    /// know has to survive the round trip rather than be rewritten to one it does — so it is
+    /// interpreted here and nowhere else. Anything unrecognised, `done` and `nil` included, is
+    /// `.idle`: the run itself succeeded, and that is all the indicator has left to say.
+    init(afterImport status: String?) {
+        switch status {
+        case "running": self = .syncing
+        case "failed": self = .failed
+        default: self = .idle
+        }
+    }
+}

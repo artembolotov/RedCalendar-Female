@@ -158,6 +158,11 @@ final class SyncMiddleware {
 
         do {
             var rounds = 0
+            // The import status as of the last round that named one (§10.4). A response may omit
+            // it and `applySync` coalesces rather than clears, so the last named value is still
+            // the current one — which is why this is carried across rounds rather than read off
+            // the final response.
+            var importStatus: String?
             while true {
                 rounds += 1
                 guard rounds <= Constants.Sync.maxRoundsPerRun else {
@@ -176,6 +181,7 @@ final class SyncMiddleware {
                 // Step 1. Also the moment a grown `known_tables` resets the cursor, which is why
                 // it is re-read every round rather than once per run.
                 let local = try await dbService.prepareSyncState(knownTables: SyncTable.knownTables)
+                importStatus = local.importStatus
 
                 // Only on the first round, and only for the push path. Nothing has been pushed
                 // yet, so this is not "we are up to date" in general — it is "the change this
@@ -184,7 +190,7 @@ final class SyncMiddleware {
                     AppLogger.info("Sync: push revision \(serverRevision) is not ahead of the cursor — nothing to do")
                     // Explicit, because the `defer` above does not touch the indicator: it was set
                     // `.syncing` a moment ago and nothing else on this path would take it down.
-                    sink?(.sync(.setState(.idle)))
+                    sink?(.sync(.setState(SyncState(afterImport: importStatus))))
                     return .noData
                 }
 
@@ -249,6 +255,10 @@ final class SyncMiddleware {
                     )
                 )
 
+                if let status = response.importStatus {
+                    importStatus = status
+                }
+
                 if !(response.changes?.isEmpty ?? true) || !response.rejected.isEmpty {
                     appliedAnything = true
                 }
@@ -263,7 +273,7 @@ final class SyncMiddleware {
             backoff = nil
             retryTask?.cancel()
             retryTask = nil
-            sink?(.sync(.setState(.idle)))
+            sink?(.sync(.setState(SyncState(afterImport: importStatus))))
             return appliedAnything ? .newData : .noData
 
         } catch {
