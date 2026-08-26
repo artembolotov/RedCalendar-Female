@@ -78,6 +78,10 @@ extension AuthenticationError {
         switch error {
         case APIServiceError.serverError(let message):
             return .serverError(message)
+        case APIServiceError.rateLimited(_, let message):
+            return .serverError(message ?? "Too many requests. Please try again later.")
+        case APIServiceError.serverUnavailable(let status, let message):
+            return .serverError(message ?? "Server unavailable (HTTP \(status)).")
         case APIServiceError.networkError(let networkError):
             return .networkError(networkError.localizedDescription)
         default:

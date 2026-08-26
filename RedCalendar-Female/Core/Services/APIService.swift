@@ -215,7 +215,9 @@ enum APIServiceError: Error, LocalizedError {
     case networkError(Error)
     case unauthorized
     case phoneNotAllowed(String) // New error type for phone authentication
-    
+    case rateLimited(retryAfter: TimeInterval?, message: String?)   // 429
+    case serverUnavailable(status: Int, message: String?)           // 5xx
+
     var errorDescription: String? {
         switch self {
         case .invalidURL:
@@ -234,6 +236,10 @@ enum APIServiceError: Error, LocalizedError {
             return "User not authorized"
         case .phoneNotAllowed(let message):
             return message
+        case .rateLimited(_, let message):
+            return message ?? "Too many requests. Please try again later."
+        case .serverUnavailable(let status, let message):
+            return message ?? "Server unavailable (HTTP \(status))."
         }
     }
 }
@@ -476,9 +482,20 @@ final class APIService: APIServiceProtocol, Sendable {
             AppLogger.warn("API returned 401 Unauthorized - user needs re-authentication")
             throw APIServiceError.unauthorized
         }
-        
+
+        let errorResponse = try? JSONDecoder().decode(APIError.self, from: data)
+
+        if httpResponse.statusCode == 429 {
+            let retryAfter = httpResponse.value(forHTTPHeaderField: "Retry-After").flatMap(TimeInterval.init)
+            throw APIServiceError.rateLimited(retryAfter: retryAfter, message: errorResponse?.message ?? errorResponse?.error)
+        }
+
+        if httpResponse.statusCode >= 500 {
+            throw APIServiceError.serverUnavailable(status: httpResponse.statusCode, message: errorResponse?.message ?? errorResponse?.error)
+        }
+
         if httpResponse.statusCode >= 400 {
-            if let errorResponse = try? JSONDecoder().decode(APIError.self, from: data) {
+            if let errorResponse {
                 // Use localized message from server if available, otherwise fall back to error code
                 let errorMessage = errorResponse.message ?? errorResponse.error
                 throw APIServiceError.serverError(errorMessage)
