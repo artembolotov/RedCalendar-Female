@@ -229,6 +229,243 @@ final class DatabaseService: DatabaseServiceProtocol {
         return seq
     }
 
+    // MARK: - Sync
+
+    // The four transactions of SYNC.md §5.1. Each is whole because the run between them lives on
+    // the main actor and gives it up at every `await`: a step split in two is a window for a
+    // local edit to land in, and every one of those windows loses a row without saying so.
+
+    func prepareSyncState(knownTables: Set<String>) async throws -> LocalSyncState {
+        try await dbQueue.write { db in
+            guard let row = try Row.fetchOne(
+                db,
+                sql: "SELECT user_id, cursor, import_status, known_tables FROM sync_state WHERE id = 1"
+            ) else {
+                throw DatabaseError(message: "sync_state row is missing — the v3 migration did not run")
+            }
+
+            let userId: String? = row["user_id"]
+            var cursor: Int = row["cursor"]
+            let importStatus: String? = row["import_status"]
+            let storedJSON: String = row["known_tables"]
+            let stored = Set(
+                (try? JSONDecoder().decode([String].self, from: Data(storedJSON.utf8))) ?? []
+            )
+
+            // Wider in code than in the row means this build understands a table the one that
+            // wrote the row did not — and that table's rows are all below the stored cursor,
+            // where they would stay forever (§4.6). A full resync is idempotent, so the fix is
+            // one extra pass per upgrade. A *narrower* code set is a downgrade and rewrites
+            // nothing: overwrite the row here and re-upgrading would no longer notice anything.
+            if !knownTables.subtracting(stored).isEmpty {
+                cursor = 0
+                let encoded = try String(
+                    data: JSONEncoder().encode(knownTables.sorted()),
+                    encoding: .utf8
+                ) ?? storedJSON
+                try db.execute(
+                    sql: "UPDATE sync_state SET cursor = 0, known_tables = ? WHERE id = 1",
+                    arguments: [encoded]
+                )
+                AppLogger.info("Sync: known_tables grew — full resync ordered")
+            }
+
+            return LocalSyncState(userId: userId, cursor: cursor, importStatus: importStatus)
+        }
+    }
+
+    func fetchDirty() async throws -> DirtyBatch {
+        try await dbQueue.read { db in
+            var batch = DirtyBatch()
+            batch.cycles = try CycleRecord.filter(CycleRecord.Columns.dirtySeq != nil).fetchAll(db)
+            batch.flowLevels = try FlowLevelRecord.filter(FlowLevelRecord.Columns.dirtySeq != nil).fetchAll(db)
+            batch.comments = try CommentRecord.filter(CommentRecord.Columns.dirtySeq != nil).fetchAll(db)
+            batch.userTags = try UserTagRecord.filter(UserTagRecord.Columns.dirtySeq != nil).fetchAll(db)
+            batch.dayTags = try DayTagsRecord.filter(DayTagsRecord.Columns.dirtySeq != nil).fetchAll(db)
+            batch.profile = try UserProfileRecord.filter(UserProfileRecord.Columns.dirtySeq != nil).fetchOne(db)
+
+            // Over the rows just read, inside the same transaction that read them — never a
+            // separate `SELECT MAX(dirty_seq)`. A write landing between the two would be counted
+            // as sent and have its flag cleared on the way back, which is the exact loss the
+            // column exists to prevent (§5.4).
+            let generations = batch.cycles.compactMap(\.dirtySeq)
+                + batch.flowLevels.compactMap(\.dirtySeq)
+                + batch.comments.compactMap(\.dirtySeq)
+                + batch.userTags.compactMap(\.dirtySeq)
+                + batch.dayTags.compactMap(\.dirtySeq)
+                + [batch.profile?.dirtySeq].compactMap { $0 }
+            batch.sentMax = generations.max()
+
+            return batch
+        }
+    }
+
+    func applySync(_ application: SyncApplication) async throws {
+        try await dbQueue.write { db in
+            // 7.1 — pulled rows, skipping every key that has a local edit waiting. Nothing is
+            // lost by the skip: that edit goes out on the next round and wins there, because push
+            // runs before pull. A key with no local row cannot be dirty, so it always applies.
+            if let changes = application.changes {
+                try Self.applyPulled(changes, userId: application.userId, db: db)
+            }
+
+            // 7.2 — clear what the server accepted, and only up to the generation this run
+            // actually sent. An edit made while the request was in flight carries a higher one
+            // and survives. Skipped entirely when nothing was sent: `sentMax` is nil then, and
+            // "clear every flag" would declare the whole backfilled history pushed (§5.1).
+            if let sentMax = application.sentMax {
+                for table in Self.syncedTables {
+                    try db.execute(
+                        sql: "UPDATE \(table) SET dirty_seq = NULL WHERE dirty_seq <= ?",
+                        arguments: [sentMax]
+                    )
+                }
+            }
+
+            // 7.3 — the server's word on rows it refused, applied last and unconditionally. This
+            // is the one place a local edit is overwritten while still dirty: the server has
+            // already said it will not take that row, and it will not take a second copy of it
+            // either (§5.1).
+            for rejection in application.rejected {
+                try Self.applyRejection(rejection, userId: application.userId, db: db)
+            }
+
+            // 7.4 — the cursor moves only here, inside the transaction that applied the page.
+            // `user_id` is claimed only if the row has none: a mismatch is handled a step earlier,
+            // by wiping (§5.1 step 5), and must not be quietly overwritten here.
+            try db.execute(
+                sql: """
+                    UPDATE sync_state
+                       SET cursor = ?,
+                           user_id = COALESCE(user_id, ?),
+                           import_status = COALESCE(?, import_status)
+                     WHERE id = 1
+                    """,
+                arguments: [application.nextCursor, application.userId, application.importStatus]
+            )
+        }
+    }
+
+    func resetSyncCursor() async throws {
+        try await dbQueue.write { db in
+            try db.execute(sql: "UPDATE sync_state SET cursor = 0 WHERE id = 1")
+        }
+    }
+
+    func wipeAll(newOwner: String?) async throws {
+        try await dbQueue.write { db in
+            for table in Self.syncedTables {
+                try db.execute(sql: "DELETE FROM \(table)")
+            }
+            // `known_tables` is deliberately not touched — it describes this build, not this user.
+            try db.execute(
+                sql: """
+                    UPDATE sync_state
+                       SET user_id = ?, cursor = 0, local_seq = 0, import_status = NULL
+                     WHERE id = 1
+                    """,
+                arguments: [newOwner]
+            )
+        }
+        AppLogger.info("Local database wiped")
+    }
+
+    /// Everything a wipe empties and step 7.2 unflags. `sync_state` is not one of them: it is
+    /// reset rather than emptied, and it carries the flags' counter.
+    private static let syncedTables = [
+        "cycles", "flow_levels", "comments", "user_tags", "day_tags", "user_profile"
+    ]
+
+    private static func applyPulled(_ changes: SyncChangesPull, userId: String?, db: Database) throws {
+        let dirtyCycles = Set(try Int.fetchAll(db, sql: "SELECT start_day FROM cycles WHERE dirty_seq IS NOT NULL"))
+        for row in changes.cycles where !dirtyCycles.contains(row.startDay.rawValue) {
+            try row.record.upsert(db)
+        }
+
+        let dirtyFlow = Set(try Int.fetchAll(db, sql: "SELECT day_number FROM flow_levels WHERE dirty_seq IS NOT NULL"))
+        for row in changes.flowLevels where !dirtyFlow.contains(row.dayNumber.rawValue) {
+            try row.record.upsert(db)
+        }
+
+        let dirtyComments = Set(try Int.fetchAll(db, sql: "SELECT day_number FROM comments WHERE dirty_seq IS NOT NULL"))
+        for row in changes.comments where !dirtyComments.contains(row.dayNumber.rawValue) {
+            try row.record.upsert(db)
+        }
+
+        let dirtyUserTags = Set(try String.fetchAll(db, sql: "SELECT id FROM user_tags WHERE dirty_seq IS NOT NULL"))
+        for row in changes.userTags where !dirtyUserTags.contains(row.id) {
+            try row.record.upsert(db)
+        }
+
+        let dirtyDayTags = Set(try Int.fetchAll(db, sql: "SELECT day_number FROM day_tags WHERE dirty_seq IS NOT NULL"))
+        for row in changes.dayTags where !dirtyDayTags.contains(row.dayNumber.rawValue) {
+            try row.record.upsert(db)
+        }
+
+        if let profile = changes.profile,
+           try !Self.isProfileDirty(db) {
+            try profile.record(userId: userId ?? Self.profileOwner(db)).upsert(db)
+        }
+    }
+
+    private static func applyRejection(_ rejection: SyncRejection, userId: String?, db: Database) throws {
+        if let row = rejection.row {
+            switch row {
+            case .cycle(let value): try value.record.upsert(db)
+            case .flowLevel(let value): try value.record.upsert(db)
+            case .comment(let value): try value.record.upsert(db)
+            case .userTag(let value): try value.record.upsert(db)
+            case .dayTags(let value): try value.record.upsert(db)
+            case .profile(let value): try value.record(userId: userId ?? Self.profileOwner(db)).upsert(db)
+            }
+            return
+        }
+
+        // No authoritative row means the server has nothing under that key, so neither should we.
+        // This is the only physical delete outside a wipe (§3.3 says removals are tombstones) and
+        // it is not an exception to the rule so much as its endpoint: a row the server does not
+        // acknowledge has nobody left to tell.
+        guard let table = rejection.table else {
+            AppLogger.warn("Sync: a rejection names a table this build does not know")
+            return
+        }
+        switch table {
+        case .cycles:
+            if let key = rejection.key?.intValue {
+                try db.execute(sql: "DELETE FROM cycles WHERE start_day = ?", arguments: [key])
+            }
+        case .flowLevels:
+            if let key = rejection.key?.intValue {
+                try db.execute(sql: "DELETE FROM flow_levels WHERE day_number = ?", arguments: [key])
+            }
+        case .comments:
+            if let key = rejection.key?.intValue {
+                try db.execute(sql: "DELETE FROM comments WHERE day_number = ?", arguments: [key])
+            }
+        case .dayTags:
+            if let key = rejection.key?.intValue {
+                try db.execute(sql: "DELETE FROM day_tags WHERE day_number = ?", arguments: [key])
+            }
+        case .userTags:
+            if let key = rejection.key?.stringValue {
+                try db.execute(sql: "DELETE FROM user_tags WHERE id = ?", arguments: [key])
+            }
+        case .profile:
+            // The flag comes off, the row stays. It is a singleton carrying the owner's id, and
+            // deleting it to express "the server refused your name" would take the identity with
+            // it — and the identity is the server's own, not something we pushed.
+            try db.execute(sql: "UPDATE user_profile SET dirty_seq = NULL WHERE id = 1")
+        }
+    }
+
+    private static func isProfileDirty(_ db: Database) throws -> Bool {
+        try Bool.fetchOne(db, sql: "SELECT EXISTS(SELECT 1 FROM user_profile WHERE id = 1 AND dirty_seq IS NOT NULL)") ?? false
+    }
+
+    private static func profileOwner(_ db: Database) throws -> String? {
+        try String.fetchOne(db, sql: "SELECT user_id FROM user_profile WHERE id = 1")
+    }
+
     // MARK: - Observations
 
     // All five observations start on the main actor and deliver there: this is

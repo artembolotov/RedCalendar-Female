@@ -72,6 +72,28 @@ final class DatabaseMiddleware {
                 cancelAll()
             }
 
+        // Observed, not owned — the same way `MigrationMiddleware` watches one auth case. What
+        // this middleware contributes to a sync run is its tokens, and they stay its own: a full
+        // resync applies a whole history in one transaction per page, and every one of those
+        // wakes all six observations, each of which reloads its whole array into the store and
+        // recomputes the display states over the entire loaded range (SYNC.md §5.5).
+        case .sync(let syncAction):
+            switch syncAction {
+            case .beganFullResync:
+                cancelAll()
+
+            case .finishedFullResync:
+                // Guarded on both sides: `.auth(.set(.authenticated))` may have restarted them in
+                // between — a background launch can process it while a resync is already running
+                // — and a resync that failed after the user signed out must not bring them back.
+                guard state.isAuthenticated, !observationsActive else { break }
+                startPermanentObservations(dispatch: dispatch)
+                startRangeObservations(for: state.calendarState.loadedRange, dispatch: dispatch)
+
+            default:
+                break
+            }
+
         case .calendar(.scrolledTo(let center)):
             // `observedRange` is non-nil exactly while the range observations are running.
             guard let observed = observedRange else { break }
@@ -369,6 +391,11 @@ final class DatabaseMiddleware {
     ) async {
         do {
             try await work()
+            // The one producer of the local-edit trigger (§5.6), and it is here rather than in
+            // `SyncMiddleware` because this is the only place that knows a write actually
+            // reached the disk. Matching the editing actions from the other side would push on
+            // edits that failed, and would silently miss whatever action is added next.
+            dispatch(.sync(.requested(.localEdit)))
         } catch {
             let label = detail.map { "\(operation.logLabel) \($0)" } ?? operation.logLabel
             AppLogger.error("Database write failed: \(label)", error: error)

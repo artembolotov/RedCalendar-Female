@@ -23,6 +23,14 @@ func combineAppMiddlewares() -> [Middleware] {
         // `@MainActor` closure literal both are fine, and nothing is captured.
         { state, action, dispatch in
             await DatabaseMiddleware.shared.handle(state: state, action: action, dispatch: dispatch)
+        },
+        // After the database middleware, and the order is load-bearing in one direction: a local
+        // write dispatches its own `.sync(.requested(.localEdit))`, which is queued rather than
+        // delivered inline, so it reaches this one on a later turn either way. What the order
+        // does buy is that `.auth(.set(.authenticated))` starts the observations before the run
+        // that may immediately pause them.
+        { state, action, dispatch in
+            await SyncMiddleware.shared.handle(state: state, action: action, dispatch: dispatch)
         }
     ]
 }

@@ -18,6 +18,7 @@ protocol APIServiceProtocol: Sendable {
     func checkPhone(_ phone: String) async throws -> CheckPhoneResponse
     func verifyCode(email: String, code: String, name: String?) async throws -> VerifyCodeResponse
     func verifyFlashCall(requestId: String, code: String) async throws -> VerifyFlashCallResponse
+    func sync(deviceId: String, request: SyncRequest) async throws -> SyncResponse
 }
 
 // MARK: - Request Models
@@ -439,6 +440,32 @@ final class APIService: APIServiceProtocol, Sendable {
         return try JSONDecoder().decode(VerifyFlashCallResponse.self, from: data)
     }
     
+    /// One round of a sync run (SYNC.md §4).
+    ///
+    /// The 200 body is the bare object of §4.2 — no `success`/`timestamp` envelope, because a run
+    /// has no partial success and `rejected` is not an error. 4xx and 5xx *do* come wrapped, and
+    /// `validateHTTPResponse` reads them exactly as it does for the auth endpoints.
+    ///
+    /// Its request and response models live in `SyncPayload.swift` rather than here with the
+    /// others: `DatabaseServiceProtocol.applySync` takes the same rows, so they are a shape two
+    /// services share.
+    func sync(deviceId: String, request syncRequest: SyncRequest) async throws -> SyncResponse {
+        let url = URL(string: "\(baseURL)/data/sync")!
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(deviceId)", forHTTPHeaderField: "Authorization")
+
+        request.httpBody = try JSONEncoder().encode(syncRequest)
+
+        let (data, response) = try await performRequest(request)
+
+        try validateHTTPResponse(response, data: data)
+
+        return try JSONDecoder().decode(SyncResponse.self, from: data)
+    }
+
     // MARK: - Private Methods
 
     /// Runs the request and wraps any transport-level failure (DNS, timeout, offline, TLS…)

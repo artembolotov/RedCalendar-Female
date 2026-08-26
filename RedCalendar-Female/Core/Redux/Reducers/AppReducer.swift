@@ -24,6 +24,7 @@ func appReducer(state: AppState, action: AppAction) -> AppState {
             if case .notAuthenticated = authState {
                 state.notifications.apnsToken = nil
                 state.calendarState = CalendarState()
+                state.syncState = .idle
             }
 
         case .logout:
@@ -157,6 +158,18 @@ func appReducer(state: AppState, action: AppAction) -> AppState {
 
         case .dismissWriteFailure:
             state.calendarState.writeFailure = nil
+        }
+
+    case .sync(let syncAction):
+        switch syncAction {
+
+        // The run's own progress lives on the disk — cursor, owner, dirty flags — because it has
+        // to survive a launch. Nothing here but what is drawn.
+        case .requested, .beganFullResync, .finishedFullResync:
+            break
+
+        case .setState(let syncState):
+            state.syncState = syncState
         }
 
     case .push(let pushAction):

@@ -49,6 +49,14 @@ struct RedCalendarApp: App {
 
                         clearNotifications()
                     }
+
+                    // Flushes the 3-second debounce rather than adding another trigger: an edit
+                    // made in the last moment before the app is put away would otherwise wait for
+                    // whatever happens next, which may be days (SYNC.md §5.6). The run itself
+                    // holds a background task assertion, so it gets to finish.
+                    if newPhase == .background {
+                        store.send(.sync(.requested(.appBackground)))
+                    }
                 }
                 .onReceive(NotificationCenter.default.publisher(for: UIApplication.significantTimeChangeNotification)) { _ in
                     store.send(.calendar(.updateToday))

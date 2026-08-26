@@ -1,0 +1,309 @@
+//
+//  SyncMiddleware.swift
+//  RedCalendar-Female
+//
+
+import Foundation
+import UIKit
+
+/// The sync run of SYNC.md §5.
+///
+/// A class with state, like `DatabaseMiddleware` and for the same reason: one run at a time, one
+/// debounce timer, one backoff, and a remembered request that arrived while a run was in flight.
+/// `@MainActor` is what owns that state — the store drains actions serially, but this middleware
+/// is also entered from outside the store entirely (see `syncNow`), so scheduling is not
+/// ownership here any more than it is there.
+///
+/// **The run is not a chain of actions.** Push, pull and apply all happen inside `syncNow`, which
+/// awaits the network and must therefore never be awaited by `handle` — a long `await` in a
+/// middleware delays every action queued behind it. `handle` starts a `Task` and returns.
+@MainActor
+final class SyncMiddleware {
+    static let shared = SyncMiddleware()
+
+    @Injected private var dbService: DatabaseServiceProtocol
+    @Injected private var apiService: APIServiceProtocol
+    @Injected private var keychain: KeychainServiceProtocol
+
+    /// Where a run sends what it learns. It is captured from `handle` rather than held as a store
+    /// reference, because `syncNow` has a second caller with no store in hand — the background
+    /// push handler of §8, which may run before the store's queue has drained a single action.
+    ///
+    /// A run that starts before this is set still applies everything correctly; what it cannot do
+    /// is move the indicator or bracket a full resync. Both are safe to lose in exactly that
+    /// window: nothing has processed `.auth(.set(.authenticated))` yet either, so there are no
+    /// observations to pause and no screen to indicate to.
+    private var sink: Dispatch?
+
+    private var isRunning = false
+    /// A run was asked for while one was going. It is remembered rather than dropped: an edit
+    /// made in an unlucky second would otherwise wait for the next unrelated trigger, which in
+    /// practice means until the app is backgrounded (§5.6).
+    private var pendingRun = false
+
+    private var debounceTask: Task<Void, Never>?
+    private var retryTask: Task<Void, Never>?
+    private var backoff: TimeInterval?
+
+    private init() {}
+
+    // MARK: - Handle
+
+    func handle(state: AppState, action: AppAction, dispatch: @escaping Dispatch) async {
+        sink = dispatch
+
+        switch action {
+
+        // This middleware owns the sync domain, so the inner switch is exhaustive.
+        case .sync(let syncAction):
+            switch syncAction {
+            case .requested(let reason):
+                if reason.isDebounced {
+                    scheduleDebouncedRun(reason: reason)
+                } else {
+                    debounceTask?.cancel()
+                    debounceTask = nil
+                    start(reason: reason)
+                }
+
+            // Reduced, drawn, and of no interest to the run that emitted them.
+            case .setState, .beganFullResync, .finishedFullResync:
+                break
+            }
+
+        // The one trigger without which a cold start would never sync at all: `.onAppear` is
+        // gone (§8) and `.onChange(of: scenePhase)` does not fire for the initial value. This is
+        // the same signal `DatabaseMiddleware` starts its observations on, and it arrives both
+        // after a session restored from the keychain and after a fresh login.
+        case .auth(.set(.authenticated)):
+            start(reason: .authenticated)
+
+        case .auth(.set(.notAuthenticated)):
+            cancelPendingWork()
+
+        case .retryFailedTasks:
+            if state.isAuthenticated {
+                start(reason: .appActive)
+            }
+
+        default:
+            break
+        }
+    }
+
+    // MARK: - Entry points
+
+    /// One run, start to finish — including every `has_more` page, a wipe and its restart, and a
+    /// `full_resync_required` and its restart.
+    ///
+    /// Returns a `UIBackgroundFetchResult` because the background push handler of §8 needs one and
+    /// `send` returns nothing. `.sync(.requested)` leads here too: one implementation, two entry
+    /// points, and the one that needs an answer gets it.
+    @discardableResult
+    func syncNow(reason: SyncReason) async -> UIBackgroundFetchResult {
+        guard !isRunning else {
+            // Not "wait for the other one": the caller may be a push handler holding iOS's
+            // completion handler open. Remembering the request is what keeps the edit that
+            // triggered it from being dropped.
+            pendingRun = true
+            return .noData
+        }
+
+        // From the keychain, never from `state.deviceId`. The store reduces synchronously but
+        // drains effects in a `Task`, so on a background launch the queue has *probably* passed
+        // by the time the push handler runs — and "probably" is not a thing to build on when the
+        // keychain is synchronous and correct at any moment (§8).
+        guard let deviceId = keychain.getDeviceID() else { return .noData }
+
+        isRunning = true
+        // Without it, a run in flight when the user swipes the app away is suspended mid-request
+        // and resumes minutes later, if at all.
+        let backgroundTask = UIApplication.shared.beginBackgroundTask(withName: "sync")
+        var pausedObservations = false
+        var appliedAnything = false
+
+        defer {
+            isRunning = false
+            // On **every** exit, failure and cancellation included. Observations that never came
+            // back up are a calendar frozen until the app is relaunched (§5.5).
+            if pausedObservations {
+                sink?(.sync(.finishedFullResync))
+            }
+            if backgroundTask != .invalid {
+                UIApplication.shared.endBackgroundTask(backgroundTask)
+            }
+            if pendingRun {
+                pendingRun = false
+                Task { await self.syncNow(reason: reason) }
+            }
+        }
+
+        sink?(.sync(.setState(.syncing)))
+
+        do {
+            var rounds = 0
+            while true {
+                rounds += 1
+                guard rounds <= Constants.Sync.maxRoundsPerRun else {
+                    AppLogger.warn("Sync: gave up after \(rounds - 1) rounds in one run")
+                    break
+                }
+
+                // Step 1. Also the moment a grown `known_tables` resets the cursor, which is why
+                // it is re-read every round rather than once per run.
+                let local = try await dbService.prepareSyncState(knownTables: SyncTable.knownTables)
+
+                // A run that starts from zero is a full resync however few rows it turns out to
+                // carry (§5.5), and the pause spans every page of it — hence the flag rather than
+                // a bracket per round.
+                if local.cursor == 0 && !pausedObservations {
+                    pausedObservations = true
+                    sink?(.sync(.beganFullResync))
+                }
+
+                // Steps 2 and 3. Until the database's owner is known, nothing is pushed: if these
+                // rows belong to the previous user of this phone, sending them files them under
+                // the current account, and the wipe below would only undo the local copy (§5.2).
+                let pullOnly = local.userId == nil
+                let batch = pullOnly ? DirtyBatch() : try await dbService.fetchDirty()
+                let push = batch.push
+
+                let response = try await apiService.sync(
+                    deviceId: deviceId,
+                    request: SyncRequest(
+                        since: local.cursor,
+                        syncSchema: Constants.Sync.schemaVersion,
+                        device: SyncRequest.Device(timezone: TimeZone.current.identifier),
+                        changes: push.isEmpty ? nil : push
+                    )
+                )
+
+                // Step 5, before step 6: a wipe contains a full resync and makes one pointless,
+                // so the other order costs a round.
+                if let owner = local.userId, let responseOwner = response.userId, responseOwner != owner {
+                    AppLogger.warn("Sync: the database belongs to another user — wiping")
+                    try await dbService.wipeAll(newOwner: responseOwner)
+                    continue
+                }
+
+                // Step 6. The rest of this response is deliberately not applied: its rows were
+                // selected against a cursor the server has just disowned.
+                if response.fullResyncRequired {
+                    AppLogger.info("Sync: server ordered a full resync")
+                    try await dbService.resetSyncCursor()
+                    continue
+                }
+
+                // Step 7 — one transaction, four ordered steps, and the cursor moves only if all
+                // of it committed.
+                try await dbService.applySync(
+                    SyncApplication(
+                        userId: response.userId,
+                        changes: response.changes,
+                        rejected: response.rejected,
+                        sentMax: pullOnly ? nil : batch.sentMax,
+                        nextCursor: response.nextCursor,
+                        importStatus: response.importStatus
+                    )
+                )
+
+                if !(response.changes?.isEmpty ?? true) || !response.rejected.isEmpty {
+                    appliedAnything = true
+                }
+                if !response.rejected.isEmpty {
+                    AppLogger.warn("Sync: \(response.rejected.count) row(s) rejected by the server")
+                }
+
+                // Step 8 — the next page immediately, with no debounce.
+                guard response.hasMore else { break }
+            }
+
+            backoff = nil
+            retryTask?.cancel()
+            retryTask = nil
+            sink?(.sync(.setState(.idle)))
+            return appliedAnything ? .newData : .noData
+
+        } catch {
+            return handleFailure(error, reason: reason)
+        }
+    }
+
+    // MARK: - Private Methods
+
+    private func start(reason: SyncReason) {
+        // In its own `Task` rather than awaited: this waits on the network, and the store's
+        // effect queue is serial.
+        Task { await syncNow(reason: reason) }
+    }
+
+    private func scheduleDebouncedRun(reason: SyncReason) {
+        debounceTask?.cancel()
+        debounceTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: Constants.Sync.localEditDebounceNanoseconds)
+            guard !Task.isCancelled else { return }
+            await self?.syncNow(reason: reason)
+        }
+    }
+
+    private func cancelPendingWork() {
+        debounceTask?.cancel()
+        debounceTask = nil
+        retryTask?.cancel()
+        retryTask = nil
+        backoff = nil
+        pendingRun = false
+        sink?(.sync(.setState(.idle)))
+    }
+
+    /// The table of §5.7, and its first row is the important one: **offline is not an error.**
+    /// The app is built to work without a network, so no network means `.pending` — there is
+    /// something to send and it will go — and never a red indicator.
+    private func handleFailure(_ error: Error, reason: SyncReason) -> UIBackgroundFetchResult {
+        switch error {
+
+        case APIServiceError.unauthorized:
+            // The database is **not** touched. This device was signed out from elsewhere; the
+            // person is the same one, and their history is theirs (§6).
+            AppLogger.warn("Sync: 401 — signing out, leaving the database alone")
+            sink?(.sync(.setState(.idle)))
+            sink?(.auth(.set(.notAuthenticated)))
+            return .failed
+
+        case APIServiceError.rateLimited(let retryAfter, _):
+            scheduleRetry(after: retryAfter ?? nextBackoff())
+            sink?(.sync(.setState(.pending)))
+            return .failed
+
+        case APIServiceError.serverUnavailable(_, _), APIServiceError.networkError(_), is URLError:
+            scheduleRetry(after: nextBackoff())
+            sink?(.sync(.setState(.pending)))
+            return .failed
+
+        default:
+            // A 4xx on the whole request, or a response this build cannot decode. Retrying does
+            // not fix either, but stopping outright would need a person to notice — so it backs
+            // off like the rest and says so in the indicator.
+            AppLogger.error("Sync run failed (\(reason.rawValue))", error: error)
+            scheduleRetry(after: nextBackoff())
+            sink?(.sync(.setState(.failed)))
+            return .failed
+        }
+    }
+
+    private func nextBackoff() -> TimeInterval {
+        let next = min((backoff ?? 0) * 2, Constants.Sync.maxBackoff)
+        let delay = max(Constants.Sync.minBackoff, next)
+        backoff = delay
+        return delay
+    }
+
+    private func scheduleRetry(after delay: TimeInterval) {
+        retryTask?.cancel()
+        retryTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+            guard !Task.isCancelled else { return }
+            await self?.syncNow(reason: .retry)
+        }
+    }
+}

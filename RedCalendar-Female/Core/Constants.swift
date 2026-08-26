@@ -39,6 +39,30 @@ struct Constants {
         static let autosaveDebounceNanoseconds: UInt64 = 600_000_000
     }
 
+    struct Sync {
+        /// The generation of the table set this build understands (SYNC.md §4.6). Diagnostic on
+        /// the server today — it decides nothing there — but it is what makes "which builds are
+        /// still calling" answerable from a log.
+        static let schemaVersion = 1
+
+        /// How long a local edit waits before it is pushed. The comment editor autosaves every
+        /// 600 ms, so without this a sentence typed into a day would be a queue of HTTP requests.
+        static let localEditDebounceNanoseconds: UInt64 = 3_000_000_000
+
+        /// Doubling from the first to the second on repeated failure, reset by any success. A
+        /// minute's ceiling is also what makes `NWPathMonitor` unnecessary: a network that comes
+        /// back while the app is open is noticed within one.
+        static let minBackoff: TimeInterval = 2
+        static let maxBackoff: TimeInterval = 60
+
+        /// A run follows `has_more` — and a wipe, and a `full_resync_required` — around this loop
+        /// at most this many times before giving up until the next trigger. At the documented
+        /// page size of 1000 rows against an observed maximum of ~260 per user, a second page is
+        /// already hypothetical; this is here so that a server that always says `has_more` costs
+        /// one bounded run rather than an unbounded one.
+        static let maxRoundsPerRun = 50
+    }
+
     struct Cycle {
         static let minCycleLength = 20
         static let maxCycleLength = 90

@@ -4,10 +4,10 @@ import GRDB
 /// The one `user_profile` row (SYNC.md §3.1) — id, name, email, phone number and cycle settings,
 /// as last written by a sync run.
 ///
-/// `TableRecord`, not `PersistableRecord`: nothing on this side writes the row yet. `changes.profile`
-/// is push, and the row is filled by the sync run itself (§12 item 8) — this type only reads what
-/// landed there.
-struct UserProfileRecord: Codable, FetchableRecord, TableRecord {
+/// Written in exactly one place — a sync run applying what the server sent (§5.1 step 7). Nothing
+/// in the app edits the profile yet: `changes.profile` exists and is allowed, but no screen
+/// produces one (§15), so `dirty_seq` here stays null until a cycle-settings screen appears.
+struct UserProfileRecord: Codable, FetchableRecord, PersistableRecord {
     static let databaseTableName = "user_profile"
 
     var id: Int

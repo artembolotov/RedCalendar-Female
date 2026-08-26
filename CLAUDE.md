@@ -139,23 +139,25 @@ Core/
   DI/         — ServiceLocator, @Injected
   Models/     — Daystamp, Daystamp+GRDB, AuthenticationMethod, AuthenticationError,
                  APNSToken, UserDetails, ResolvedCycleSettings, DayDisplayState,
-                 AccentTheme, DataWriteOperation,
+                 AccentTheme, DataWriteOperation, UserProfileRecord,
+                 SyncPayload, SyncStorage, JSONValue, DirtyStamped, FlowLevelRecord,
                  CycleRecord, CycleRecord+Queries,
                  CommentRecord, UserTagRecord, DayTagsRecord
   Redux/
     Actions/  — AppAction, plus the per-domain AuthAction/CalendarAction/DataAction/
-                 PushAction/AnalyticsAction/AppearanceAction it wraps
+                 SyncAction/PushAction/AnalyticsAction/AppearanceAction it wraps
     Middleware/
       AuthMiddleware.swift
       MigrationMiddleware.swift
       DatabaseMiddleware.swift
+      SyncMiddleware.swift
       PushNotificationsMiddleware.swift
       AnalyticsMiddleware.swift
       AppearanceMiddleware.swift
       FeedbackMiddleware.swift
       LoggerMiddleware.swift
     Reducers/ — AppReducer, DayDisplayStateComputer
-    States/   — AppState, AuthState, CalendarState,
+    States/   — AppState, AuthState, CalendarState, SyncState,
                  EmailAuthState, PhoneAuthState, NotificationState
     AppMiddleware.swift  — combineAppMiddlewares()
     AppStore.swift       — AppStore, plus the Reducer/Dispatch/Middleware typealiases
@@ -195,7 +197,7 @@ Feature folders own their own views and feature-specific models. Shared types go
 
 ### AppState
 
-`AppState` has five top-level fields:
+`AppState` has seven top-level fields:
 
 ```swift
 struct AppState {
@@ -204,6 +206,8 @@ struct AppState {
     var notifications: NotificationState
     var analyticsActivated: Bool
     var accentTheme: AccentTheme       // fallback until .checkAccentTheme lands
+    var userProfile: UserDetails?      // the user_profile row, filled only by a sync run
+    var syncState: SyncState           // what the sync indicator draws
 }
 ```
 

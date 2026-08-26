@@ -24,14 +24,14 @@ enum AppAction: Sendable {
     case auth(AuthAction)
     case calendar(CalendarAction)
     case data(DataAction)
+    case sync(SyncAction)
     case push(PushAction)
     case analytics(AnalyticsAction)
     case appearance(AppearanceAction)
 
     /// Deliberately outside every group: it is dispatched when the app becomes active and asks
-    /// whoever has unfinished work to try again. Today that is only the APNs token; the sync
-    /// this app does not have yet is the other obvious claimant, which is exactly why it does not
-    /// belong to `push`.
+    /// whoever has unfinished work to try again. Two claimants now — the APNs token and a sync
+    /// run — which is exactly why it belongs to neither `push` nor `sync`.
     case retryFailedTasks
 }
 
@@ -61,8 +61,8 @@ enum DataAction: Sendable {
     case setVisibleDayTags([Daystamp: [String]])
     case setFlowLevels([Daystamp: Int])
     case setLoadedRange(ClosedRange<Daystamp>)
-    /// The `user_profile` row, or `nil` while the table is empty — today that's always, since
-    /// only a sync run (SYNC.md §12 item 8) ever writes it (§3.1).
+    /// The `user_profile` row, or `nil` while the table is empty. A sync run is the only thing
+    /// that fills it (SYNC.md §3.1), so it is empty until the first one succeeds.
     case setUserProfile(UserDetails?)
 
     // Day editing
@@ -96,6 +96,43 @@ enum DataAction: Sendable {
     // Write outcome
     case writeFailed(DataWriteOperation)
     case dismissWriteFailure
+}
+
+/// The sync run (SYNC.md §5), owned by `SyncMiddleware`.
+///
+/// Four cases and not one more, because most of a run is not expressible as an action: the
+/// pushing, the pulling and the applying all happen inside one method that has to be callable
+/// from outside the store too (§8 — the background push handler needs a return value, and `send`
+/// has none). What is here is the run's edges — asking for one, saying what it is doing, and the
+/// two brackets `DatabaseMiddleware` needs.
+enum SyncAction: Sendable {
+    /// Ask for a run. Every trigger in §5.6 lands here; the reason decides only whether it is
+    /// debounced, and shows up in the log.
+    case requested(SyncReason)
+    case setState(SyncState)
+    /// A run starting from cursor 0 — first install, post-wipe, a grown `known_tables`, or
+    /// `full_resync_required` (§5.5). `DatabaseMiddleware` pauses its observations between these
+    /// two, because applying a whole history row by row otherwise redraws the calendar once per
+    /// transaction.
+    ///
+    /// The pause holds across every `has_more` page of the run, and the closing bracket is sent
+    /// on **every** exit including failure and cancellation. Observations that never came back up
+    /// are a calendar that stops updating until the app is restarted.
+    case beganFullResync
+    case finishedFullResync
+}
+
+/// Why a run was asked for (§5.6). `.localEdit` is the only one that waits — every other trigger
+/// is already a moment the user stopped, or an event that will not repeat.
+enum SyncReason: String, Sendable {
+    case authenticated
+    case localEdit
+    case appActive
+    case appBackground
+    case remoteNotification
+    case retry
+
+    var isDebounced: Bool { self == .localEdit }
 }
 
 enum PushAction: Sendable {

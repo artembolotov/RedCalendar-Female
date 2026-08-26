@@ -78,8 +78,9 @@ extension UserDetails {
     }
 
     /// From the local `user_profile` row (SYNC.md §3.1, §12 item 6). `nil` until the row has a
-    /// `user_id` — today that means the table is simply empty, since only a sync run (item 8)
-    /// ever writes it. `phoneNumber` has no home here yet: nothing reads it.
+    /// `user_id`, which a sync run writes along with the profile it pulled (§5.1 step 7) — so
+    /// before the first successful run there is simply nothing in the table. `phoneNumber` has no
+    /// home here yet: nothing reads it.
     init?(_ record: UserProfileRecord) {
         guard let userId = record.userId else { return nil }
         let settings = record.settingsJSON
