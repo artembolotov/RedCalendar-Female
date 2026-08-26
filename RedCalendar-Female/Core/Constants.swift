@@ -85,7 +85,13 @@ struct Constants {
         /// a fast connection — never reaches the screen at all: the view keeps the state it is
         /// showing separate from the state it was just handed, and only adopts the new one once
         /// this much time has passed without it reverting.
-        static let indicatorAppearDelayNanoseconds: UInt64 = 250_000_000
+        ///
+        /// 400 ms rather than something closer to Nielsen's ~100 ms "instant" threshold: a sync
+        /// round trip is TLS + a server hop + a local GRDB transaction on both ends of it, not a
+        /// local computation, so a "fast" run in practice often lands in the low hundreds of
+        /// milliseconds on its own — a shorter window would still let those flash. Still well
+        /// under the ~1 s where a wait starts reading as the app hanging.
+        static let indicatorAppearDelayNanoseconds: UInt64 = 400_000_000
     }
 
     struct Cycle {
