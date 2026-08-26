@@ -46,8 +46,7 @@ func computeDayDisplayStates(
         let predicted = CycleRecord(
             startDay: predictedStart,
             periodLength: cycleSettings.periodLength,
-            ovulation: OvulationData(day: ovulationDay, confirmed: false),
-            flowLevels: [:]
+            ovulation: OvulationData(day: ovulationDay, confirmed: false)
         )
         allCycles.append(predicted)
         predictedStart = predictedStart.advanced(by: cycleSettings.cycleLength)
@@ -75,7 +74,7 @@ func computeDayDisplayStates(
             // forecast stretches to cover it — but it never shortens the forecast, and only
             // the start stays confirmed: nothing but markPeriodEnd can end a period, so
             // everything after the start keeps rendering as a prediction.
-            let flowLength = cycle.lastFlowDay(notAfter: today)
+            let flowLength = calendarState.flowLevels.lastFlowDay(of: cycle, notAfter: today)
                 .map { $0 - cycle.startDay + 1 } ?? 0
             effectivePeriodLength = max(cycleSettings.periodLength, flowLength)
             lastConfirmedDay = cycle.startDay

@@ -227,7 +227,6 @@ struct NewTagSheetView: View {
             var updated = editingTag
             updated.name = trimmedName
             updated.category = category.rawValue
-            updated.updatedAt = nil
             store.send(.data(.updateUserTag(updated)))
         } else {
             store.send(.data(.createUserTag(.newLocal(name: trimmedName, category: category))))
@@ -242,7 +241,6 @@ struct NewTagSheetView: View {
         guard let editingTag else { return }
         var deleted = editingTag
         deleted.name = nil
-        deleted.updatedAt = nil
         store.send(.data(.deleteUserTag(deleted)))
         isPresented = false
     }

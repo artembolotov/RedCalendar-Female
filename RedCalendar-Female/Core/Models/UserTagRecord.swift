@@ -15,7 +15,7 @@ struct UserTagRecord: Codable, FetchableRecord, PersistableRecord {
     var id: String
     var name: String?
     var category: Int
-    var updatedAt: Int?
+    var dirtySeq: Int?
 
     static let databaseTableName = "user_tags"
 
@@ -23,11 +23,13 @@ struct UserTagRecord: Codable, FetchableRecord, PersistableRecord {
         case id
         case name
         case category
-        case updatedAt = "updated_at"
+        case dirtySeq = "dirty_seq"
     }
 
     typealias CodingKeys = Columns
 }
+
+extension UserTagRecord: DirtyStamped {}
 
 extension UserTagRecord: Equatable {
     static func == (lhs: UserTagRecord, rhs: UserTagRecord) -> Bool {
@@ -42,8 +44,7 @@ extension UserTagRecord {
     ///
     /// The id is minted locally because nothing else is in a position to: there is no round trip
     /// to a server to get one from, and the row has to be storable and referable by `day_tags`
-    /// the moment it exists. `updatedAt` is `nil`, which is the same "written here, not yet
-    /// synced" mark every other local write in `DatabaseMiddleware` leaves.
+    /// the moment it exists.
     ///
     /// One factory rather than a construction in the view, another in the reducer and a third in
     /// the middleware: the same record is put into state and onto the disk, and two spellings of
@@ -52,8 +53,7 @@ extension UserTagRecord {
         UserTagRecord(
             id: UUID().uuidString,
             name: name,
-            category: category.rawValue,
-            updatedAt: nil
+            category: category.rawValue
         )
     }
 }

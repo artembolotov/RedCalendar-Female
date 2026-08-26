@@ -59,6 +59,7 @@ enum DataAction: Sendable {
     case setUserTags([UserTagRecord])
     case setVisibleComments([Daystamp: String])
     case setVisibleDayTags([Daystamp: [String]])
+    case setFlowLevels([Daystamp: Int])
     case setLoadedRange(ClosedRange<Daystamp>)
 
     // Day editing

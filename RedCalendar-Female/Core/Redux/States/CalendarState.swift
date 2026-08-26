@@ -22,6 +22,14 @@ struct CalendarState: Equatable {
     var visibleComments: [Daystamp: String] = [:]
     var visibleDayTags: [Daystamp: [String]] = [:]
 
+    /// Reported flow, day by day, over the loaded range — sparse like `visibleComments`, and
+    /// tombstones (`level == nil`) are absent from it rather than present as a nil.
+    ///
+    /// Range-scoped, though the cycles it lengthens are not, and that is safe by the argument in
+    /// SYNC.md §3.4: `lastFlowDay` takes a maximum inside the cycle's own window, and a bar whose
+    /// window is entirely below the loaded range is not drawn either.
+    var flowLevels: [Daystamp: Int] = [:]
+
     // Computed from raw data — never set directly via action
     var dayDisplayStates: [Daystamp: DayDisplayState] = [:]
 

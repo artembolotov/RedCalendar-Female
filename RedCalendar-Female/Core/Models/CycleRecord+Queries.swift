@@ -168,43 +168,44 @@ extension CycleRecord {
         return day - startDay < periodLength ? .completed : .outside
     }
 
-    func flowLevel(on day: Daystamp) -> Int? {
-        flowLevels[String(day.rawValue)]
-    }
-
-    mutating func setFlowLevel(_ level: Int?, on day: Daystamp) {
-        if let level = level {
-            flowLevels[String(day.rawValue)] = level
-        } else {
-            flowLevels.removeValue(forKey: String(day.rawValue))
-        }
-    }
-
-    /// Last day of this cycle the user reported flow for — how far the period is known to
-    /// have actually run. Nil when no flow is logged inside the period window.
-    ///
-    /// Only days from the start up to `maxPeriodLength`, and not past `today`, count. Flow
-    /// levels used to be written against the day's *owning* cycle, so a record can carry
-    /// keys far outside its own period; without the window one of those would stretch the
-    /// period across the whole calendar.
-    func lastFlowDay(notAfter today: Daystamp) -> Daystamp? {
-        let windowEnd = Swift.min(today, startDay.advanced(by: Constants.Cycle.maxPeriodLength - 1))
-        guard startDay <= windowEnd else { return nil }
-
-        return flowLevels.keys.reduce(into: Daystamp?.none) { latest, key in
-            guard let rawValue = Int(key) else { return }
-            let day = Daystamp(rawValue: rawValue)
-            guard day >= startDay, day <= windowEnd else { return }
-            if let current = latest, current >= day { return }
-            latest = day
-        }
-    }
-
     /// Start of the predicted cycle the day falls into, extrapolated from this cycle's
     /// start, or nil while the day is still within the first extrapolated cycle.
     func predictedCycleStart(for day: Daystamp, cycleLength: Int) -> Daystamp? {
         let cyclesPassed = (day - startDay) / cycleLength
         guard cyclesPassed >= 1 else { return nil }
         return startDay.advanced(by: cyclesPassed * cycleLength)
+    }
+}
+
+// MARK: - Flow Levels
+
+/// What the user reported for the days of the loaded range — `CalendarState.flowLevels`, sparse
+/// the way `visibleComments` is: an absent day is one nothing was reported for.
+///
+/// The lookup used to live on `CycleRecord`, because the levels lived in a dictionary inside the
+/// cycle's row. See `FlowLevelRecord` for why they moved.
+extension Dictionary where Key == Daystamp, Value == Int {
+
+    /// Last day of the cycle the user reported flow for — how far the period is known to have
+    /// actually run. Nil when nothing is reported inside the period window.
+    ///
+    /// The window is the cycle's own days: from its start up to `maxPeriodLength`, and not past
+    /// `today`. It was needed when the levels sat in the cycle's dictionary, which could hold
+    /// keys from days outside its period; it is needed just as much now that they are day-keyed,
+    /// from the other side — this map spans the whole loaded range, and without the window a
+    /// later cycle's flow would stretch this one's period across the calendar.
+    ///
+    /// Walks the window backwards rather than the map forwards: the window is at most
+    /// `maxPeriodLength` days, and the map is several hundred.
+    func lastFlowDay(of cycle: CycleRecord, notAfter today: Daystamp) -> Daystamp? {
+        let windowEnd = Swift.min(today, cycle.startDay.advanced(by: Constants.Cycle.maxPeriodLength - 1))
+        guard cycle.startDay <= windowEnd else { return nil }
+
+        var day = windowEnd
+        while day >= cycle.startDay {
+            if self[day] != nil { return day }
+            day = day.advanced(by: -1)
+        }
+        return nil
     }
 }

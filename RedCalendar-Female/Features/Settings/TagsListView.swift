@@ -158,7 +158,6 @@ struct TagsListView: View {
         guard let tag = pendingDeletion else { return }
         var deleted = tag
         deleted.name = nil
-        deleted.updatedAt = nil
         store.send(.data(.deleteUserTag(deleted)))
         pendingDeletion = nil
     }

@@ -181,6 +181,13 @@ struct DayDetailsView: View {
         store.state.calendarState.visibleComments[dayStamp]
     }
 
+    /// Read straight off the day, not through the cycle that covers it: the levels are their own
+    /// day-keyed table now (see `FlowLevelRecord`). The section this feeds is shown only when
+    /// `canSetFlowLevel` holds, which is what still ties it to a recorded period.
+    private var flowLevel: Int? {
+        store.state.calendarState.flowLevels[dayStamp]
+    }
+
     private var resolvedTags: [UserTagRecord] {
         let tagIds = store.state.calendarState.visibleDayTags[dayStamp] ?? []
         let tagsById = Dictionary(
@@ -300,7 +307,7 @@ struct DayDetailsView: View {
 
             VStack(alignment: .leading, spacing: 0) {
                 if context.canSetFlowLevel(today: today) {
-                    periodSection(currentLevel: context.recorded?.flowLevel(on: dayStamp))
+                    periodSection(currentLevel: flowLevel)
                         .padding(.top, 16)
                         // The options hang out of the section's box, so the section has to draw
                         // over the notes it pushes down rather than under them.

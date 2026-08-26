@@ -37,8 +37,9 @@ final class DatabaseMiddleware {
     private var userTagsToken: AnyDatabaseCancellable?
     private var commentsToken: AnyDatabaseCancellable?
     private var dayTagsToken: AnyDatabaseCancellable?
+    private var flowLevelsToken: AnyDatabaseCancellable?
 
-    /// The range `commentsToken` and `dayTagsToken` are currently subscribed to.
+    /// The range the three range observations are currently subscribed to.
     ///
     /// It duplicates `state.calendarState.loadedRange` on purpose, and the reason has outlived
     /// two rewrites of how the store schedules things. The dispatch below does reach the reducer
@@ -138,7 +139,8 @@ final class DatabaseMiddleware {
                 await write(.userTag, detail: "delete", dispatch: dispatch) { try await dbService.upsert([tag]) }
 
             // Values this middleware produced, on their way to the reducer.
-            case .setCycles, .setUserTags, .setVisibleComments, .setVisibleDayTags, .setLoadedRange:
+            case .setCycles, .setUserTags, .setVisibleComments, .setVisibleDayTags,
+                 .setFlowLevels, .setLoadedRange:
                 break
 
             // A UI signal with nothing to write — `FeedbackMiddleware` is what reacts to it.
@@ -173,6 +175,7 @@ final class DatabaseMiddleware {
     private func startRangeObservations(for range: ClosedRange<Daystamp>, dispatch: @escaping Dispatch) {
         commentsToken?.cancel()
         dayTagsToken?.cancel()
+        flowLevelsToken?.cancel()
         observedRange = range
 
         let service = dbService
@@ -183,6 +186,14 @@ final class DatabaseMiddleware {
         dayTagsToken = service.observeDayTags(in: range) { records in
             dispatch(.data(.setVisibleDayTags(Self.dayTagsByDay(records))))
         }
+
+        // Ranged like the two above rather than whole like the cycles, and the cycles are what
+        // makes that a decision: `computeDayDisplayStates` asks for the last flow day of every
+        // cycle it draws, including ones that started below the range. It still gets the right
+        // answer — see the argument on `CalendarState.flowLevels`.
+        flowLevelsToken = service.observeFlowLevels(in: range) { records in
+            dispatch(.data(.setFlowLevels(Self.flowLevelsByDay(records))))
+        }
     }
 
     /// Shared by the observation and by the re-read a failed comment write triggers, so the two
@@ -190,6 +201,16 @@ final class DatabaseMiddleware {
     private static func commentsByDay(_ records: [CommentRecord]) -> [Daystamp: String] {
         Dictionary(
             records.compactMap { record in record.comment.map { (record.dayNumber, $0) } },
+            uniquingKeysWith: { $1 }
+        )
+    }
+
+    /// Sparse the same way the comments are, and soft-deleted the same way: a day the user set
+    /// back to "Не указано" keeps a row with a nil level, and it has to be absent here rather
+    /// than present as a zero.
+    private static func flowLevelsByDay(_ records: [FlowLevelRecord]) -> [Daystamp: Int] {
+        Dictionary(
+            records.compactMap { record in record.level.map { (record.dayNumber, $0) } },
             uniquingKeysWith: { $1 }
         )
     }
@@ -209,11 +230,13 @@ final class DatabaseMiddleware {
         userTagsToken?.cancel()
         commentsToken?.cancel()
         dayTagsToken?.cancel()
+        flowLevelsToken?.cancel()
 
         cyclesToken = nil
         userTagsToken = nil
         commentsToken = nil
         dayTagsToken = nil
+        flowLevelsToken = nil
         observedRange = nil
     }
 
@@ -226,18 +249,15 @@ final class DatabaseMiddleware {
         dispatch: @escaping Dispatch
     ) async {
         if let existing = cycles.first(where: { $0.startDay == stamp }) {
-            // Toggle off: soft delete if synced, physical delete if not
-            if existing.updatedAt != nil {
-                var deleted = existing
-                deleted.periodLength = nil
-                deleted.updatedAt = nil
-                await write(.periodStart, detail: "soft delete", dispatch: dispatch) {
-                    try await dbService.upsert([deleted])
-                }
-            } else {
-                await write(.periodStart, detail: "delete", dispatch: dispatch) {
-                    try await dbService.deleteCycle(startDay: stamp)
-                }
+            // Toggling a start off is a tombstone, always — never a physical delete (SYNC.md
+            // §3.3). It used to be one or the other depending on whether `updatedAt` was set,
+            // which was **D1**: three other handlers cleared that same field, so a cycle that had
+            // been synced and then edited was deleted outright, the server never heard about it,
+            // and the next pull brought it back.
+            var deleted = existing
+            deleted.periodLength = nil
+            await write(.periodStart, detail: "soft delete", dispatch: dispatch) {
+                try await dbService.upsert([deleted])
             }
         } else {
             guard cycles.canStartPeriod(at: stamp, today: today) else {
@@ -247,9 +267,7 @@ final class DatabaseMiddleware {
             let newCycle = CycleRecord(
                 startDay: stamp,
                 periodLength: 0,
-                ovulation: nil,
-                flowLevels: [:],
-                updatedAt: nil
+                ovulation: nil
             )
             await write(.periodStart, detail: "insert", dispatch: dispatch) {
                 try await dbService.upsert([newCycle])
@@ -271,7 +289,6 @@ final class DatabaseMiddleware {
         let raw = stamp - cycle.startDay + 1
         var updated = cycle
         updated.periodLength = max(Constants.Cycle.minPeriodLength, min(Constants.Cycle.maxPeriodLength, raw))
-        updated.updatedAt = nil
         await write(.periodEnd, dispatch: dispatch) { try await dbService.upsert([updated]) }
     }
 
@@ -285,7 +302,6 @@ final class DatabaseMiddleware {
               cycle.startDay.advanced(by: periodLength - 1) == stamp else { return }
         var updated = cycle
         updated.periodLength = 0
-        updated.updatedAt = nil
         await write(.periodEnd, detail: "unmark", dispatch: dispatch) {
             try await dbService.upsert([updated])
         }
@@ -298,20 +314,22 @@ final class DatabaseMiddleware {
         cycles: [CycleRecord],
         dispatch: @escaping Dispatch
     ) async {
-        guard stamp <= today, var cycle = cycles.recordedPeriodCycle(covering: stamp) else {
+        // The cycle is still asked, but only for permission: the level is written to its own
+        // day-keyed row now, so marking a third day no longer makes the whole cycle dirty and no
+        // longer collides with a period length edited on another device (SYNC.md §3.4).
+        guard cycles.canSetFlowLevel(at: stamp, today: today) else {
             AppLogger.warn("setFlowLevel rejected for \(stamp): in the future, or no recorded period covers the day")
             return
         }
-        cycle.setFlowLevel(level, on: stamp)
-        cycle.updatedAt = nil
-        await write(.flowLevel, dispatch: dispatch) { try await dbService.upsert([cycle]) }
+        // `level == nil` is the tombstone this table deletes with, not an absent write.
+        let record = FlowLevelRecord(dayNumber: stamp, level: level)
+        await write(.flowLevel, dispatch: dispatch) { try await dbService.upsert([record]) }
     }
 
     private func handleSaveComment(stamp: Daystamp, text: String, dispatch: @escaping Dispatch) async {
         let record = CommentRecord(
             dayNumber: stamp,
-            comment: text.isEmpty ? nil : text,
-            updatedAt: nil
+            comment: text.isEmpty ? nil : text
         )
         await write(.comment, dispatch: dispatch) { try await dbService.upsert([record]) }
     }
@@ -319,8 +337,7 @@ final class DatabaseMiddleware {
     private func handleSetDayTags(stamp: Daystamp, tagIds: [String], dispatch: @escaping Dispatch) async {
         let record = DayTagsRecord(
             dayNumber: stamp,
-            tagIds: tagIds,
-            updatedAt: nil
+            tagIds: tagIds
         )
         await write(.dayTags, dispatch: dispatch) { try await dbService.upsert([record]) }
     }

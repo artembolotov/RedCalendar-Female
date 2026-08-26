@@ -16,16 +16,16 @@ protocol DatabaseServiceProtocol: Sendable {
     func fetchDayTags(in range: ClosedRange<Daystamp>) async throws -> [DayTagsRecord]
 
     // Upsert
+    //
+    // There is no delete. Every removal is a tombstone written through one of these —
+    // `periodLength`, `comment`, `name` and `level` set to nil — so that the row survives to
+    // tell the server, and the next pull, that it is gone (SYNC.md §3.3). Physical deletion
+    // stays possible only for a wipe of the whole database.
     func upsert(_ cycles: [CycleRecord]) async throws
+    func upsert(_ flowLevels: [FlowLevelRecord]) async throws
     func upsert(_ comments: [CommentRecord]) async throws
     func upsert(_ userTags: [UserTagRecord]) async throws
     func upsert(_ dayTags: [DayTagsRecord]) async throws
-
-    // Delete
-    func deleteCycle(startDay: Daystamp) async throws
-
-    // Sync
-    func lastSyncTimestamp() async throws -> Int?
 
     // Observations
     @MainActor
@@ -38,6 +38,12 @@ protocol DatabaseServiceProtocol: Sendable {
     func observeComments(
         in range: ClosedRange<Daystamp>,
         onChange: @escaping @MainActor @Sendable ([CommentRecord]) -> Void
+    ) -> AnyDatabaseCancellable
+
+    @MainActor
+    func observeFlowLevels(
+        in range: ClosedRange<Daystamp>,
+        onChange: @escaping @MainActor @Sendable ([FlowLevelRecord]) -> Void
     ) -> AnyDatabaseCancellable
 
     @MainActor

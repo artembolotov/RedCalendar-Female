@@ -80,6 +80,81 @@ final class DatabaseService: DatabaseServiceProtocol {
             try db.rename(table: "user_tags_new", to: "user_tags")
         }
 
+        // The local half of the sync spec (SYNC.md §3.1): a dirty marker on every syncable
+        // table, the day-keyed `flow_levels` a cycle's dictionary is unpacked into (§3.4), and
+        // the two singleton rows a sync run keeps its state in.
+        //
+        // `updated_at` and `cycles.flow_levels` stay as columns and leave the Swift structs.
+        // GRDB writes only the fields a record declares, so a column nobody mentions costs
+        // nothing — and rebuilding four tables to be rid of them would be the expensive way to
+        // change nothing. `cycles.flow_levels` is `NOT NULL DEFAULT '{}'`, so an insert that no
+        // longer names it still satisfies the constraint.
+        migrator.registerMigration("v3_sync_storage") { db in
+            for table in ["cycles", "user_tags", "comments", "day_tags"] {
+                try db.alter(table: table) { t in
+                    t.add(column: "dirty_seq", .integer)
+                }
+            }
+
+            try db.create(table: "flow_levels") { t in
+                t.column("day_number", .integer).notNull().primaryKey()
+                t.column("level", .integer)
+                t.column("dirty_seq", .integer)
+            }
+
+            try db.create(table: "user_profile") { t in
+                t.column("id", .integer).notNull().primaryKey()
+                t.column("user_id", .text)
+                t.column("name", .text)
+                t.column("email", .text)
+                t.column("phone_number", .text)
+                t.column("settings_json", .text)
+                t.column("dirty_seq", .integer)
+            }
+
+            try db.create(table: "sync_state") { t in
+                t.column("id", .integer).notNull().primaryKey()
+                t.column("user_id", .text)
+                t.column("cursor", .integer).notNull().defaults(to: 0)
+                t.column("local_seq", .integer).notNull().defaults(to: 0)
+                t.column("import_status", .text)
+                t.column("known_tables", .text).notNull()
+            }
+
+            // Raw SQL rather than a pass over `CycleRecord`: a migration that has already run on
+            // someone's device must never change meaning, and the struct it would have decoded
+            // through loses `flowLevels` in this same commit — the same reason
+            // `v2_tag_category_not_null` above backfills a literal `0`.
+            //
+            // One day can appear in two cycles' dictionaries: the keys were windowed on read,
+            // never on write. The later cycle wins, which is what `ORDER BY start_day` in front
+            // of the upsert says.
+            try db.execute(sql: """
+                INSERT INTO flow_levels (day_number, level, dirty_seq)
+                SELECT CAST(f.key AS INTEGER), CAST(f.value AS INTEGER), 1
+                FROM cycles, json_each(cycles.flow_levels) AS f
+                WHERE json_valid(cycles.flow_levels) AND f.value IS NOT NULL
+                ORDER BY cycles.start_day
+                ON CONFLICT(day_number) DO UPDATE SET level = excluded.level
+                """)
+
+            // Everything already on this device is unsent by definition — nothing has ever been
+            // pushed anywhere — so it all carries the first generation. The rows written just
+            // above carry it already.
+            for table in ["cycles", "user_tags", "comments", "day_tags"] {
+                try db.execute(sql: "UPDATE \(table) SET dirty_seq = 1")
+            }
+
+            // The table set is a literal, and has to be: read from a constant it would grow with
+            // the build, and the check this row exists for — code set wider than the stored one
+            // orders a full resync (§4.6) — could then never fire. `profile` is in it because a
+            // sync run treats it as a sixth stream (§5.1).
+            try db.execute(sql: """
+                INSERT INTO sync_state (id, user_id, cursor, local_seq, import_status, known_tables)
+                VALUES (1, NULL, 0, 1, NULL, '["comments","cycles","day_tags","flow_levels","profile","user_tags"]')
+                """)
+        }
+
         try migrator.migrate(dbQueue)
     }
 
@@ -120,63 +195,43 @@ final class DatabaseService: DatabaseServiceProtocol {
 
     // MARK: - Upsert
 
-    func upsert(_ cycles: [CycleRecord]) async throws {
+    func upsert(_ cycles: [CycleRecord]) async throws { try await upsertStamped(cycles) }
+    func upsert(_ flowLevels: [FlowLevelRecord]) async throws { try await upsertStamped(flowLevels) }
+    func upsert(_ comments: [CommentRecord]) async throws { try await upsertStamped(comments) }
+    func upsert(_ userTags: [UserTagRecord]) async throws { try await upsertStamped(userTags) }
+    func upsert(_ dayTags: [DayTagsRecord]) async throws { try await upsertStamped(dayTags) }
+
+    /// Every local write stamps the rows it touched with a fresh generation, in the same
+    /// transaction that produced it (SYNC.md §5.4).
+    ///
+    /// Same transaction is the whole point, not tidiness: an edit made while a sync run is in
+    /// flight has to come out carrying a generation *higher* than the one that run reported
+    /// sending, or the run clears its flag on the way back and the edit is never pushed. Reading
+    /// the counter anywhere but here leaves exactly that gap.
+    private func upsertStamped<T: DirtyStamped>(_ records: [T]) async throws {
         try await dbQueue.write { db in
-            for cycle in cycles {
-                try cycle.upsert(db)
+            let seq = try Self.nextLocalSeq(db)
+            for record in records {
+                var stamped = record
+                stamped.dirtySeq = seq
+                try stamped.upsert(db)
             }
         }
     }
 
-    func upsert(_ comments: [CommentRecord]) async throws {
-        try await dbQueue.write { db in
-            for comment in comments {
-                try comment.upsert(db)
-            }
+    /// Bumped and read inside the caller's transaction — see `upsertStamped`. Two statements
+    /// rather than `UPDATE ... RETURNING`, which needs SQLite 3.35 and buys nothing here.
+    private static func nextLocalSeq(_ db: Database) throws -> Int {
+        try db.execute(sql: "UPDATE sync_state SET local_seq = local_seq + 1 WHERE id = 1")
+        guard let seq = try Int.fetchOne(db, sql: "SELECT local_seq FROM sync_state WHERE id = 1") else {
+            throw DatabaseError(message: "sync_state row is missing — the v3 migration did not run")
         }
-    }
-
-    func upsert(_ userTags: [UserTagRecord]) async throws {
-        try await dbQueue.write { db in
-            for tag in userTags {
-                try tag.upsert(db)
-            }
-        }
-    }
-
-    func upsert(_ dayTags: [DayTagsRecord]) async throws {
-        try await dbQueue.write { db in
-            for dayTag in dayTags {
-                try dayTag.upsert(db)
-            }
-        }
-    }
-
-    // MARK: - Delete
-
-    func deleteCycle(startDay: Daystamp) async throws {
-        _ = try await dbQueue.write { db in
-            try CycleRecord
-                .filter(CycleRecord.Columns.startDay == startDay)
-                .deleteAll(db)
-        }
-    }
-
-    // MARK: - Sync
-
-    func lastSyncTimestamp() async throws -> Int? {
-        try await dbQueue.read { db in
-            let cyclesMax = try Int.fetchOne(db, sql: "SELECT MAX(updated_at) FROM cycles")
-            let userTagsMax = try Int.fetchOne(db, sql: "SELECT MAX(updated_at) FROM user_tags")
-            let commentsMax = try Int.fetchOne(db, sql: "SELECT MAX(updated_at) FROM comments")
-            let dayTagsMax = try Int.fetchOne(db, sql: "SELECT MAX(updated_at) FROM day_tags")
-            return [cyclesMax, userTagsMax, commentsMax, dayTagsMax].compactMap { $0 }.max()
-        }
+        return seq
     }
 
     // MARK: - Observations
 
-    // All four observations start on the main actor and deliver there: this is
+    // All five observations start on the main actor and deliver there: this is
     // `ValueObservation.start`'s `@MainActor` overload, whose default `.mainActor` scheduler is
     // the same `DispatchQueue.main` delivery as before — the difference is that the compiler now
     // checks it instead of the caller assuming it.
@@ -231,6 +286,27 @@ final class DatabaseService: DatabaseServiceProtocol {
             in: dbQueue,
             onError: { error in
                 AppLogger.error("Comments observation failed", error: error)
+            },
+            onChange: onChange
+        )
+    }
+
+    @MainActor
+    func observeFlowLevels(
+        in range: ClosedRange<Daystamp>,
+        onChange: @escaping @MainActor @Sendable ([FlowLevelRecord]) -> Void
+    ) -> AnyDatabaseCancellable {
+        let observation = ValueObservation.tracking { db in
+            try FlowLevelRecord
+                .filter(range.contains(FlowLevelRecord.Columns.dayNumber))
+                .filter(FlowLevelRecord.Columns.level != nil)
+                .fetchAll(db)
+        }.removeDuplicates()
+
+        return observation.start(
+            in: dbQueue,
+            onError: { error in
+                AppLogger.error("FlowLevels observation failed", error: error)
             },
             onChange: onChange
         )

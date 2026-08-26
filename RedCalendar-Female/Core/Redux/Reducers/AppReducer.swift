@@ -72,6 +72,10 @@ func appReducer(state: AppState, action: AppAction) -> AppState {
             state.calendarState.visibleDayTags = dayTags
             recomputeDayDisplayStates = true
 
+        case .setFlowLevels(let flowLevels):
+            state.calendarState.flowLevels = flowLevels
+            recomputeDayDisplayStates = true
+
         case .setLoadedRange(let range):
             state.calendarState.loadedRange = range
             recomputeDayDisplayStates = true
