@@ -12,6 +12,7 @@ let authMiddleware: Middleware = { state, action, dispatch in
     @Injected var keychain: KeychainServiceProtocol
     @Injected var pushPermissionService: PushPermissionServiceProtocol
     @Injected var apiService: APIServiceProtocol
+    @Injected var dbService: DatabaseServiceProtocol
 
     // This middleware owns the auth domain, so the inner switch is exhaustive: a new
     // `AuthAction` is a build error here until somebody decides what it means.
@@ -76,6 +77,11 @@ let authMiddleware: Middleware = { state, action, dispatch in
                             guard response.success, let data = response.data else {
                                 throw APIServiceError.serverError(response.message ?? "Authentication failed")
                             }
+
+                            // Before the new device_id is saved, never after: the order is what
+                            // makes an interruption here leave a consistent pair — the old
+                            // database with the old device, or a clean one with the new (§6).
+                            try await dbService.claimOwner(data.user.id)
 
                             keychain.saveDeviceID(data.deviceId)
                             keychain.deleteUserUID()
@@ -163,6 +169,9 @@ let authMiddleware: Middleware = { state, action, dispatch in
                                 throw APIServiceError.serverError(response.message ?? "Flash Call verification failed")
                             }
 
+                            // Owner check first, for the reason given on the email path above.
+                            try await dbService.claimOwner(data.user.id)
+
                             // Save device ID and clean up old Firebase user ID
                             keychain.saveDeviceID(data.deviceId)
                             keychain.deleteUserUID()
@@ -214,17 +223,29 @@ let authMiddleware: Middleware = { state, action, dispatch in
     case .logout:
         if case .authenticated(let deviceId) = state.authState {
             Task {
+                // The sign-out happens whatever the server answers, **D4**. It used to happen
+                // only on success or on a 401, so a person on a bad connection stayed signed in
+                // — and with §6 that is no longer merely annoying: `DatabaseMiddleware` wipes
+                // this device's data on `.logout`, so a session left alive is a session running
+                // against an emptied database.
                 do {
                     let _ = try await apiService.logout(deviceId: deviceId)
                     AppLogger.info("Device successfully logged out from server")
-
-                    dispatch(.auth(.set(.notAuthenticated)))
                 } catch APIServiceError.unauthorized {
-                    dispatch(.auth(.set(.notAuthenticated)))
+                    // Already gone on the server — nothing to report.
                 } catch {
-                    AppLogger.error(error.localizedDescription)
+                    // The device row survives on the server; it is dropped the next time this
+                    // person signs in there, and until then it can only receive pushes for an
+                    // account this phone no longer holds a token for.
+                    AppLogger.error("Logout request failed — signing out locally anyway", error: error)
                 }
+
+                dispatch(.auth(.set(.notAuthenticated)))
             }
+        } else {
+            // Nothing to tell the server, and still a sign-out: `DatabaseMiddleware` has already
+            // wiped on this action, so the one state this must not end in is "still signed in".
+            dispatch(.auth(.set(.notAuthenticated)))
         }
     }
 }

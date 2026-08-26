@@ -28,6 +28,7 @@ enum MigrationError: Error, LocalizedError, Equatable {
 let migrationMiddleware: Middleware = { state, action, dispatch in
     @Injected var keychain: KeychainServiceProtocol
     @Injected var apiService: APIServiceProtocol
+    @Injected var dbService: DatabaseServiceProtocol
     
     // Observes the auth domain rather than owning it, so it matches the one case it acts on
     // instead of switching exhaustively — a new `AuthAction` genuinely is none of its business.
@@ -42,6 +43,13 @@ let migrationMiddleware: Middleware = { state, action, dispatch in
                         throw MigrationError.serverError(response.message ?? "Unknown error")
                     }
                     
+                    // The third point of §6's owner check. In practice it claims an unowned
+                    // database rather than finding a stranger's — a device arrives here only
+                    // with a legacy Firebase id and no `device_id` — but the check belongs on
+                    // every path that learns a user_id, and it is here for the same reason as on
+                    // the other two: before the new `device_id` is saved, never after.
+                    try await dbService.claimOwner(data.userId)
+
                     guard keychain.saveDeviceID(data.deviceId) else {
                         throw MigrationError.keychainSaveError
                     }

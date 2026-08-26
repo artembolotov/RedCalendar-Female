@@ -25,6 +25,10 @@ func appReducer(state: AppState, action: AppAction) -> AppState {
                 state.notifications.apnsToken = nil
                 state.calendarState = CalendarState()
                 state.syncState = .idle
+                // The row behind it is wiped on logout (§6) and belongs to the previous account
+                // after any sign-out; left here it would still be the name and the cycle
+                // settings the next screen reads.
+                state.userProfile = nil
             }
 
         case .logout:

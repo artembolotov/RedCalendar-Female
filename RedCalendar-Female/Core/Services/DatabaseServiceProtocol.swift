@@ -57,6 +57,17 @@ protocol DatabaseServiceProtocol: Sendable {
     /// `known_tables` survives — it describes the build, not the user.
     func wipeAll(newOwner: String?) async throws
 
+    /// The owner check of §6, run at sign-in — before the new `device_id` is saved, so that an
+    /// interruption leaves either the old database with the old device or a clean one with the
+    /// new. One transaction rather than a read followed by `wipeAll`: the decision to wipe has to
+    /// rest on the value just read, and the run of §5 can start between the two.
+    ///
+    /// Returns whether the database was wiped, which is the only thing a caller can act on: an
+    /// unclaimed database (`user_id` empty — a fresh install, or an upgrade from v3.2 where the
+    /// row was backfilled without one) is claimed silently and keeps its rows.
+    @discardableResult
+    func claimOwner(_ userId: String) async throws -> Bool
+
     // Observations
     @MainActor
     func observeCycles(onChange: @escaping @MainActor @Sendable ([CycleRecord]) -> Void) -> AnyDatabaseCancellable

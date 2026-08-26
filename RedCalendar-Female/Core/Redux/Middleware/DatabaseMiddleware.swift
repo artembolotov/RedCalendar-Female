@@ -72,6 +72,24 @@ final class DatabaseMiddleware {
                 cancelAll()
             }
 
+        // Only an explicit logout wipes. A 401 during a sync run ends in `.notAuthenticated`
+        // above and leaves the database alone: that is the same person, signed out from another
+        // phone, and their history is theirs (§6).
+        //
+        // Cancelling first is not tidiness. The other order has six observations firing on an
+        // emptied database, each dispatching its empty array, and the calendar renders a frame
+        // of blank month before the sign-in screen replaces it.
+        case .auth(.logout):
+            cancelAll()
+            do {
+                try await dbService.wipeAll(newOwner: nil)
+            } catch {
+                // Nothing to hand the user: they asked to leave, and the sign-out proceeds
+                // regardless. The rows stay until the next attempt — a fresh sign-in claims the
+                // database and wipes it if the owner changed.
+                AppLogger.error("Failed to wipe the database on logout", error: error)
+            }
+
         // Observed, not owned — the same way `MigrationMiddleware` watches one auth case. What
         // this middleware contributes to a sync run is its tokens, and they stay its own: a full
         // resync applies a whole history in one transaction per page, and every one of those

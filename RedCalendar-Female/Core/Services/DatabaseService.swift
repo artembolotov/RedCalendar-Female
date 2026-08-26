@@ -354,20 +354,48 @@ final class DatabaseService: DatabaseServiceProtocol {
 
     func wipeAll(newOwner: String?) async throws {
         try await dbQueue.write { db in
-            for table in Self.syncedTables {
-                try db.execute(sql: "DELETE FROM \(table)")
-            }
-            // `known_tables` is deliberately not touched — it describes this build, not this user.
-            try db.execute(
-                sql: """
-                    UPDATE sync_state
-                       SET user_id = ?, cursor = 0, local_seq = 0, import_status = NULL
-                     WHERE id = 1
-                    """,
-                arguments: [newOwner]
-            )
+            try Self.wipe(db, newOwner: newOwner)
         }
         AppLogger.info("Local database wiped")
+    }
+
+    func claimOwner(_ userId: String) async throws -> Bool {
+        let wiped = try await dbQueue.write { db -> Bool in
+            let owner = try String.fetchOne(db, sql: "SELECT user_id FROM sync_state WHERE id = 1")
+
+            // Someone else's rows. They are wiped before the new device_id is saved, so that
+            // nothing of theirs can be pushed into this account (§6).
+            if let owner, owner != userId {
+                try Self.wipe(db, newOwner: userId)
+                return true
+            }
+
+            try db.execute(
+                sql: "UPDATE sync_state SET user_id = ? WHERE id = 1",
+                arguments: [userId]
+            )
+            return false
+        }
+
+        if wiped {
+            AppLogger.info("Local database wiped: it belonged to another user")
+        }
+        return wiped
+    }
+
+    private static func wipe(_ db: Database, newOwner: String?) throws {
+        for table in syncedTables {
+            try db.execute(sql: "DELETE FROM \(table)")
+        }
+        // `known_tables` is deliberately not touched — it describes this build, not this user.
+        try db.execute(
+            sql: """
+                UPDATE sync_state
+                   SET user_id = ?, cursor = 0, local_seq = 0, import_status = NULL
+                 WHERE id = 1
+                """,
+            arguments: [newOwner]
+        )
     }
 
     /// Everything a wipe empties and step 7.2 unflags. `sync_state` is not one of them: it is

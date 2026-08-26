@@ -41,6 +41,14 @@ final class SyncMiddleware {
     /// practice means until the app is backgrounded (§5.6).
     private var pendingRun = false
 
+    /// Bumped every time the session ends. A run in flight when the user signs out would
+    /// otherwise finish against a database that has just been wiped (§6) — applying the page it
+    /// already asked for, moving the cursor, and leaving the previous account's rows on a phone
+    /// whose whole point was that they are gone. There is nothing to cancel from the outside: a
+    /// run is a `Task` nobody holds, and the network call it is waiting on is not the step that
+    /// does damage. So it checks, at the two points where it would touch the database next.
+    private var sessionEpoch = 0
+
     private var debounceTask: Task<Void, Never>?
     private var retryTask: Task<Void, Never>?
     private var backoff: TimeInterval?
@@ -78,7 +86,8 @@ final class SyncMiddleware {
         case .auth(.set(.authenticated)):
             start(reason: .authenticated)
 
-        case .auth(.set(.notAuthenticated)):
+        case .auth(.set(.notAuthenticated)), .auth(.logout):
+            sessionEpoch += 1
             cancelPendingWork()
 
         case .retryFailedTasks:
@@ -115,6 +124,7 @@ final class SyncMiddleware {
         // keychain is synchronous and correct at any moment (§8).
         guard let deviceId = keychain.getDeviceID() else { return .noData }
 
+        let epoch = sessionEpoch
         isRunning = true
         // Without it, a run in flight when the user swipes the app away is suspended mid-request
         // and resumes minutes later, if at all.
@@ -132,7 +142,7 @@ final class SyncMiddleware {
             if backgroundTask != .invalid {
                 UIApplication.shared.endBackgroundTask(backgroundTask)
             }
-            if pendingRun {
+            if pendingRun && epoch == sessionEpoch {
                 pendingRun = false
                 Task { await self.syncNow(reason: reason) }
             }
@@ -147,6 +157,14 @@ final class SyncMiddleware {
                 guard rounds <= Constants.Sync.maxRoundsPerRun else {
                     AppLogger.warn("Sync: gave up after \(rounds - 1) rounds in one run")
                     break
+                }
+
+                // Signed out since this run started — including the logout that wipes. Nothing
+                // this response carries may reach the disk, and the next sign-in starts from a
+                // cursor of zero anyway.
+                guard epoch == sessionEpoch else {
+                    AppLogger.info("Sync: abandoning the run — the session ended")
+                    return .noData
                 }
 
                 // Step 1. Also the moment a grown `known_tables` resets the cursor, which is why
@@ -192,6 +210,13 @@ final class SyncMiddleware {
                     AppLogger.info("Sync: server ordered a full resync")
                     try await dbService.resetSyncCursor()
                     continue
+                }
+
+                // Checked again here, and this is the one that matters: everything above only
+                // read, and the wipe can land while the request is in flight.
+                guard epoch == sessionEpoch else {
+                    AppLogger.info("Sync: dropping a response — the session ended mid-request")
+                    return .noData
                 }
 
                 // Step 7 — one transaction, four ordered steps, and the cursor moves only if all
