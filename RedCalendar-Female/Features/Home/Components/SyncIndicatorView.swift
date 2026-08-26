@@ -29,12 +29,19 @@ struct SyncIndicatorView: View {
     // passing day rather than on a plate unless something is drawn behind it.
     private let fallbackDiameter: CGFloat = 36
 
+    // Same lesson as the calendar's selection disc (CLAUDE.md): a state change made from outside
+    // a direct SwiftUI event — there a queued dispatch, here a `Task.sleep` resuming — is not
+    // guaranteed to reach the view already wrapped in a transaction, so an *ambient*
+    // `.animation(value:)` sitting on the view tree does not reliably catch it. Wrapping the
+    // mutation itself in `withAnimation`, at every place `displayedState` is written, does.
+    private let fadeDuration: TimeInterval = 0.2
+
     var body: some View {
         badge {
             icon
         }
         // Fixed regardless of state, on both sides of the `#available` branch inside `badge` —
-        // that is what makes the fade below real. A `UIBarButtonItem`'s hosted content does not
+        // that is what makes the fade above real. A `UIBarButtonItem`'s hosted content does not
         // animate a *size* change; SwiftUI's own transaction reaches it, but the bar just
         // re-lays-out in one frame. `.idle` used to be a literal `EmptyView()` at zero size next
         // to a 36pt badge, which is exactly that case. Holding the frame constant and animating
@@ -46,7 +53,6 @@ struct SyncIndicatorView: View {
         // The frame is reserved at `.idle` for the fade above to work, but there is nothing to
         // land on — VoiceOver must not stop on an empty circle.
         .accessibilityHidden(displayedState == .idle)
-        .animation(.easeInOut(duration: 0.2), value: displayedState)
         .onChange(of: syncState) { newValue in reconcile(to: newValue) }
         .onAppear { reconcile(to: syncState) }
         .onDisappear { appearTask?.cancel() }
@@ -97,14 +103,18 @@ struct SyncIndicatorView: View {
         appearTask = nil
 
         guard newValue != .idle, displayedState == .idle else {
-            displayedState = newValue
+            withAnimation(.easeInOut(duration: fadeDuration)) {
+                displayedState = newValue
+            }
             return
         }
 
         appearTask = Task {
             try? await Task.sleep(nanoseconds: Constants.Sync.indicatorAppearDelayNanoseconds)
             guard !Task.isCancelled else { return }
-            displayedState = newValue
+            withAnimation(.easeInOut(duration: fadeDuration)) {
+                displayedState = newValue
+            }
         }
     }
 
