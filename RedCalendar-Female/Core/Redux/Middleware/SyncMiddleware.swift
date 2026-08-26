@@ -307,7 +307,12 @@ final class SyncMiddleware {
         debounceTask = Task { [weak self] in
             try? await Task.sleep(nanoseconds: Constants.Sync.localEditDebounceNanoseconds)
             guard !Task.isCancelled else { return }
-            await self?.syncNow(reason: reason)
+            // Handed to `start` rather than awaited here, so that this task's whole life is the
+            // wait. Every one of these handles is cancelled by whoever schedules the next thing,
+            // and a handle that outlived its delay would be cancelling a run in flight: a second
+            // edit landing mid-request would abort the request it is waiting on. Stopping a run
+            // that should not finish is `sessionEpoch`'s job (§6), never the handle's.
+            self?.start(reason: reason)
         }
     }
 
@@ -327,6 +332,14 @@ final class SyncMiddleware {
     /// something to send and it will go — and never a red indicator.
     private func handleFailure(_ error: Error, reason: SyncReason) -> UIBackgroundFetchResult {
         switch error {
+
+        // A cancelled run is not a failed one, and it is never this run's business to say what
+        // the indicator shows next: whoever cancelled it — a logout, a teardown — either draws
+        // the state it wants or is on its way out. Ahead of the `URLError` row below, which would
+        // otherwise claim `.cancelled` and schedule a retry for work nobody is waiting for.
+        case is CancellationError, URLError.cancelled:
+            AppLogger.info("Sync: run cancelled (\(reason.rawValue))")
+            return .noData
 
         case APIServiceError.unauthorized:
             // The database is **not** touched. This device was signed out from elsewhere; the
@@ -400,7 +413,10 @@ final class SyncMiddleware {
         importPollTask = Task { [weak self] in
             try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
             guard !Task.isCancelled else { return }
-            await self?.syncNow(reason: .importPoll)
+            // Same shape as the debounce, and here the overlap was load-bearing: `syncNow` opens
+            // by cancelling this very handle, so a poll that awaited the run inside its own task
+            // cancelled itself on its first `await` and reported the import as failed.
+            self?.start(reason: .importPoll)
         }
     }
 
@@ -415,7 +431,7 @@ final class SyncMiddleware {
         retryTask = Task { [weak self] in
             try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
             guard !Task.isCancelled else { return }
-            await self?.syncNow(reason: .retry)
+            self?.start(reason: .retry)
         }
     }
 }
