@@ -74,6 +74,18 @@ struct Constants {
         /// from costing more than a request a minute.
         static let minImportPoll: TimeInterval = 3
         static let maxImportPoll: TimeInterval = 60
+
+        /// Read by `SyncIndicatorView`, not by anything else in this file's domain — kept here
+        /// anyway because it is a sync concept (SYNC.md §9), the same reason
+        /// `Sheets.autosaveDebounceNanoseconds` sits next to sync's other debounce rather than in
+        /// some future `UI` bucket that does not exist yet.
+        ///
+        /// How long the indicator waits, once there is something to show, before it actually
+        /// draws it. A run that resolves back to `.idle` inside this window — the common case on
+        /// a fast connection — never reaches the screen at all: the view keeps the state it is
+        /// showing separate from the state it was just handed, and only adopts the new one once
+        /// this much time has passed without it reverting.
+        static let indicatorAppearDelayNanoseconds: UInt64 = 250_000_000
     }
 
     struct Cycle {

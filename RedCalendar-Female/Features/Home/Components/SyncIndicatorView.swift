@@ -17,47 +17,88 @@ struct SyncIndicatorView: View {
 
     @State private var explanationPresented = false
 
+    /// What is actually drawn. Deliberately not `syncState` itself: `reconcile(to:)` only ever
+    /// copies a new value in here once `indicatorAppearDelayNanoseconds` has passed with the real
+    /// state still not `.idle`, so a run that finishes inside that window — a fast connection,
+    /// almost always — never commits a value here at all, and the indicator never draws.
+    @State private var displayedState: SyncState = .idle
+    @State private var appearTask: Task<Void, Never>?
+
     // Matches `HomeMenuView.fallbackDiameter` — the trailing side draws the same backing for the
     // same reason: the calendar runs under a transparent navigation bar, so the glyph sits on a
     // passing day rather than on a plate unless something is drawn behind it.
     private let fallbackDiameter: CGFloat = 36
 
     var body: some View {
-        switch syncState {
-        case .idle:
-            // Nothing at all — not even the backing circle. There is nothing to send and
-            // nothing in flight, and an empty leading slot is what keeps the inline, textless
-            // title from shifting when this appears and disappears.
-            EmptyView()
+        Group {
+            switch displayedState {
+            case .idle:
+                // Nothing at all — not even the backing circle. There is nothing to send and
+                // nothing in flight, and an empty leading slot is what keeps the inline, textless
+                // title from shifting when this appears and disappears.
+                EmptyView()
 
-        case .syncing:
-            badge {
-                ProgressView()
-                    .tint(accent)
-            }
-            .accessibilityLabel("Синхронизация")
-
-        case .pending:
-            badge {
-                Image(systemName: "arrow.triangle.2.circlepath")
-                    .foregroundStyle(accent)
-            }
-            .accessibilityLabel("Есть несохранённые данные")
-
-        case .failed(let origin):
-            Button {
-                explanationPresented = true
-            } label: {
+            case .syncing:
                 badge {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .symbolRenderingMode(.multicolor)
+                    ProgressView()
+                        .tint(accent)
+                }
+                .accessibilityLabel("Синхронизация")
+
+            case .pending:
+                badge {
+                    Image(systemName: "arrow.triangle.2.circlepath")
+                        .foregroundStyle(accent)
+                }
+                .accessibilityLabel("Есть несохранённые данные")
+
+            case .failed(let origin):
+                Button {
+                    explanationPresented = true
+                } label: {
+                    badge {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .symbolRenderingMode(.multicolor)
+                    }
+                }
+                .accessibilityLabel("Не удалось синхронизировать данные")
+                .accessibilityHint("Нажмите, чтобы узнать больше")
+                .popover(isPresented: $explanationPresented) {
+                    explanation(for: origin)
                 }
             }
-            .accessibilityLabel("Не удалось синхронизировать данные")
-            .accessibilityHint("Нажмите, чтобы узнать больше")
-            .popover(isPresented: $explanationPresented) {
-                explanation(for: origin)
-            }
+        }
+        // The switch's cases are different view types, so this is what actually gets the
+        // crossfade — SwiftUI's default insertion/removal transition is `.opacity`, and this is
+        // the animation that applies to it. Keyed on `displayedState`, never `syncState`: the
+        // gate below is what decides *whether* a change reaches here, this only decides how it
+        // looks once it does.
+        .animation(.easeInOut(duration: 0.2), value: displayedState)
+        .onChange(of: syncState) { newValue in reconcile(to: newValue) }
+        .onAppear { reconcile(to: syncState) }
+        .onDisappear { appearTask?.cancel() }
+    }
+
+    // MARK: - Private Methods
+
+    /// Gates *appearing*, never disappearing. `displayedState == .idle` is the only branch that
+    /// waits: nothing is on screen yet, so there is something to lose by committing too early.
+    /// Once something is already drawn, a change — including a drop back to `.idle` — is applied
+    /// immediately, because hiding what is already visible more slowly than it actually resolved
+    /// would show a stale badge, not a smoother one.
+    private func reconcile(to newValue: SyncState) {
+        appearTask?.cancel()
+        appearTask = nil
+
+        guard newValue != .idle, displayedState == .idle else {
+            displayedState = newValue
+            return
+        }
+
+        appearTask = Task {
+            try? await Task.sleep(nanoseconds: Constants.Sync.indicatorAppearDelayNanoseconds)
+            guard !Task.isCancelled else { return }
+            displayedState = newValue
         }
     }
 
