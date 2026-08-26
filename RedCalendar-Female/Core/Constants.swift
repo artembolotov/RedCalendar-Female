@@ -61,6 +61,14 @@ struct Constants {
         /// already hypothetical; this is here so that a server that always says `has_more` costs
         /// one bounded run rather than an unbounded one.
         static let maxRoundsPerRun = 50
+
+        /// While the server says the Firebase import is still `running` (SYNC.md §10.4), a run
+        /// that ends asks again by itself. The same doubling and the same ceiling as the backoff,
+        /// from a shorter first step: an import is seconds, so the first question is the one most
+        /// likely to be answered, and the ceiling is what keeps an import that will never finish
+        /// from costing more than a request a minute.
+        static let minImportPoll: TimeInterval = 3
+        static let maxImportPoll: TimeInterval = 60
     }
 
     struct Cycle {

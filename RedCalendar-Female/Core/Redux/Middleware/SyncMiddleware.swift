@@ -53,6 +53,13 @@ final class SyncMiddleware {
     private var retryTask: Task<Void, Never>?
     private var backoff: TimeInterval?
 
+    /// Kept apart from `retryTask`/`backoff` rather than folded into them. Both are "one future
+    /// run, at most one pending", but a retry follows a failure and a poll follows a success —
+    /// sharing the delay would let an import that is merely slow inflate the backoff a real
+    /// outage is measured with, and reset it on every answer that came back fine.
+    private var importPollTask: Task<Void, Never>?
+    private var importPoll: TimeInterval?
+
     private init() {}
 
     // MARK: - Handle
@@ -132,6 +139,12 @@ final class SyncMiddleware {
 
         let epoch = sessionEpoch
         isRunning = true
+        // This run supersedes the question a previous one left pending; how it ends decides
+        // whether it is asked again. The interval is deliberately left alone — clearing it here
+        // would reset the doubling on every poll and leave an import that never finishes being
+        // asked about every few seconds for as long as the app is open.
+        importPollTask?.cancel()
+        importPollTask = nil
         // Without it, a run in flight when the user swipes the app away is suspended mid-request
         // and resumes minutes later, if at all.
         let backgroundTask = UIApplication.shared.beginBackgroundTask(withName: "sync")
@@ -190,7 +203,7 @@ final class SyncMiddleware {
                     AppLogger.info("Sync: push revision \(serverRevision) is not ahead of the cursor — nothing to do")
                     // Explicit, because the `defer` above does not touch the indicator: it was set
                     // `.syncing` a moment ago and nothing else on this path would take it down.
-                    sink?(.sync(.setState(SyncState(afterImport: importStatus))))
+                    finish(importStatus: importStatus)
                     return .noData
                 }
 
@@ -273,7 +286,7 @@ final class SyncMiddleware {
             backoff = nil
             retryTask?.cancel()
             retryTask = nil
-            sink?(.sync(.setState(SyncState(afterImport: importStatus))))
+            finish(importStatus: importStatus)
             return appliedAnything ? .newData : .noData
 
         } catch {
@@ -305,6 +318,7 @@ final class SyncMiddleware {
         retryTask = nil
         backoff = nil
         pendingRun = false
+        cancelImportPoll()
         sink?(.sync(.setState(.idle)))
     }
 
@@ -348,6 +362,52 @@ final class SyncMiddleware {
         let delay = max(Constants.Sync.minBackoff, next)
         backoff = delay
         return delay
+    }
+
+    /// How a successful run ends: the indicator, and the one thing such a run may schedule.
+    ///
+    /// **The rescheduling reads the drawn state, not the status string.** A run that ends still
+    /// showing work is exactly the run whose import has not finished — §9's table says so — and
+    /// making that the condition keeps `running` spelled out in one place (`SyncState`) instead
+    /// of two.
+    private func finish(importStatus: String?) {
+        let state = SyncState(afterImport: importStatus)
+        sink?(.sync(.setState(state)))
+
+        if state == .syncing {
+            scheduleImportPoll()
+        } else {
+            cancelImportPoll()
+        }
+    }
+
+    /// The silent push at the end of an import (§10.4) is a hint, and on the one run that matters
+    /// it is a hint that can miss: the import starts at authentication, while this device's APNs
+    /// token is still on its way to the server, so the push may go out before there is anything
+    /// to send it to. Nothing is lost when it does — `import_status` rides every response — but
+    /// without asking again the calendar sits empty under a spinning indicator until the next
+    /// time the app comes forward.
+    ///
+    /// This is `has_more` between runs rather than inside one: the server has said it is not
+    /// finished, so the client asks again, which is what it does for every other unfinished
+    /// answer in §5.
+    private func scheduleImportPoll() {
+        let next = min((importPoll ?? 0) * 2, Constants.Sync.maxImportPoll)
+        let delay = max(Constants.Sync.minImportPoll, next)
+        importPoll = delay
+
+        importPollTask?.cancel()
+        importPollTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+            guard !Task.isCancelled else { return }
+            await self?.syncNow(reason: .importPoll)
+        }
+    }
+
+    private func cancelImportPoll() {
+        importPollTask?.cancel()
+        importPollTask = nil
+        importPoll = nil
     }
 
     private func scheduleRetry(after delay: TimeInterval) {

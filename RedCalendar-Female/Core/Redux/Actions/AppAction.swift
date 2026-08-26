@@ -131,6 +131,8 @@ enum SyncReason: String, Sendable {
     case appBackground
     case remoteNotification
     case retry
+    /// A run asking again because the last one ended with the import still running (§10.4).
+    case importPoll
 
     var isDebounced: Bool { self == .localEdit }
 }
