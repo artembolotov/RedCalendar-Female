@@ -19,7 +19,10 @@ struct HomeView: View {
     // Bumped every time the card closes, so the next one is a new view rather than the one
     // still on its way out.
     @State private var detailsPresentation = 0
-    
+    // Written by `SyncIndicatorView`, read here to drive `.sharedBackgroundVisibility` on its
+    // `ToolbarItem` — see that binding's doc for why the badge can't do this to itself.
+    @State private var syncIndicatorVisible = false
+
     var body: some View {
         NavigationView {
             if store.state.isAuthenticated {
@@ -94,18 +97,12 @@ struct HomeView: View {
                     // area so it can measure it; the content is what escapes it.
                     .ignoresSafeArea(edges: [.top, .bottom])
                     .navigationBarTitleDisplayMode(.inline)
-                    .toolbar {
-                        ToolbarItem(placement: .navigationBarLeading) {
-                            SyncIndicatorView(
-                                syncState: store.state.syncState,
-                                accent: store.state.accentTheme.accent,
-                                onRetry: { store.send(.sync(.requested(.retry))) }
-                            )
-                        }
-                        ToolbarItem(placement: .navigationBarTrailing) {
-                            HomeMenuView(accent: store.state.accentTheme.accent)
-                        }
-                    }
+                    .modifier(HomeToolbar(
+                        syncState: store.state.syncState,
+                        accent: store.state.accentTheme.accent,
+                        onRetry: { store.send(.sync(.requested(.retry))) },
+                        syncIndicatorVisible: $syncIndicatorVisible
+                    ))
                     // Otherwise the bar's own background sits on top of the calendar's band
                     // and there is nothing left to see through.
                     .transparentNavigationBarBackground()
@@ -164,6 +161,61 @@ struct HomeView: View {
 
     private func setTodaySelected() {
         store.send(.calendar(.selectDay(store.state.calendarState.todayDayStamp)))
+    }
+}
+
+/// `.sharedBackgroundVisibility` (iOS 26+) is a `ToolbarContent` modifier, not a `View` one, so
+/// hiding it below 26 can't be an inline `if #available` inside `.toolbar {}` the way it can be
+/// almost everywhere else in this app: `ToolbarContentBuilder`'s `buildEither` — what an `if`
+/// with an `else` compiles down to — only exists from iOS 16, four versions above this app's 15.4
+/// floor, while plain `ViewBuilder`'s has been there since iOS 13. Branching a `ViewModifier`
+/// instead of the `.toolbar {}` call itself is what buys back the `if #available … else` this app
+/// otherwise takes for granted — CLAUDE.md's `#available` guidance is about *which* fix a warning
+/// needs, not a promise that every `if #available` compiles at this floor regardless of which
+/// builder it sits in.
+///
+/// Without `.sharedBackgroundVisibility(.hidden)` at `.idle`, the system's own "Liquid Glass"
+/// background behind this toolbar item stays visible — an empty glass circle — because that
+/// background is keyed off whether the item has content at all, not off what that content
+/// currently renders as, so `SyncIndicatorView`'s own `.opacity(0)` never reaches it. See
+/// `syncIndicatorVisible` on `HomeView`.
+private struct HomeToolbar: ViewModifier {
+    let syncState: SyncState
+    let accent: Color
+    let onRetry: () -> Void
+    @Binding var syncIndicatorVisible: Bool
+
+    func body(content: Content) -> some View {
+        if #available(iOS 26.0, *) {
+            content.toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    SyncIndicatorView(
+                        syncState: syncState,
+                        accent: accent,
+                        onRetry: onRetry,
+                        isVisible: $syncIndicatorVisible
+                    )
+                }
+                .sharedBackgroundVisibility(syncIndicatorVisible ? .visible : .hidden)
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    HomeMenuView(accent: accent)
+                }
+            }
+        } else {
+            content.toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    SyncIndicatorView(
+                        syncState: syncState,
+                        accent: accent,
+                        onRetry: onRetry,
+                        isVisible: $syncIndicatorVisible
+                    )
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    HomeMenuView(accent: accent)
+                }
+            }
+        }
     }
 }
 

@@ -36,6 +36,16 @@ struct SyncIndicatorView: View {
     /// is a parameter and not a store read: this is toolbar content, where `@EnvironmentObject`
     /// is not reliably reachable.
     let onRetry: () -> Void
+    /// Mirrors `displayedState != .idle`, written back to `HomeView` so it can drive
+    /// `.sharedBackgroundVisibility` on the *toolbar item*, not on any view in here.
+    /// `sharedBackgroundVisibility` is a `ToolbarContent` modifier (iOS 26+), not a `View` one —
+    /// it cannot be applied from inside this type at all. It exists because `.opacity(0)` alone
+    /// does not hide this badge at `.idle` on iOS 26: the automatic "Liquid Glass" background the
+    /// system draws behind toolbar content is keyed off whether the item *has content*, not off
+    /// what that content currently renders as, so it stays visible — an empty glass circle —
+    /// however transparent everything inside is made. A `Binding` rather than a callback because
+    /// `HomeView` needs the value to build its `.toolbar {}`, not just to react to a change in it.
+    @Binding var isVisible: Bool
 
     /// The open explanation, or `nil`. An `item` rather than an `isPresented` flag because the
     /// origin has to be *captured* when the badge is tapped: read live from `syncState` instead,
@@ -145,6 +155,7 @@ struct SyncIndicatorView: View {
             withAnimation(.easeInOut(duration: fadeDuration)) {
                 displayedState = newValue
             }
+            isVisible = newValue != .idle
             return
         }
 
@@ -154,6 +165,7 @@ struct SyncIndicatorView: View {
             withAnimation(.easeInOut(duration: fadeDuration)) {
                 displayedState = newValue
             }
+            isVisible = newValue != .idle
         }
     }
 
@@ -269,14 +281,27 @@ private struct CompactPopoverAdaptation: ViewModifier {
     }
 }
 
-#Preview {
-    NavigationView {
-        Color.clear
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    SyncIndicatorView(syncState: .failed(.firebaseImport), accent: .accentColor, onRetry: {})
+private struct SyncIndicatorPreview: View {
+    @State private var isVisible = false
+
+    var body: some View {
+        NavigationView {
+            Color.clear
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarLeading) {
+                        SyncIndicatorView(
+                            syncState: .failed(.firebaseImport),
+                            accent: .accentColor,
+                            onRetry: {},
+                            isVisible: $isVisible
+                        )
+                    }
                 }
-            }
+        }
     }
+}
+
+#Preview {
+    SyncIndicatorPreview()
 }
