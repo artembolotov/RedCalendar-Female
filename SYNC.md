@@ -32,6 +32,13 @@
 
 ## 2. Текущее состояние кода
 
+Снимок на момент написания спецификации, **до** начала работ по §12. С тех пор он не
+обновлялся сам по себе и самостоятельным источником правды не является — что сделано,
+показывает §12, по пунктам. Раздел оставлен ради дефектов D1–D10 ниже: они выведены из этого
+снимка, и без него непонятно, откуда взялось каждое решение. **На сегодня все десять закрыты**
+(пункты и коммиты — в конце §2.4); списки «чего нет» в 2.2 и 2.3 описывают состояние, которого
+больше нет.
+
 ### 2.1. iOS — что уже готово
 
 | Что | Где | Состояние |
@@ -44,20 +51,24 @@
 | `remote-notification` в `UIBackgroundModes` | `Info.plist` | есть |
 | `aps-environment` | обе entitlements | есть |
 
-### 2.2. iOS — чего нет
+### 2.2. iOS — чего не было к началу работ
 
-- Ни одного data-эндпоинта в `APIServiceProtocol` — только 8 методов auth.
-- Нет `didReceiveRemoteNotification` в `AppDelegate`. Background mode включён, обработчика нет.
-- Нет `SyncState`, `SyncAction`, `SyncMiddleware`.
-- Локальная база не чистится при logout.
-- `validateHTTPResponse` не различает 429 / 5xx / прочие 4xx (**D9**).
+Всё ниже закрыто; пункт в скобках — тот, что закрыл.
 
-### 2.3. Сервер — что есть
+- Ни одного data-эндпоинта в `APIServiceProtocol` — только 8 методов auth. **(пункт 8)**
+- Нет `didReceiveRemoteNotification` в `AppDelegate`. Background mode включён, обработчика нет. **(пункт 10)**
+- Нет `SyncState`, `SyncAction`, `SyncMiddleware`. **(пункт 8)**
+- Локальная база не чистится при logout. **(пункт 9)**
+- `validateHTTPResponse` не различает 429 / 5xx / прочие 4xx (**D9**). **(пункт 7)**
 
-- Auth: email (`check-email` → `verify-code`), телефон (`check-phone` → `verify-flash-call`), `migrate`, `apns-token`, `logout`, `verify`.
-- Push через APNs, только `alert`.
-- Ни строчки про `cycles`/`comments`/`user_tags`/`day_tags` — проверено `grep` по всему `app/`.
-- **Механизма применения DDL нет вообще** (**D10**). Деплой — rsync по SSH + `npm ci` + `touch ../reload`; `database.js` содержит только пул.
+### 2.3. Сервер — что было к началу работ
+
+Всё ниже закрыто; пункт в скобках — тот, что закрыл.
+
+- Auth: email (`check-email` → `verify-code`), телефон (`check-phone` → `verify-flash-call`), `migrate`, `apns-token`, `logout`, `verify`. Телефонный поиск на момент снимка ещё шёл через Firebase — это закрывает не §12, а отдельно стоящие пункты 14–15, оба пока открыты (см. ниже).
+- Push через APNs, только `alert`. **(пункт 11 — добавлен `background`/priority 5 для `sendSyncToUser`, `alert`-путь не тронут)**
+- Ни строчки про `cycles`/`comments`/`user_tags`/`day_tags` — проверено `grep` по всему `app/`. **(пункт 2)**
+- **Механизма применения DDL нет вообще** (**D10**). Деплой — rsync по SSH + `npm ci` + `touch ../reload`; `database.js` содержит только пул. **(пункт 1 — `app/migrations/`, `scripts/migrate.js`, `scripts/inspect_schema.js`)**
 
 ### 2.4. Найденные дефекты
 
@@ -66,19 +77,20 @@
 **D1. `updatedAt = nil` означает две разные вещи.**
 `DatabaseMiddleware.swift:230` выбирает между мягким и физическим удалением по `existing.updatedAt != nil`. Но `handleSetFlowLevel:306`, `handleMarkPeriodEnd:274` и `handleUnmarkPeriodEnd:288` тоже ставят `updatedAt = nil`. Сценарий: создали цикл → синхронизировали → поменяли уровень выделений → сняли отметку начала → **физическое удаление**, сервер об удалении не узнаёт, следующий pull воскрешает цикл.
 Сегодня ветка мягкого удаления **мертва**: значение в `updated_at` не пишет никто, поэтому условие всегда ложно и снятие отметки всегда физическое. Практическое следствие — не для сервера, а для импорта: локально удалённый цикл не оставил надгробия, и §10 воскресит его (см. §10.4).
-Закрывается решениями 2 и 7.
+Закрывается решениями 2 и 7. **Закрыто в пункте 5** — `dirty_seq` заменил `updated_at`, `deleteCycle` ушёл из протокола, снятие отметки начала всегда пишет надгробие.
 
 **D2. Настройки цикла всегда дефолтные после холодного запуска.**
 `AppReducer.swift:195` читает `state.currentUser?.settings?.cycle`. `currentUser` живёт в `authState.authenticated(userDetails:)`, а `AuthMiddleware.swift:25` на холодном запуске диспатчит `userDetails: nil`. Метода «получить данные пользователя» нет — восстановить некому.
 Итог: длина цикла, длина месячных и лютеиновая фаза всегда 28/5/14. У третьего тестового пользователя реально 26/6/14, и она активна — весь её прогноз построен на чужих числах.
-Закрывается решением 4.
+Закрывается решением 4. **Закрыто в пунктах 6 и 8** — профиль наблюдается из `user_profile`, а заполняет его синхронизация.
 
 **D3. Фоновый пуш не будет работать.**
 `RedCalendar_FemaleApp.swift:38-39`: `appDelegate.appStore = store` и стартовые экшены сидят в `.onAppear`. Фоновый пуш запускает приложение **без сцены** — замыкание `WindowGroup` не выполняется, `@StateObject` (autoclosure) не вычисляется, стора нет, `appStore` остаётся `nil`, `.auth(.check)` не диспатчится. Следствие: `fetchCompletionHandler` не получает полезного результата, iOS начинает душить фоновые пуши.
-Закрывается решением 10.
+Закрывается решением 10. **Закрыто в пункте 10** — `AppStore.shared`, `didFinishLaunchingWithOptions`, `didReceiveRemoteNotification` есть и проверены на устройстве (§8.1).
 
 **D4. Logout при сетевой ошибке не выходит.**
 `AuthMiddleware.swift:220-234`: при ошибке, отличной от 401, только `AppLogger.error` — `.notAuthenticated` не диспатчится, пользователь остаётся залогиненным. С решением 6 это становится опасным: wipe может сработать при живой сессии.
+**Закрыто в пункте 9** — `.logout` доходит до `.notAuthenticated` при любом исходе сетевого запроса.
 
 **D5. Первый вход по телефону сломан.**
 `female.js:72` — `createFemale` деструктурирует только `{ email, name, settings }`; переданные `id` и `phone_number` теряются, id генерируется заново.
@@ -86,25 +98,29 @@
 `verify-code.js:185` делает правильно: не передаёт `id`, читает сгенерированный обратно.
 Достижимо для любого телефонного пользователя, которого нет в Postgres — то есть для переустановивших приложение. Обновившиеся поверх старого идут через `/auth/migrate`, где `migrateUser` вставляет id правильно.
 Закрывается §11.3: создание переезжает в `check-phone` до звонка, ветка в `verify-flash-call` удаляется, а `createFemale` начинает уважать переданный `id`.
+**Закрыто в пункте 4** — `createFemale` уважает переданный `id`, так что `verify-flash-call.js:202-225` создаёт строку с правильным ключом, и последующий `createDevice(firebaseUID, ...)` находит её; `23505` разбирается по `error.constraint`. Сама ветка создания в `verify-flash-call` при этом ещё на месте — её перенос в `check-phone` до звонка (§11.3) остаётся частью пункта 15, но это перестройка архитектуры на будущее, а не остаток этого дефекта: симптом (500, строки-сироты с `NULL` в `email`) не воспроизводится.
 
 **D6. `GET /auth/verify` сломан и не используется.**
 `verify.js` возвращает `result.user_id`, `result.email`, `result.name`, а `authService.verifyDevice` отдаёт `{ data: { device, user } }` — все три `undefined`. iOS-модель `VerificationResponse` ждёт обязательный `last_visit_at`, которого нет вообще. Метод не вызывается ни с одной стороны.
 Замещается проверкой владельца при входе (§6) и в ответе `/data/sync` (§5.1, шаг 5). **Сам сервис `verifyDevice` исправен и переиспользуется** — сломан только слой эндпоинта. Эндпоинт, его маршрут в `api/auth.js`, метод `APIServiceProtocol.verifyDevice` и модель `VerificationResponse` удаляются (§12, п. 11).
+**Закрыто в пункте 11** — с обеих сторон: `APIServiceProtocol.verifyDevice`/`VerificationResponse` удалены из `APIService.swift`, маршрут `/auth/verify` и `app/api/auth/verify.js` удалены с сервера; `authService.verifyDevice` остался и используется `/data/sync`.
 
 **D7. `POST /push/send` без авторизации.**
 `api/push.js` принимает `user_id` в теле и не проверяет ничего. Кто угодно шлёт пуш кому угодно.
+**Закрыто в пункте 11 — удалением, а не защитой.** У эндпоинта не нашлось ни одного вызывающего; `app/api/push.js` удалён целиком, `sendAlertToUser` остался в `services/push.js` как точка входа для будущего планировщика уведомлений (§15).
 
 **D8. Push умеет только alert, и не умеет адресовать.**
 `push.js:198-199` — `apns-push-type: alert`, `apns-priority: 10`, захардкожено в `sendToEndpoint`, а не в `sendToUser`. Silent push требует `background` и priority 5; priority 10 с background-типом APNs отвергнет.
 Вторая половина: `getUserTokensByEnvironment(userId)` (`push.js:78`) выбирает только `apns_token`. Исключить вызвавшее устройство (§7) нечем — `device_id` в выборке нет.
+**Закрыто в пункте 11** — `getUserTokensByEnvironment(userId, { excludeDeviceId })` выбирает и `device_id`; `sendToUser` расщеплён на `sendAlertToUser` (`alert`/10, старое поведение) и `sendSyncToUser` (`background`/5, `apns-collapse-id: sync`); `sendToEndpoint` параметризован `pushType`/`priority`/`collapseId` вместо хардкода.
 
 **D9. Клиент не различает коды ошибок HTTP.**
 `APIService.swift:470-489`: всё `>= 400` с разбираемым телом схлопывается в `.serverError(String)`, а сервер **всегда** отдаёт разбираемый конверт `{error, message, timestamp}`. Ветка `.httpError(Int)` практически недостижима. Таблица §5.6 (429 по `Retry-After`, backoff на 5xx, `.failed` на прочих 4xx) в таком виде нереализуема.
-Закрывается §5.6.
+Закрывается §5.6. **Закрыто в пункте 7** — `validateHTTPResponse` различает 429 (с `Retry-After`) и 5xx до общей ветки `>= 400`; `.serverError`/`.httpError` не тронуты.
 
 **D10. На сервере нечем применить DDL.**
 `README.md` утверждает «Таблицы создаются автоматически при первом запуске приложения» — такого кода нет ни в одном файле. Значит форма таблиц `cycles`/`comments`/`user_tags`/`day_tags`, если они существуют, никем не проверена и не зафиксирована.
-Закрывается §3.5 и §12, п. 1.
+Закрывается §3.5 и §12, п. 1. **Закрыто в пункте 1** — `scripts/inspect_schema.js` (снимок), `app/migrations/*.sql` + `scripts/migrate.js` (раннер, `schema_migrations`); README поправлен.
 
 ---
 
@@ -971,8 +987,11 @@ init() { _store = StateObject(wrappedValue: AppStore.shared) }
 **Зелёная сборка закрывает не всё.** Пункты 1 и 3 требуют живого Postgres, пункт 10 — запуска в симуляторе (§8.1), пункт 5 — проверки, что отметка выделений по-прежнему удлиняет прогноз. Где признак готовности не «собралось», он написан прямо в пункте.
 
 1. **Сервер: инструмент миграций и снимок схемы** (**D10**, §3.5). Запрос к `information_schema`, `app/migrations/`, `app/scripts/migrate.js`, таблица `schema_migrations`. Ничего не меняет в данных; всё остальное на сервере зависит от этого пункта.
+   **Сделано.** `scripts/inspect_schema.js` — снимок; `scripts/migrate.js` — раннер (`schema_migrations`, файл = транзакция, останов на первой ошибке); `app/migrations/README.md` фиксирует правило «гвардировать по определению, а не по существованию» — 002 пропустил `user_tags` с чужим первичным ключом именно по `IF NOT EXISTS`, 003 его поправил.
 2. **Сервер: схема и счётчик.** Пять таблиц (`cycles`, `flow_levels`, `comments`, `user_tags`, `day_tags`), индексы, `data_revision`, `profile_revision`, единый `applyBatch` и хелпер записи профиля. Зависит от 1. Ничего не ломает — клиента ещё нет.
+   **Сделано.** `002_sync_schema.sql` + `003_fix_data_table_keys.sql`; `services/sync.js` — `TABLE_SPECS` и `applyBatch` на все пять таблиц одним ключевым набором, вместо пяти похожих реализаций.
 3. **Сервер: `/data/sync`.** Контракт, построчная валидация, правило снимка и правило страницы. Зависит от 2. Вместе с тестами §14 — они про этот пункт и писать их отдельно поздно.
+   **Сделано.** `api/data.js`, `services/sync-page.js` (правило страницы), `services/sync-validation.js` (§4.5); тесты §14 — `sync.test.js`, `sync-page.test.js`, `sync-validation.test.js`, `sync-run.test.js`, `sync-live.test.js` — все присутствуют в `app/test/`.
 4. **Сервер: телефон, часть 1.** Починка `createFemale` (**D5**), разбор `23505` по `constraint`, `phone_number` в `getFemaleById`. Колонки здесь нет: `phone_number` заводится миграцией пункта 2 вместе с остальным `ALTER TABLE users_female` (§3.2) — один `ALTER`, а не два; ограничение названо явно — `users_female_phone_number_key`, по нему и разбирается `23505`. Счётчиков здесь тоже нет: `data_revision` и `profile_revision` берут единицу из `DEFAULT` (§3.2), а любая правка профиля идёт через `writeProfile` — `createFemale` о ревизиях знать не должен. Зависит от 1 и 2; от 3 не зависит и может идти параллельно с ним. Переключение поиска — пункт 15.
 5. **iOS: миграция v3.** Первый пункт на клиенте, от сервера не зависит. `dirty_seq`, таблица `flow_levels` с раскладкой словарей в строки (сырым SQL), `user_profile`, `sync_state`, бэкфилл. `updated_at` и `flowLevels` из моделей, `lastSyncTimestamp()` из протокола; `lastFlowDay` / `flowLevel(on:)` / `setFlowLevel` переезжают с `CycleRecord` на карту дней (§3.4).
    **Сюда же — весь путь чтения выделений:** `observeFlowLevels(in:)`, `CalendarState.flowLevels`, `.data(.setFlowLevels)` и её ветка в `DatabaseMiddleware`. Отложить их к пункту 8 нельзя: этот пункт убирает `flowLevels` из `CycleRecord`, а `computeDayDisplayStates` читает их на каждый цикл — без нового источника дерево между 5 и 8 стоит с ненарисованными полосами. Пункт не считается сделанным, пока отметка выделений не удлиняет прогноз ровно как до него.
@@ -1011,6 +1030,7 @@ init() { _store = StateObject(wrappedValue: AppStore.shared) }
 16. **Отключение Firebase.** Ступень 2 убирается; всё, что к этому моменту не перенесено, входить больше не сможет.
 17. **Сервер: разбор ревью.** Не планировался и ни от чего не зависит — десять коммитов по итогам сплошного код-ревью. `device_id` из `crypto` вместо `Math.random` (он же токен сессии, а `Math.random` восстанавливается по десятку выданных значений); удаление `/test/email`, который слал письмо на любой адрес без авторизации и возвращал код в ответе; `finally` на клиентах пула (`testConnection` течёт по одному соединению на неудачный `/health`, а их всего десять); живой предел попыток email-кода — `maxAttempts` писался в объект токена, но не в таблицу, поэтому сравнение всегда было ложным, а `remainingAttempts` уезжал как `null`; `crypto.randomInt` вместо `% 1000000`; попытки Flash Call и срок хранения сессий (§11.4); лимиты по адресу (§16); APNs — одна переиспользуемая сессия вместо соединения на уведомление, таймаут на запрос и чистка по `410 Unregistered`, без которой удалившие приложение оставались в таблице навсегда; маскирование адресов, номеров и кодов в `app.log`; экранирование переменных в шаблоне письма и таймаут на Postbox; `trust proxy` и заголовки безопасности.
     **Миграция `005` применяется до выкатки кода**, а не вместе с ней: `getUserByRequestId` читает `flash_call_sessions.attempts`, и против старой формы это `42703` на каждом входе по телефону.
+    **Сделано, все десять коммитов.** `005_flash_call_attempts.sql` (§11.4); `services/rate-limit.js` (§16); тесты — `rate-limit.test.js`, `verification-code.test.js`, `logging-redaction.test.js`, `email-render.test.js` в `app/test/`. `app/api/test.js` (`/test/email`) удалён из дерева.
 
 ---
 
