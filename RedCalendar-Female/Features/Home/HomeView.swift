@@ -98,7 +98,8 @@ struct HomeView: View {
                         ToolbarItem(placement: .navigationBarLeading) {
                             SyncIndicatorView(
                                 syncState: store.state.syncState,
-                                accent: store.state.accentTheme.accent
+                                accent: store.state.accentTheme.accent,
+                                onRetry: { store.send(.sync(.requested(.retry))) }
                             )
                         }
                         ToolbarItem(placement: .navigationBarTrailing) {
