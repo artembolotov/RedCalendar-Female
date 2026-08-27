@@ -3,6 +3,14 @@ name: Build and Deploy iOS
 on:
   push:
     branches: [ main ]
+    paths:
+      # Allowlist, not an ignore list: SYNC.md, CLAUDE.md, README.md and other
+      # root-level docs are what this is meant to skip, but a doc file added
+      # later shouldn't need a matching update here to stay skipped.
+      - 'RedCalendar-Female/**'
+      - 'RedCalendar-Female.xcodeproj/**'
+      - 'ExportOptions.plist'
+      - '.github/workflows/build-ios.yml'
 
 jobs:
   build:
