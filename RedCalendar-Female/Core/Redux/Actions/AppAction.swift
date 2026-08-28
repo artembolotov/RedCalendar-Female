@@ -61,9 +61,17 @@ enum DataAction: Sendable {
     case setVisibleDayTags([Daystamp: [String]])
     case setFlowLevels([Daystamp: Int])
     case setLoadedRange(ClosedRange<Daystamp>)
-    /// The `user_profile` row, or `nil` while the table is empty. A sync run is the only thing
-    /// that fills it (SYNC.md §3.1), so it is empty until the first one succeeds.
+    /// The `user_profile` row, or `nil` while the table has none — and also while the row it has
+    /// carries no `user_id`, which `UserDetails` requires (§5.1 step 7 is what fills it).
     case setUserProfile(UserDetails?)
+    /// The cycle half of the same row, dispatched beside it and read from the record directly.
+    ///
+    /// Separate because identity and settings have separate owners (§4.4) and separate lifetimes:
+    /// the row can carry a cycle length the user just chose while the server has not yet named an
+    /// owner for it — a settings edit made before the first successful run creates exactly that
+    /// row. Folded into `.setUserProfile`, that edit would come back as `nil` and the number would
+    /// visibly snap back to the fallback on screen.
+    case setCycleSettings(UserSettings.CycleSettings?)
 
     // Day editing
     case markPeriodStart(Daystamp)
@@ -72,6 +80,17 @@ enum DataAction: Sendable {
     case setFlowLevel(Daystamp, Int?)
     case saveComment(Daystamp, String)
     case setDayTags(Daystamp, [String])
+
+    // The cycle settings — the device's half of the profile (SYNC.md §4.4), and the first thing
+    // in this app that produces a `changes.profile` at all.
+    //
+    // Two cases rather than one carrying the pair, because an edit writes the key it changed and
+    // no other: the screen shows a fallback for a value the user has never chosen, and storing
+    // that fallback would state a choice they did not make. Both carry a value already inside
+    // `Constants.Cycle`'s bounds — the steppers cannot leave them — and the reducer clamps again
+    // anyway, since the bound protects the prediction loop rather than the control.
+    case setCycleLength(Int)
+    case setPeriodLength(Int)
 
     // The catalogue the day's tags are chosen from
     /// Carried whole rather than as a name and a category: the reducer puts this exact record

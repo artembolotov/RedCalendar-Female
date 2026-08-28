@@ -29,6 +29,7 @@ func appReducer(state: AppState, action: AppAction) -> AppState {
                 // after any sign-out; left here it would still be the name and the cycle
                 // settings the next screen reads.
                 state.userProfile = nil
+                state.cycleSettings = ResolvedCycleSettings(nil)
             }
 
         case .logout:
@@ -78,12 +79,17 @@ func appReducer(state: AppState, action: AppAction) -> AppState {
             state.calendarState.loadedRange = range
             recomputeDayDisplayStates = true
 
-        // Cycle settings ride along with the profile, so display states have to be rebuilt
-        // here too — otherwise settings changed on another device only take effect at the next
-        // unrelated cycle/tag/comment change.
+        // Nothing drawn depends on the identity half of the profile, so no recompute here. The
+        // half that is drawn arrives as its own action below.
         case .setUserProfile(let profile):
             state.userProfile = profile
+
+        // Rebuilt here, because settings changed on another device would otherwise only take
+        // effect at the next unrelated cycle/tag/comment change.
+        case .setCycleSettings(let cycle):
+            state.cycleSettings = ResolvedCycleSettings(cycle)
             recomputeDayDisplayStates = true
+
 
         // The write actions that also reduce, and it is a latency decision rather than a
         // difference in kind. Everything below them reaches the screen the long way round: the
@@ -151,10 +157,17 @@ func appReducer(state: AppState, action: AppAction) -> AppState {
         case .beganEditingUserTag:
             break
 
+        // Written, never reduced. Unlike a comment, the value being edited is not on its way to
+        // a card underneath a dismissing sheet: `SettingsView` holds its own draft while the
+        // steppers are being tapped and the store hears about it once, at the end, so there is
+        // nothing to put on screen ahead of the disk — and nothing to put back if the write
+        // fails.
         case .markPeriodStart,
              .markPeriodEnd,
              .unmarkPeriodEnd,
-             .setFlowLevel:
+             .setFlowLevel,
+             .setCycleLength,
+             .setPeriodLength:
             break
 
         case .writeFailed(let operation):
@@ -213,7 +226,7 @@ func appReducer(state: AppState, action: AppAction) -> AppState {
     if recomputeDayDisplayStates {
         let recomputed = computeDayDisplayStates(
             state.calendarState,
-            cycleSettings: ResolvedCycleSettings(state.currentUser?.settings?.cycle)
+            cycleSettings: state.cycleSettings
         )
 
         // Compared here, once, rather than left for the readers. Most of what triggers a

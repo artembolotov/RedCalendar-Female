@@ -219,6 +219,52 @@ final class DatabaseService: DatabaseServiceProtocol {
         }
     }
 
+    /// The one local write to `user_profile`, and the one place other than a pull that creates
+    /// its row. See the protocol for why it may have to.
+    ///
+    /// The settings are *merged* into the stored JSON rather than rebuilt from `UserSettings`:
+    /// the column holds what the server sent, character for character in meaning, and a key this
+    /// build does not model would otherwise be dropped here and erased on the server by the very
+    /// next push (SYNC.md §15).
+    func updateCycleSettings(_ patch: CycleSettingsPatch) async throws {
+        try await dbQueue.write { db in
+            // The first row rather than the row keyed 1, which is how the observation reads it:
+            // the two must never disagree about which row is "the" profile.
+            let existing = try UserProfileRecord.fetchOne(db)
+            let owner = try String.fetchOne(db, sql: "SELECT user_id FROM sync_state WHERE id = 1")
+
+            var record = existing ?? UserProfileRecord(
+                id: 1,
+                userId: owner,
+                name: nil,
+                email: nil,
+                phoneNumber: nil,
+                settingsJSON: nil,
+                dirtySeq: nil
+            )
+
+            let stored = JSONValue(jsonString: record.settingsJSON) ?? .object([:])
+            var merged = stored
+            if let cycleLength = patch.cycleLength {
+                merged = merged.setting(["cycle", "default_length"], to: .int(cycleLength))
+            }
+            if let periodLength = patch.periodLength {
+                merged = merged.setting(["cycle", "default_period_length"], to: .int(periodLength))
+            }
+
+            // An edit that lands on the value already stored is not an edit, and writing it
+            // anyway is not free: it stamps the row dirty, asks for a sync run, and spends a
+            // server revision that every *other* device then pulls. Tapping + and back to − is
+            // enough to cause it. Compared as values rather than as strings — two encodings of
+            // the same settings are the same settings.
+            if existing != nil, merged == stored { return }
+
+            record.settingsJSON = merged.jsonString
+            record.dirtySeq = try Self.nextLocalSeq(db)
+            try record.upsert(db)
+        }
+    }
+
     /// Bumped and read inside the caller's transaction — see `upsertStamped`. Two statements
     /// rather than `UPDATE ... RETURNING`, which needs SQLite 3.35 and buys nothing here.
     private static func nextLocalSeq(_ db: Database) throws -> Int {
@@ -430,9 +476,31 @@ final class DatabaseService: DatabaseServiceProtocol {
             try row.record.upsert(db)
         }
 
-        if let profile = changes.profile,
-           try !Self.isProfileDirty(db) {
-            try profile.record(userId: userId ?? Self.profileOwner(db)).upsert(db)
+        // The profile is two halves with different owners (§4.4), and the dirty flag speaks for
+        // only one of them. `name` and `settings` are the device's, so a local edit waiting to go
+        // out holds them back exactly as it does in every table above. `user_id`, `email` and
+        // `phone_number` are the server's alone — a device never writes them — so they are
+        // applied whatever the flag says.
+        //
+        // Holding those back too would strand the device that edited its cycle settings before
+        // the profile had ever been pulled: this response is the only one that will ever carry
+        // that revision, `next_cursor` moves past it, `profile_revision > since` never matches
+        // again, and the row keeps no identity at all.
+        if let profile = changes.profile {
+            if try Self.isProfileDirty(db) {
+                try db.execute(
+                    sql: """
+                        UPDATE user_profile
+                           SET user_id = COALESCE(?, user_id),
+                               email = ?,
+                               phone_number = ?
+                         WHERE id = 1
+                        """,
+                    arguments: [userId, profile.email, profile.phoneNumber]
+                )
+            } else {
+                try profile.record(userId: userId ?? Self.profileOwner(db)).upsert(db)
+            }
         }
     }
 

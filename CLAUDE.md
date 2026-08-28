@@ -197,7 +197,7 @@ Feature folders own their own views and feature-specific models. Shared types go
 
 ### AppState
 
-`AppState` has seven top-level fields:
+`AppState` has eight top-level fields:
 
 ```swift
 struct AppState {
@@ -206,7 +206,8 @@ struct AppState {
     var notifications: NotificationState
     var analyticsActivated: Bool
     var accentTheme: AccentTheme       // fallback until .checkAccentTheme lands
-    var userProfile: UserDetails?      // the user_profile row, filled only by a sync run
+    var userProfile: UserDetails?      // the user_profile row's identity half
+    var cycleSettings: ResolvedCycleSettings  // the same row's cycle half, resolved
     var syncState: SyncState           // what the sync indicator draws
 }
 ```
@@ -320,10 +321,81 @@ predicted cycles only after `lastStartDay` and clips every cycle's segment at th
 
 **Cycle settings are never read raw.** `UserSettings.CycleSettings` carries unvalidated optional
 integers straight from the API — a zero cycle length there divides by zero in `predictedCycleStart`
-and never terminates the prediction loop in `computeDayDisplayStates`. Always go through
-`ResolvedCycleSettings(_:)` (`Core/Models/ResolvedCycleSettings.swift`), which clamps into the
-`Constants.Cycle` bounds and fills the fallbacks (cycle length 28, period 5, luteal phase 14).
-Fertile-window width also lives in `Constants.Cycle` — do not hardcode any of these numbers.
+and never terminates the prediction loop in `computeDayDisplayStates`. Every reader takes
+`AppState.cycleSettings`, which is `ResolvedCycleSettings`
+(`Core/Models/ResolvedCycleSettings.swift`): clamped into the `Constants.Cycle` bounds, with the
+fallbacks filled (cycle length 28, period 5, luteal phase 14). Fertile-window width also lives in
+`Constants.Cycle` — do not hardcode any of these numbers.
+
+**The profile row reaches the store as two actions, not one.** `.setUserProfile` carries the
+identity half, `.setCycleSettings` the half the calendar draws with, and `DatabaseMiddleware`
+dispatches both from the one observation. They are split because their owners are (§4.4) and
+because their lifetimes are: `UserDetails` requires a `user_id`, which only the server writes, and
+a settings edit made before the first successful sync run creates a row that has none. Folded
+together, that edit would come straight back as `nil` and the number the user just chose would snap
+to the fallback on screen. The settings are therefore read off `UserProfileRecord.settings`, never
+off `UserDetails`.
+
+**The settings screen is the first thing in this app that pushes a profile.** `SettingsView` edits
+the cycle length and the period length, and the path it feeds — `.data(.setCycleLength/.setPeriodLength)`
+→ `DatabaseMiddleware` → `DatabaseService.updateCycleSettings` → `user_profile.dirty_seq` →
+`changes.profile` — was described and unused before it existed (SYNC.md §4.4, §15).
+
+**The screen is a debounced editor, like the comment and tag sheets.** It holds its own draft
+while the steppers are being tapped and dispatches once, after
+`Constants.Sheets.autosaveDebounceNanoseconds` of quiet — plus on the close button (before the
+dismissal, so the calendar underneath does not redraw a beat after the screen has gone) and on
+`onDisappear`, for the swipe that never reaches the button. The intermediate values of a held
+stepper are worth exactly what the intermediate values of a half-typed comment are worth, and
+holding one from 28 to 90 is sixty-two taps — sixty-two GRDB writes, sixty-two stamped rows and
+sixty-two sync triggers, for one intent. Because the draft lives in the view, nothing is reduced
+ahead of the disk: `ResolvedCycleSettings` stays immutable, the reducer does not handle the two
+edit actions at all, and a failed write has nothing to roll back.
+
+Four rules hold the write path up, and each of them is a way to lose someone's data quietly:
+
+- **The settings JSON is merged, never rebuilt.** `user_profile.settings_json` holds what the
+  server sent, and the server replaces the column wholesale (`writeProfile` does
+  `settings = $n::jsonb`). A local edit that re-encoded `UserSettings` would drop every key this
+  build does not model — `predictions`, `notifications`, whatever comes next — and the first push
+  would erase them on the server for every device. `JSONValue.setting(_:to:)` writes one path and
+  leaves the rest alone.
+- **An edit writes the key it changed and no other.** The screen shows a fallback for a value the
+  user never chose; storing that fallback states a choice they did not make. Hence
+  `CycleSettingsPatch`, and two actions rather than one carrying the pair.
+- **`SyncProfilePush` omits a field it is not editing.** The server reads `changes.profile` by
+  `hasOwnProperty`: `name: null` means *erase the name*, an absent `name` means *leave it alone*.
+  Nothing edits the name, so nothing sends it — a device whose profile has not been pulled yet has
+  no name to send, and sending its `nil` would delete the name given at registration everywhere.
+  The type says this with a double optional (`String??`): `nil` is "not editing", `.some(nil)` is
+  "erase".
+- **A dirty profile holds back only the device's half of the row.** `applyPulled` applies
+  `user_id`, `email` and `phone_number` whatever the flag says, because a device never writes them
+  (§4.4's identity rule). Skipping the whole row while dirty — which is what every *table* does —
+  would strand a device that edited its settings before the profile had ever been pulled: the
+  cursor moves past that revision and `profile_revision > since` never matches again.
+
+`updateCycleSettings` is also the only local writer that may **create** the `user_profile` row.
+Nothing but a sync run has ever written it, so a user who is authenticated but has not yet had a
+successful run has no row to edit; what it creates carries `sync_state`'s owner if there is one,
+and no identity at all if there is not.
+
+Four smaller consequences worth keeping:
+
+- The clamp is a *presentation* decision until the user touches a stepper: imported histories
+  really do contain a `default_length` of 19, below this app's own minimum (§4.5), and nothing may
+  be written on appear.
+- `ResolvedCycleSettings` is constructed in one place only — the reducer, from what the profile
+  observation delivered — and that is what makes clamping on the way in safe. A second
+  construction path (an optimistic edit clamping a value the initialiser would clamp differently)
+  is how the luteal phase, whose upper bound is a function of the cycle length, ends up
+  disagreeing with the disk one round trip later.
+- An edit that lands on the value already stored writes nothing. It is not free to write it
+  anyway: the row is stamped dirty, a sync run is asked for, and a server revision is spent that
+  every *other* device then pulls. Tapping + and back to − is enough to cause it.
+- `JSONValue.jsonString` sorts its keys. A Swift dictionary iterates in a seed-randomised order,
+  and `settings_json` is compared as a string by `UserProfileRecord.==` — which is the question
+  `removeDuplicates()` asks of the profile observation.
 
 **Two clips, and only one of them caps the bar.** In `computeDayDisplayStates` a period cut short by
 the next cycle's start really does end there, so `SegmentPosition` is derived from that cut and the

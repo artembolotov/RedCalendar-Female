@@ -171,6 +171,20 @@ final class DatabaseMiddleware {
             case .setDayTags(let stamp, let tagIds):
                 await handleSetDayTags(stamp: stamp, tagIds: tagIds, dispatch: dispatch)
 
+            // Immediate, one transaction per tap of the stepper. A local edit is a debounced
+            // sync trigger (§5.6) and a GRDB write on a file this app owns, so coalescing them
+            // here would buy a fraction of a millisecond and cost the guarantee that what is on
+            // screen is what is on the disk.
+            case .setCycleLength(let length):
+                await write(.cycleSettings, detail: "cycleLength", dispatch: dispatch) {
+                    try await dbService.updateCycleSettings(CycleSettingsPatch(cycleLength: length))
+                }
+
+            case .setPeriodLength(let length):
+                await write(.cycleSettings, detail: "periodLength", dispatch: dispatch) {
+                    try await dbService.updateCycleSettings(CycleSettingsPatch(periodLength: length))
+                }
+
             case .createUserTag(let tag):
                 await write(.userTag, dispatch: dispatch) { try await dbService.upsert([tag]) }
 
@@ -182,7 +196,7 @@ final class DatabaseMiddleware {
 
             // Values this middleware produced, on their way to the reducer.
             case .setCycles, .setUserTags, .setVisibleComments, .setVisibleDayTags,
-                 .setFlowLevels, .setLoadedRange, .setUserProfile:
+                 .setFlowLevels, .setLoadedRange, .setUserProfile, .setCycleSettings:
                 break
 
             // A UI signal with nothing to write — `FeedbackMiddleware` is what reacts to it.
@@ -209,8 +223,12 @@ final class DatabaseMiddleware {
         userTagsToken = service.observeUserTags { records in
             dispatch(.data(.setUserTags(records)))
         }
+        // Two actions from one row, because its two halves have different owners and different
+        // lifetimes — see `DataAction.setCycleSettings`. The settings are read off the record
+        // itself rather than off `UserDetails`, which a row without a `user_id` cannot produce.
         profileToken = service.observeUserProfile { record in
             dispatch(.data(.setUserProfile(record.flatMap(UserDetails.init))))
+            dispatch(.data(.setCycleSettings(record?.settings?.cycle)))
         }
     }
 
@@ -431,7 +449,7 @@ final class DatabaseMiddleware {
                 await reloadDayTags(dispatch: dispatch)
             case .userTag:
                 await reloadUserTags(dispatch: dispatch)
-            case .periodStart, .periodEnd, .flowLevel:
+            case .periodStart, .periodEnd, .flowLevel, .cycleSettings:
                 break
             }
         }

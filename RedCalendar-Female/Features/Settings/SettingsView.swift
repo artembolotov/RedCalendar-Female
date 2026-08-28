@@ -10,9 +10,16 @@ import SwiftUI
 
 struct SettingsView: View {
     @EnvironmentObject var store: AppStore
+    @Environment(\.dismiss) private var dismiss
 
     @State private var versionTapCount = 0
     @State private var lastVersionTapTime: CFTimeInterval?
+
+    // What the steppers show while the user is still tapping, and `nil` whenever they are not —
+    // see `cycleLength` below. The same shape `CommentSheetView` and `TagsSheetView` use: the
+    // screen owns the value being edited, and the store hears about it once the tapping stops.
+    @State private var draftCycleLength: Int?
+    @State private var draftPeriodLength: Int?
 
     private let devModeTapThreshold: CFTimeInterval = 0.5
     private let swatchSize: CGFloat = 22
@@ -21,6 +28,9 @@ struct SettingsView: View {
         NavigationView {
             if let deviceId = store.state.deviceId {
                 Form {
+                    cycleLengthSection
+                    periodLengthSection
+
                     accentThemeSection
 
                     Section("Теги") {
@@ -56,12 +66,122 @@ struct SettingsView: View {
                 }
                 .navigationTitle("Настройки")
                 .navigationBarTitleDisplayMode(.inline)
-                .closeButtonToolbar()
+                // Committed before the dismissal rather than after it, for the reason
+                // `CommentSheetView` gives: `onDisappear` fires at the *end* of the dismiss
+                // animation, and the calendar underneath would redraw its predictions a beat
+                // after the screen it was changed on had gone.
+                .closeButtonToolbar {
+                    commitDrafts()
+                    dismiss()
+                }
+                // The swipe down never reaches the close button, so this is the safety net for a
+                // tap that fell inside the debounce window. Calling it twice costs nothing: the
+                // guards compare against what the store already holds.
+                .onDisappear(perform: commitDrafts)
+                // One timer per stepper, restarted by every tap — `.task(id:)` cancels the
+                // previous sleep — so only the pause after the last tap reaches the store. What
+                // that buys is one transaction and one `dirty_seq` per settled value instead of
+                // one per tap: holding a stepper from 28 to 90 is sixty-two taps, and every one
+                // of them would otherwise be a GRDB write, a stamped row and a sync trigger.
+                .task(id: draftCycleLength) { await commitAfterPause() }
+                .task(id: draftPeriodLength) { await commitAfterPause() }
             }
         }
     }
 
     // MARK: - Private Views
+
+    // The two values the calendar predicts with, first on the screen because they are the only
+    // rows here that change what it draws.
+    //
+    // Saved by the pause after the last tap, with no Save button: the 2.0 screen this replaces
+    // committed on touch, and so do the other editors here — the difference is only that the
+    // intermediate values of a held stepper are worth no more than the intermediate values of a
+    // half-typed comment, and neither is worth a transaction.
+    private var cycleLengthSection: some View {
+        Section {
+            Stepper(
+                value: cycleLengthBinding,
+                in: Constants.Cycle.minCycleLength...Constants.Cycle.maxCycleLength
+            ) {
+                Text(Self.days(cycleLength))
+            }
+            // The section header names the setting on screen but is not part of the control, so
+            // VoiceOver would otherwise announce an adjustable "28 дней" belonging to nothing.
+            .accessibilityLabel("Длина цикла")
+            .accessibilityValue(Self.days(cycleLength))
+        } header: {
+            Text("Длина цикла")
+        } footer: {
+            Text("Количество дней от начала одной менструации до первого дня следующей.")
+        }
+    }
+
+    private var periodLengthSection: some View {
+        Section("Длительность месячных") {
+            Stepper(
+                value: periodLengthBinding,
+                in: Constants.Cycle.minPeriodLength...Constants.Cycle.maxPeriodLength
+            ) {
+                Text(Self.days(periodLength))
+            }
+            .accessibilityLabel("Длительность месячных")
+            .accessibilityValue(Self.days(periodLength))
+        }
+    }
+
+    // The draft when there is one, the stored value otherwise — rather than a `@State` seeded on
+    // appear, which would show its own placeholder for the first render pass and then have to be
+    // kept honest afterwards. Falling back like this, the row shows the disk until the moment the
+    // user touches it and their own value from then on.
+    //
+    // What the row shows before that is the stored value **clamped** into `Constants.Cycle`:
+    // imported histories genuinely contain a `default_length` of 19, below this app's own minimum
+    // (SYNC.md §4.5). Clamping is a presentation decision until the user touches the control —
+    // nothing is dispatched on appear, and only a tap writes.
+    private var cycleLength: Int { draftCycleLength ?? store.state.cycleSettings.cycleLength }
+    private var periodLength: Int { draftPeriodLength ?? store.state.cycleSettings.periodLength }
+
+    private var cycleLengthBinding: Binding<Int> {
+        Binding(get: { cycleLength }, set: { draftCycleLength = $0 })
+    }
+
+    private var periodLengthBinding: Binding<Int> {
+        Binding(get: { periodLength }, set: { draftPeriodLength = $0 })
+    }
+
+    private func commitAfterPause() async {
+        // `Task.sleep(for:)` is iOS 16+; the deployment target is 15.4, hence the nanoseconds
+        // form. The same constant the comment and tag editors wait on — this is the same pause.
+        try? await Task.sleep(nanoseconds: Constants.Sheets.autosaveDebounceNanoseconds)
+        guard !Task.isCancelled else { return }
+        commitDrafts()
+    }
+
+    /// Each half guarded against what the store already holds, so this is safe to call from all
+    /// three places that call it and safe to call repeatedly. A draft equal to the stored value —
+    /// tapped up and back down — is not an edit and dispatches nothing.
+    private func commitDrafts() {
+        if let draft = draftCycleLength, draft != store.state.cycleSettings.cycleLength {
+            store.send(.data(.setCycleLength(draft)))
+        }
+        if let draft = draftPeriodLength, draft != store.state.cycleSettings.periodLength {
+            store.send(.data(.setPeriodLength(draft)))
+        }
+    }
+
+    /// «1 день», «2 дня», «5 дней» — the ordinary Russian rule, including the exception that
+    /// 11 through 14 take the plural whatever their last digit is.
+    private static func days(_ count: Int) -> String {
+        let word: String
+        switch (count % 100, count % 10) {
+        case (11...14, _): word = "дней"
+        case (_, 1):       word = "день"
+        case (_, 2...4):   word = "дня"
+        default:           word = "дней"
+        }
+        return "\(count) \(word)"
+    }
 
     // Rows rather than a `Picker`: the thing being chosen is a colour, so each option has to
     // show its own colour at a size worth judging. A picker would collapse the three down to

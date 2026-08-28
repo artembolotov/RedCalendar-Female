@@ -27,6 +27,18 @@ protocol DatabaseServiceProtocol: Sendable {
     func upsert(_ userTags: [UserTagRecord]) async throws
     func upsert(_ dayTags: [DayTagsRecord]) async throws
 
+    /// The device's half of the profile (SYNC.md §4.4): the cycle settings, merged into the JSON
+    /// the server last sent and stamped dirty in the same transaction, exactly as `upsert` stamps
+    /// a day table.
+    ///
+    /// It is the only local writer of `user_profile`, and therefore the only thing that can
+    /// create the row outside a pull: nothing but a sync run has ever written it (§3.1), so a
+    /// user who edits their cycle length before the first run lands has no row to edit. What it
+    /// creates carries `sync_state`'s owner if there is one and no identity at all if there is
+    /// not — `user_id`, `email` and `phone_number` are the server's to fill in (§4.4), and the
+    /// next pull does exactly that.
+    func updateCycleSettings(_ patch: CycleSettingsPatch) async throws
+
     // Sync (SYNC.md §5.1)
     //
     // Four calls, and each one is a whole transaction on purpose. The run itself lives on the

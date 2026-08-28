@@ -75,8 +75,43 @@ extension JSONValue {
     }
 
     var jsonString: String? {
-        guard let data = try? JSONEncoder().encode([self]),
+        let encoder = JSONEncoder()
+        // Sorted, so that encoding the same value twice produces the same string. A Swift
+        // dictionary's iteration order is seed-randomised per process, and `settings_json` is
+        // what `UserProfileRecord.==` compares — which is the question `removeDuplicates()` asks
+        // of the profile observation. Unsorted, a pull that changed nothing could still re-write
+        // the column with the keys in a different order and wake every reader of the profile.
+        encoder.outputFormatting = .sortedKeys
+        guard let data = try? encoder.encode([self]),
               let wrapped = String(data: data, encoding: .utf8) else { return nil }
         return String(wrapped.dropFirst().dropLast())
+    }
+}
+
+extension JSONValue {
+    /// A copy with one value written at `path` and everything else left exactly as it was.
+    ///
+    /// Merging rather than rebuilding is the whole reason `settings` is carried as arbitrary JSON
+    /// (see the type's own comment, SYNC.md §15). The server replaces the column wholesale —
+    /// `writeProfile` does `settings = $n::jsonb` — so whatever this build does not put back is
+    /// gone from every device. A local edit is the one place that could happen.
+    ///
+    /// Anything on the path that is not an object is replaced by one. That includes a scalar
+    /// `settings`, the case §4.5 says the client has to survive rather than crash on: surviving
+    /// it means carrying it through untouched, and there is nothing to carry through once the
+    /// user has asked for a key to be stored inside it.
+    func setting(_ path: [String], to value: JSONValue) -> JSONValue {
+        guard let key = path.first else { return value }
+
+        var object: [String: JSONValue]
+        if case .object(let existing) = self {
+            object = existing
+        } else {
+            object = [:]
+        }
+
+        let child = object[key] ?? .object([:])
+        object[key] = child.setting(Array(path.dropFirst()), to: value)
+        return .object(object)
     }
 }
