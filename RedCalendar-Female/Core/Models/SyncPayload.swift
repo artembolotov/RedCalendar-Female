@@ -121,14 +121,34 @@ struct SyncDayTagsRow: Codable, Sendable, Equatable {
 /// What a device may write to the profile — `name` and `settings`, and nothing else. `email` and
 /// `phone_number` are the login, so the server ignores them in `changes` whatever we send
 /// (§4.4, "правило личности"); leaving them out of the type says so once instead of hoping.
-struct SyncProfilePush: Codable, Sendable, Equatable {
-    var name: String?
+///
+/// **A field is encoded only when it is being edited, and that distinction is the server's.**
+/// `name: null` means "erase the name"; an absent `name` means "leave it alone" (§4.5, and
+/// `sync.js`'s `pickProfileFields` picks by `hasOwnProperty`, as `writeProfile` builds its `SET`
+/// list). Encoding both keys unconditionally was safe only while nothing produced a push at all:
+/// the first producer is the cycle-settings screen, which touches no name, and a device whose
+/// profile has not been pulled yet has none to send — so a `null` would go out and erase the name
+/// the user gave at registration, on the server, for every device.
+struct SyncProfilePush: Encodable, Sendable, Equatable {
+    /// Двойной optional умышленно: `nil` — "имя не редактируется", `.some(nil)` — "стереть".
+    /// The second case has no producer yet; it exists so that a name editor is a call site rather
+    /// than a redesign of this type.
+    var name: String??
     var settings: JSONValue?
+
+    enum CodingKeys: String, CodingKey {
+        case name
+        case settings
+    }
 
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(name, forKey: .name)
-        try container.encode(settings, forKey: .settings)
+        if let name {
+            try container.encode(name, forKey: .name)
+        }
+        if let settings {
+            try container.encode(settings, forKey: .settings)
+        }
     }
 }
 
@@ -394,8 +414,13 @@ extension SyncProfilePush {
     /// The settings travel as whatever JSON is in the column, not as a re-encoded `UserSettings`:
     /// a key this build does not model would be dropped on the way through, and pushing the
     /// result back would erase it on the server for every device.
+    ///
+    /// The name is deliberately not read from the row, for the reason on the type: the row's copy
+    /// is a report of what the server said, and sending it back as an edit is a claim. When a
+    /// name editor exists it will pass `.some(newName)` here; until then the key stays absent and
+    /// the server keeps what it has.
     init(_ record: UserProfileRecord) {
-        self.init(name: record.name, settings: JSONValue(jsonString: record.settingsJSON))
+        self.init(name: nil, settings: JSONValue(jsonString: record.settingsJSON))
     }
 }
 

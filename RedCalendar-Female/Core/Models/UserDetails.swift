@@ -83,10 +83,7 @@ extension UserDetails {
     /// home here yet: nothing reads it.
     init?(_ record: UserProfileRecord) {
         guard let userId = record.userId else { return nil }
-        let settings = record.settingsJSON
-            .flatMap { $0.data(using: .utf8) }
-            .flatMap { try? JSONDecoder().decode(UserSettings.self, from: $0) }
-        self.init(userId: userId, name: record.name, email: record.email, settings: settings)
+        self.init(userId: userId, name: record.name, email: record.email, settings: record.settings)
     }
 }
 

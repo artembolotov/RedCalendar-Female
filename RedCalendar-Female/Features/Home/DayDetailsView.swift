@@ -230,7 +230,7 @@ struct DayDetailsView: View {
         // the running day count and the day within the current predicted cycle. The context
         // drops the prediction as soon as the next cycle is recorded — the cycle's real
         // length is known then, so a day inside it is only ever its actual day.
-        let cycleLength = ResolvedCycleSettings(store.state.currentUser?.settings?.cycle).cycleLength
+        let cycleLength = store.state.cycleSettings.cycleLength
         if let predictedStart = context.predictedCycleStart(cycleLength: cycleLength) {
             let predictedDay = dayStamp - predictedStart + 1
             return "\(cycleDay) (\(predictedDay)) день цикла"

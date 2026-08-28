@@ -29,6 +29,7 @@ func appReducer(state: AppState, action: AppAction) -> AppState {
                 // after any sign-out; left here it would still be the name and the cycle
                 // settings the next screen reads.
                 state.userProfile = nil
+                state.cycleSettings = ResolvedCycleSettings(nil)
             }
 
         case .logout:
@@ -78,11 +79,28 @@ func appReducer(state: AppState, action: AppAction) -> AppState {
             state.calendarState.loadedRange = range
             recomputeDayDisplayStates = true
 
-        // Cycle settings ride along with the profile, so display states have to be rebuilt
-        // here too — otherwise settings changed on another device only take effect at the next
-        // unrelated cycle/tag/comment change.
+        // Nothing drawn depends on the identity half of the profile, so no recompute here. The
+        // half that is drawn arrives as its own action below.
         case .setUserProfile(let profile):
             state.userProfile = profile
+
+        // Rebuilt here, because settings changed on another device would otherwise only take
+        // effect at the next unrelated cycle/tag/comment change.
+        case .setCycleSettings(let cycle):
+            state.cycleSettings = ResolvedCycleSettings(cycle)
+            recomputeDayDisplayStates = true
+
+        // Reduced as well as written, for the reason spelled out under `.saveComment` below: the
+        // stepper's number has to move in the frame the tap lands in, and the trip out through
+        // GRDB's observation is a round trip away. The disk still has the last word — the
+        // observation comes back carrying this same value, and `if newState != state` swallows
+        // it — and a write that never reached the disk is put back by `.writeFailed`.
+        case .setCycleLength(let length):
+            state.cycleSettings.set(cycleLength: length)
+            recomputeDayDisplayStates = true
+
+        case .setPeriodLength(let length):
+            state.cycleSettings.set(periodLength: length)
             recomputeDayDisplayStates = true
 
         // The write actions that also reduce, and it is a latency decision rather than a
@@ -213,7 +231,7 @@ func appReducer(state: AppState, action: AppAction) -> AppState {
     if recomputeDayDisplayStates {
         let recomputed = computeDayDisplayStates(
             state.calendarState,
-            cycleSettings: ResolvedCycleSettings(state.currentUser?.settings?.cycle)
+            cycleSettings: state.cycleSettings
         )
 
         // Compared here, once, rather than left for the readers. Most of what triggers a

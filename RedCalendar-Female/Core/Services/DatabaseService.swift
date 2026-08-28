@@ -193,6 +193,14 @@ final class DatabaseService: DatabaseServiceProtocol {
         }
     }
 
+    func fetchUserProfile() async throws -> UserProfileRecord? {
+        try await dbQueue.read { db in
+            // Written the way the observation reads it — the first row rather than the row keyed
+            // 1 — so the two can never disagree about which row is "the" profile.
+            try UserProfileRecord.fetchOne(db)
+        }
+    }
+
     // MARK: - Upsert
 
     func upsert(_ cycles: [CycleRecord]) async throws { try await upsertStamped(cycles) }
@@ -216,6 +224,42 @@ final class DatabaseService: DatabaseServiceProtocol {
                 stamped.dirtySeq = seq
                 try stamped.upsert(db)
             }
+        }
+    }
+
+    /// The one local write to `user_profile`, and the one place other than a pull that creates
+    /// its row. See the protocol for why it may have to.
+    ///
+    /// The settings are *merged* into the stored JSON rather than rebuilt from `UserSettings`:
+    /// the column holds what the server sent, character for character in meaning, and a key this
+    /// build does not model would otherwise be dropped here and erased on the server by the very
+    /// next push (SYNC.md §15).
+    func updateCycleSettings(_ patch: CycleSettingsPatch) async throws {
+        try await dbQueue.write { db in
+            let existing = try UserProfileRecord.fetchOne(db)
+            let owner = try String.fetchOne(db, sql: "SELECT user_id FROM sync_state WHERE id = 1")
+
+            var record = existing ?? UserProfileRecord(
+                id: 1,
+                userId: owner,
+                name: nil,
+                email: nil,
+                phoneNumber: nil,
+                settingsJSON: nil,
+                dirtySeq: nil
+            )
+
+            var settings = JSONValue(jsonString: record.settingsJSON) ?? .object([:])
+            if let cycleLength = patch.cycleLength {
+                settings = settings.setting(["cycle", "default_length"], to: .int(cycleLength))
+            }
+            if let periodLength = patch.periodLength {
+                settings = settings.setting(["cycle", "default_period_length"], to: .int(periodLength))
+            }
+
+            record.settingsJSON = settings.jsonString
+            record.dirtySeq = try Self.nextLocalSeq(db)
+            try record.upsert(db)
         }
     }
 
@@ -430,9 +474,31 @@ final class DatabaseService: DatabaseServiceProtocol {
             try row.record.upsert(db)
         }
 
-        if let profile = changes.profile,
-           try !Self.isProfileDirty(db) {
-            try profile.record(userId: userId ?? Self.profileOwner(db)).upsert(db)
+        // The profile is two halves with different owners (§4.4), and the dirty flag speaks for
+        // only one of them. `name` and `settings` are the device's, so a local edit waiting to go
+        // out holds them back exactly as it does in every table above. `user_id`, `email` and
+        // `phone_number` are the server's alone — a device never writes them — so they are
+        // applied whatever the flag says.
+        //
+        // Holding those back too would strand the device that edited its cycle settings before
+        // the profile had ever been pulled: this response is the only one that will ever carry
+        // that revision, `next_cursor` moves past it, `profile_revision > since` never matches
+        // again, and the row keeps no identity at all.
+        if let profile = changes.profile {
+            if try Self.isProfileDirty(db) {
+                try db.execute(
+                    sql: """
+                        UPDATE user_profile
+                           SET user_id = COALESCE(?, user_id),
+                               email = ?,
+                               phone_number = ?
+                         WHERE id = 1
+                        """,
+                    arguments: [userId, profile.email, profile.phoneNumber]
+                )
+            } else {
+                try profile.record(userId: userId ?? Self.profileOwner(db)).upsert(db)
+            }
         }
     }
 

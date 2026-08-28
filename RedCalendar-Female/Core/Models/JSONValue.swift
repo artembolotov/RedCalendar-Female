@@ -80,3 +80,31 @@ extension JSONValue {
         return String(wrapped.dropFirst().dropLast())
     }
 }
+
+extension JSONValue {
+    /// A copy with one value written at `path` and everything else left exactly as it was.
+    ///
+    /// Merging rather than rebuilding is the whole reason `settings` is carried as arbitrary JSON
+    /// (see the type's own comment, SYNC.md §15). The server replaces the column wholesale —
+    /// `writeProfile` does `settings = $n::jsonb` — so whatever this build does not put back is
+    /// gone from every device. A local edit is the one place that could happen.
+    ///
+    /// Anything on the path that is not an object is replaced by one. That includes a scalar
+    /// `settings`, the case §4.5 says the client has to survive rather than crash on: surviving
+    /// it means carrying it through untouched, and there is nothing to carry through once the
+    /// user has asked for a key to be stored inside it.
+    func setting(_ path: [String], to value: JSONValue) -> JSONValue {
+        guard let key = path.first else { return value }
+
+        var object: [String: JSONValue]
+        if case .object(let existing) = self {
+            object = existing
+        } else {
+            object = [:]
+        }
+
+        let child = object[key] ?? .object([:])
+        object[key] = child.setting(Array(path.dropFirst()), to: value)
+        return .object(object)
+    }
+}

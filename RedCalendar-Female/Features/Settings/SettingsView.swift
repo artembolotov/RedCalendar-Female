@@ -21,6 +21,9 @@ struct SettingsView: View {
         NavigationView {
             if let deviceId = store.state.deviceId {
                 Form {
+                    cycleLengthSection
+                    periodLengthSection
+
                     accentThemeSection
 
                     Section("Теги") {
@@ -62,6 +65,75 @@ struct SettingsView: View {
     }
 
     // MARK: - Private Views
+
+    // The two values the calendar predicts with, first on the screen because they are the only
+    // rows here that change what it draws.
+    //
+    // Committed on touch, with no Save button: every other row on this screen already works that
+    // way, and there is nothing to confirm — the edit is local, reversible by the opposite tap,
+    // and reported if it fails to save. The 2.0 screen this replaces did the same.
+    //
+    // Bound straight to the store rather than to `@State` seeded from it. The reducer applies the
+    // edit synchronously (see `AppStore.send`), so the number moves in the same frame the stepper
+    // does; a `@State` copy would additionally have to be kept honest against a value arriving
+    // from another device, and against the rollback a failed write performs.
+    private var cycleLengthSection: some View {
+        Section {
+            Stepper(
+                value: cycleLengthBinding,
+                in: Constants.Cycle.minCycleLength...Constants.Cycle.maxCycleLength
+            ) {
+                Text(Self.days(store.state.cycleSettings.cycleLength))
+            }
+        } header: {
+            Text("Длина цикла")
+        } footer: {
+            Text("Количество дней от начала одной менструации до первого дня следующей.")
+        }
+    }
+
+    private var periodLengthSection: some View {
+        Section("Длительность месячных") {
+            Stepper(
+                value: periodLengthBinding,
+                in: Constants.Cycle.minPeriodLength...Constants.Cycle.maxPeriodLength
+            ) {
+                Text(Self.days(store.state.cycleSettings.periodLength))
+            }
+        }
+    }
+
+    // Nothing is dispatched on appear, and that is the point of writing the binding out rather
+    // than reaching for `@State`. What the row shows is the stored value clamped into
+    // `Constants.Cycle` — imported histories genuinely contain a `default_length` of 19, below
+    // this app's own minimum (SYNC.md §4.5) — and clamping is a presentation decision until the
+    // user touches the control. Only a tap writes.
+    private var cycleLengthBinding: Binding<Int> {
+        Binding(
+            get: { store.state.cycleSettings.cycleLength },
+            set: { store.send(.data(.setCycleLength($0))) }
+        )
+    }
+
+    private var periodLengthBinding: Binding<Int> {
+        Binding(
+            get: { store.state.cycleSettings.periodLength },
+            set: { store.send(.data(.setPeriodLength($0))) }
+        )
+    }
+
+    /// «1 день», «2 дня», «5 дней» — the ordinary Russian rule, including the exception that
+    /// 11 through 14 take the plural whatever their last digit is.
+    private static func days(_ count: Int) -> String {
+        let word: String
+        switch (count % 100, count % 10) {
+        case (11...14, _): word = "дней"
+        case (_, 1):       word = "день"
+        case (_, 2...4):   word = "дня"
+        default:           word = "дней"
+        }
+        return "\(count) \(word)"
+    }
 
     // Rows rather than a `Picker`: the thing being chosen is a colour, so each option has to
     // show its own colour at a size worth judging. A picker would collapse the three down to
