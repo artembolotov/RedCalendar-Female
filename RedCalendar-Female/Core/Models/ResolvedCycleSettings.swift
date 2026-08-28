@@ -8,18 +8,13 @@
 /// a zero or negative cycle length there would divide by zero in `predictedCycleStart` and
 /// never terminate the prediction loop in `computeDayDisplayStates`.
 ///
-/// It lives in `AppState` rather than being resolved at each reader, because the settings screen
-/// edits it optimistically — see `appReducer` — and the clamping has to hold for those edits too.
-/// Hence `private(set)` and the two mutating setters: the bound being protected is the prediction
-/// loop's, not the stepper's.
+/// Immutable, and constructed in exactly one place — the reducer, from what the profile
+/// observation delivered. That is what makes it safe to clamp on the way in: nothing downstream
+/// can produce a second, differently-clamped answer for the same stored settings.
 struct ResolvedCycleSettings: Equatable, Sendable {
-    private(set) var cycleLength: Int
-    private(set) var periodLength: Int
-    private(set) var lutealPhaseLength: Int
-
-    /// The value the luteal phase is clamped *from*, kept so that the clamp can be redone rather
-    /// than reapplied — see `set(cycleLength:)`.
-    private let rawLutealPhaseLength: Int
+    let cycleLength: Int
+    let periodLength: Int
+    let lutealPhaseLength: Int
 
     init(_ settings: UserSettings.CycleSettings?) {
         cycleLength = clamp(
@@ -32,31 +27,9 @@ struct ResolvedCycleSettings: Equatable, Sendable {
         )
         // The luteal phase has to leave at least one day of follicular phase, otherwise
         // ovulation lands on or before the cycle start.
-        rawLutealPhaseLength = settings?.lutealPhaseLength ?? Constants.Cycle.defaultLutealPhaseLength
-        lutealPhaseLength = clamp(rawLutealPhaseLength, 1...(cycleLength - 1))
-    }
-
-    /// The luteal phase is re-clamped rather than left alone: it is not on this screen, but its
-    /// upper bound is a function of the value that is. A stored 25 under a cycle shortened to 20
-    /// would put ovulation on or before the start.
-    ///
-    /// Re-clamped **from the stored value**, not from the current one, so that shortening the
-    /// cycle and lengthening it back returns the phase to where it was. Clamping the clamped
-    /// value would leave it shrunk — and since the initialiser clamps from the stored value, the
-    /// disk's answer would then disagree with the screen's a round trip later, moving every
-    /// ovulation mark a moment after the tap that had nothing to do with them.
-    mutating func set(cycleLength: Int) {
-        self.cycleLength = clamp(
-            cycleLength,
-            Constants.Cycle.minCycleLength...Constants.Cycle.maxCycleLength
-        )
-        lutealPhaseLength = clamp(rawLutealPhaseLength, 1...(self.cycleLength - 1))
-    }
-
-    mutating func set(periodLength: Int) {
-        self.periodLength = clamp(
-            periodLength,
-            Constants.Cycle.minPeriodLength...Constants.Cycle.maxPeriodLength
+        lutealPhaseLength = clamp(
+            settings?.lutealPhaseLength ?? Constants.Cycle.defaultLutealPhaseLength,
+            1...(cycleLength - 1)
         )
     }
 }

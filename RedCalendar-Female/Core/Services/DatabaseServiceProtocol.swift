@@ -14,9 +14,6 @@ protocol DatabaseServiceProtocol: Sendable {
     func fetchUserTags() async throws -> [UserTagRecord]
     func fetchComments(in range: ClosedRange<Daystamp>) async throws -> [CommentRecord]
     func fetchDayTags(in range: ClosedRange<Daystamp>) async throws -> [DayTagsRecord]
-    /// The one `user_profile` row, or `nil` when the table is still empty. Only the re-read after
-    /// a failed settings write needs it — everything else watches the observation.
-    func fetchUserProfile() async throws -> UserProfileRecord?
 
     // Upsert
     //

@@ -449,9 +449,7 @@ final class DatabaseMiddleware {
                 await reloadDayTags(dispatch: dispatch)
             case .userTag:
                 await reloadUserTags(dispatch: dispatch)
-            case .cycleSettings:
-                await reloadProfile(dispatch: dispatch)
-            case .periodStart, .periodEnd, .flowLevel:
+            case .periodStart, .periodEnd, .flowLevel, .cycleSettings:
                 break
             }
         }
@@ -464,19 +462,6 @@ final class DatabaseMiddleware {
             dispatch(.data(.setVisibleComments(Self.commentsByDay(records))))
         } catch {
             AppLogger.error("Failed to re-read comments after a failed write", error: error)
-        }
-    }
-
-    /// The stepper is already showing the value the user chose — the reducer put it there — so
-    /// the stored one has to be fetched back the same way a comment's is. No range to guard on:
-    /// the profile is a single row, and its observation is one of the permanent pair.
-    private func reloadProfile(dispatch: @escaping Dispatch) async {
-        do {
-            let record = try await dbService.fetchUserProfile()
-            dispatch(.data(.setUserProfile(record.flatMap(UserDetails.init))))
-            dispatch(.data(.setCycleSettings(record?.settings?.cycle)))
-        } catch {
-            AppLogger.error("Failed to re-read the profile after a failed write", error: error)
         }
     }
 

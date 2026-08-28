@@ -90,18 +90,6 @@ func appReducer(state: AppState, action: AppAction) -> AppState {
             state.cycleSettings = ResolvedCycleSettings(cycle)
             recomputeDayDisplayStates = true
 
-        // Reduced as well as written, for the reason spelled out under `.saveComment` below: the
-        // stepper's number has to move in the frame the tap lands in, and the trip out through
-        // GRDB's observation is a round trip away. The disk still has the last word — the
-        // observation comes back carrying this same value, and `if newState != state` swallows
-        // it — and a write that never reached the disk is put back by `.writeFailed`.
-        case .setCycleLength(let length):
-            state.cycleSettings.set(cycleLength: length)
-            recomputeDayDisplayStates = true
-
-        case .setPeriodLength(let length):
-            state.cycleSettings.set(periodLength: length)
-            recomputeDayDisplayStates = true
 
         // The write actions that also reduce, and it is a latency decision rather than a
         // difference in kind. Everything below them reaches the screen the long way round: the
@@ -169,10 +157,17 @@ func appReducer(state: AppState, action: AppAction) -> AppState {
         case .beganEditingUserTag:
             break
 
+        // Written, never reduced. Unlike a comment, the value being edited is not on its way to
+        // a card underneath a dismissing sheet: `SettingsView` holds its own draft while the
+        // steppers are being tapped and the store hears about it once, at the end, so there is
+        // nothing to put on screen ahead of the disk — and nothing to put back if the write
+        // fails.
         case .markPeriodStart,
              .markPeriodEnd,
              .unmarkPeriodEnd,
-             .setFlowLevel:
+             .setFlowLevel,
+             .setCycleLength,
+             .setPeriodLength:
             break
 
         case .writeFailed(let operation):

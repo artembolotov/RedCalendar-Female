@@ -193,14 +193,6 @@ final class DatabaseService: DatabaseServiceProtocol {
         }
     }
 
-    func fetchUserProfile() async throws -> UserProfileRecord? {
-        try await dbQueue.read { db in
-            // Written the way the observation reads it — the first row rather than the row keyed
-            // 1 — so the two can never disagree about which row is "the" profile.
-            try UserProfileRecord.fetchOne(db)
-        }
-    }
-
     // MARK: - Upsert
 
     func upsert(_ cycles: [CycleRecord]) async throws { try await upsertStamped(cycles) }
@@ -236,6 +228,8 @@ final class DatabaseService: DatabaseServiceProtocol {
     /// next push (SYNC.md §15).
     func updateCycleSettings(_ patch: CycleSettingsPatch) async throws {
         try await dbQueue.write { db in
+            // The first row rather than the row keyed 1, which is how the observation reads it:
+            // the two must never disagree about which row is "the" profile.
             let existing = try UserProfileRecord.fetchOne(db)
             let owner = try String.fetchOne(db, sql: "SELECT user_id FROM sync_state WHERE id = 1")
 

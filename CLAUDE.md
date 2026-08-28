@@ -339,8 +339,20 @@ off `UserDetails`.
 **The settings screen is the first thing in this app that pushes a profile.** `SettingsView` edits
 the cycle length and the period length, and the path it feeds — `.data(.setCycleLength/.setPeriodLength)`
 → `DatabaseMiddleware` → `DatabaseService.updateCycleSettings` → `user_profile.dirty_seq` →
-`changes.profile` — was described and unused before it existed (SYNC.md §4.4, §15). Four rules hold
-it up, and each of them is a way to lose someone's data quietly:
+`changes.profile` — was described and unused before it existed (SYNC.md §4.4, §15).
+
+**The screen is a debounced editor, like the comment and tag sheets.** It holds its own draft
+while the steppers are being tapped and dispatches once, after
+`Constants.Sheets.autosaveDebounceNanoseconds` of quiet — plus on the close button (before the
+dismissal, so the calendar underneath does not redraw a beat after the screen has gone) and on
+`onDisappear`, for the swipe that never reaches the button. The intermediate values of a held
+stepper are worth exactly what the intermediate values of a half-typed comment are worth, and
+holding one from 28 to 90 is sixty-two taps — sixty-two GRDB writes, sixty-two stamped rows and
+sixty-two sync triggers, for one intent. Because the draft lives in the view, nothing is reduced
+ahead of the disk: `ResolvedCycleSettings` stays immutable, the reducer does not handle the two
+edit actions at all, and a failed write has nothing to roll back.
+
+Four rules hold the write path up, and each of them is a way to lose someone's data quietly:
 
 - **The settings JSON is merged, never rebuilt.** `user_profile.settings_json` holds what the
   server sent, and the server replaces the column wholesale (`writeProfile` does
@@ -373,12 +385,11 @@ Four smaller consequences worth keeping:
 - The clamp is a *presentation* decision until the user touches a stepper: imported histories
   really do contain a `default_length` of 19, below this app's own minimum (§4.5), and nothing may
   be written on appear.
-- `ResolvedCycleSettings.set(cycleLength:)` re-clamps the luteal phase, whose upper bound is a
-  function of the cycle length — it is not on the screen, but shortening the cycle under it would
-  put ovulation on or before the start. It clamps **the stored value**, not the current one, which
-  is what the initialiser does: clamp the clamped value instead and shortening the cycle and
-  lengthening it back leaves the phase shrunk, so the disk disagrees with the screen one round
-  trip later and every ovulation mark moves a moment after an unrelated tap.
+- `ResolvedCycleSettings` is constructed in one place only — the reducer, from what the profile
+  observation delivered — and that is what makes clamping on the way in safe. A second
+  construction path (an optimistic edit clamping a value the initialiser would clamp differently)
+  is how the luteal phase, whose upper bound is a function of the cycle length, ends up
+  disagreeing with the disk one round trip later.
 - An edit that lands on the value already stored writes nothing. It is not free to write it
   anyway: the row is stamped dirty, a sync run is asked for, and a server revision is spent that
   every *other* device then pulls. Tapping + and back to − is enough to cause it.
