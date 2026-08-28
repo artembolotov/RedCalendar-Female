@@ -249,15 +249,23 @@ final class DatabaseService: DatabaseServiceProtocol {
                 dirtySeq: nil
             )
 
-            var settings = JSONValue(jsonString: record.settingsJSON) ?? .object([:])
+            let stored = JSONValue(jsonString: record.settingsJSON) ?? .object([:])
+            var merged = stored
             if let cycleLength = patch.cycleLength {
-                settings = settings.setting(["cycle", "default_length"], to: .int(cycleLength))
+                merged = merged.setting(["cycle", "default_length"], to: .int(cycleLength))
             }
             if let periodLength = patch.periodLength {
-                settings = settings.setting(["cycle", "default_period_length"], to: .int(periodLength))
+                merged = merged.setting(["cycle", "default_period_length"], to: .int(periodLength))
             }
 
-            record.settingsJSON = settings.jsonString
+            // An edit that lands on the value already stored is not an edit, and writing it
+            // anyway is not free: it stamps the row dirty, asks for a sync run, and spends a
+            // server revision that every *other* device then pulls. Tapping + and back to − is
+            // enough to cause it. Compared as values rather than as strings — two encodings of
+            // the same settings are the same settings.
+            if existing != nil, merged == stored { return }
+
+            record.settingsJSON = merged.jsonString
             record.dirtySeq = try Self.nextLocalSeq(db)
             try record.upsert(db)
         }

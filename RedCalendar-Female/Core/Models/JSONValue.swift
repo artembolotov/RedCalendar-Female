@@ -75,7 +75,14 @@ extension JSONValue {
     }
 
     var jsonString: String? {
-        guard let data = try? JSONEncoder().encode([self]),
+        let encoder = JSONEncoder()
+        // Sorted, so that encoding the same value twice produces the same string. A Swift
+        // dictionary's iteration order is seed-randomised per process, and `settings_json` is
+        // what `UserProfileRecord.==` compares — which is the question `removeDuplicates()` asks
+        // of the profile observation. Unsorted, a pull that changed nothing could still re-write
+        // the column with the keys in a different order and wake every reader of the profile.
+        encoder.outputFormatting = .sortedKeys
+        guard let data = try? encoder.encode([self]),
               let wrapped = String(data: data, encoding: .utf8) else { return nil }
         return String(wrapped.dropFirst().dropLast())
     }

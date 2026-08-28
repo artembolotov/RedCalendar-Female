@@ -17,6 +17,10 @@ struct ResolvedCycleSettings: Equatable, Sendable {
     private(set) var periodLength: Int
     private(set) var lutealPhaseLength: Int
 
+    /// The value the luteal phase is clamped *from*, kept so that the clamp can be redone rather
+    /// than reapplied — see `set(cycleLength:)`.
+    private let rawLutealPhaseLength: Int
+
     init(_ settings: UserSettings.CycleSettings?) {
         cycleLength = clamp(
             settings?.defaultLength ?? Constants.Cycle.defaultCycleLength,
@@ -28,22 +32,25 @@ struct ResolvedCycleSettings: Equatable, Sendable {
         )
         // The luteal phase has to leave at least one day of follicular phase, otherwise
         // ovulation lands on or before the cycle start.
-        lutealPhaseLength = clamp(
-            settings?.lutealPhaseLength ?? Constants.Cycle.defaultLutealPhaseLength,
-            1...(cycleLength - 1)
-        )
+        rawLutealPhaseLength = settings?.lutealPhaseLength ?? Constants.Cycle.defaultLutealPhaseLength
+        lutealPhaseLength = clamp(rawLutealPhaseLength, 1...(cycleLength - 1))
     }
 
     /// The luteal phase is re-clamped rather than left alone: it is not on this screen, but its
     /// upper bound is a function of the value that is. A stored 25 under a cycle shortened to 20
-    /// would put ovulation on or before the start — the same invariant the initialiser keeps, at
-    /// the only other place the cycle length can change.
+    /// would put ovulation on or before the start.
+    ///
+    /// Re-clamped **from the stored value**, not from the current one, so that shortening the
+    /// cycle and lengthening it back returns the phase to where it was. Clamping the clamped
+    /// value would leave it shrunk — and since the initialiser clamps from the stored value, the
+    /// disk's answer would then disagree with the screen's a round trip later, moving every
+    /// ovulation mark a moment after the tap that had nothing to do with them.
     mutating func set(cycleLength: Int) {
         self.cycleLength = clamp(
             cycleLength,
             Constants.Cycle.minCycleLength...Constants.Cycle.maxCycleLength
         )
-        lutealPhaseLength = clamp(lutealPhaseLength, 1...(self.cycleLength - 1))
+        lutealPhaseLength = clamp(rawLutealPhaseLength, 1...(self.cycleLength - 1))
     }
 
     mutating func set(periodLength: Int) {

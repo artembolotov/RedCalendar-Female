@@ -85,6 +85,10 @@ struct SettingsView: View {
             ) {
                 Text(Self.days(store.state.cycleSettings.cycleLength))
             }
+            // The section header names the setting on screen but is not part of the control, so
+            // VoiceOver would otherwise announce an adjustable "28 дней" belonging to nothing.
+            .accessibilityLabel("Длина цикла")
+            .accessibilityValue(Self.days(store.state.cycleSettings.cycleLength))
         } header: {
             Text("Длина цикла")
         } footer: {
@@ -100,6 +104,8 @@ struct SettingsView: View {
             ) {
                 Text(Self.days(store.state.cycleSettings.periodLength))
             }
+            .accessibilityLabel("Длительность месячных")
+            .accessibilityValue(Self.days(store.state.cycleSettings.periodLength))
         }
     }
 

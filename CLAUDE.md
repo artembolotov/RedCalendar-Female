@@ -368,11 +368,23 @@ Nothing but a sync run has ever written it, so a user who is authenticated but h
 successful run has no row to edit; what it creates carries `sync_state`'s owner if there is one,
 and no identity at all if there is not.
 
-Two smaller consequences worth keeping. The clamp is a *presentation* decision until the user
-touches a stepper: imported histories really do contain a `default_length` of 19, below this app's
-own minimum (§4.5), and nothing may be written on appear. And `ResolvedCycleSettings.set(cycleLength:)`
-re-clamps the luteal phase, whose upper bound is a function of the cycle length — it is not on the
-screen, but shortening the cycle under it would put ovulation on or before the start.
+Four smaller consequences worth keeping:
+
+- The clamp is a *presentation* decision until the user touches a stepper: imported histories
+  really do contain a `default_length` of 19, below this app's own minimum (§4.5), and nothing may
+  be written on appear.
+- `ResolvedCycleSettings.set(cycleLength:)` re-clamps the luteal phase, whose upper bound is a
+  function of the cycle length — it is not on the screen, but shortening the cycle under it would
+  put ovulation on or before the start. It clamps **the stored value**, not the current one, which
+  is what the initialiser does: clamp the clamped value instead and shortening the cycle and
+  lengthening it back leaves the phase shrunk, so the disk disagrees with the screen one round
+  trip later and every ovulation mark moves a moment after an unrelated tap.
+- An edit that lands on the value already stored writes nothing. It is not free to write it
+  anyway: the row is stamped dirty, a sync run is asked for, and a server revision is spent that
+  every *other* device then pulls. Tapping + and back to − is enough to cause it.
+- `JSONValue.jsonString` sorts its keys. A Swift dictionary iterates in a seed-randomised order,
+  and `settings_json` is compared as a string by `UserProfileRecord.==` — which is the question
+  `removeDuplicates()` asks of the profile observation.
 
 **Two clips, and only one of them caps the bar.** In `computeDayDisplayStates` a period cut short by
 the next cycle's start really does end there, so `SegmentPosition` is derived from that cut and the
