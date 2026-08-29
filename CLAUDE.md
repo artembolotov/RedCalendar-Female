@@ -426,6 +426,13 @@ before the button is tapped lands on `HomeView` on the next cold launch — `.ch
 `isFreshRegistration` — showing the same fallback every build before this one already showed. That
 gap is accepted, not fixed.
 
+**Clearing the flag is its own action, not another `.set(.authenticated(...))`.** That pattern is
+read by three other places as "the user just signed in": `SyncMiddleware` starts an undebounced
+sync run on it, `AuthMiddleware` itself re-registers for remote notifications and can re-request
+the push permission, and `DatabaseMiddleware` (re)starts its observations — guarded, but by a
+check its own comment already flags as accidental ("nothing does today, but nothing enforces it").
+`.auth(.completedRegistrationOnboarding)` reduces the flag off and triggers none of that.
+
 **Two clips, and only one of them caps the bar.** In `computeDayDisplayStates` a period cut short by
 the next cycle's start really does end there, so `SegmentPosition` is derived from that cut and the
 last day caps with `.end` (or `.single`). `loadedRange` is a viewport, not a boundary: a period

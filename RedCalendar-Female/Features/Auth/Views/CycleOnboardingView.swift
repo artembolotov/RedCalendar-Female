@@ -106,10 +106,7 @@ struct CycleOnboardingView: View {
         // something this person actually confirmed.
         store.send(.data(.setCycleLength(cycleLength)))
         store.send(.data(.setPeriodLength(periodLength)))
-
-        if let deviceId = store.state.deviceId {
-            store.send(.auth(.set(.authenticated(deviceId: deviceId, isFreshRegistration: false))))
-        }
+        store.send(.auth(.completedRegistrationOnboarding))
     }
 }
 

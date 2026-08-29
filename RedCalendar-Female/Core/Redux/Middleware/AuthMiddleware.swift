@@ -268,5 +268,10 @@ let authMiddleware: Middleware = { state, action, dispatch in
             // wiped on this action, so the one state this must not end in is "still signed in".
             dispatch(.auth(.set(.notAuthenticated)))
         }
+
+    // Reduced only — see the case's doc comment in AppAction.swift for why this owns no side
+    // effect of its own rather than going through `.set(.authenticated(...))`.
+    case .completedRegistrationOnboarding:
+        break
     }
 }
