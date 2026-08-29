@@ -64,13 +64,14 @@ final class PushNotificationsMiddleware {
                     }
                 }
 
-            case .setPermissionState(let permissionState):
-                if permissionState == nil {
-                    Task {
-                        let status = await pushPermissionService.getState()
-                        dispatch(.push(.setPermissionState(status)))
-                    }
+            case .checkPermissionState:
+                Task {
+                    let status = await pushPermissionService.getState()
+                    dispatch(.push(.setPermissionState(status)))
                 }
+
+            case .setPermissionState:
+                break
             }
 
         // The retry the guard above is actually for: a registration that failed leaves the token

@@ -34,7 +34,7 @@ struct RedCalendarApp: App {
                 .onChange(of: scenePhase) { newPhase in
                     if newPhase == .active {
                         store.send(.calendar(.updateToday))
-                        store.send(.push(.setPermissionState(nil)))
+                        store.send(.push(.checkPermissionState))
                         store.send(.retryFailedTasks)
 
                         clearNotifications()
