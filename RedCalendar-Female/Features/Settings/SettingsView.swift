@@ -110,19 +110,24 @@ struct SettingsView: View {
             // VoiceOver would otherwise announce an adjustable "28 дней" belonging to nothing.
             .accessibilityLabel("Длина цикла")
             .accessibilityValue(cycleLength.russianDays)
+
+            // A row in the section's own content, not `footer:` — tried keeping the real footer
+            // with `.fixedSize(horizontal: false, vertical: true)` on its text first (asks for
+            // the ideal height directly instead of negotiating one with the table's proposed
+            // size, the standard remedy for self-sizing table header/footer views coming back
+            // wrong), and the jitter was unchanged. That rules out the footer's own content
+            // sizing as the cause: a `Section` footer is a distinct supplementary view with a
+            // relayout path separate from its rows', and it is that separate path — not how its
+            // text sizes itself — that comes back from a background/foreground cycle unstable.
+            // Nothing found lets that path be fixed directly (no in-app footer/table styling,
+            // and this matches a documented class of footer self-sizing bugs on Apple's own
+            // developer forums, just not this exact trigger) — folding the text into the same
+            // pass as the row above it is what actually holds.
+            Text("Количество дней от начала одной менструации до первого дня следующей.")
+                .font(.footnote)
+                .foregroundColor(.secondary)
         } header: {
             Text("Длина цикла")
-        } footer: {
-            // `.fixedSize(vertical:)` because a `Section` footer is measured through its own
-            // self-sizing pass, separate from its rows', and that pass came back from a
-            // background/foreground cycle with a stale height that then animated to the correct
-            // one, carrying every section below it along (this was the only section with a
-            // footer, and the whole table below it visibly jittered). `.fixedSize` asks for the
-            // text's own ideal height directly instead of negotiating one with the table's
-            // proposed size — the standard fix for self-sizing table header/footer views that
-            // come back wrong, going back to plain UIKit.
-            Text("Количество дней от начала одной менструации до первого дня следующей.")
-                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
