@@ -47,7 +47,7 @@ extension AppState {
     }
 
     var deviceId: String? {
-        guard case .authenticated(let id) = authState else { return nil }
+        guard case .authenticated(let id, _) = authState else { return nil }
         return id
     }
 

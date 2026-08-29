@@ -15,8 +15,12 @@ struct RootView: View {
             switch authState {
             case .notAuthenticated, .authenticating(_):
                 WelcomeView()
-            case .authenticated:
-                HomeView()
+            case .authenticated(_, let isFreshRegistration):
+                if isFreshRegistration {
+                    CycleOnboardingView()
+                } else {
+                    HomeView()
+                }
             case .migrating(let userId, let migrationError):
                 VStack(spacing: 16) {
                     if let migrationError {
