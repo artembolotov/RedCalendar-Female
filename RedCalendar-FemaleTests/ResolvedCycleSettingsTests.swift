@@ -7,8 +7,9 @@ import XCTest
 @testable import RedCalendar_Female
 
 /// The clamp exists so that the prediction loop terminates and `predictedCycleStart` does not
-/// divide by zero. Imported histories really do carry values outside this app's own bounds
-/// (SYNC.md §4.5), so every one of these is a shape that has been observed or is one step from it.
+/// divide by zero. `settings` is validated for shape and not for contents (SYNC.md §4.5), so the
+/// column can hand back any number a client ever wrote there — these are the shapes that would
+/// hang or crash the drawing if it were trusted.
 final class ResolvedCycleSettingsTests: XCTestCase {
 
     func testFallbacksWhenThereAreNoSettings() {
@@ -29,9 +30,9 @@ final class ResolvedCycleSettingsTests: XCTestCase {
         XCTAssertEqual(resolved.lutealPhaseLength, Constants.Cycle.defaultLutealPhaseLength)
     }
 
-    /// The real one: a `default_length` of 19 exists in imported data, below this app's own
-    /// minimum of 20. It must be *shown* clamped and never written back on appear.
-    func testAnImportedCycleLengthBelowTheMinimumIsClampedForDisplay() {
+    /// A stored value below this app's own minimum is *shown* clamped and never written back on
+    /// appear — the screen must not turn its own opinion into the user's stored choice.
+    func testACycleLengthBelowTheMinimumIsClampedForDisplay() {
         let resolved = ResolvedCycleSettings(
             UserSettings.CycleSettings(defaultLength: 19, defaultPeriodLength: nil, lutealPhaseLength: nil)
         )
@@ -54,7 +55,8 @@ final class ResolvedCycleSettingsTests: XCTestCase {
         )
     }
 
-    /// A 16-day period is in the imported data too, against a maximum of 14.
+    /// A 16-day period is in the imported cycle data, against this app's maximum of 14 — the same
+    /// gap between what may arrive and what may be entered.
     func testPeriodLengthIsClampedAtBothEnds() {
         XCTAssertEqual(
             ResolvedCycleSettings(
