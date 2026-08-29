@@ -110,19 +110,19 @@ struct SettingsView: View {
             // VoiceOver would otherwise announce an adjustable "28 дней" belonging to nothing.
             .accessibilityLabel("Длина цикла")
             .accessibilityValue(cycleLength.russianDays)
-
-            // A row in the section's own content, not a `footer:` — a section footer is its own
-            // supplementary view with a self-sizing pass separate from its rows', and that pass
-            // came back from a background/foreground cycle with a stale height that then
-            // corrected itself, animating, and carrying every section below it along: this was
-            // the only section in the `Form` with a footer, and the whole table below it visibly
-            // jittered on every return from the background. A plain row inside the same
-            // self-sizing pass as the `Stepper` above it has no separate height to get wrong.
-            Text("Количество дней от начала одной менструации до первого дня следующей.")
-                .font(.footnote)
-                .foregroundColor(.secondary)
         } header: {
             Text("Длина цикла")
+        } footer: {
+            // `.fixedSize(vertical:)` because a `Section` footer is measured through its own
+            // self-sizing pass, separate from its rows', and that pass came back from a
+            // background/foreground cycle with a stale height that then animated to the correct
+            // one, carrying every section below it along (this was the only section with a
+            // footer, and the whole table below it visibly jittered). `.fixedSize` asks for the
+            // text's own ideal height directly instead of negotiating one with the table's
+            // proposed size — the standard fix for self-sizing table header/footer views that
+            // come back wrong, going back to plain UIKit.
+            Text("Количество дней от начала одной менструации до первого дня следующей.")
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
