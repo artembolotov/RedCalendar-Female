@@ -104,12 +104,12 @@ struct SettingsView: View {
                 value: cycleLengthBinding,
                 in: Constants.Cycle.minCycleLength...Constants.Cycle.maxCycleLength
             ) {
-                Text(Self.days(cycleLength))
+                Text(cycleLength.russianDays)
             }
             // The section header names the setting on screen but is not part of the control, so
             // VoiceOver would otherwise announce an adjustable "28 дней" belonging to nothing.
             .accessibilityLabel("Длина цикла")
-            .accessibilityValue(Self.days(cycleLength))
+            .accessibilityValue(cycleLength.russianDays)
         } header: {
             Text("Длина цикла")
         } footer: {
@@ -123,10 +123,10 @@ struct SettingsView: View {
                 value: periodLengthBinding,
                 in: Constants.Cycle.minPeriodLength...Constants.Cycle.maxPeriodLength
             ) {
-                Text(Self.days(periodLength))
+                Text(periodLength.russianDays)
             }
             .accessibilityLabel("Длительность месячных")
-            .accessibilityValue(Self.days(periodLength))
+            .accessibilityValue(periodLength.russianDays)
         }
     }
 
@@ -170,19 +170,6 @@ struct SettingsView: View {
         if let draft = draftPeriodLength, draft != store.state.cycleSettings.periodLength {
             store.send(.data(.setPeriodLength(draft)))
         }
-    }
-
-    /// «1 день», «2 дня», «5 дней» — the ordinary Russian rule, including the exception that
-    /// 11 through 14 take the plural whatever their last digit is.
-    private static func days(_ count: Int) -> String {
-        let word: String
-        switch (count % 100, count % 10) {
-        case (11...14, _): word = "дней"
-        case (_, 1):       word = "день"
-        case (_, 2...4):   word = "дня"
-        default:           word = "дней"
-        }
-        return "\(count) \(word)"
     }
 
     // Rows rather than a `Picker`: the thing being chosen is a colour, so each option has to

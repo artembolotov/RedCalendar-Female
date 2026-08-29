@@ -96,7 +96,15 @@ let authMiddleware: Middleware = { state, action, dispatch in
                             }
                             keychain.deleteUserUID()
 
-                            dispatch(.auth(.set(.authenticated(deviceId: data.deviceId))))
+                            // Only a brand-new account has no cycle settings on the server yet —
+                            // a returning login (`.verifying`) reaches an existing row, exactly
+                            // like every phone sign-in does.
+                            let isFreshRegistration: Bool = if case .registering = emailState { true } else { false }
+
+                            dispatch(.auth(.set(.authenticated(
+                                deviceId: data.deviceId,
+                                isFreshRegistration: isFreshRegistration
+                            ))))
 
                         } catch {
                             let authError = AuthenticationError.from(error)
@@ -234,7 +242,7 @@ let authMiddleware: Middleware = { state, action, dispatch in
         }
 
     case .logout:
-        if case .authenticated(let deviceId) = state.authState {
+        if case .authenticated(let deviceId, _) = state.authState {
             Task {
                 // The sign-out happens whatever the server answers, **D4**. It used to happen
                 // only on success or on a 401, so a person on a bad connection stayed signed in
@@ -260,5 +268,10 @@ let authMiddleware: Middleware = { state, action, dispatch in
             // wiped on this action, so the one state this must not end in is "still signed in".
             dispatch(.auth(.set(.notAuthenticated)))
         }
+
+    // Reduced only — see the case's doc comment in AppAction.swift for why this owns no side
+    // effect of its own rather than going through `.set(.authenticated(...))`.
+    case .completedRegistrationOnboarding:
+        break
     }
 }

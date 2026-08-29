@@ -34,6 +34,11 @@ func appReducer(state: AppState, action: AppAction) -> AppState {
 
         case .logout:
             break
+
+        case .completedRegistrationOnboarding:
+            if case .authenticated(let deviceId, _) = state.authState {
+                state.authState = .authenticated(deviceId: deviceId)
+            }
         }
 
     case .calendar(let calendarAction):

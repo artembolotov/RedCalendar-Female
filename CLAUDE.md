@@ -400,6 +400,39 @@ Four smaller consequences worth keeping:
   and `settings_json` is compared as a string by `UserProfileRecord.==` — which is the question
   `removeDuplicates()` asks of the profile observation.
 
+**A brand-new email account is asked for these two numbers once, and nobody else is.**
+`CycleOnboardingView` sits between a fresh email registration and `HomeView` — reached through
+`AuthState.authenticated`'s `isFreshRegistration` flag, set by `AuthMiddleware` only from
+`EmailAuthState.registering`, never from a returning login and never from phone. It reuses the
+exact write path `SettingsView` does (`.data(.setCycleLength/.setPeriodLength)`), just once, on a
+single "Продолжить" tap, with no debounce — there is nothing to coalesce when the whole screen is
+one commit.
+
+Phone sign-in never reaches it, because phone sign-in has no registration to begin with:
+`checkPhone` answers `.phoneNotRegistered` for a number the server has never seen, since
+RedCalendar 2.0 was phone-only. Every phone login is therefore an existing 2.0 account, and its
+`settings` already crossed over verbatim in the Firebase import (§10.2 — `user.settings` →
+`users_female.settings`, same shape) before this device ever pulled it; asking again would ask a
+returning person to re-guess what they already told the old app.
+
+This is the one place a write happens even when the person changes nothing. `SettingsView`'s "an
+edit that lands on the stored value writes nothing" rule (above) protects an *existing* row from a
+wasted revision — here there is no existing row for "unchanged" to mean anything against, and
+tapping through with the defaults is the answer being asked for: it is what turns the silent 28/5
+fallback into a value this person actually confirmed.
+
+The flag lives only in this run's Redux state, not in the keychain or on the server. A force-quit
+before the button is tapped lands on `HomeView` on the next cold launch — `.check` never sets
+`isFreshRegistration` — showing the same fallback every build before this one already showed. That
+gap is accepted, not fixed.
+
+**Clearing the flag is its own action, not another `.set(.authenticated(...))`.** That pattern is
+read by three other places as "the user just signed in": `SyncMiddleware` starts an undebounced
+sync run on it, `AuthMiddleware` itself re-registers for remote notifications and can re-request
+the push permission, and `DatabaseMiddleware` (re)starts its observations — guarded, but by a
+check its own comment already flags as accidental ("nothing does today, but nothing enforces it").
+`.auth(.completedRegistrationOnboarding)` reduces the flag off and triggers none of that.
+
 **Two clips, and only one of them caps the bar.** In `computeDayDisplayStates` a period cut short by
 the next cycle's start really does end there, so `SegmentPosition` is derived from that cut and the
 last day caps with `.end` (or `.single`). `loadedRange` is a viewport, not a boundary: a period

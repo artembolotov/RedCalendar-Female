@@ -39,6 +39,13 @@ enum AuthAction: Sendable {
     case check
     case set(AuthState)
     case logout
+    /// Clears `AuthState.authenticated`'s `isFreshRegistration` once `CycleOnboardingView` is
+    /// done. Deliberately not another `.set(.authenticated(...))`: that pattern is also what
+    /// `SyncMiddleware` reads as "the user just signed in" (an undebounced sync run),
+    /// `AuthMiddleware` itself as a fresh session (a repeat push-permission request), and
+    /// `DatabaseMiddleware` as a reason to (re-)start its observations. Re-dispatching it here
+    /// would fire all three for an event none of them mean.
+    case completedRegistrationOnboarding
 }
 
 enum CalendarAction: Sendable {

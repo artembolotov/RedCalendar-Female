@@ -44,7 +44,7 @@ final class PushNotificationsMiddleware {
             switch pushAction {
 
             case .setAPNSToken(let token):
-                guard case .authenticated(let deviceId) = state.authState, !token.isSynced else { break }
+                guard case .authenticated(let deviceId, _) = state.authState, !token.isSynced else { break }
 
                 let registration = Registration(deviceId: deviceId, token: token.value)
                 guard inFlight != registration else { break }
