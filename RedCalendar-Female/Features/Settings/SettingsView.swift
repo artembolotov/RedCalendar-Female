@@ -120,10 +120,16 @@ struct SettingsView: View {
             // VoiceOver would otherwise announce an adjustable "28 дней" belonging to nothing.
             .accessibilityLabel("Длина цикла")
             .accessibilityValue(cycleLength.russianDays)
+
+            // DIAGNOSTIC: moved out of `footer:` and into the section's own content, as a plain
+            // row, to test whether the section-footer supplementary view's self-sizing is what
+            // goes unstable on resume (§ jitter investigation, PR #119) — everything below this
+            // section's footer was reported jittering, and this is the only section that has one.
+            Text("Количество дней от начала одной менструации до первого дня следующей.")
+                .font(.footnote)
+                .foregroundColor(.secondary)
         } header: {
             Text("Длина цикла")
-        } footer: {
-            Text("Количество дней от начала одной менструации до первого дня следующей.")
         }
     }
 
