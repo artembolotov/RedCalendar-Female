@@ -21,12 +21,6 @@ struct SettingsView: View {
     @State private var draftCycleLength: Int?
     @State private var draftPeriodLength: Int?
 
-    // DIAGNOSTIC — not tied to the store, the drafts, or the debounce, so a jitter here would
-    // mean `Stepper` itself is the trigger inside this `Form`/`NavigationView`/`.sheet`, and one
-    // that stays calm would clear `Stepper` and point back at how the two real rows are wired.
-    // Remove this section once the jitter branch is settled either way.
-    @State private var diagnosticValue = 28
-
     private let devModeTapThreshold: CFTimeInterval = 0.5
     private let swatchSize: CGFloat = 22
 
@@ -34,10 +28,6 @@ struct SettingsView: View {
         NavigationView {
             if let deviceId = store.state.deviceId {
                 Form {
-                    Section("DIAGNOSTIC — remove me") {
-                        Stepper("Тест: \(diagnosticValue)", value: $diagnosticValue, in: 0...100)
-                    }
-
                     cycleLengthSection
                     periodLengthSection
 
@@ -120,16 +110,19 @@ struct SettingsView: View {
             // VoiceOver would otherwise announce an adjustable "28 дней" belonging to nothing.
             .accessibilityLabel("Длина цикла")
             .accessibilityValue(cycleLength.russianDays)
-
-            // DIAGNOSTIC: moved out of `footer:` and into the section's own content, as a plain
-            // row, to test whether the section-footer supplementary view's self-sizing is what
-            // goes unstable on resume (§ jitter investigation, PR #119) — everything below this
-            // section's footer was reported jittering, and this is the only section that has one.
-            Text("Количество дней от начала одной менструации до первого дня следующей.")
-                .font(.footnote)
-                .foregroundColor(.secondary)
         } header: {
             Text("Длина цикла")
+        } footer: {
+            // `.fixedSize(vertical:)` because a `Section` footer is measured through its own
+            // self-sizing pass, separate from its rows', and that pass came back from a
+            // background/foreground cycle with a stale height that then animated to the correct
+            // one, carrying every section below it along (this was the only section with a
+            // footer, and the whole table below it visibly jittered). `.fixedSize` asks for the
+            // text's own ideal height directly instead of negotiating one with the table's
+            // proposed size — the standard fix for self-sizing table header/footer views that
+            // come back wrong, going back to plain UIKit.
+            Text("Количество дней от начала одной менструации до первого дня следующей.")
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
