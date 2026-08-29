@@ -200,6 +200,9 @@ func appReducer(state: AppState, action: AppAction) -> AppState {
         case .setAPNSToken(let token):
             state.notifications.apnsToken = token
 
+        case .checkPermissionState:
+            break
+
         case .setPermissionState(let permissionState):
             state.notifications.pushPermissionState = permissionState
         }

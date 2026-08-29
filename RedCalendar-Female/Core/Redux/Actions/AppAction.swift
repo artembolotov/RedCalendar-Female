@@ -165,8 +165,17 @@ enum SyncReason: String, Sendable {
 
 enum PushAction: Sendable {
     case setAPNSToken(APNSToken)
-    /// `nil` asks the middleware to go and read the real state from the system.
-    case setPermissionState(PushPermissionState?)
+    /// Asks the middleware to go and read the real state from the system, like
+    /// `AnalyticsAction.checkStatus` and `AppearanceAction.checkAccentTheme` — a pure trigger,
+    /// carrying no value and reducing to nothing, so asking for a refresh never itself counts as
+    /// a state change. `.setPermissionState` used to double as this trigger by taking `nil`, but
+    /// writing `nil` into `AppState` overwrites a perfectly good known value with "unknown" for
+    /// the moment between the request and the answer — two real, `@Published`-published state
+    /// changes (known → nil → known) on every single return from the background, whether or not
+    /// the answer actually changed. `SettingsView`'s `Form` has no `Equatable` firewall like the
+    /// calendar's grid does, so both re-renders reached it and the table visibly jittered.
+    case checkPermissionState
+    case setPermissionState(PushPermissionState)
 }
 
 enum AnalyticsAction: Sendable {
