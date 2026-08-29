@@ -21,6 +21,12 @@ struct SettingsView: View {
     @State private var draftCycleLength: Int?
     @State private var draftPeriodLength: Int?
 
+    // DIAGNOSTIC — not tied to the store, the drafts, or the debounce, so a jitter here would
+    // mean `Stepper` itself is the trigger inside this `Form`/`NavigationView`/`.sheet`, and one
+    // that stays calm would clear `Stepper` and point back at how the two real rows are wired.
+    // Remove this section once the jitter branch is settled either way.
+    @State private var diagnosticValue = 28
+
     private let devModeTapThreshold: CFTimeInterval = 0.5
     private let swatchSize: CGFloat = 22
 
@@ -28,6 +34,10 @@ struct SettingsView: View {
         NavigationView {
             if let deviceId = store.state.deviceId {
                 Form {
+                    Section("DIAGNOSTIC — remove me") {
+                        Stepper("Тест: \(diagnosticValue)", value: $diagnosticValue, in: 0...100)
+                    }
+
                     cycleLengthSection
                     periodLengthSection
 
