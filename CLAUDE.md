@@ -382,9 +382,12 @@ and no identity at all if there is not.
 
 Four smaller consequences worth keeping:
 
-- The clamp is a *presentation* decision until the user touches a stepper: imported histories
-  really do contain a `default_length` of 19, below this app's own minimum (§4.5), and nothing may
-  be written on appear.
+- The clamp is a *presentation* decision until the user touches a stepper, and nothing may be
+  written on appear. `settings` is checked for shape and not for contents (§4.5), so the column
+  can hold any number a client ever wrote there; a value this build would clamp is still the value
+  that person chose, and writing our version of it back is not ours to do. (Real profiles carry
+  26–29 today — inside the bounds. The 19 in §4.5's table is an observed *interval between cycle
+  starts*, which is a `CycleRecord` and not this setting.)
 - `ResolvedCycleSettings` is constructed in one place only — the reducer, from what the profile
   observation delivered — and that is what makes clamping on the way in safe. A second
   construction path (an optimistic edit clamping a value the initialiser would clamp differently)

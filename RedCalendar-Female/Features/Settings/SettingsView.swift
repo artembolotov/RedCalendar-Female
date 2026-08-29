@@ -135,10 +135,12 @@ struct SettingsView: View {
     // kept honest afterwards. Falling back like this, the row shows the disk until the moment the
     // user touches it and their own value from then on.
     //
-    // What the row shows before that is the stored value **clamped** into `Constants.Cycle`:
-    // imported histories genuinely contain a `default_length` of 19, below this app's own minimum
-    // (SYNC.md §4.5). Clamping is a presentation decision until the user touches the control —
-    // nothing is dispatched on appear, and only a tap writes.
+    // What the row shows before that is the stored value **clamped** into `Constants.Cycle`.
+    // Nothing validates that column: §4.5 checks the profile for shape, not contents, so the
+    // server will store and hand back any number a client ever wrote there. Clamping is therefore
+    // a presentation decision — and it stays one until the user touches the control. Nothing is
+    // dispatched on appear, and only a tap writes: a value this build would clamp is still the
+    // value that person chose, and writing our version of it back is not ours to do.
     private var cycleLength: Int { draftCycleLength ?? store.state.cycleSettings.cycleLength }
     private var periodLength: Int { draftPeriodLength ?? store.state.cycleSettings.periodLength }
 
