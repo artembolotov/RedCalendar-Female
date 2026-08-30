@@ -278,7 +278,7 @@ final class DatabaseService: DatabaseServiceProtocol {
         }
     }
 
-    /// The other local write to `user_profile` — the name half, and `AccountView`'s write path.
+    /// The other local write to `user_profile` — the name half, and `ProfileView`'s write path.
     /// Stamps `nameDirtySeq` to the same generation as `dirtySeq`, in the same transaction: that
     /// is what lets `SyncProfilePush(_:)` tell a name edit apart from a settings-only one sharing
     /// the same row, and what lets the two be cleared by the same `sentMax` a push confirms (see
@@ -311,7 +311,7 @@ final class DatabaseService: DatabaseServiceProtocol {
             // `.some(nil)` — an erase — for a device that has never pulled a real name to erase.
             // Comparing straight against `existing?.name` (itself `nil` when there is no row)
             // covers both "no row, no name" and "row exists, unchanged" in one guard, so this
-            // holds even if a future caller forgets the check `AccountView.commitDraft` makes.
+            // holds even if a future caller forgets the check `ProfileView.commitDrafts` makes.
             guard name != existing?.name else { return }
 
             let seq = try Self.nextLocalSeq(db)
