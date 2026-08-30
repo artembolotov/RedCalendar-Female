@@ -30,16 +30,17 @@ struct Constants {
     }
 
     struct Sheets {
-        // How long the comment, tag and cycle-settings editors wait after the last edit before
-        // autosaving in the background. Long enough that normal typing/tapping doesn't trigger a
-        // write per keystroke, short enough that the save has almost always already landed by the
-        // time a user who paused then swipes down reaches `onDisappear`.
+        // How long the comment, tag, cycle-settings and profile-name editors wait after the last
+        // edit before autosaving in the background. Long enough that normal typing/tapping
+        // doesn't trigger a write per keystroke, short enough that the save has almost always
+        // already landed by the time a user who paused then swipes back reaches `onDisappear`.
         //
-        // One number for all three because it answers one question — how long a pause means the
+        // One number for all four because it answers one question — how long a pause means the
         // person has stopped — and a keystroke, a tag toggle and a stepper tap are the same kind
         // of pause. It is not load-bearing for correctness in any of them: each editor also saves
-        // from its close button and from `onDisappear`, so the value only decides how many writes
-        // a burst of edits costs. `UInt64` nanoseconds because
+        // from its close button (or, for `AccountView`, `onDisappear` alone — there is no close
+        // button on a pushed screen) and from `onDisappear`, so the value only decides how many
+        // writes a burst of edits costs. `UInt64` nanoseconds because
         // `Task.sleep(nanoseconds:)` is what the 15.4 deployment target allows — `Task.sleep(for:)`
         // and `Duration` are iOS 16+.
         static let autosaveDebounceNanoseconds: UInt64 = 600_000_000

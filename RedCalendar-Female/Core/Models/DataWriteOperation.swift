@@ -17,6 +17,7 @@ enum DataWriteOperation: Sendable, Equatable {
     case dayTags
     case userTag
     case cycleSettings
+    case profileName
 
     /// What the user is told. Names the thing that did not get saved, because the day card is
     /// still showing it — for a comment, the reducer has already put the new text on screen
@@ -30,6 +31,7 @@ enum DataWriteOperation: Sendable, Equatable {
         case .dayTags:     return "Симптомы не сохранились. Попробуйте ещё раз."
         case .userTag:     return "Тег не сохранился. Попробуйте ещё раз."
         case .cycleSettings: return "Настройки цикла не сохранились. Попробуйте ещё раз."
+        case .profileName: return "Имя не сохранилось. Попробуйте ещё раз."
         }
     }
 
@@ -42,6 +44,7 @@ enum DataWriteOperation: Sendable, Equatable {
         case .dayTags:     return "setDayTags"
         case .userTag:     return "userTag"
         case .cycleSettings: return "cycleSettings"
+        case .profileName: return "profileName"
         }
     }
 }

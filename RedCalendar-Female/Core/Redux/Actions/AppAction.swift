@@ -105,6 +105,12 @@ enum DataAction: Sendable {
     case setCycleLength(Int)
     case setPeriodLength(Int)
 
+    /// The other half of the device's write to the profile — `AccountView`'s name field, applied
+    /// with the same debounce as the two above (`Constants.Sheets.autosaveDebounceNanoseconds`).
+    /// `nil` clears the name; the view sends it whenever the trimmed field comes back empty rather
+    /// than treating an empty string as a value.
+    case setName(String?)
+
     // The catalogue the day's tags are chosen from
     /// Carried whole rather than as a name and a category: the reducer puts this exact record
     /// into `userTags` on the way past and the middleware writes this exact record to the disk,

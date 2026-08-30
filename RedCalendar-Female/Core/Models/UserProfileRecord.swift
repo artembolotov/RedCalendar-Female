@@ -2,11 +2,12 @@ import Foundation
 import GRDB
 
 /// The one `user_profile` row (SYNC.md §3.1) — id, name, email, phone number and cycle settings,
-/// as last written by a sync run.
+/// as last written by a sync run or a local edit.
 ///
-/// Written in exactly one place — a sync run applying what the server sent (§5.1 step 7). Nothing
-/// in the app edits the profile yet: `changes.profile` exists and is allowed, but no screen
-/// produces one (§15), so `dirty_seq` here stays null until a cycle-settings screen appears.
+/// Written by a sync run applying what the server sent (§5.1 step 7), and by the two local
+/// writers of the device's half of the row: `updateCycleSettings` for the settings, `updateName`
+/// for the name. Both stamp `dirty_seq`, the row-wide flag a push reads to decide whether to send
+/// this row at all.
 struct UserProfileRecord: Codable, FetchableRecord, PersistableRecord {
     static let databaseTableName = "user_profile"
 
@@ -17,6 +18,17 @@ struct UserProfileRecord: Codable, FetchableRecord, PersistableRecord {
     var phoneNumber: String?
     var settingsJSON: String?
     var dirtySeq: Int?
+    /// The generation `updateName` last stamped, separately from `dirty_seq` — the row-wide flag
+    /// says only that *something* in the device's half is unsent, and `settings` is the other
+    /// thing that can dirty it. `SyncProfilePush(_:)` reads this to decide whether `name` belongs
+    /// in the push at all: sending it whenever the row happens to be dirty would resend an unedited
+    /// name every time the settings alone changed, and — for a device whose profile has never been
+    /// pulled — encode the real edit's `nil` as an erasure of a name it has simply never seen.
+    ///
+    /// Always `<= dirtySeq`: both are stamped from the same generation counter in the same
+    /// transaction whenever `updateName` runs, and nothing else advances this one. That is what
+    /// lets it be cleared by the same `sentMax` a push's `dirty_seq` is cleared by.
+    var nameDirtySeq: Int? = nil
 
     enum Columns: String, CodingKey, ColumnExpression {
         case id
@@ -26,6 +38,7 @@ struct UserProfileRecord: Codable, FetchableRecord, PersistableRecord {
         case phoneNumber = "phone_number"
         case settingsJSON = "settings_json"
         case dirtySeq = "dirty_seq"
+        case nameDirtySeq = "name_dirty_seq"
     }
 
     typealias CodingKeys = Columns
@@ -45,9 +58,11 @@ extension UserProfileRecord {
     }
 }
 
-/// `id` and `dirtySeq` are out of the comparison for the same reason `FlowLevelRecord` leaves
-/// `dirtySeq` out: `id` never varies (one row, always 1) and `dirtySeq` moves on every local write
-/// whether or not it changes what's drawn — neither should wake `removeDuplicates()`.
+/// `id`, `dirtySeq` and `nameDirtySeq` are out of the comparison for the same reason
+/// `FlowLevelRecord` leaves `dirtySeq` out: `id` never varies (one row, always 1) and the two
+/// generation columns move on every local write whether or not they change what's drawn — a push
+/// confirmation clearing them is exactly such a write — so none of the three should wake
+/// `removeDuplicates()`.
 extension UserProfileRecord: Equatable {
     static func == (lhs: UserProfileRecord, rhs: UserProfileRecord) -> Bool {
         lhs.userId == rhs.userId &&

@@ -155,6 +155,18 @@ final class DatabaseService: DatabaseServiceProtocol {
                 """)
         }
 
+        // Adds the second half of the device's-write tracking on `user_profile`: `dirty_seq`
+        // alone said "the row has an unsent local edit", which was enough while the only local
+        // writer was `updateCycleSettings`. `updateName` shares that same row and that same
+        // column, so a settings-only edit and a name edit are indistinguishable by `dirty_seq`
+        // alone — and `SyncProfilePush(_:)` has to tell them apart, or a settings-only push would
+        // resend (or, worse, on a profile never pulled, erase) a name nobody touched.
+        migrator.registerMigration("v4_profile_name_dirty") { db in
+            try db.alter(table: "user_profile") { t in
+                t.add(column: "name_dirty_seq", .integer)
+            }
+        }
+
         try migrator.migrate(dbQueue)
     }
 
@@ -219,8 +231,9 @@ final class DatabaseService: DatabaseServiceProtocol {
         }
     }
 
-    /// The one local write to `user_profile`, and the one place other than a pull that creates
-    /// its row. See the protocol for why it may have to.
+    /// One of the two local writes to `user_profile` — the settings half — and, with `updateName`
+    /// below, one of the two places other than a pull that may create its row. See the protocol
+    /// for why either may have to.
     ///
     /// The settings are *merged* into the stored JSON rather than rebuilt from `UserSettings`:
     /// the column holds what the server sent, character for character in meaning, and a key this
@@ -261,6 +274,43 @@ final class DatabaseService: DatabaseServiceProtocol {
 
             record.settingsJSON = merged.jsonString
             record.dirtySeq = try Self.nextLocalSeq(db)
+            try record.upsert(db)
+        }
+    }
+
+    /// The other local write to `user_profile` — the name half, and `AccountView`'s write path.
+    /// Stamps `nameDirtySeq` to the same generation as `dirtySeq`, in the same transaction: that
+    /// is what lets `SyncProfilePush(_:)` tell a name edit apart from a settings-only one sharing
+    /// the same row, and what lets the two be cleared by the same `sentMax` a push confirms (see
+    /// `applySync`).
+    ///
+    /// `name == nil` is this table's tombstone, the same as every other soft-deleted field
+    /// (`periodLength`, `comment`, `UserTagRecord.name`) — a field cleared back to empty is stored
+    /// this way, not as `""`, and `SyncProfilePush(_:)` turns it into the real `.some(nil)` erase.
+    func updateName(_ name: String?) async throws {
+        try await dbQueue.write { db in
+            let existing = try UserProfileRecord.fetchOne(db)
+            let owner = try String.fetchOne(db, sql: "SELECT user_id FROM sync_state WHERE id = 1")
+
+            var record = existing ?? UserProfileRecord(
+                id: 1,
+                userId: owner,
+                name: nil,
+                email: nil,
+                phoneNumber: nil,
+                settingsJSON: nil,
+                dirtySeq: nil
+            )
+
+            // Same guard `updateCycleSettings` applies to its own field, for the same reason: an
+            // edit that lands back on the stored value is not an edit, and writing it anyway
+            // spends a dirty flag and a sync run for nothing.
+            if existing != nil, name == existing?.name { return }
+
+            let seq = try Self.nextLocalSeq(db)
+            record.name = name
+            record.dirtySeq = seq
+            record.nameDirtySeq = seq
             try record.upsert(db)
         }
     }
@@ -366,6 +416,16 @@ final class DatabaseService: DatabaseServiceProtocol {
                         arguments: [sentMax]
                     )
                 }
+
+                // `user_profile`'s second flag, cleared by the same threshold: `nameDirtySeq` is
+                // always `<= dirtySeq` (both are stamped together, in `updateName`, from the same
+                // counter), so whatever `sentMax` already clears above also covers whatever this
+                // clears here. A name edit that lands while this request is still in flight stamps
+                // a fresh, higher generation and survives exactly as an unsent `dirty_seq` does.
+                try db.execute(
+                    sql: "UPDATE user_profile SET name_dirty_seq = NULL WHERE name_dirty_seq <= ?",
+                    arguments: [sentMax]
+                )
             }
 
             // 7.3 — the server's word on rows it refused, applied last and unconditionally. This

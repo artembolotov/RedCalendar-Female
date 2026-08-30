@@ -31,13 +31,24 @@ protocol DatabaseServiceProtocol: Sendable {
     /// the server last sent and stamped dirty in the same transaction, exactly as `upsert` stamps
     /// a day table.
     ///
-    /// It is the only local writer of `user_profile`, and therefore the only thing that can
-    /// create the row outside a pull: nothing but a sync run has ever written it (§3.1), so a
-    /// user who edits their cycle length before the first run lands has no row to edit. What it
-    /// creates carries `sync_state`'s owner if there is one and no identity at all if there is
-    /// not — `user_id`, `email` and `phone_number` are the server's to fill in (§4.4), and the
-    /// next pull does exactly that.
+    /// It is, with `updateName` below, one of the only two local writers of `user_profile`, and
+    /// therefore one of the only two things that can create the row outside a pull: nothing but a
+    /// sync run wrote it before either existed (§3.1), so a user who edits their cycle length
+    /// before the first run lands has no row to edit. What it creates carries `sync_state`'s owner
+    /// if there is one and no identity at all if there is not — `user_id`, `email` and
+    /// `phone_number` are the server's to fill in (§4.4), and the next pull does exactly that.
     func updateCycleSettings(_ patch: CycleSettingsPatch) async throws
+
+    /// The other half of the device's write to the profile (SYNC.md §4.4): the display name,
+    /// stamped dirty in the same transaction and by the same generation counter as
+    /// `updateCycleSettings` stamps the settings — the two share one row and one `dirty_seq`, and
+    /// this is what lets a push tell which of them it is actually sending (see
+    /// `UserProfileRecord.nameDirtySeq`).
+    ///
+    /// `nil` clears the name, the same tombstone shape every soft-deleted field in this app uses.
+    /// Like `updateCycleSettings`, it may create the row: a user who edits their name before the
+    /// first sync run lands has none to edit yet.
+    func updateName(_ name: String?) async throws
 
     // Sync (SYNC.md §5.1)
     //
