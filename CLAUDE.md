@@ -983,10 +983,14 @@ Do not add new SPM packages without a clear reason.
   ```
   Local branch refs can be stale and produce false diffs.
 
-## What's in Progress (v3.3)
+## Status
 
-- CRUD operations for user cycle data
-- Tags and symptoms system
-- Offline support with sync
-- New API endpoint: `api.calendar.red`
-- Day tap interactions (data entry from the calendar)
+`SYNC.md` §12 is the source of truth for what has shipped and what hasn't — check it there rather
+than here before starting sync/storage work. As of this writing: CRUD for cycle data, the
+tags/symptoms system, offline sync, the `api.calendar.red` endpoint, day tap interactions, and
+account deletion (§17) are all shipped, server and client.
+
+Open work is server-only, in `redcalendar-api` (SYNC.md §12, items 14–16): bulk phone→UID
+migration, moving `check-phone` to a local lookup, and retiring Firebase. Notification scheduling
+(§15) is out of scope and undesigned — only the DB groundwork (`user_devices.timezone`,
+`last_seen_at`) is in place; no iOS code references `TimeZone` yet.
