@@ -126,13 +126,17 @@ struct SyncDayTagsRow: Codable, Sendable, Equatable {
 /// `name: null` means "erase the name"; an absent `name` means "leave it alone" (§4.5, and
 /// `sync.js`'s `pickProfileFields` picks by `hasOwnProperty`, as `writeProfile` builds its `SET`
 /// list). Encoding both keys unconditionally was safe only while nothing produced a push at all:
-/// the first producer is the cycle-settings screen, which touches no name, and a device whose
+/// the first producer was the cycle-settings screen, which touches no name, and a device whose
 /// profile has not been pulled yet has none to send — so a `null` would go out and erase the name
-/// the user gave at registration, on the server, for every device.
+/// the user gave at registration, on the server, for every device. `UserProfileRecord.nameDirtySeq`
+/// is what still keeps that safe now that a name editor exists: `init(_:)` below only ever reads
+/// `record.name` into this type when that column says the name itself is what got edited.
 struct SyncProfilePush: Encodable, Sendable, Equatable {
     /// Двойной optional умышленно: `nil` — "имя не редактируется", `.some(nil)` — "стереть".
-    /// The second case has no producer yet; it exists so that a name editor is a call site rather
-    /// than a redesign of this type.
+    /// `AccountView`'s name field produces both: `init(_:)` below wraps `record.name` in `.some`
+    /// whenever `nameDirtySeq` says the name itself was edited, and an edit that cleared the field
+    /// to empty is stored locally as `record.name == nil` — so the same wrapping yields
+    /// `.some(nil)`, the real erase, without a separate code path for it.
     var name: String??
     var settings: JSONValue?
 
@@ -415,12 +419,17 @@ extension SyncProfilePush {
     /// a key this build does not model would be dropped on the way through, and pushing the
     /// result back would erase it on the server for every device.
     ///
-    /// The name is deliberately not read from the row, for the reason on the type: the row's copy
-    /// is a report of what the server said, and sending it back as an edit is a claim. When a
-    /// name editor exists it will pass `.some(newName)` here; until then the key stays absent and
-    /// the server keeps what it has.
+    /// The name is read from the row only when `nameDirtySeq` says it is what got edited — the
+    /// row's copy is otherwise a report of what the server said, and sending it back as an edit
+    /// would be a claim nobody made. A profile dirtied only by a settings edit (`nameDirtySeq ==
+    /// nil`) therefore still omits the key, for the reason on the type: a device whose profile has
+    /// never been pulled has no real name to report, and encoding its `nil` would erase whatever
+    /// name the server already has for every other device.
     init(_ record: UserProfileRecord) {
-        self.init(name: nil, settings: JSONValue(jsonString: record.settingsJSON))
+        self.init(
+            name: record.nameDirtySeq != nil ? .some(record.name) : nil,
+            settings: JSONValue(jsonString: record.settingsJSON)
+        )
     }
 }
 

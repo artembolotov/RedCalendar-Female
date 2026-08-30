@@ -172,7 +172,8 @@ func appReducer(state: AppState, action: AppAction) -> AppState {
              .unmarkPeriodEnd,
              .setFlowLevel,
              .setCycleLength,
-             .setPeriodLength:
+             .setPeriodLength,
+             .setName:
             break
 
         case .writeFailed(let operation):

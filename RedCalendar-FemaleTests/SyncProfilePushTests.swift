@@ -8,9 +8,10 @@ import XCTest
 
 /// The defect these exist for: the server reads `changes.profile` by `hasOwnProperty`, so
 /// `name: null` means "erase the name" and an absent `name` means "leave it alone" (SYNC.md §4.5,
-/// `pickProfileFields`). Nothing in the app edits the name, and a device whose profile has not
-/// been pulled yet has none to send — so encoding the row's own `name` unconditionally would have
-/// deleted the name given at registration, on the server, for every device.
+/// `pickProfileFields`). `AccountView` edits the name now, but `nameDirtySeq` is what still keeps
+/// this safe on a profile dirtied for some other reason: a device whose profile has not been
+/// pulled yet has no real name to send, and encoding the row's own `name` unconditionally would
+/// erase the name given at registration, on the server, for every device.
 final class SyncProfilePushTests: XCTestCase {
 
     private func encodedKeys(_ push: SyncProfilePush) throws -> [String: JSONValue] {
@@ -18,7 +19,9 @@ final class SyncProfilePushTests: XCTestCase {
         return try JSONDecoder().decode([String: JSONValue].self, from: data)
     }
 
-    func testAProfileBuiltFromARowDoesNotSendTheName() throws {
+    /// The row is dirty (a settings edit did it), but nothing has touched the name —
+    /// `nameDirtySeq` is what tells `init(_:)` not to read it into the push.
+    func testAProfileDirtiedBySettingsAloneDoesNotSendTheName() throws {
         let record = UserProfileRecord(
             id: 1,
             userId: "abc",
@@ -33,6 +36,45 @@ final class SyncProfilePushTests: XCTestCase {
 
         XCTAssertNil(json["name"], "an absent key is what leaves the server's name alone")
         XCTAssertNotNil(json["settings"])
+    }
+
+    /// The counterpart: `nameDirtySeq` set is what makes `init(_:)` read the row's own name into
+    /// the push at all — this is `AccountView`'s write path, end to end.
+    func testAProfileWithNameDirtySeqSendsTheName() throws {
+        let record = UserProfileRecord(
+            id: 1,
+            userId: "abc",
+            name: "Анна",
+            email: "a@example.com",
+            phoneNumber: "+70000000000",
+            settingsJSON: nil,
+            dirtySeq: 9,
+            nameDirtySeq: 9
+        )
+
+        let json = try encodedKeys(SyncProfilePush(record))
+
+        XCTAssertEqual(json["name"], .string("Анна"))
+    }
+
+    /// A name cleared back to empty is stored locally as `nil` — the same tombstone every other
+    /// soft-deleted field in this app uses — and with `nameDirtySeq` set that has to reach the
+    /// server as an explicit erase, not as an absent key.
+    func testAClearedNameIsSentAsAnExplicitErase() throws {
+        let record = UserProfileRecord(
+            id: 1,
+            userId: "abc",
+            name: nil,
+            email: "a@example.com",
+            phoneNumber: "+70000000000",
+            settingsJSON: nil,
+            dirtySeq: 9,
+            nameDirtySeq: 9
+        )
+
+        let json = try encodedKeys(SyncProfilePush(record))
+
+        XCTAssertEqual(json["name"], JSONValue.null)
     }
 
     /// The distinction the double optional carries: absent is not the same as null, and only the

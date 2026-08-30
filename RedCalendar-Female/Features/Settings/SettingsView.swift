@@ -29,6 +29,8 @@ struct SettingsView: View {
         NavigationView {
             if let deviceId = store.state.deviceId {
                 Form {
+                    accountSection
+
                     cycleLengthSection
                     periodLengthSection
 
@@ -106,6 +108,39 @@ struct SettingsView: View {
     }
 
     // MARK: - Private Views
+
+    // One navigable row, name over email — the Apple-ID-style header rather than a settings row
+    // proper, and first on the screen for that reason: it identifies whose settings these are
+    // before getting to what they are. The name line is left out entirely when there is none
+    // (a device that has never had one pulled, or a 2.0 account that never set one) rather than
+    // shown as a placeholder — unlike email, an unset name is not something this screen is asking
+    // the user to go and fix.
+    //
+    // Email is always shown, real or as "Укажите email" — RedCalendar 2.0 accounts signed in by
+    // phone can reach this screen with no email on the row at all, and that placeholder is what
+    // tells them the row leads somewhere before the binding it promises actually exists.
+    // `AccountView` is where that placeholder is explained; this row only names it.
+    private var accountSection: some View {
+        Section {
+            NavigationLink {
+                AccountView()
+            } label: {
+                let name = store.state.userProfile?.name.flatMap { $0.isEmpty ? nil : $0 }
+
+                VStack(alignment: .leading, spacing: 2) {
+                    if let name {
+                        Text(name)
+                    }
+                    // Secondary and smaller under a name, same as the row leads with; standing
+                    // alone with nothing above it, it is the row's only content and reads as such.
+                    Text(store.state.userProfile?.email ?? "Укажите email")
+                        .foregroundColor(name == nil ? .primary : .secondary)
+                        .font(name == nil ? .body : .subheadline)
+                }
+                .padding(.vertical, 2)
+            }
+        }
+    }
 
     // The two values the calendar predicts with, first on the screen because they are the only
     // rows here that change what it draws.
@@ -367,7 +402,39 @@ private extension Optional where Wrapped == String {
                         apnsToken: APNSToken(value: "test-token", isSynced: true),
                         pushPermissionState: .authorized
                     ),
-                    analyticsActivated: true
+                    analyticsActivated: true,
+                    userProfile: UserDetails(
+                        userId: "test-user-id",
+                        name: "Анна",
+                        email: "anna@example.com",
+                        phoneNumber: nil,
+                        settings: nil
+                    )
+                ),
+                reducer: appReducer,
+                middlewares: []
+            )
+        )
+}
+
+#Preview("Без имени и email (RedCalendar 2.0)") {
+    SettingsView()
+        .environmentObject(
+            AppStore(
+                initialState: AppState(
+                    authState: .authenticated(deviceId: "test-device-id"),
+                    notifications: NotificationState(
+                        apnsToken: APNSToken(value: "test-token", isSynced: true),
+                        pushPermissionState: .authorized
+                    ),
+                    analyticsActivated: true,
+                    userProfile: UserDetails(
+                        userId: "test-user-id",
+                        name: nil,
+                        email: nil,
+                        phoneNumber: "+70000000000",
+                        settings: nil
+                    )
                 ),
                 reducer: appReducer,
                 middlewares: []

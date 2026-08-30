@@ -189,6 +189,11 @@ final class DatabaseMiddleware {
                     try await dbService.updateCycleSettings(CycleSettingsPatch(periodLength: length))
                 }
 
+            case .setName(let name):
+                await write(.profileName, dispatch: dispatch) {
+                    try await dbService.updateName(name)
+                }
+
             case .createUserTag(let tag):
                 await write(.userTag, dispatch: dispatch) { try await dbService.upsert([tag]) }
 
@@ -453,7 +458,7 @@ final class DatabaseMiddleware {
                 await reloadDayTags(dispatch: dispatch)
             case .userTag:
                 await reloadUserTags(dispatch: dispatch)
-            case .periodStart, .periodEnd, .flowLevel, .cycleSettings:
+            case .periodStart, .periodEnd, .flowLevel, .cycleSettings, .profileName:
                 break
             }
         }
