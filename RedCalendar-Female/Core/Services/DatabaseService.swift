@@ -302,10 +302,17 @@ final class DatabaseService: DatabaseServiceProtocol {
                 dirtySeq: nil
             )
 
-            // Same guard `updateCycleSettings` applies to its own field, for the same reason: an
-            // edit that lands back on the stored value is not an edit, and writing it anyway
-            // spends a dirty flag and a sync run for nothing.
-            if existing != nil, name == existing?.name { return }
+            // `existing != nil` is *not* the guard `updateCycleSettings` uses on its own field —
+            // deliberately narrower. A patch always carries a real chosen value, so creating the
+            // row on a first edit is always correct there; `nil` here is also the tombstone, so
+            // `existing == nil, name == nil` is not "first edit", it is "nothing to edit yet",
+            // and creating a dirty row for it would be the exact hazard `nameDirtySeq` exists to
+            // prevent: a push reading that row's `name` back out as `nil` would encode it as
+            // `.some(nil)` — an erase — for a device that has never pulled a real name to erase.
+            // Comparing straight against `existing?.name` (itself `nil` when there is no row)
+            // covers both "no row, no name" and "row exists, unchanged" in one guard, so this
+            // holds even if a future caller forgets the check `AccountView.commitDraft` makes.
+            guard name != existing?.name else { return }
 
             let seq = try Self.nextLocalSeq(db)
             record.name = name
