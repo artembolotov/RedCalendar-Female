@@ -72,14 +72,18 @@ final class DatabaseMiddleware {
                 cancelAll()
             }
 
-        // Only an explicit logout wipes. A 401 during a sync run ends in `.notAuthenticated`
-        // above and leaves the database alone: that is the same person, signed out from another
-        // phone, and their history is theirs (§6).
+        // Only an explicit logout — or its stand-in, account deletion (SYNC.md §17.8) — wipes.
+        // A 401 during a sync run ends in `.notAuthenticated` above and leaves the database
+        // alone: that is the same person, signed out from another phone, and their history is
+        // theirs (§6). Deletion has already taken the history away on the server by the time
+        // this fires, but the local copy still needs the same wipe a plain logout gives it —
+        // there is no third thing to do differently, which is why it shares this case rather
+        // than getting one of its own.
         //
         // Cancelling first is not tidiness. The other order has six observations firing on an
         // emptied database, each dispatching its empty array, and the calendar renders a frame
         // of blank month before the sign-in screen replaces it.
-        case .auth(.logout):
+        case .auth(.logout), .auth(.deleteAccount):
             cancelAll()
             do {
                 try await dbService.wipeAll(newOwner: nil)
@@ -87,7 +91,7 @@ final class DatabaseMiddleware {
                 // Nothing to hand the user: they asked to leave, and the sign-out proceeds
                 // regardless. The rows stay until the next attempt — a fresh sign-in claims the
                 // database and wipes it if the owner changed.
-                AppLogger.error("Failed to wipe the database on logout", error: error)
+                AppLogger.error("Failed to wipe the database on sign-out", error: error)
             }
 
         // Observed, not owned — the same way `MigrationMiddleware` watches one auth case. What

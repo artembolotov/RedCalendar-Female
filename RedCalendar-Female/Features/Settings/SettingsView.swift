@@ -20,6 +20,7 @@ struct SettingsView: View {
     // screen owns the value being edited, and the store hears about it once the tapping stops.
     @State private var draftCycleLength: Int?
     @State private var draftPeriodLength: Int?
+    @State private var isPresentingDeleteAccount = false
 
     private let devModeTapThreshold: CFTimeInterval = 0.5
     private let swatchSize: CGFloat = 22
@@ -63,6 +64,15 @@ struct SettingsView: View {
                             store.send(.auth(.logout))
                         }
                     }
+
+                    // Its own section and the system red, unlike the row above: this one really
+                    // does destroy the account, not just the session, and the fourth-red argument
+                    // that keeps "Выйти" tinted does not apply to it.
+                    Section {
+                        Button("Удалить аккаунт", role: .destructive) {
+                            isPresentingDeleteAccount = true
+                        }
+                    }
                 }
                 .navigationTitle("Настройки")
                 .navigationBarTitleDisplayMode(.inline)
@@ -85,6 +95,9 @@ struct SettingsView: View {
                 // of them would otherwise be a GRDB write, a stamped row and a sync trigger.
                 .task(id: draftCycleLength) { await commitAfterPause() }
                 .task(id: draftPeriodLength) { await commitAfterPause() }
+                .sheet(isPresented: $isPresentingDeleteAccount) {
+                    DeleteAccountSheet()
+                }
             }
         }
     }

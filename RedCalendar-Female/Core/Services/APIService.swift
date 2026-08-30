@@ -13,6 +13,10 @@ protocol APIServiceProtocol: Sendable {
     func migrateUser(userId: String) async throws -> MigrationResponse
     func updateAPNSToken(deviceId: String, apnsToken: String) async throws -> APNSTokenResponse
     func logout(deviceId: String) async throws -> LogoutResponse
+    /// Requests account deletion (SYNC.md §17.3). Marks the account for deletion, drops every
+    /// session server-side and answers with the date the mark becomes permanent — logging back in
+    /// before then restores everything (§17.4).
+    func deleteAccount(deviceId: String) async throws -> DeleteAccountResponse
     func checkEmail(_ email: String) async throws -> CheckEmailResponse
     func checkPhone(_ phone: String) async throws -> CheckPhoneResponse
     func verifyCode(email: String, code: String, name: String?) async throws -> VerifyCodeResponse
@@ -103,6 +107,23 @@ struct LogoutResponse: Codable {
     let success: Bool
     let message: String?
     let timestamp: String
+}
+
+struct DeleteAccountResponse: Codable {
+    let success: Bool
+    let data: DeleteAccountData?
+    let message: String?
+    let timestamp: String
+
+    struct DeleteAccountData: Codable {
+        /// ISO 8601. When this passes with the mark still standing, the nightly purge is free to
+        /// erase the row (SYNC.md §17.6) — logging in before it lands undoes the mark instead.
+        let purgeAfter: String
+
+        enum CodingKeys: String, CodingKey {
+            case purgeAfter = "purge_after"
+        }
+    }
 }
 
 struct CheckEmailResponse: Codable {
@@ -310,7 +331,23 @@ final class APIService: APIServiceProtocol, Sendable {
         
         return try JSONDecoder().decode(LogoutResponse.self, from: data)
     }
-    
+
+    /// Marks the account for deletion — same endpoint family as `logout`, `DELETE` and
+    /// `Authorization: Bearer <device_id>`, under the same session budget (SYNC.md §17.3).
+    func deleteAccount(deviceId: String) async throws -> DeleteAccountResponse {
+        let url = URL(string: "\(baseURL)/auth/account")!
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "DELETE"
+        request.setValue("Bearer \(deviceId)", forHTTPHeaderField: "Authorization")
+
+        let (data, response) = try await performRequest(request)
+
+        try validateHTTPResponse(response, data: data)
+
+        return try JSONDecoder().decode(DeleteAccountResponse.self, from: data)
+    }
+
     /// Checks if email exists and returns user info
     func checkEmail(_ email: String) async throws -> CheckEmailResponse {
         let url = URL(string: "\(baseURL)/auth/check-email")!

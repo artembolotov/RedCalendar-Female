@@ -50,6 +50,7 @@ let feedbackMiddleware: Middleware = { state, action, dispatch in
 
     // MARK: - Prepare Events
     case .auth(.logout),
+        .auth(.deleteAccount),
         .auth(.set(.authenticating(.email(.checking)))),
         .auth(.set(.authenticating(.email(.registering(_, _, _))))),
         .auth(.set(.authenticating(.email(.verifying(_, _, _))))),

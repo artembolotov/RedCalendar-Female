@@ -32,7 +32,7 @@ func appReducer(state: AppState, action: AppAction) -> AppState {
                 state.cycleSettings = ResolvedCycleSettings(nil)
             }
 
-        case .logout:
+        case .logout, .deleteAccount:
             break
 
         case .completedRegistrationOnboarding:

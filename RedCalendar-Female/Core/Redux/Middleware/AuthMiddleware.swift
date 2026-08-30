@@ -269,6 +269,33 @@ let authMiddleware: Middleware = { state, action, dispatch in
             dispatch(.auth(.set(.notAuthenticated)))
         }
 
+    case .deleteAccount:
+        if case .authenticated(let deviceId, _) = state.authState {
+            Task {
+                // Same shape as `.logout` just above, and for the same reason (D4, SYNC.md
+                // §17.8): the person asked to leave — for good, here — and that has to happen
+                // whether or not the request landed. A dropped connection does not strand them
+                // signed in to an account they just asked to delete.
+                do {
+                    let response = try await apiService.deleteAccount(deviceId: deviceId)
+                    AppLogger.info("Account marked for deletion, purge_after=\(response.data?.purgeAfter ?? "?")")
+                } catch APIServiceError.unauthorized {
+                    // Already gone on the server — nothing to report.
+                } catch {
+                    // The mark never reached the server; the row (and its data) survives past the
+                    // grace period this device just told the person about. Signing out locally
+                    // regardless is still correct — `AuthMiddleware.logout` makes the identical
+                    // trade for the identical reason — but unlike a failed logout this leaves the
+                    // account itself undeleted, which is worth a louder log than that one gets.
+                    AppLogger.error("Account deletion request failed — signing out locally anyway", error: error)
+                }
+
+                dispatch(.auth(.set(.notAuthenticated)))
+            }
+        } else {
+            dispatch(.auth(.set(.notAuthenticated)))
+        }
+
     // Reduced only — see the case's doc comment in AppAction.swift for why this owns no side
     // effect of its own rather than going through `.set(.authenticated(...))`.
     case .completedRegistrationOnboarding:

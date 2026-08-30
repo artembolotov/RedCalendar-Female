@@ -101,6 +101,15 @@ struct Constants {
         static let indicatorAppearDelayNanoseconds: UInt64 = 700_000_000
     }
 
+    struct Account {
+        /// Copy only — the server decides the real grace period (`ACCOUNT_DELETION_GRACE_DAYS`,
+        /// SYNC.md §17.2) and answers with the actual date in `purge_after`, which this build
+        /// does not show (deliberately — see `DeleteAccountSheet`). This is the documented
+        /// default the decision table names, used only to describe the policy before the request
+        /// is made; it is not read from anywhere live and can drift from the deployed value.
+        static let deletionGraceDays = 14
+    }
+
     struct Cycle {
         static let minCycleLength = 20
         static let maxCycleLength = 90

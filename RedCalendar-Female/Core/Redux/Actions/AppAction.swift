@@ -39,6 +39,12 @@ enum AuthAction: Sendable {
     case check
     case set(AuthState)
     case logout
+    /// The destructive-sheet confirmation in Settings (SYNC.md §17.8). `AuthMiddleware` calls
+    /// `DELETE /auth/account` and, whatever it answers, ends exactly where `.logout` ends —
+    /// same reasoning as D4 there: the person asked to leave, and leaving must happen whether or
+    /// not the server was reachable. `DatabaseMiddleware` and the reducer therefore treat this
+    /// case identically to `.logout` rather than getting a branch of their own.
+    case deleteAccount
     /// Clears `AuthState.authenticated`'s `isFreshRegistration` once `CycleOnboardingView` is
     /// done. Deliberately not another `.set(.authenticated(...))`: that pattern is also what
     /// `SyncMiddleware` reads as "the user just signed in" (an undebounced sync run),
