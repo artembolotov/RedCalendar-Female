@@ -12,15 +12,17 @@ struct UserDetails: Codable, Equatable {
     let userId: String          // Firebase UID - always present (keeping original field)
     let name: String?           // User name
     let email: String?          // User email
+    let phoneNumber: String?    // User phone number
     let settings: UserSettings? // User settings (JSONB from database)
-    
+
     // Convenience computed property for API compatibility
     var id: String { userId }
-    
+
     enum CodingKeys: String, CodingKey {
         case userId = "id"
         case name
         case email
+        case phoneNumber = "phone_number"
         case settings
     }
 }
@@ -66,24 +68,31 @@ extension UserDetails {
         self.userId = apiUser.id
         self.name = apiUser.name
         self.email = apiUser.email
+        self.phoneNumber = apiUser.phoneNumber
         self.settings = apiUser.settings
     }
-    
+
     /// Initialize with minimal data (for migration/legacy)
     init(userId: String) {
         self.userId = userId
         self.name = nil
         self.email = nil
+        self.phoneNumber = nil
         self.settings = nil
     }
 
     /// From the local `user_profile` row (SYNC.md §3.1, §12 item 6). `nil` until the row has a
     /// `user_id`, which a sync run writes along with the profile it pulled (§5.1 step 7) — so
-    /// before the first successful run there is simply nothing in the table. `phoneNumber` has no
-    /// home here yet: nothing reads it.
+    /// before the first successful run there is simply nothing in the table.
     init?(_ record: UserProfileRecord) {
         guard let userId = record.userId else { return nil }
-        self.init(userId: userId, name: record.name, email: record.email, settings: record.settings)
+        self.init(
+            userId: userId,
+            name: record.name,
+            email: record.email,
+            phoneNumber: record.phoneNumber,
+            settings: record.settings
+        )
     }
 }
 

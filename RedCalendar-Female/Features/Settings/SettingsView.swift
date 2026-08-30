@@ -50,7 +50,10 @@ struct SettingsView: View {
                             todayDayStamp: store.state.calendarState.todayDayStamp,
                             analyticsActivated: store.state.analyticsActivated,
                             pushRegistered: store.state.notifications.pushPermissionState == .authorized
-                                && store.state.notifications.apnsToken != nil
+                                && store.state.notifications.apnsToken != nil,
+                            userName: store.state.userProfile?.name,
+                            userEmail: store.state.userProfile?.email,
+                            userPhoneNumber: store.state.userProfile?.phoneNumber
                         )
                     }
 
@@ -264,6 +267,14 @@ private struct DeveloperSectionView: View {
     let todayDayStamp: Daystamp
     let analyticsActivated: Bool
     let pushRegistered: Bool
+    let userName: String?
+    let userEmail: String?
+    let userPhoneNumber: String?
+
+    // The placeholder for a field the profile row simply has nothing in — a device never writes
+    // `name`/`email`/`phone_number` itself (§4.4), so an unset one here means the server has
+    // never sent a value, not that this screen failed to read it.
+    private static let unsetPlaceholder = "—"
 
     var body: some View {
         Section("Developer") {
@@ -280,6 +291,33 @@ private struct DeveloperSectionView: View {
                 Text("Today Daystamp")
                 Spacer()
                 Text("\(todayDayStamp.rawValue)")
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+
+            HStack {
+                Text("Имя")
+                Spacer()
+                Text(userName.orPlaceholder)
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+
+            HStack {
+                Text("Почта")
+                Spacer()
+                Text(userEmail.orPlaceholder)
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+
+            HStack {
+                Text("Телефон")
+                Spacer()
+                Text(userPhoneNumber.orPlaceholder)
                     .foregroundColor(.secondary)
                     .lineLimit(1)
                     .truncationMode(.middle)
@@ -303,6 +341,15 @@ private struct DeveloperSectionView: View {
         Circle()
             .fill(active ? Color.green : Color.red)
             .frame(width: 10, height: 10)
+    }
+}
+
+private extension Optional where Wrapped == String {
+    // A field can also come back empty rather than absent — an empty string is not a value
+    // either, so it gets the same dash a `nil` does.
+    var orPlaceholder: String {
+        guard let self, !self.isEmpty else { return DeveloperSectionView.unsetPlaceholder }
+        return self
     }
 }
 
