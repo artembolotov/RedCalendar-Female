@@ -105,7 +105,7 @@ enum DataAction: Sendable {
     case setCycleLength(Int)
     case setPeriodLength(Int)
 
-    /// The other half of the device's write to the profile — `AccountView`'s name field, applied
+    /// The other half of the device's write to the profile — `ProfileView`'s name field, applied
     /// with the same debounce as the two above (`Constants.Sheets.autosaveDebounceNanoseconds`).
     /// `nil` clears the name; the view sends it whenever the trimmed field comes back empty rather
     /// than treating an empty string as a value.

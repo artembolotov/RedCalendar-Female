@@ -133,7 +133,7 @@ struct SyncDayTagsRow: Codable, Sendable, Equatable {
 /// `record.name` into this type when that column says the name itself is what got edited.
 struct SyncProfilePush: Encodable, Sendable, Equatable {
     /// Двойной optional умышленно: `nil` — "имя не редактируется", `.some(nil)` — "стереть".
-    /// `AccountView`'s name field produces both: `init(_:)` below wraps `record.name` in `.some`
+    /// `ProfileView`'s name field produces both: `init(_:)` below wraps `record.name` in `.some`
     /// whenever `nameDirtySeq` says the name itself was edited, and an edit that cleared the field
     /// to empty is stored locally as `record.name == nil` — so the same wrapping yields
     /// `.some(nil)`, the real erase, without a separate code path for it.
