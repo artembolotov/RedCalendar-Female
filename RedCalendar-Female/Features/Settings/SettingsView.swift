@@ -274,7 +274,11 @@ private struct DeveloperSectionView: View {
     // The placeholder for a field the profile row simply has nothing in — a device never writes
     // `name`/`email`/`phone_number` itself (§4.4), so an unset one here means the server has
     // never sent a value, not that this screen failed to read it.
-    private static let unsetPlaceholder = "—"
+    //
+    // `fileprivate`, not `private`: `Optional.orPlaceholder` below reads it from an extension on
+    // a different type, and same-file `private` access only reaches extensions of the *same*
+    // type, not another type's extension living in the same file.
+    fileprivate static let unsetPlaceholder = "—"
 
     var body: some View {
         Section("Developer") {
