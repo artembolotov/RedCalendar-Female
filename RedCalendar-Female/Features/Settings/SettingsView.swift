@@ -80,13 +80,26 @@ struct SettingsView: View {
             NavigationLink {
                 ProfileView()
             } label: {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Профиль")
-                    Text("Имя, email и цикл")
-                        .foregroundColor(.secondary)
-                        .font(.subheadline)
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Профиль")
+                        Text("Имя, email и цикл")
+                            .foregroundColor(.secondary)
+                            .font(.subheadline)
+                    }
+                    .padding(.vertical, 2)
+
+                    // A missing email is not just an unfilled field today — phone sign-in is on
+                    // its way out (see `ProfileView`'s footer) — so the row surfaces it before the
+                    // person ever opens the screen, the same way `HomeView` surfaces a write
+                    // failure rather than leaving it for the settings screen to explain quietly.
+                    if store.state.userProfile?.email == nil {
+                        Spacer()
+                        Image(systemName: "exclamationmark.circle.fill")
+                            .foregroundColor(.red)
+                            .accessibilityLabel("Не указан email")
+                    }
                 }
-                .padding(.vertical, 2)
             }
         }
     }

@@ -46,15 +46,33 @@ struct ProfileView: View {
             // an account that already has one is not), so this section is a placeholder until
             // that work exists rather than a disabled-looking field promising something the app
             // cannot do.
+            //
+            // The placeholder value is red rather than the usual `.secondary`, and the footer
+            // below argues why: unlike the name field, an unset email is not merely incomplete,
+            // it is a countdown, and the value should look like one from the moment the screen
+            // opens rather than only once the person has read as far as the footer.
             Section {
                 HStack {
                     Text("Email")
                     Spacer()
-                    Text(store.state.userProfile?.email ?? "Укажите email")
-                        .foregroundColor(.secondary)
+                    if let email = store.state.userProfile?.email {
+                        Text(email)
+                            .foregroundColor(.secondary)
+                    } else {
+                        Text("Укажите email")
+                            .foregroundColor(.red)
+                    }
                 }
             } footer: {
-                Text("Привязка и изменение email появятся здесь позже.")
+                if store.state.userProfile?.email == nil {
+                    // Phone sign-in is on the way out (SYNC.md §12, items 14–16 retire Firebase
+                    // and the phone lookup it backs) — an account with no email on file is an
+                    // account with no way back in once that lands. The binding flow itself is
+                    // still undesigned server-side, so this can only warn, not offer the fix.
+                    Text("Вход по номеру телефона скоро отключат. Обязательно привяжите email, чтобы не потерять доступ к аккаунту — эта возможность появится здесь в одном из ближайших обновлений.")
+                } else {
+                    Text("Привязка и изменение email появятся здесь позже.")
+                }
             }
 
             cycleLengthSection
