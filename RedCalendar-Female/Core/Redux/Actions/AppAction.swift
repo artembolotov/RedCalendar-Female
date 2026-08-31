@@ -22,6 +22,7 @@
 /// business.
 enum AppAction: Sendable {
     case auth(AuthAction)
+    case emailBinding(EmailBindingAction)
     case calendar(CalendarAction)
     case data(DataAction)
     case sync(SyncAction)
@@ -52,6 +53,19 @@ enum AuthAction: Sendable {
     /// `DatabaseMiddleware` as a reason to (re-)start its observations. Re-dispatching it here
     /// would fire all three for an event none of them mean.
     case completedRegistrationOnboarding
+}
+
+/// Binding an address to the account, and changing the one it has (SYNC.md §18), owned by
+/// `EmailBindingMiddleware`.
+///
+/// Its own domain rather than more cases on `AuthAction`, though it does call `/auth/email`: none
+/// of it is a session transition. Nothing here signs anybody in or out, `AuthMiddleware`'s
+/// `.set` is already a two-hundred-line nested switch over states that do, and the two would have
+/// had to share it for no reason beyond the URL prefix they happen to share.
+enum EmailBindingAction: Sendable {
+    /// The whole screen, driven the way `AuthAction.set` drives sign-in — the transient states
+    /// (`.requesting`, `.confirming`) are what the middleware acts on. `nil` closes the screen.
+    case set(EmailBindingState?)
 }
 
 enum CalendarAction: Sendable {
@@ -171,6 +185,11 @@ enum SyncReason: String, Sendable {
     case retry
     /// A run asking again because the last one ended with the import still running (§10.4).
     case importPoll
+    /// The address was just bound or changed on the server (§18). Not debounced: the person is
+    /// looking at the screen that has to show the new address, and the only place it can come
+    /// from is a pull — `writeProfile` moved `profile_revision`, and a device may never write
+    /// the identity half of the profile itself (§4.4).
+    case emailChanged
 
     var isDebounced: Bool { self == .localEdit }
 }

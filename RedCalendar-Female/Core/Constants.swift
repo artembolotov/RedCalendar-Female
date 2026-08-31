@@ -110,6 +110,12 @@ struct Constants {
         /// default the decision table names, used only to describe the policy before the request
         /// is made; it is not read from anywhere live and can drift from the deployed value.
         static let deletionGraceDays = 14
+
+        /// Copy only, on the same terms as `deletionGraceDays` above: the server owns the real
+        /// window (SYNC.md §18.7) and prints the actual date in the letter and on the revert page
+        /// it links to. This is the documented default, used once — to say how long the button in
+        /// that letter keeps working — and it is not read from anywhere live.
+        static let emailRevertWindowDays = 14
     }
 
     struct Cycle {

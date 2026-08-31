@@ -21,6 +21,14 @@ protocol APIServiceProtocol: Sendable {
     func checkPhone(_ phone: String) async throws -> CheckPhoneResponse
     func verifyCode(email: String, code: String, name: String?) async throws -> VerifyCodeResponse
     func verifyFlashCall(requestId: String, code: String) async throws -> VerifyFlashCallResponse
+    /// Asks for a confirmation code on the address being bound, or changed to (SYNC.md §18.4).
+    /// One endpoint for both, because binding and changing are the same write to the same column
+    /// — the answer's `isChange` is what says which of the two just happened.
+    func requestEmailBinding(deviceId: String, email: String) async throws -> EmailBindingRequestResponse
+    /// The code comes back and the address is written (§18.4). Carries the same address the code
+    /// was sent to: the server refuses with `PENDING_ADDRESS_CHANGED` if a second device has
+    /// asked for a different one since, rather than calling a right code wrong.
+    func confirmEmailBinding(deviceId: String, email: String, code: String) async throws -> EmailBindingConfirmResponse
     func sync(deviceId: String, request: SyncRequest) async throws -> SyncResponse
 }
 
@@ -65,6 +73,15 @@ struct VerifyCodeRequest: Codable {
         case deviceModel = "device_model"
         case name
     }
+}
+
+struct EmailBindingRequest: Codable {
+    let email: String
+}
+
+struct EmailBindingConfirmRequest: Codable {
+    let email: String
+    let code: String
 }
 
 struct VerifyFlashCallRequest: Codable {
@@ -202,10 +219,64 @@ struct VerifyFlashCallResponse: Codable {
     }
 }
 
+/// The answer to `POST /auth/email` (SYNC.md §18.4). `alreadyYours` is the branch where nothing
+/// was sent because nothing needs to be: the address is already on this account.
+struct EmailBindingRequestResponse: Codable {
+    let success: Bool
+    let data: EmailBindingRequestData?
+    let message: String?
+    let timestamp: String
+
+    struct EmailBindingRequestData: Codable {
+        /// Normalized by the server (`lowercase` + `trim`) — the confirmation has to send back
+        /// this address, not the one that was typed.
+        let email: String
+        /// Whether the account already had an address. Only the wording differs; the endpoint is
+        /// the same write either way (§18.2).
+        let isChange: Bool
+        let alreadyYours: Bool
+        /// False also for a resend inside the throttle window, where the code already in flight
+        /// is still the valid one.
+        let sent: Bool
+        let expiresAt: String?
+    }
+}
+
+/// The answer to `POST /auth/email/confirm` (§18.12). Two flags come back and the screen shows
+/// the second: `revertWindowOpened` says whether a revert window was opened, `previousNotified`
+/// whether a letter is on its way to the address the account just left. They disagree on exactly
+/// one path — a change away from the anchor warns the anchor without opening a window (§18.7).
+struct EmailBindingConfirmResponse: Codable {
+    let success: Bool
+    let data: EmailBindingConfirmData?
+    let message: String?
+    let timestamp: String
+
+    struct EmailBindingConfirmData: Codable {
+        let email: String
+        /// False for the no-op branch: the address was already on the account when the code
+        /// landed, most likely a second tap on the same button.
+        let changed: Bool
+        let revertWindowOpened: Bool
+        let previousNotified: Bool
+    }
+}
+
 struct APIError: Codable {
     let error: String        // Error code (e.g., "CODE_ALREADY_SENT")
     let message: String?     // Localized error message from server
     let timestamp: String
+    /// `EMAIL_TAKEN` only, and only when the address is held by an account inside its deletion
+    /// grace period: the date it comes free (SYNC.md §18.5). Absent means held by a live account.
+    let availableAfter: String?
+    /// `INVALID_CODE` and `TOO_MANY_ATTEMPTS` only.
+    let remainingAttempts: Int?
+}
+
+extension APIError {
+    /// What a person should read: the server's localized message when it sent one, the bare
+    /// error code when it did not.
+    var displayMessage: String { message ?? error }
 }
 
 // MARK: - Errors
@@ -218,7 +289,14 @@ enum APIServiceError: Error, LocalizedError {
     case networkError(Error)
     case unauthorized
     case phoneNotAllowed(String) // New error type for phone authentication
-    case rateLimited(retryAfter: TimeInterval?, message: String?)   // 429
+    /// A 4xx the server explained, carried whole rather than flattened to its message.
+    ///
+    /// Every caller before email binding only ever wanted the text, and `AuthenticationError`
+    /// still takes only that. The binding flow is the first that has to tell one refusal from
+    /// another — an occupied address from a stale request from a wrong code (SYNC.md §18.4) —
+    /// and the machine-readable `error` code is the only thing that says which.
+    case refused(APIError)
+    case rateLimited(retryAfter: TimeInterval?, refusal: APIError?)  // 429
     case serverUnavailable(status: Int, message: String?)           // 5xx
 
     var errorDescription: String? {
@@ -239,8 +317,10 @@ enum APIServiceError: Error, LocalizedError {
             return "User not authorized"
         case .phoneNotAllowed(let message):
             return message
-        case .rateLimited(_, let message):
-            return message ?? "Too many requests. Please try again later."
+        case .refused(let refusal):
+            return refusal.displayMessage
+        case .rateLimited(_, let refusal):
+            return refusal?.displayMessage ?? "Too many requests. Please try again later."
         case .serverUnavailable(let status, let message):
             return message ?? "Server unavailable (HTTP \(status))."
         }
@@ -443,6 +523,50 @@ final class APIService: APIServiceProtocol, Sendable {
         return try JSONDecoder().decode(VerifyFlashCallResponse.self, from: data)
     }
     
+    /// Asks for a confirmation code on an address being bound or changed to (SYNC.md §18.4).
+    ///
+    /// `X-App-Language` is not decoration on this pair. The letter carrying the code is rendered
+    /// in it, and on a change the server stores it on the revert window — the revert page is
+    /// server-rendered HTML reached from a mail client, so the language on that row is the only
+    /// thing that keeps it from being English for a Russian-speaking reader (§18.3).
+    func requestEmailBinding(deviceId: String, email: String) async throws -> EmailBindingRequestResponse {
+        let url = URL(string: "\(baseURL)/auth/email")!
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(deviceId)", forHTTPHeaderField: "Authorization")
+        addLanguageHeaders(to: &request)
+
+        request.httpBody = try JSONEncoder().encode(EmailBindingRequest(email: email))
+
+        let (data, response) = try await performRequest(request)
+
+        try validateHTTPResponse(response, data: data)
+
+        return try JSONDecoder().decode(EmailBindingRequestResponse.self, from: data)
+    }
+
+    /// Confirms the code and writes the address (§18.4). The write moves `profile_revision`, so
+    /// the new address reaches this device — and every other one — by an ordinary sync pull.
+    func confirmEmailBinding(deviceId: String, email: String, code: String) async throws -> EmailBindingConfirmResponse {
+        let url = URL(string: "\(baseURL)/auth/email/confirm")!
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(deviceId)", forHTTPHeaderField: "Authorization")
+        addLanguageHeaders(to: &request)
+
+        request.httpBody = try JSONEncoder().encode(EmailBindingConfirmRequest(email: email, code: code))
+
+        let (data, response) = try await performRequest(request)
+
+        try validateHTTPResponse(response, data: data)
+
+        return try JSONDecoder().decode(EmailBindingConfirmResponse.self, from: data)
+    }
+
     /// One round of a sync run (SYNC.md §4).
     ///
     /// The 200 body is the bare object of §4.2 — no `success`/`timestamp` envelope, because a run
@@ -517,7 +641,7 @@ final class APIService: APIServiceProtocol, Sendable {
 
         if httpResponse.statusCode == 429 {
             let retryAfter = httpResponse.value(forHTTPHeaderField: "Retry-After").flatMap(TimeInterval.init)
-            throw APIServiceError.rateLimited(retryAfter: retryAfter, message: errorResponse?.message ?? errorResponse?.error)
+            throw APIServiceError.rateLimited(retryAfter: retryAfter, refusal: errorResponse)
         }
 
         if httpResponse.statusCode >= 500 {
@@ -526,9 +650,9 @@ final class APIService: APIServiceProtocol, Sendable {
 
         if httpResponse.statusCode >= 400 {
             if let errorResponse {
-                // Use localized message from server if available, otherwise fall back to error code
-                let errorMessage = errorResponse.message ?? errorResponse.error
-                throw APIServiceError.serverError(errorMessage)
+                // The whole envelope, not just its message: every caller that only wants the text
+                // reads `errorDescription`, which is the same string this used to throw.
+                throw APIServiceError.refused(errorResponse)
             } else {
                 throw APIServiceError.httpError(httpResponse.statusCode)
             }

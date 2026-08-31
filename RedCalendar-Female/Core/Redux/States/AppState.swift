@@ -39,6 +39,10 @@ struct AppState: Equatable, Sendable {
     /// What the sync run is doing, for the indicator of §12 item 12. Nothing else reads it: the
     /// run's real state — cursor, owner, dirty flags — is on the disk, where it survives a launch.
     var syncState: SyncState = .idle
+    /// The email binding/change screen (SYNC.md §18.12), or `nil` while it is closed. It holds no
+    /// result of its own: the address itself arrives on `userProfile` by the ordinary sync pull
+    /// the confirmation asks for, because the server is the only thing that may write it (§4.4).
+    var emailBinding: EmailBindingState?
 }
 
 extension AppState {

@@ -30,6 +30,10 @@ func appReducer(state: AppState, action: AppAction) -> AppState {
                 // settings the next screen reads.
                 state.userProfile = nil
                 state.cycleSettings = ResolvedCycleSettings(nil)
+                // The screen belongs to the account that has just gone, and a code in flight was
+                // sent on its behalf. Left standing, the sheet would reopen over the welcome
+                // screen on the next sign-in with somebody else's address in the field.
+                state.emailBinding = nil
             }
 
         case .logout, .deleteAccount:
@@ -38,6 +42,27 @@ func appReducer(state: AppState, action: AppAction) -> AppState {
         case .completedRegistrationOnboarding:
             if case .authenticated(let deviceId, _) = state.authState {
                 state.authState = .authenticated(deviceId: deviceId)
+            }
+        }
+
+    case .emailBinding(let bindingAction):
+        switch bindingAction {
+
+        case .set(let bindingState):
+            switch (state.emailBinding, bindingState) {
+            // Opening the screen — the only transition allowed to start from a closed one.
+            case (nil, .some(.entry)):
+                state.emailBinding = bindingState
+
+            // A request that lands after the person closed the sheet does not reopen it. The
+            // flow's one lasting effect is the address, and that arrives on `userProfile` by the
+            // sync pull whether or not anybody is still watching (§4.4) — so the answer has
+            // nowhere it needs to be shown.
+            case (nil, _):
+                break
+
+            default:
+                state.emailBinding = bindingState
             }
         }
 

@@ -87,8 +87,12 @@ extension AuthenticationError {
 
         case APIServiceError.serverError(let message):
             return .serverError(message)
-        case APIServiceError.rateLimited(_, let message):
-            return .serverError(message ?? "Too many requests. Please try again later.")
+        // The refusal is carried whole now (see `APIServiceError.refused`), but nothing on the
+        // sign-in paths tells one code from another — the message is what it always was.
+        case APIServiceError.refused(let refusal):
+            return .serverError(refusal.displayMessage)
+        case APIServiceError.rateLimited(_, let refusal):
+            return .serverError(refusal?.displayMessage ?? "Too many requests. Please try again later.")
         case APIServiceError.serverUnavailable(let status, let message):
             return .serverError(message ?? "Server unavailable (HTTP \(status)).")
         case APIServiceError.networkError(let networkError):
