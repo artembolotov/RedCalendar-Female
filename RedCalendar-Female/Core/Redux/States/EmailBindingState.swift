@@ -19,9 +19,11 @@ enum EmailBindingState: Equatable, Sendable {
     /// to be warned (§18.2).
     case codeEntry(email: String, isChange: Bool, code: String? = nil, error: EmailBindingError? = nil)
     case confirming(email: String, code: String, isChange: Bool)
-    /// The end of the flow, and the only place `previousNotified` is shown (§18.12): a letter is
-    /// on its way to the address the account just left, and it carries the button that undoes
-    /// this. `changed == false` is the branch where the address was already ours — a double tap,
-    /// or `ALREADY_YOURS` from the first step, which never sends a code at all.
+    /// The end of the flow. `previousNotified` mirrors the server's flag (§18.12) but the view
+    /// does not show it: the entry step already said a letter with a revert button is on its way
+    /// to the old address, before the button was pressed — nothing changes that fact by the time
+    /// this state is reached, so there is nothing new to tell. `changed == false` is the branch
+    /// where the address was already ours — a double tap, or `ALREADY_YOURS` from the first step,
+    /// which never sends a code at all.
     case done(email: String, changed: Bool, previousNotified: Bool)
 }

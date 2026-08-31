@@ -48,8 +48,8 @@ struct EmailBindingView: View {
                 case .confirming(let email, _, _):
                     codeStep(email: email, error: nil, isBusy: true)
 
-                case .done(let email, let changed, let previousNotified):
-                    doneStep(email: email, changed: changed, previousNotified: previousNotified)
+                case .done(let email, let changed, _):
+                    doneStep(email: email, changed: changed)
 
                 // The sheet is dismissing — its presentation is driven by this being `nil`.
                 case nil:
@@ -97,7 +97,7 @@ struct EmailBindingView: View {
             // change, the letter to the old address is the whole of the protection (§18.6), and
             // the person deciding to press the button is who needs to know it is coming.
             if isChange {
-                Text("На прежний адрес придёт письмо о смене. Если это не вы — кнопка в нём вернёт аккаунт обратно, она действует \(Constants.Account.emailRevertWindowDays.russianDays).")
+                Text("На прежний адрес придёт письмо о смене с кнопкой возврата — на случай, если аккаунтом воспользовался кто-то посторонний. Она действует \(Constants.Account.emailRevertWindowDays.russianDays).")
                     .font(.caption)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
@@ -179,7 +179,7 @@ struct EmailBindingView: View {
     }
 
     @ViewBuilder
-    private func doneStep(email: String, changed: Bool, previousNotified: Bool) -> some View {
+    private func doneStep(email: String, changed: Bool) -> some View {
         stepLayout {
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 44))
@@ -189,15 +189,12 @@ struct EmailBindingView: View {
                 // Neither "привязан" nor "изменён": the answer says the address moved, not which
                 // of the two edges of §18.2 it was, and a letter that failed to send is a change
                 // that would be announced here as a first binding.
+                //
+                // Nothing here about the letter to the old address — the entry step already said
+                // that, before the button was pressed (§18.6). Nothing has changed since to make
+                // it worth repeating.
                 Text("Теперь ваш адрес — \(email). Входите в аккаунт по нему.")
                     .multilineTextAlignment(.center)
-
-                if previousNotified {
-                    Text("На прежний адрес отправлено письмо о смене. Если это были не вы — кнопка в нём вернёт аккаунт обратно, она действует \(Constants.Account.emailRevertWindowDays.russianDays).")
-                        .font(.footnote)
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
-                }
             } else {
                 Text("Этот адрес уже привязан к вашему аккаунту.")
                     .multilineTextAlignment(.center)
@@ -310,7 +307,7 @@ private func previewStore(_ binding: EmailBindingState, email: String? = nil) ->
     )
 }
 
-#Preview("Готово — прежний адрес предупреждён") {
+#Preview("Готово — смена") {
     EmailBindingView().environmentObject(
         previewStore(.done(email: "new@example.com", changed: true, previousNotified: true),
                      email: "anna@example.com")
