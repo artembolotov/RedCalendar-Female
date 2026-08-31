@@ -158,7 +158,7 @@ struct EmailEntryView: View {
                 initialState: AppState(
                     authState: .authenticating(.email(.entry(
                         email: "invalid@email",
-                        error: AuthenticationError.emailAlreadyExists
+                        error: AuthenticationError.serverError("Этот email уже зарегистрирован. Войдите вместо регистрации.")
                     )))
                 ),
                 reducer: appReducer,
