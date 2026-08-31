@@ -180,7 +180,9 @@ private struct DeveloperSectionView: View {
     // `fileprivate`, not `private`: `Optional.orPlaceholder` below reads it from an extension on
     // a different type, and same-file `private` access only reaches extensions of the *same*
     // type, not another type's extension living in the same file.
-    fileprivate static let unsetPlaceholder = "—"
+    // `nonisolated`: a `View`'s stored statics infer `@MainActor` from the conformance, and
+    // `Optional.orPlaceholder` is a nonisolated extension member.
+    nonisolated fileprivate static let unsetPlaceholder = "—"
 
     var body: some View {
         Section("Developer") {
