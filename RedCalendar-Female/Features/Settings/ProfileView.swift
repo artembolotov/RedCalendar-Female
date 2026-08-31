@@ -80,9 +80,9 @@ struct ProfileView: View {
                     // Phone sign-in is on the way out (SYNC.md §12, items 14–16 retire Firebase
                     // and the phone lookup it backs) — an account with no email on file is an
                     // account with no way back in once that lands.
-                    Text("Вход по номеру телефона скоро отключат. Привяжите email, чтобы не потерять доступ к аккаунту.")
+                    Text("Скоро вход по номеру телефона перестанет работать. Привяжите email, чтобы сохранить доступ к аккаунту.")
                 } else {
-                    Text("По этому адресу вы входите в аккаунт. При смене на прежний адрес придёт письмо, по кнопке в нём аккаунт можно вернуть обратно.")
+                    Text("По этому адресу вы входите в аккаунт.")
                 }
             }
 

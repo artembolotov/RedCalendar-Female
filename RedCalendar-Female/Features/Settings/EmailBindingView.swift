@@ -97,7 +97,7 @@ struct EmailBindingView: View {
             // change, the letter to the old address is the whole of the protection (§18.6), and
             // the person deciding to press the button is who needs to know it is coming.
             if isChange {
-                Text("На прежний адрес придёт письмо о смене. Если это будете не вы — по кнопке в письме аккаунт вернётся обратно.")
+                Text("На прежний адрес придёт письмо о смене. Если это не вы — кнопка в нём вернёт аккаунт обратно, она действует \(Constants.Account.emailRevertWindowDays.russianDays).")
                     .font(.caption)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
@@ -193,7 +193,7 @@ struct EmailBindingView: View {
                     .multilineTextAlignment(.center)
 
                 if previousNotified {
-                    Text("На прежний адрес отправлено письмо о смене. Если это были не вы — кнопка в нём вернёт аккаунт обратно, она работает \(Constants.Account.emailRevertWindowDays.russianDays).")
+                    Text("На прежний адрес отправлено письмо о смене. Если это были не вы — кнопка в нём вернёт аккаунт обратно, она действует \(Constants.Account.emailRevertWindowDays.russianDays).")
                         .font(.footnote)
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)

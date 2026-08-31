@@ -39,39 +39,39 @@ enum AuthenticationError: Error, LocalizedError, Equatable {
     var errorDescription: String? {
         switch self {
         case .phoneNotRegistered:
-            return "This feature is only for RedCalendar 2.0 users. New users should sign in with email."
+            return "Этот способ входа — только для пользователей RedCalendar 2.0. Новым пользователям нужно войти по email."
         case .phoneCallFailed:
-            return "Failed to request verification call. Please try again."
+            return "Не удалось запросить звонок для подтверждения. Попробуйте ещё раз."
         case .phoneVerificationFailed:
-            return "Incorrect verification digits. Please try again."
+            return "Неверные цифры звонка. Попробуйте ещё раз."
         case .phoneCallTimeout:
-            return "Verification call didn't arrive. Please request a new call."
+            return "Звонок для подтверждения не пришёл. Запросите новый."
         case .emailNotFound:
-            return "Email not found. Please check or create a new account."
+            return "Такой email не найден. Проверьте адрес или зарегистрируйте новый аккаунт."
         case .emailAlreadyExists:
-            return "This email is already registered. Please sign in instead."
+            return "Этот email уже зарегистрирован. Войдите вместо регистрации."
         case .passwordMismatch:
-            return "Passwords don't match. Please try again."
+            return "Пароли не совпадают. Попробуйте ещё раз."
         case .invalidVerificationCode:
-            return "Invalid verification code. Please try again."
+            return "Неверный код подтверждения. Попробуйте ещё раз."
         case .verificationCodeExpired:
-            return "Verification code has expired. Please request a new one."
+            return "Код подтверждения истёк. Запросите новый."
         case .verificationCodeLimitExceeded:
-            return "Too many attempts. Please try again later."
+            return "Слишком много попыток. Попробуйте позже."
         case .deviceIdStorageFailed:
-            return "Could not complete sign-in on this device. Please try again."
+            return "Не удалось завершить вход на этом устройстве. Попробуйте ещё раз."
         case .registrationFailed:
-            return "Failed to create account. Please try again."
+            return "Не удалось создать аккаунт. Попробуйте ещё раз."
         case .nameRequired:
-            return "Please enter your name."
+            return "Введите имя."
         case .emailVerificationFailed:
-            return "Failed to verify email. Please try again."
+            return "Не удалось подтвердить email. Попробуйте ещё раз."
         case .networkError(let message):
-            return "\(message)"
+            return message
         case .serverError(let message):
-            return "\(message)"
-        case .unknownError:
-            return "An unknown error occurred. Please try again."
+            return message
+        case .unknownError(let message):
+            return message
         }
     }
 }
