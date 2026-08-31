@@ -13,22 +13,15 @@ enum AuthenticationError: Error, LocalizedError, Equatable {
     case phoneCallFailed                          // Flash call request failed
     case phoneVerificationFailed                  // Wrong verification digits
     case phoneCallTimeout                         // Call didn't arrive
-    
-    // Email errors
-    case emailNotFound                            // Email doesn't exist (new user)
-    case emailAlreadyExists                       // Email taken during registration
-    
-    case passwordMismatch                         // Password confirmation doesn't match
-    
+
     // Code verification errors
     case invalidVerificationCode                  // Wrong 6-digit code
     case verificationCodeExpired                  // Code expired
     case verificationCodeLimitExceeded            // Too many attempts
-    
+
     // Registration errors
     case registrationFailed                       // Account creation failed
     case deviceIdStorageFailed                    // Signed in, but device_id never reached the keychain
-    case nameRequired                             // Name field is empty
     case emailVerificationFailed                  // Email verification failed
     
     // Network/Server errors
@@ -46,12 +39,6 @@ enum AuthenticationError: Error, LocalizedError, Equatable {
             return "Неверные цифры звонка. Попробуйте ещё раз."
         case .phoneCallTimeout:
             return "Звонок для подтверждения не пришёл. Запросите новый."
-        case .emailNotFound:
-            return "Такой email не найден. Проверьте адрес или зарегистрируйте новый аккаунт."
-        case .emailAlreadyExists:
-            return "Этот email уже зарегистрирован. Войдите вместо регистрации."
-        case .passwordMismatch:
-            return "Пароли не совпадают. Попробуйте ещё раз."
         case .invalidVerificationCode:
             return "Неверный код подтверждения. Попробуйте ещё раз."
         case .verificationCodeExpired:
@@ -62,8 +49,6 @@ enum AuthenticationError: Error, LocalizedError, Equatable {
             return "Не удалось завершить вход на этом устройстве. Попробуйте ещё раз."
         case .registrationFailed:
             return "Не удалось создать аккаунт. Попробуйте ещё раз."
-        case .nameRequired:
-            return "Введите имя."
         case .emailVerificationFailed:
             return "Не удалось подтвердить email. Попробуйте ещё раз."
         case .networkError(let message):
@@ -92,9 +77,9 @@ extension AuthenticationError {
         case APIServiceError.refused(let refusal):
             return .serverError(refusal.displayMessage)
         case APIServiceError.rateLimited(_, let refusal):
-            return .serverError(refusal?.displayMessage ?? "Too many requests. Please try again later.")
+            return .serverError(refusal?.displayMessage ?? "Слишком много запросов. Попробуйте позже.")
         case APIServiceError.serverUnavailable(let status, let message):
-            return .serverError(message ?? "Server unavailable (HTTP \(status)).")
+            return .serverError(message ?? "Сервер недоступен (HTTP \(status)).")
         case APIServiceError.networkError(let networkError):
             return .networkError(networkError.localizedDescription)
         default:
