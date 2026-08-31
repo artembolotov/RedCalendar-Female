@@ -82,7 +82,7 @@ struct ProfileView: View {
                     // account with no way back in once that lands.
                     Text("Вход по номеру телефона скоро отключат. Привяжите email, чтобы не потерять доступ к аккаунту.")
                 } else {
-                    Text("По этому адресу вы входите в аккаунт. Если вы его смените, на прежний адрес придёт письмо — кнопка в нём вернёт аккаунт обратно, она действует \(Constants.Account.emailRevertWindowDays.russianDays).")
+                    Text("По этому адресу вы входите в аккаунт.")
                 }
             }
 
