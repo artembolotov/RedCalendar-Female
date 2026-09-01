@@ -62,24 +62,23 @@ final class NotificationPreferenceTests: XCTestCase {
 
     // MARK: - What the switch and the permission rule read
 
-    func testTheSwitchDrawsOffOnlyForAMutedAccount() {
+    func testTheSwitchDrawsOnUnlessTheAccountIsMuted() {
         var state = NotificationState(preference: .enabled)
-        state.pushPermissionState = .authorized
-        XCTAssertTrue(state.isEnabledOnThisDevice)
+        XCTAssertTrue(state.isAllowedByPreference)
 
         state.preference = .muted
-        XCTAssertFalse(state.isEnabledOnThisDevice)
+        XCTAssertFalse(state.isAllowedByPreference)
 
         // Not read yet reads as on — the same default an absent key means.
         state.preference = .unknown
-        XCTAssertTrue(state.isEnabledOnThisDevice)
+        XCTAssertTrue(state.isAllowedByPreference)
     }
 
-    func testASystemDenialTurnsTheSwitchOffWithoutTouchingThePreference() {
+    func testASystemDenialDoesNotTouchThePreference() {
         var state = NotificationState(preference: .enabled)
         state.pushPermissionState = .denied
 
-        XCTAssertFalse(state.isEnabledOnThisDevice)
+        XCTAssertTrue(state.isBlockedBySystem, "which is what draws the switch off and disables it")
         XCTAssertTrue(state.isAllowedByPreference, "the account's own answer is this device's to read, not to rewrite")
         XCTAssertFalse(state.shouldRequestSystemPermission, "a denial is final until the Settings app undoes it")
     }

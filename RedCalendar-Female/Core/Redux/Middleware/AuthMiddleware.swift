@@ -226,11 +226,8 @@ let authMiddleware: Middleware = { state, action, dispatch in
             keychain.deleteDeviceID()
         }
 
-        // Nothing about push happens here any more. Registering for remote notifications and
-        // asking iOS for permission both moved to `PushNotificationsMiddleware`, which watches
-        // this same case — the second of them because signing in is the moment the app knows
-        // least about whether this account even wants notifications (see
-        // `requestSystemPermissionIfNeeded` there).
+        // `.authenticated` also registers for remote notifications and can ask iOS for
+        // permission — both in `PushNotificationsMiddleware`, which watches this same case.
 
     case .logout:
         if case .authenticated(let deviceId, _) = state.authState {

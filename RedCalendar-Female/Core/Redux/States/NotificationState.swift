@@ -28,10 +28,6 @@ extension NotificationState {
     /// draws and the same one a profile carrying no `notifications` key means.
     var isAllowedByPreference: Bool { preference != .muted }
 
-    /// What a switch on this device shows: the account's answer, unless this phone's own
-    /// settings have already made it moot.
-    var isEnabledOnThisDevice: Bool { isAllowedByPreference && !isBlockedBySystem }
-
     /// The one condition under which this build may put the system permission alert on screen:
     /// the account has actually asked for notifications, and iOS has not yet been asked on its
     /// behalf. `.unknown` is not enough — see `NotificationPreference`.
