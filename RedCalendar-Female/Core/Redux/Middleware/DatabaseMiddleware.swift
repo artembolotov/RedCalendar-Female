@@ -212,14 +212,13 @@ final class DatabaseMiddleware {
             case .deleteUserTag(let tag):
                 await write(.userTag, detail: "delete", dispatch: dispatch) { try await dbService.upsert([tag]) }
 
-            // The one value this middleware produces that it also acts on. Every other one below
-            // is on its way to the reducer and nowhere else; a new set of cycles is additionally
-            // new evidence about how long this person's cycles run, and the forecast drawn from
-            // it is stored rather than derived, so the recompute has to reach the disk.
+            // The one value this middleware produces that it also acts on: every other one below
+            // is on its way to the reducer and nowhere else, while a new set of cycles is also
+            // new evidence about how long this person's cycles run.
             //
-            // The cycles are taken from the state rather than from the action, because the
-            // reducer that has just run is what sorts them and the forecast measures the
-            // distances between neighbours.
+            // The cycles come from the state rather than from the action, because the reducer
+            // that has just run is what sorts them, and the forecast measures the distances
+            // between neighbours.
             case .setCycles:
                 await refreshForecast(from: state.calendarState.cycles, dispatch: dispatch)
 
@@ -245,13 +244,13 @@ final class DatabaseMiddleware {
 
     // MARK: - Private Methods
 
-    /// Brings the stored cycle settings — the two numbers the calendar predicts with, and the
-    /// two the server will schedule notifications from — up to what the recorded cycles say.
+    /// Brings the two stored cycle settings — what the calendar predicts with, and what the
+    /// server will schedule notifications from — up to what the recorded cycles say.
     ///
-    /// Written rather than computed where they are read, so that the one number is answered the
-    /// same way everywhere: the calendar, the settings screen and the server all read the
-    /// setting, and only this line decides what it is. The screen learns about the new value the
-    /// way it learns about an edit made on another device — back down the profile observation.
+    /// Stored rather than computed where they are read, so that each question keeps exactly one
+    /// answer: the calendar, the settings screen and the server all read the setting, and only
+    /// this line decides what it is. The screen learns about the new value the way it learns
+    /// about an edit made on another device — back down the profile observation.
     ///
     /// Recomputed on a change of cycles and on nothing else. A change of *settings* must not
     /// trigger it: a number the user has just typed would then be overwritten by the data
@@ -264,6 +263,8 @@ final class DatabaseMiddleware {
     /// the exact question, inside the transaction that would do the writing.
     private func refreshForecast(from cycles: [CycleRecord], dispatch: @escaping Dispatch) async {
         let forecast = CycleForecast(cycles: cycles)
+        // Nothing measured yet — which is every user until their third recorded cycle, and so
+        // worth answering here rather than by handing the merge an empty patch to discard.
         guard forecast.cycleLength != nil || forecast.periodLength != nil else { return }
 
         do {

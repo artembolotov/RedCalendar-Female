@@ -171,9 +171,13 @@ struct ProfileView: View {
     /// both sections, and said before it happens: a number that moves on its own reads as an
     /// edit that failed to save unless the screen has already claimed it as behaviour.
     ///
+    /// Present tense and no threshold in the wording, because the sentence has to be true on both
+    /// sides of one: for the person whose value is already being measured, and for the person
+    /// whose first cycles are still governed by the number they typed.
+    ///
     /// A row rather than a `footer:`, for the reason the description above gives.
     private var forecastNote: some View {
-        Text("Значение уточняется по вашим данным, когда вы отметите несколько циклов.")
+        Text("Значение уточняется автоматически по отмеченным циклам.")
             .font(.footnote)
             .foregroundColor(.secondary)
     }

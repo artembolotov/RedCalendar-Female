@@ -32,7 +32,7 @@ final class CycleForecastTests: XCTestCase {
     func testFewerObservationsThanTheMinimumMeasureNothing() {
         let forecast = CycleForecast(cycles: cycles(startedEvery: [31, 30]))
 
-        XCTAssertEqual(Constants.Cycle.forecastMinObservations, 3, "the case below is written against three")
+        XCTAssertEqual(Constants.Cycle.forecastMinObservations, 3, "this case and the next are written against three")
         XCTAssertNil(forecast.cycleLength)
     }
 

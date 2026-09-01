@@ -9,10 +9,10 @@
 /// stored setting stands, and that is what gives the value chosen on the onboarding screen — or
 /// typed into `ProfileView` — its first few cycles before any measurement can replace it.
 ///
-/// Derived on demand and stored nowhere. Two devices holding the same cycles compute the same
-/// forecast, and a recorded start deleted by mistake takes its own effect on the forecast with
-/// it; neither is true of a value accumulated into the previous answer.
-struct CycleForecast: Equatable, Sendable {
+/// Measured from the cycles every time, never accumulated into the previous answer. That is
+/// what makes two devices holding the same cycles agree, and what lets a start deleted by
+/// mistake take its effect on the forecast away with it.
+struct CycleForecast {
     let cycleLength: Int?
     let periodLength: Int?
 
