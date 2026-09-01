@@ -28,14 +28,6 @@ struct CycleOnboardingView: View {
 
     private var accent: Color { store.state.accentTheme.accent }
 
-    /// iOS has already been told no for this install, so the switch would be a promise nothing
-    /// can keep. It is left out of the screen rather than shown greyed out: a first-run screen is
-    /// the wrong place to explain a setting the person cannot act on from here, and nothing is
-    /// written for it either — an account whose profile carries no `notifications` key still
-    /// means "on", which is the right answer for the phone they read this on next.
-    /// `SettingsView` is where the explanation and the way out live.
-    private var canOfferNotifications: Bool { !store.state.notifications.isBlockedBySystem }
-
     var body: some View {
         VStack(spacing: 32) {
             Spacer()
@@ -72,12 +64,15 @@ struct CycleOnboardingView: View {
                     bounds: Constants.Cycle.minPeriodLength...Constants.Cycle.maxPeriodLength
                 )
 
-                if canOfferNotifications {
-                    Divider().padding(.leading)
+                Divider().padding(.leading)
 
-                    Toggle("Уведомления", isOn: $notificationsEnabled)
-                        .padding()
-                }
+                // Shown and written whatever iOS has already been told on this phone: the answer
+                // belongs to the account, not to the device, and a person who has denied
+                // notifications here still gets to say what their next one does. `SettingsView`
+                // is where a phone-level refusal is explained, because that is where somebody
+                // wondering why nothing arrives will go looking.
+                Toggle("Уведомления", isOn: $notificationsEnabled)
+                    .padding()
             }
             .background(Color(.secondarySystemGroupedBackground))
             .cornerRadius(16)
@@ -130,9 +125,7 @@ struct CycleOnboardingView: View {
         // once the calendar is on screen — after this screen has done its job — and it appears by
         // the same rule that covers a switch flicked in Settings a month from now, or on another
         // phone entirely.
-        if canOfferNotifications {
-            store.send(.data(.setNotificationsEnabled(notificationsEnabled)))
-        }
+        store.send(.data(.setNotificationsEnabled(notificationsEnabled)))
         store.send(.auth(.completedRegistrationOnboarding))
     }
 }

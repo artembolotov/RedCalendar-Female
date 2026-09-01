@@ -168,8 +168,7 @@ Core/
                  AppearanceService, DatabaseService (GRDB)
   Utils/      — Logger (AppLogger)
 Common/
-  Components/ — PrimaryButton, CloseButton, PhoneNumberKitField, FlowLayout,
-                 SystemNotificationsNote
+  Components/ — PrimaryButton, CloseButton, PhoneNumberKitField, FlowLayout
   Extensions/ — Bundle+AppInfo, String+Validation, View+AdaptiveShadow,
                  Color+AccentTheme, …
   Modifiers/  — FormFieldStyle
@@ -804,7 +803,7 @@ is `UNUserNotificationCenter`'s to change and never ours. `NotificationState` ho
 been denied at the system level therefore leaves the account's own preference exactly as it is:
 the person's other phone is still entitled to the notifications they asked for. The switch on such
 a device draws off and disabled — off is what this phone will actually do — with the explanation
-and the way out to the Settings app in `SystemNotificationsNote`, which both screens share.
+and the way out to the Settings app under it.
 
 **The key on the wire is `muted`, not "enabled".** That is what RedCalendar 2.0 wrote and what the
 Firebase import carried over verbatim (SYNC.md §10.2), so a second key for the same question would
@@ -860,10 +859,10 @@ Three things hold that rule up:
 **The switch holds its own position while the write goes round**, like every other editor in
 Settings (see the debounce note above) — a `Toggle` bound straight to store state springs back
 under the finger and lands again a GRDB round trip later. It is undebounced, though: one flick is
-the whole intent and there are no intermediate values to coalesce. The onboarding screen is the
-one place that shows no switch at all when the system has already refused — a first-run screen is
-the wrong place to explain a setting nobody can act on from there, and writing nothing leaves the
-account at "never chosen", which is the right answer for whatever phone reads it next.
+the whole intent and there are no intermediate values to coalesce. The onboarding screen shows and
+writes its switch whatever iOS has already been told on this phone: the answer belongs to the
+account, and only Settings — where somebody wondering why nothing arrives will actually go — needs
+to explain a device-level refusal.
 
 ### API Service
 

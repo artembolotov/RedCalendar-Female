@@ -35,20 +35,13 @@ final class PushNotificationsMiddleware {
 
     private var inFlight: Registration?
 
-    /// The second thing: whether iOS has already been asked in *this* process.
-    ///
-    /// Not merely an in-flight guard, though it is that too — two triggers do arrive back to back
-    /// (the preference landing, and the permission state being re-read on a foreground), and
-    /// without it both would call `requestAuthorization` while the first alert is still up. It
-    /// never resets, because a second ask in one session can never be useful: the alert is shown
-    /// once per install, and an answered one leaves `pushPermissionState` at `.authorized` or
-    /// `.denied`, which the condition below already refuses.
-    ///
-    /// What that buys is a loop that cannot happen. The request dispatches
-    /// `.checkPermissionState` when it returns, and that comes back as `.setPermissionState` —
-    /// the very trigger that asks again. A request that failed without the user answering
-    /// anything (a thrown `requestAuthorization`) leaves the state at `.notAsked`, and the two
-    /// would otherwise chase each other for as long as the app is open.
+    /// The second thing: whether iOS has already been asked in *this* process. It is an in-flight
+    /// guard — two triggers do arrive back to back — and it never resets, which is what makes a
+    /// loop impossible: the request ends by dispatching `.checkPermissionState`, which comes back
+    /// as the trigger that asks again, and a `requestAuthorization` that failed without the user
+    /// answering anything leaves the state at `.notAsked`. Asking twice in one session can never
+    /// help anyway — an answered alert leaves `.authorized` or `.denied`, which the condition
+    /// below already refuses.
     private var hasRequestedPermissionThisSession = false
 
     private init() {}

@@ -7,6 +7,7 @@
 
 import QuartzCore
 import SwiftUI
+import UIKit
 
 struct SettingsView: View {
     @EnvironmentObject var store: AppStore
@@ -129,8 +130,24 @@ struct SettingsView: View {
             Toggle("Присылать уведомления", isOn: notificationsBinding)
                 .disabled(isBlocked)
 
+            // There is nothing this app can do about a system-level refusal —
+            // `requestAuthorization` on a denied app returns without showing anything — so the
+            // only honest affordance is the way out to the Settings app. It says nothing about
+            // the account's own preference, which this device has not touched.
             if isBlocked {
-                SystemNotificationsNote()
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Уведомления отключены для приложения в настройках iOS. Включите их там, чтобы получать напоминания на этом устройстве.")
+                        .font(.footnote)
+                        .foregroundColor(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    Button("Открыть настройки iOS") {
+                        guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
+                        UIApplication.shared.open(url)
+                    }
+                    .font(.footnote)
+                }
+                .padding(.vertical, 4)
             }
         }
     }
