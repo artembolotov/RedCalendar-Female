@@ -144,6 +144,8 @@ struct ProfileView: View {
             Text("Количество дней от начала одной менструации до первого дня следующей.")
                 .font(.footnote)
                 .foregroundColor(.secondary)
+
+            forecastNote
         } header: {
             Text("Длина цикла")
         }
@@ -159,7 +161,21 @@ struct ProfileView: View {
             }
             .accessibilityLabel("Длительность месячных")
             .accessibilityValue(periodLength.russianDays)
+
+            forecastNote
         }
+    }
+
+    /// Both numbers are measured back off the recorded cycles once there are enough of them
+    /// (`CycleForecast`), so a value typed here can change by itself a few cycles later. Said in
+    /// both sections, and said before it happens: a number that moves on its own reads as an
+    /// edit that failed to save unless the screen has already claimed it as behaviour.
+    ///
+    /// A row rather than a `footer:`, for the reason the description above gives.
+    private var forecastNote: some View {
+        Text("Значение уточняется по вашим данным, когда вы отметите несколько циклов.")
+            .font(.footnote)
+            .foregroundColor(.secondary)
     }
 
     // MARK: - Private Methods

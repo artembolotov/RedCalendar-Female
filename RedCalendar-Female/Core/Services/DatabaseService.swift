@@ -234,8 +234,9 @@ final class DatabaseService: DatabaseServiceProtocol {
     /// One of the local writes to `user_profile` — the cycle half of the settings — and, with
     /// `updateNotificationsMuted` and `updateName` below, one of the three places other than a
     /// pull that may create its row. See the protocol for why any of them may have to.
-    func updateCycleSettings(_ patch: CycleSettingsPatch) async throws {
-        try await mergeIntoSettings { stored in
+    @discardableResult
+    func updateCycleSettings(_ patch: CycleSettingsPatch) async throws -> Bool {
+        return try await mergeIntoSettings { stored in
             var merged = stored
             if let cycleLength = patch.cycleLength {
                 merged = merged.setting(["cycle", "default_length"], to: .int(cycleLength))
@@ -257,7 +258,7 @@ final class DatabaseService: DatabaseServiceProtocol {
     /// touched the switch, the difference between "never chosen" and "chose yes" is exactly what
     /// decides whether the next device may put the permission alert on screen.
     func updateNotificationsMuted(_ muted: Bool) async throws {
-        try await mergeIntoSettings { $0.setting(["notifications", "muted"], to: .bool(muted)) }
+        _ = try await mergeIntoSettings { $0.setting(["notifications", "muted"], to: .bool(muted)) }
     }
 
     /// The one transaction all local settings writes share: merge into what is stored, stamp the
@@ -268,8 +269,11 @@ final class DatabaseService: DatabaseServiceProtocol {
     /// would otherwise be dropped here and erased on the server by the very next push (SYNC.md
     /// §15). That is also why the merge is a closure over the whole value rather than a fixed set
     /// of fields — every writer edits the keys it owns and leaves the document alone.
-    private func mergeIntoSettings(_ transform: @escaping @Sendable (JSONValue) -> JSONValue) async throws {
-        try await dbQueue.write { db in
+    ///
+    /// Answers whether it wrote anything — see `updateCycleSettings` in the protocol for who
+    /// asks and why the comparison cannot be made anywhere else.
+    private func mergeIntoSettings(_ transform: @escaping @Sendable (JSONValue) -> JSONValue) async throws -> Bool {
+        return try await dbQueue.write { db in
             // The first row rather than the row keyed 1, which is how the observation reads it:
             // the two must never disagree about which row is "the" profile.
             let existing = try UserProfileRecord.fetchOne(db)
@@ -293,11 +297,12 @@ final class DatabaseService: DatabaseServiceProtocol {
             // server revision that every *other* device then pulls. Tapping + and back to − is
             // enough to cause it, and so is turning a switch off and on again. Compared as values
             // rather than as strings — two encodings of the same settings are the same settings.
-            if existing != nil, merged == stored { return }
+            if existing != nil, merged == stored { return false }
 
             record.settingsJSON = merged.jsonString
             record.dirtySeq = try Self.nextLocalSeq(db)
             try record.upsert(db)
+            return true
         }
     }
 
