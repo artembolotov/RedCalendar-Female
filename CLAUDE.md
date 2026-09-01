@@ -33,7 +33,8 @@ typealias Middleware = @MainActor @Sendable (AppState, AppAction, @escaping Disp
 - **A slow middleware is not free.** A long `await` in one delays every action behind it. That is
   affordable only because the heavy middlewares return immediately and do their work in their
   own `Task`, dispatching the result when it lands. Anything that waits on the network, on the
-  user, or on a system alert belongs in a `Task` — see the permission prompt in `AuthMiddleware`.
+  user, or on a system alert belongs in a `Task` — see the permission prompt in
+  `PushNotificationsMiddleware`.
   Short bounded work (`DatabaseMiddleware`'s GRDB writes) may be awaited inline.
 - **Middleware is `@MainActor`.** It used to be an unisolated `async` closure, which put every
   middleware body on the cooperative pool and meant anything UIKit-shaped had to hop back by hand.
@@ -140,6 +141,7 @@ Core/
   Models/     — Daystamp, Daystamp+GRDB, AuthenticationMethod, AuthenticationError,
                  APNSToken, UserDetails, ResolvedCycleSettings, DayDisplayState,
                  AccentTheme, DataWriteOperation, UserProfileRecord,
+                 NotificationPreference,
                  SyncPayload, SyncStorage, JSONValue, DirtyStamped, FlowLevelRecord,
                  CycleRecord, CycleRecord+Queries,
                  CommentRecord, UserTagRecord, DayTagsRecord
@@ -166,7 +168,8 @@ Core/
                  AppearanceService, DatabaseService (GRDB)
   Utils/      — Logger (AppLogger)
 Common/
-  Components/ — PrimaryButton, CloseButton, PhoneNumberKitField, FlowLayout
+  Components/ — PrimaryButton, CloseButton, PhoneNumberKitField, FlowLayout,
+                 SystemNotificationsNote
   Extensions/ — Bundle+AppInfo, String+Validation, View+AdaptiveShadow,
                  Color+AccentTheme, …
   Modifiers/  — FormFieldStyle
@@ -429,9 +432,9 @@ gap is accepted, not fixed.
 
 **Clearing the flag is its own action, not another `.set(.authenticated(...))`.** That pattern is
 read by three other places as "the user just signed in": `SyncMiddleware` starts an undebounced
-sync run on it, `AuthMiddleware` itself re-registers for remote notifications and can re-request
-the push permission, and `DatabaseMiddleware` (re)starts its observations — guarded, but by a
-check its own comment already flags as accidental ("nothing does today, but nothing enforces it").
+sync run on it, `PushNotificationsMiddleware` registers for remote notifications again, and
+`DatabaseMiddleware` (re)starts its observations — guarded, but by a check its own comment already
+flags as accidental ("nothing does today, but nothing enforces it").
 `.auth(.completedRegistrationOnboarding)` reduces the flag off and triggers none of that.
 
 **Two clips, and only one of them caps the bar.** In `computeDayDisplayStates` a period cut short by
@@ -790,6 +793,70 @@ the value back so clearing it is enough. New teardown work belongs in `cleanUp()
 `deinit` cannot be relied on to run at teardown, and it may not run on the main thread, where an
 `invalidate()` on a link added to `.main` wants to be.
 
+### Notifications
+
+**Two independent answers, and neither may be written from the other.** Whether a notification
+arrives depends on what the *account* asked for — `settings.notifications.muted` on the profile
+row, which reaches every device through the sync pull — and on what *this phone's* iOS says, which
+is `UNUserNotificationCenter`'s to change and never ours. `NotificationState` holds both
+(`preference`, `pushPermissionState`) and the derived readings every screen uses
+(`isEnabledOnThisDevice`, `isBlockedBySystem`, `shouldRequestSystemPermission`). A device that has
+been denied at the system level therefore leaves the account's own preference exactly as it is:
+the person's other phone is still entitled to the notifications they asked for. The switch on such
+a device draws off and disabled — off is what this phone will actually do — with the explanation
+and the way out to the Settings app in `SystemNotificationsNote`, which both screens share.
+
+**The key on the wire is `muted`, not "enabled".** That is what RedCalendar 2.0 wrote and what the
+Firebase import carried over verbatim (SYNC.md §10.2), so a second key for the same question would
+leave two answers on one account with nothing to say which is current. The inversion happens at
+exactly one boundary — `DatabaseMiddleware`'s `.setNotificationsEnabled` calling
+`updateNotificationsMuted(!enabled)` — so that everything above it speaks in the direction the
+switch does. The write itself is `updateCycleSettings`'s path with a different leaf: the same
+merge into `settings_json`, the same `dirty_seq`, the same `changes.profile`, and the same
+`mergeIntoSettings` transaction (never rebuilt from `UserSettings` — §15's rule about keys this
+build does not model applies here too).
+
+**"Not read yet" and "says nothing" are different answers, and that is why `NotificationPreference`
+has three cases rather than being a `Bool?`.** Both look like an absent `muted`. A profile that
+has not been pulled belongs to a returning user who may have muted notifications on another
+device; a profile with no `notifications` key is every account imported from 2.0, where silence
+has always meant on. Only `DatabaseMiddleware`'s profile observation can still tell them apart —
+it has the record, and the absence of one — so it resolves the preference there rather than
+passing an optional down.
+
+**The system permission is asked for by state, not at sign-in.** The condition is
+`preference == .enabled && pushPermissionState == .notAsked`, and
+`PushNotificationsMiddleware.requestSystemPermissionIfNeeded` re-checks it whenever either half
+changes — that is, on `.data(.setNotificationPreference)` and on `.push(.setPermissionState)`.
+Every flow falls out of that one rule and no screen calls the permission service itself: the
+switch in Settings, the switch on `CycleOnboardingView`, a preference enabled on another phone
+(the pull satisfies it), and a build that has simply never asked (the first profile read satisfies
+it). It used to live in `AuthMiddleware` on `.authenticated`, which asked everybody at the one
+moment the app knows least — before the returning user's profile has been pulled — and never
+asked again, so a switch flicked a week later could not reach iOS at all.
+
+Three things hold that rule up:
+
+- **Nothing is asked while the app is in the background.** A silent push can wake it, and a sync
+  run in that wake pulls the very profile that satisfies the condition — spending an alert that
+  iOS only allows once per install on nobody. `RedCalendarApp` dispatches `.checkPermissionState`
+  on every `.active`, and that is what brings the request back when there is someone to answer.
+- **A request is made at most once per process** (`hasRequestedPermissionThisSession`). The
+  request ends by dispatching `.checkPermissionState`, which comes back as the trigger that asks
+  again; a `requestAuthorization` that failed without the user answering anything leaves the state
+  at `.notAsked`, and the two would otherwise chase each other for as long as the app is open.
+- **Registering for remote notifications is not conditional on any of it.** The APNs token carries
+  the silent sync push (SYNC.md §7, §8), which a muted account still wants, so
+  `registerForRemoteNotifications` happens on every sign-in whatever the switch says.
+
+**The switch holds its own position while the write goes round**, like every other editor in
+Settings (see the debounce note above) — a `Toggle` bound straight to store state springs back
+under the finger and lands again a GRDB round trip later. It is undebounced, though: one flick is
+the whole intent and there are no intermediate values to coalesce. The onboarding screen is the
+one place that shows no switch at all when the system has already refused — a first-run screen is
+the wrong place to explain a setting nobody can act on from there, and writing nothing leaves the
+account at "never chosen", which is the right answer for whatever phone reads it next.
+
 ### API Service
 
 - Base URL comes from `Info.plist` key `API_BASE_URL`, set per build configuration. Read it via `Constants.URLs.api`.
@@ -992,6 +1059,11 @@ tags/symptoms system, offline sync, the `api.calendar.red` endpoint, day tap int
 account deletion (§17) and email binding/change (§18) are all shipped, server and client.
 
 Open work is server-only, in `redcalendar-api` (SYNC.md §12, items 14–16): bulk phone→UID
-migration, moving `check-phone` to a local lookup, and retiring Firebase. Notification scheduling
-(§15) is out of scope and undesigned — only the DB groundwork (`user_devices.timezone`,
-`last_seen_at`) is in place; no iOS code references `TimeZone` yet.
+migration, moving `check-phone` to a local lookup, and retiring Firebase.
+
+Notification *scheduling* (§15) is still undesigned — no schedule, no local notifications, and no
+iOS code references `TimeZone`; the DB groundwork (`user_devices.timezone`, `last_seen_at`) is all
+that is in place. What has shipped on the client is the **consent** half: the account-level
+switch, its sync path, and the rule that decides when iOS is asked for permission (see
+"Notifications" below). The server half of that is not done — nothing there reads
+`settings.notifications.muted` yet.

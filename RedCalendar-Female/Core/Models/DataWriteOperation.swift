@@ -17,6 +17,7 @@ enum DataWriteOperation: Sendable, Equatable {
     case dayTags
     case userTag
     case cycleSettings
+    case notificationSettings
     case profileName
 
     /// What the user is told. Names the thing that did not get saved, because the day card is
@@ -31,6 +32,7 @@ enum DataWriteOperation: Sendable, Equatable {
         case .dayTags:     return "Симптомы не сохранились. Попробуйте ещё раз."
         case .userTag:     return "Тег не сохранился. Попробуйте ещё раз."
         case .cycleSettings: return "Настройки цикла не сохранились. Попробуйте ещё раз."
+        case .notificationSettings: return "Настройка уведомлений не сохранилась. Попробуйте ещё раз."
         case .profileName: return "Имя не сохранилось. Попробуйте ещё раз."
         }
     }
@@ -44,6 +46,7 @@ enum DataWriteOperation: Sendable, Equatable {
         case .dayTags:     return "setDayTags"
         case .userTag:     return "userTag"
         case .cycleSettings: return "cycleSettings"
+        case .notificationSettings: return "notificationSettings"
         case .profileName: return "profileName"
         }
     }

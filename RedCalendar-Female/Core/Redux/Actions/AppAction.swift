@@ -49,9 +49,9 @@ enum AuthAction: Sendable {
     /// Clears `AuthState.authenticated`'s `isFreshRegistration` once `CycleOnboardingView` is
     /// done. Deliberately not another `.set(.authenticated(...))`: that pattern is also what
     /// `SyncMiddleware` reads as "the user just signed in" (an undebounced sync run),
-    /// `AuthMiddleware` itself as a fresh session (a repeat push-permission request), and
-    /// `DatabaseMiddleware` as a reason to (re-)start its observations. Re-dispatching it here
-    /// would fire all three for an event none of them mean.
+    /// `PushNotificationsMiddleware` as a fresh session (registering for remote notifications
+    /// again), and `DatabaseMiddleware` as a reason to (re-)start its observations.
+    /// Re-dispatching it here would fire all three for an event none of them mean.
     case completedRegistrationOnboarding
 }
 
@@ -99,6 +99,15 @@ enum DataAction: Sendable {
     /// row. Folded into `.setUserProfile`, that edit would come back as `nil` and the number would
     /// visibly snap back to the fallback on screen.
     case setCycleSettings(UserSettings.CycleSettings?)
+    /// The notifications half of the same row, dispatched from the same observation and for the
+    /// same reason the settings are: it is read off `UserProfileRecord`, which exists before the
+    /// `user_id` that `UserDetails` requires does.
+    ///
+    /// It carries `NotificationPreference` rather than `UserSettings.NotificationSettings?`
+    /// because the middleware is the only place that can tell "the table has no row" from "the
+    /// row has no `notifications` key", and only the first of those may hold back the system
+    /// permission alert. Flattened to an optional here, that distinction would be gone.
+    case setNotificationPreference(NotificationPreference)
 
     // Day editing
     case markPeriodStart(Daystamp)
@@ -118,6 +127,17 @@ enum DataAction: Sendable {
     // anyway, since the bound protects the prediction loop rather than the control.
     case setCycleLength(Int)
     case setPeriodLength(Int)
+
+    /// The notifications switch, in `SettingsView` and on the onboarding screen. Written as
+    /// `settings.notifications.muted` — inverted, because that is the key RedCalendar 2.0 wrote
+    /// and every imported profile already carries (SYNC.md §10.2) — and the inversion happens at
+    /// the one boundary that touches the disk, `DatabaseMiddleware`, so that everything above it
+    /// speaks in the direction the switch does.
+    ///
+    /// It writes the account's answer and nothing about this phone: a device whose system
+    /// permission is denied does not mute the account on the other devices. Asking iOS is a
+    /// consequence of this landing, not part of it — see `PushNotificationsMiddleware`.
+    case setNotificationsEnabled(Bool)
 
     /// The other half of the device's write to the profile — `ProfileView`'s name field, applied
     /// with the same debounce as the two above (`Constants.Sheets.autosaveDebounceNanoseconds`).

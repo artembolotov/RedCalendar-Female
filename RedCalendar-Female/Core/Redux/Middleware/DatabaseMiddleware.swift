@@ -189,6 +189,15 @@ final class DatabaseMiddleware {
                     try await dbService.updateCycleSettings(CycleSettingsPatch(periodLength: length))
                 }
 
+            // Immediate too, and here there is nothing to coalesce at all: one tap of the
+            // switch is the whole intent. What follows the write is not this middleware's — the
+            // observation carries the new preference back, and `PushNotificationsMiddleware`
+            // decides from it whether iOS still needs to be asked.
+            case .setNotificationsEnabled(let enabled):
+                await write(.notificationSettings, dispatch: dispatch) {
+                    try await dbService.updateNotificationsMuted(!enabled)
+                }
+
             case .setName(let name):
                 await write(.profileName, dispatch: dispatch) {
                     try await dbService.updateName(name)
@@ -205,7 +214,8 @@ final class DatabaseMiddleware {
 
             // Values this middleware produced, on their way to the reducer.
             case .setCycles, .setUserTags, .setVisibleComments, .setVisibleDayTags,
-                 .setFlowLevels, .setLoadedRange, .setUserProfile, .setCycleSettings:
+                 .setFlowLevels, .setLoadedRange, .setUserProfile, .setCycleSettings,
+                 .setNotificationPreference:
                 break
 
             // A UI signal with nothing to write — `FeedbackMiddleware` is what reacts to it.
@@ -232,12 +242,18 @@ final class DatabaseMiddleware {
         userTagsToken = service.observeUserTags { records in
             dispatch(.data(.setUserTags(records)))
         }
-        // Two actions from one row, because its two halves have different owners and different
-        // lifetimes — see `DataAction.setCycleSettings`. The settings are read off the record
-        // itself rather than off `UserDetails`, which a row without a `user_id` cannot produce.
+        // Three actions from one row, because its halves have different owners and different
+        // lifetimes — see `DataAction.setCycleSettings`. Both of the halves a device may edit are
+        // read off the record itself rather than off `UserDetails`, which a row without a
+        // `user_id` cannot produce.
         profileToken = service.observeUserProfile { record in
             dispatch(.data(.setUserProfile(record.flatMap(UserDetails.init))))
             dispatch(.data(.setCycleSettings(record?.settings?.cycle)))
+            // A third action off the same row, for the same reason there is a second one — and
+            // this one has to be resolved here rather than downstream: the absent row and the row
+            // whose `notifications` key is missing are two different answers, and only this line
+            // can still tell them apart (see `NotificationPreference`).
+            dispatch(.data(.setNotificationPreference(NotificationPreference(record))))
         }
     }
 
@@ -458,7 +474,8 @@ final class DatabaseMiddleware {
                 await reloadDayTags(dispatch: dispatch)
             case .userTag:
                 await reloadUserTags(dispatch: dispatch)
-            case .periodStart, .periodEnd, .flowLevel, .cycleSettings, .profileName:
+            case .periodStart, .periodEnd, .flowLevel, .cycleSettings, .notificationSettings,
+                 .profileName:
                 break
             }
         }

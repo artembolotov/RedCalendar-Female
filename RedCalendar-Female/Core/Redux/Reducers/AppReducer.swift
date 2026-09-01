@@ -23,6 +23,12 @@ func appReducer(state: AppState, action: AppAction) -> AppState {
             state.authState = authState
             if case .notAuthenticated = authState {
                 state.notifications.apnsToken = nil
+                // The preference belongs to the account that has just gone, and the row it was
+                // read from is wiped with it (§6). Left standing at `.enabled`, it would be one
+                // half of the condition that puts the system permission alert on screen, and the
+                // next person to sign in on this phone would be asked on the strength of a
+                // choice somebody else made.
+                state.notifications.preference = .unknown
                 state.calendarState = CalendarState()
                 state.syncState = .idle
                 // The row behind it is wiped on logout (§6) and belongs to the previous account
@@ -120,6 +126,10 @@ func appReducer(state: AppState, action: AppAction) -> AppState {
             state.cycleSettings = ResolvedCycleSettings(cycle)
             recomputeDayDisplayStates = true
 
+        // Nothing is drawn from it — it is a switch's position and a precondition for asking iOS
+        // for permission — so no recompute.
+        case .setNotificationPreference(let preference):
+            state.notifications.preference = preference
 
         // The write actions that also reduce, and it is a latency decision rather than a
         // difference in kind. Everything below them reaches the screen the long way round: the
@@ -198,7 +208,10 @@ func appReducer(state: AppState, action: AppAction) -> AppState {
              .setFlowLevel,
              .setCycleLength,
              .setPeriodLength,
-             .setName:
+             .setName,
+             // The switch holds its own position while the write goes round — same reason, and
+             // the same consequence: there is nothing here to put back if the write fails.
+             .setNotificationsEnabled:
             break
 
         case .writeFailed(let operation):
