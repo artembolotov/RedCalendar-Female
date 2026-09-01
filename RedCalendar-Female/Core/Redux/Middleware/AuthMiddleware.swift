@@ -6,11 +6,9 @@
 //
 
 import Foundation
-import UIKit
 
 let authMiddleware: Middleware = { state, action, dispatch in
     @Injected var keychain: KeychainServiceProtocol
-    @Injected var pushPermissionService: PushPermissionServiceProtocol
     @Injected var apiService: APIServiceProtocol
     @Injected var dbService: DatabaseServiceProtocol
 
@@ -228,18 +226,8 @@ let authMiddleware: Middleware = { state, action, dispatch in
             keychain.deleteDeviceID()
         }
 
-        if case .authenticated = authState {
-            UIApplication.shared.registerForRemoteNotifications()
-            if state.notifications.pushPermissionState == .notAsked {
-                // In its own `Task` rather than awaited here: this call puts the system
-                // permission alert on screen and does not return until the user answers it.
-                // Middleware runs on the store's serial effect queue, so awaiting it inline
-                // would stall every action behind it for as long as the alert is up.
-                Task {
-                    await pushPermissionService.requestAuthorization()
-                }
-            }
-        }
+        // `.authenticated` also registers for remote notifications and can ask iOS for
+        // permission — both in `PushNotificationsMiddleware`, which watches this same case.
 
     case .logout:
         if case .authenticated(let deviceId, _) = state.authState {

@@ -231,15 +231,44 @@ final class DatabaseService: DatabaseServiceProtocol {
         }
     }
 
-    /// One of the two local writes to `user_profile` — the settings half — and, with `updateName`
-    /// below, one of the two places other than a pull that may create its row. See the protocol
-    /// for why either may have to.
-    ///
-    /// The settings are *merged* into the stored JSON rather than rebuilt from `UserSettings`:
-    /// the column holds what the server sent, character for character in meaning, and a key this
-    /// build does not model would otherwise be dropped here and erased on the server by the very
-    /// next push (SYNC.md §15).
+    /// One of the local writes to `user_profile` — the cycle half of the settings — and, with
+    /// `updateNotificationsMuted` and `updateName` below, one of the three places other than a
+    /// pull that may create its row. See the protocol for why any of them may have to.
     func updateCycleSettings(_ patch: CycleSettingsPatch) async throws {
+        try await mergeIntoSettings { stored in
+            var merged = stored
+            if let cycleLength = patch.cycleLength {
+                merged = merged.setting(["cycle", "default_length"], to: .int(cycleLength))
+            }
+            if let periodLength = patch.periodLength {
+                merged = merged.setting(["cycle", "default_period_length"], to: .int(periodLength))
+            }
+            return merged
+        }
+    }
+
+    /// The notifications half of the same column, written as `muted` rather than as "enabled":
+    /// that is the key RedCalendar 2.0 wrote and the one every imported profile already carries
+    /// (SYNC.md §10.2), and inventing a second key for the same question would leave two answers
+    /// on the same account with nothing to say which is current.
+    ///
+    /// The value is always written explicitly, `false` included. A profile with no `notifications`
+    /// key means "never chosen", which every reader treats as on — but the moment the user has
+    /// touched the switch, the difference between "never chosen" and "chose yes" is exactly what
+    /// decides whether the next device may put the permission alert on screen.
+    func updateNotificationsMuted(_ muted: Bool) async throws {
+        try await mergeIntoSettings { $0.setting(["notifications", "muted"], to: .bool(muted)) }
+    }
+
+    /// The one transaction all local settings writes share: merge into what is stored, stamp the
+    /// row dirty, create it if the pull never has.
+    ///
+    /// The settings are **merged** rather than rebuilt from `UserSettings`: the column holds what
+    /// the server sent, character for character in meaning, and a key this build does not model
+    /// would otherwise be dropped here and erased on the server by the very next push (SYNC.md
+    /// §15). That is also why the merge is a closure over the whole value rather than a fixed set
+    /// of fields — every writer edits the keys it owns and leaves the document alone.
+    private func mergeIntoSettings(_ transform: @escaping @Sendable (JSONValue) -> JSONValue) async throws {
         try await dbQueue.write { db in
             // The first row rather than the row keyed 1, which is how the observation reads it:
             // the two must never disagree about which row is "the" profile.
@@ -257,19 +286,13 @@ final class DatabaseService: DatabaseServiceProtocol {
             )
 
             let stored = JSONValue(jsonString: record.settingsJSON) ?? .object([:])
-            var merged = stored
-            if let cycleLength = patch.cycleLength {
-                merged = merged.setting(["cycle", "default_length"], to: .int(cycleLength))
-            }
-            if let periodLength = patch.periodLength {
-                merged = merged.setting(["cycle", "default_period_length"], to: .int(periodLength))
-            }
+            let merged = transform(stored)
 
             // An edit that lands on the value already stored is not an edit, and writing it
             // anyway is not free: it stamps the row dirty, asks for a sync run, and spends a
             // server revision that every *other* device then pulls. Tapping + and back to − is
-            // enough to cause it. Compared as values rather than as strings — two encodings of
-            // the same settings are the same settings.
+            // enough to cause it, and so is turning a switch off and on again. Compared as values
+            // rather than as strings — two encodings of the same settings are the same settings.
             if existing != nil, merged == stored { return }
 
             record.settingsJSON = merged.jsonString

@@ -22,6 +22,9 @@ struct CycleOnboardingView: View {
 
     @State private var cycleLength = Constants.Cycle.defaultCycleLength
     @State private var periodLength = Constants.Cycle.defaultPeriodLength
+    /// On by default, like the two numbers above are at their fallbacks: this screen exists to
+    /// turn silent defaults into an answer somebody actually gave.
+    @State private var notificationsEnabled = true
 
     private var accent: Color { store.state.accentTheme.accent }
 
@@ -60,6 +63,16 @@ struct CycleOnboardingView: View {
                     value: $periodLength,
                     bounds: Constants.Cycle.minPeriodLength...Constants.Cycle.maxPeriodLength
                 )
+
+                Divider().padding(.leading)
+
+                // Shown and written whatever iOS has already been told on this phone: the answer
+                // belongs to the account, not to the device, and a person who has denied
+                // notifications here still gets to say what their next one does. `SettingsView`
+                // is where a phone-level refusal is explained, because that is where somebody
+                // wondering why nothing arrives will go looking.
+                Toggle("Уведомления", isOn: $notificationsEnabled)
+                    .padding()
             }
             .background(Color(.secondarySystemGroupedBackground))
             .cornerRadius(16)
@@ -106,6 +119,13 @@ struct CycleOnboardingView: View {
         // something this person actually confirmed.
         store.send(.data(.setCycleLength(cycleLength)))
         store.send(.data(.setPeriodLength(periodLength)))
+        // The system permission alert follows from this, and not from a call here: the write
+        // comes back through the profile observation as `.enabled`, and
+        // `PushNotificationsMiddleware` asks iOS on the strength of that. So the prompt appears
+        // once the calendar is on screen — after this screen has done its job — and it appears by
+        // the same rule that covers a switch flicked in Settings a month from now, or on another
+        // phone entirely.
+        store.send(.data(.setNotificationsEnabled(notificationsEnabled)))
         store.send(.auth(.completedRegistrationOnboarding))
     }
 }

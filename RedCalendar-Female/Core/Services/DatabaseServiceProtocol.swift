@@ -31,15 +31,25 @@ protocol DatabaseServiceProtocol: Sendable {
     /// the server last sent and stamped dirty in the same transaction, exactly as `upsert` stamps
     /// a day table.
     ///
-    /// It is, with `updateName` below, one of the only two local writers of `user_profile`, and
-    /// therefore one of the only two things that can create the row outside a pull: nothing but a
-    /// sync run wrote it before either existed (§3.1), so a user who edits their cycle length
-    /// before the first run lands has no row to edit. What it creates carries `sync_state`'s owner
-    /// if there is one and no identity at all if there is not — `user_id`, `email` and
-    /// `phone_number` are the server's to fill in (§4.4), and the next pull does exactly that.
+    /// It is, with `updateNotificationsMuted` and `updateName` below, one of the only three local
+    /// writers of `user_profile`, and therefore one of the only three things that can create the
+    /// row outside a pull: nothing but a sync run wrote it before any of them existed (§3.1), so a
+    /// user who edits their cycle length before the first run lands has no row to edit. What it
+    /// creates carries `sync_state`'s owner if there is one and no identity at all if there is not
+    /// — `user_id`, `email` and `phone_number` are the server's to fill in (§4.4), and the next
+    /// pull does exactly that.
     func updateCycleSettings(_ patch: CycleSettingsPatch) async throws
 
-    /// The other half of the device's write to the profile (SYNC.md §4.4): the display name,
+    /// The same column and the same transaction shape, for the other setting a device may choose:
+    /// whether this account wants notifications at all, stored as `notifications.muted` — the key
+    /// RedCalendar 2.0 already wrote and the import carried over verbatim (§10.2).
+    ///
+    /// It answers for the *account*, not for this phone: iOS's own permission is asked separately
+    /// and never written back here, so a device that has been denied at the system level leaves
+    /// the person's other devices alone.
+    func updateNotificationsMuted(_ muted: Bool) async throws
+
+    /// The last of the device's writes to the profile (SYNC.md §4.4): the display name,
     /// stamped dirty in the same transaction and by the same generation counter as
     /// `updateCycleSettings` stamps the settings — the two share one row and one `dirty_seq`, and
     /// this is what lets a push tell which of them it is actually sending (see
