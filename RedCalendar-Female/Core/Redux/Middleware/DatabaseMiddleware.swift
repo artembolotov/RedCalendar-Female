@@ -52,6 +52,22 @@ final class DatabaseMiddleware {
     /// per action in the burst; deciding from here restarts them once per expansion.
     private var observedRange: ClosedRange<Daystamp>?
 
+    /// The cycles the forecast was last measured against — the baseline that makes "a change of
+    /// cycles" answerable, and the reason `refreshForecast` may be trusted not to touch a number
+    /// the user typed until there is new evidence.
+    ///
+    /// A `ValueObservation` hands over the whole table when it starts, so the first delivery of
+    /// every launch — and of every restart after a full resync — carries cycles that have not
+    /// changed since the last measurement. Measured there, the forecast would replace a value
+    /// someone typed at their next app launch rather than at their next recorded cycle, and would
+    /// overwrite the setting a returning RedCalendar 2.0 account brought with it the moment its
+    /// history finished importing. So the first delivery only sets this, and nothing is written
+    /// until a later one differs from it.
+    ///
+    /// Cleared by `cancelAll` with the tokens, and for the same reason they are: what it holds
+    /// belongs to the account that was signed in.
+    private var measuredCycles: [CycleRecord]?
+
     private var observationsActive: Bool { cyclesToken != nil }
 
     private init() {}
@@ -252,26 +268,39 @@ final class DatabaseMiddleware {
     /// this line decides what it is. The screen learns about the new value the way it learns
     /// about an edit made on another device — back down the profile observation.
     ///
-    /// Recomputed on a change of cycles and on nothing else. A change of *settings* must not
-    /// trigger it: a number the user has just typed would then be overwritten by the data
-    /// within milliseconds, and holding for the next few cycles is the whole point of it being
-    /// typed.
+    /// Measured on a change of cycles and on nothing else, which is what `measuredCycles` makes
+    /// true: an observation delivering the same cycles again is not new evidence. A change of
+    /// *settings* must not trigger it either: a number the user has just typed would then be
+    /// overwritten within milliseconds of their typing it, and holding until there is something
+    /// to replace it with is the whole point of it being typed.
     ///
     /// The patch is offered to the merge rather than compared against the settings in state.
     /// State is a poor comparison here — the profile observation may not have delivered yet, and
     /// what it delivers is clamped and filled with fallbacks — while the merge already answers
-    /// the exact question, inside the transaction that would do the writing.
+    /// the exact question, inside the transaction that would do the writing. Asking it also
+    /// keeps the sync trigger honest: `.setCycles` arrives from a pull as readily as from an
+    /// edit, and a run requested for a write that changed nothing would ask for the next pull,
+    /// which would arrive as the next `.setCycles`.
     private func refreshForecast(from cycles: [CycleRecord], dispatch: @escaping Dispatch) async {
+        // The first delivery of an observation carries cycles that have not changed since the
+        // last measurement, so it establishes the baseline and writes nothing — see
+        // `measuredCycles` for what that protects.
+        let previouslyMeasured = measuredCycles
+        measuredCycles = cycles
+        guard let previouslyMeasured, previouslyMeasured != cycles else { return }
+
         let forecast = CycleForecast(cycles: cycles)
-        // Nothing measured yet — which is every user until their third recorded cycle, and so
-        // worth answering here rather than by handing the merge an empty patch to discard.
+        // Not merely an optimisation for an account with fewer than three cycles: an empty patch
+        // leaves the merged settings equal to the stored ones, and the merge's short circuit is
+        // `existing != nil, merged == stored` — so on an account whose profile row does not exist
+        // yet it would fall through, create the row, stamp it dirty and ask for a sync run, all
+        // to store nothing.
         guard forecast.cycleLength != nil || forecast.periodLength != nil else { return }
 
         do {
-            let changed = try await dbService.updateCycleSettings(
+            if try await dbService.updateCycleSettings(
                 CycleSettingsPatch(cycleLength: forecast.cycleLength, periodLength: forecast.periodLength)
-            )
-            if changed {
+            ) {
                 dispatch(.sync(.requested(.localEdit)))
             }
         } catch {
@@ -379,6 +408,7 @@ final class DatabaseMiddleware {
         flowLevelsToken = nil
         profileToken = nil
         observedRange = nil
+        measuredCycles = nil
     }
 
     // MARK: - Day editing handlers
@@ -503,10 +533,13 @@ final class DatabaseMiddleware {
     ) async {
         do {
             try await work()
-            // The one producer of the local-edit trigger (§5.6), and it is here rather than in
-            // `SyncMiddleware` because this is the only place that knows a write actually
-            // reached the disk. Matching the editing actions from the other side would push on
-            // edits that failed, and would silently miss whatever action is added next.
+            // The producer of the local-edit trigger (§5.6) for every write the user asked for,
+            // and it is here rather than in `SyncMiddleware` because this is the only place that
+            // knows a write actually reached the disk. Matching the editing actions from the
+            // other side would push on edits that failed, and would silently miss whatever action
+            // is added next. `refreshForecast` is the one writer that does not come through here,
+            // because it is the one write nobody asked for: it reports no failure to the user and
+            // asks for a run only when it actually changed the row.
             dispatch(.sync(.requested(.localEdit)))
         } catch {
             let label = detail.map { "\(operation.logLabel) \($0)" } ?? operation.logLabel

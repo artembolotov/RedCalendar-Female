@@ -356,7 +356,12 @@ Five things hold it up:
   every time an observation re-fired.
 - **It is recomputed on a change of cycles and on nothing else.** Recomputing on
   `.setCycleSettings` too would overwrite a number the user has just typed within milliseconds of
-  their typing it.
+  their typing it. A delivery that is not a change is not evidence either: a `ValueObservation`
+  hands over the whole table when it starts, so `DatabaseMiddleware` holds the cycles it last
+  measured (`measuredCycles`) and the first delivery of a launch — or of a restart after a full
+  resync — only sets it. Without that the forecast would replace a typed value at the next app
+  launch rather than at the next recorded cycle, and would overwrite the setting a returning
+  RedCalendar 2.0 account brought with it the moment its history finished importing.
 - **`forecastMinObservations` is what protects a typed number.** Below it the forecast declines to
   answer and the stored value stands, so the answer given on `CycleOnboardingView` governs the first
   three recorded cycles. A user who already has a history sees a value they type replaced at their

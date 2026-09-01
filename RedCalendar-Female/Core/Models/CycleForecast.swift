@@ -21,7 +21,7 @@ struct CycleForecast {
     /// unsorted array would produce negative distances and silently drop every one of them.
     init(cycles: [CycleRecord]) {
         cycleLength = Self.median(
-            of: zip(cycles, cycles.dropFirst()).map { $0.1.startDay - $0.0.startDay },
+            of: zip(cycles, cycles.dropFirst()).map { previous, next in next.startDay - previous.startDay },
             within: Constants.Cycle.minCycleLength...Constants.Cycle.maxCycleLength
         )
         // An open period is stored as `periodLength == 0` and must not be measured — nothing

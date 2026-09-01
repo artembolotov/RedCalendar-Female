@@ -141,11 +141,14 @@ struct ProfileView: View {
             // comment on this same text for why: a `Section` footer's relayout path comes back
             // from a background/foreground cycle unstable in a way folding the text into the row
             // above does not.
-            Text("Количество дней от начала одной менструации до первого дня следующей.")
+            //
+            // The forecast note is folded into this sentence rather than stacked under it: two
+            // rows in the same footnote grey, with a separator between them, read as one
+            // paragraph broken in half. `periodLengthSection` has no description to fold into and
+            // carries the note as a row of its own.
+            Text("Количество дней от начала одной менструации до первого дня следующей. \(Self.forecastNote)")
                 .font(.footnote)
                 .foregroundColor(.secondary)
-
-            forecastNote
         } header: {
             Text("Длина цикла")
         }
@@ -162,25 +165,22 @@ struct ProfileView: View {
             .accessibilityLabel("Длительность месячных")
             .accessibilityValue(periodLength.russianDays)
 
-            forecastNote
+            Text(Self.forecastNote)
+                .font(.footnote)
+                .foregroundColor(.secondary)
         }
     }
 
     /// Both numbers are measured back off the recorded cycles once there are enough of them
-    /// (`CycleForecast`), so a value typed here can change by itself a few cycles later. Said in
-    /// both sections, and said before it happens: a number that moves on its own reads as an
-    /// edit that failed to save unless the screen has already claimed it as behaviour.
+    /// (`CycleForecast`), so a value typed here can change by itself once a later cycle is
+    /// recorded. Said in both sections, and said before it happens: a number that moves on its
+    /// own reads as an edit that failed to save unless the screen has already claimed it as
+    /// behaviour.
     ///
     /// Present tense and no threshold in the wording, because the sentence has to be true on both
     /// sides of one: for the person whose value is already being measured, and for the person
     /// whose first cycles are still governed by the number they typed.
-    ///
-    /// A row rather than a `footer:`, for the reason the description above gives.
-    private var forecastNote: some View {
-        Text("Значение уточняется автоматически по отмеченным циклам.")
-            .font(.footnote)
-            .foregroundColor(.secondary)
-    }
+    private static let forecastNote = "Значение уточняется автоматически по отмеченным циклам."
 
     // MARK: - Private Methods
 
