@@ -38,7 +38,14 @@ protocol DatabaseServiceProtocol: Sendable {
     /// creates carries `sync_state`'s owner if there is one and no identity at all if there is not
     /// — `user_id`, `email` and `phone_number` are the server's to fill in (§4.4), and the next
     /// pull does exactly that.
-    func updateCycleSettings(_ patch: CycleSettingsPatch) async throws
+    ///
+    /// Answers whether the row actually changed. The merge is the only place that can tell — it
+    /// compares inside the transaction that would do the writing — and the automatic forecast
+    /// recompute needs the answer to decide whether there is anything to sync (see
+    /// `DatabaseMiddleware.refreshForecast`). A caller acting on the user's own tap has nothing
+    /// to decide and discards it.
+    @discardableResult
+    func updateCycleSettings(_ patch: CycleSettingsPatch) async throws -> Bool
 
     /// The same column and the same transaction shape, for the other setting a device may choose:
     /// whether this account wants notifications at all, stored as `notifications.muted` — the key

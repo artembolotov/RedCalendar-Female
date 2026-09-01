@@ -132,5 +132,19 @@ struct Constants {
         // Fertile window drawn around ovulation
         static let fertileWindowDaysBefore = 3
         static let fertileWindowDaysAfter = 1
+
+        /// How many of the most recent observations `CycleForecast` measures, and how many of
+        /// them it needs before it says anything at all.
+        ///
+        /// Six is half a year of cycles: long enough that one odd month cannot carry the median,
+        /// short enough that a cycle which genuinely changed — after a birth, off contraception —
+        /// is reflected within a season rather than averaged away against a year of history.
+        ///
+        /// Three is what protects a number the user typed. Below it the forecast declines to
+        /// answer and whatever is stored stands, so the value chosen on the onboarding screen
+        /// governs the first three recorded cycles and is replaced only once there is a real
+        /// measurement to replace it with.
+        static let forecastWindow = 6
+        static let forecastMinObservations = 3
     }
 }

@@ -139,8 +139,8 @@ Core/
   Constants.swift
   DI/         — ServiceLocator, @Injected
   Models/     — Daystamp, Daystamp+GRDB, AuthenticationMethod, AuthenticationError,
-                 APNSToken, UserDetails, ResolvedCycleSettings, DayDisplayState,
-                 AccentTheme, DataWriteOperation, UserProfileRecord,
+                 APNSToken, UserDetails, ResolvedCycleSettings, CycleForecast,
+                 DayDisplayState, AccentTheme, DataWriteOperation, UserProfileRecord,
                  NotificationPreference,
                  SyncPayload, SyncStorage, JSONValue, DirtyStamped, FlowLevelRecord,
                  CycleRecord, CycleRecord+Queries,
@@ -329,6 +329,49 @@ and never terminates the prediction loop in `computeDayDisplayStates`. Every rea
 (`Core/Models/ResolvedCycleSettings.swift`): clamped into the `Constants.Cycle` bounds, with the
 fallbacks filled (cycle length 28, period 5, luteal phase 14). Fertile-window width also lives in
 `Constants.Cycle` — do not hardcode any of these numbers.
+
+**The two numbers are measured back off the recorded cycles.** `CycleForecast`
+(`Core/Models/CycleForecast.swift`) reads the sorted cycles and answers with the median of the last
+`Constants.Cycle.forecastWindow` intervals between neighbouring starts, and the median of the last
+`forecastWindow` *closed* periods — `nil` from either while there are fewer than
+`forecastMinObservations` of them. `DatabaseMiddleware.refreshForecast` runs it on `.setCycles` and
+stores the result through the same `updateCycleSettings` the settings screen writes with, so there
+is still exactly one number per question: the calendar, `ProfileView` and the server's scheduler all
+read the stored setting, and only that one line decides what it is. Nothing new is stored beside it,
+and the server's contract does not change.
+
+Five things hold it up:
+
+- **A median, not an average, and that is the whole of the outlier handling.** The error this data
+  actually contains is a month nobody recorded, which arrives as a single interval of roughly twice
+  the length; an average of six would carry it for half a year and a median of six does not notice
+  it. The plausibility range (`minCycleLength...maxCycleLength`, `minPeriodLength...maxPeriodLength`)
+  is applied *before* the window, so an implausible interval — only reachable from a RedCalendar 2.0
+  import, since `canStartPeriod` refuses one — does not consume one of the six slots. An open period
+  (`periodLength == 0`) falls outside its range and is therefore never measured, which is the same
+  rule as everywhere else: nothing but `markPeriodEnd` ends a period.
+- **The forecast is derived on demand and stored nowhere of its own.** Two devices holding the same
+  cycles compute the same answer, and a start deleted by mistake takes its effect on the forecast
+  with it — neither is true of a value accumulated into the previous answer, which would also drift
+  every time an observation re-fired.
+- **It is recomputed on a change of cycles and on nothing else.** Recomputing on
+  `.setCycleSettings` too would overwrite a number the user has just typed within milliseconds of
+  their typing it. A delivery that is not a change is not evidence either: a `ValueObservation`
+  hands over the whole table when it starts, so `DatabaseMiddleware` holds the cycles it last
+  measured (`measuredCycles`) and the first delivery of a launch — or of a restart after a full
+  resync — only sets it. Without that the forecast would replace a typed value at the next app
+  launch rather than at the next recorded cycle, and would overwrite the setting a returning
+  RedCalendar 2.0 account brought with it the moment its history finished importing.
+- **`forecastMinObservations` is what protects a typed number.** Below it the forecast declines to
+  answer and the stored value stands, so the answer given on `CycleOnboardingView` governs the first
+  three recorded cycles. A user who already has a history sees a value they type replaced at their
+  next recorded start; that is the accepted trade, and the footnote under both steppers in
+  `ProfileView` is what keeps it from reading as an edit that failed to save.
+- **A failed forecast write is logged, not shown.** It is the one exception to "a write that does not
+  reach the disk is reported to the user" (below), because nobody asked for this write: the alert
+  would tell someone who was marking a period that their cycle settings did not save, with nothing
+  for them to retry. `updateCycleSettings` answers whether it changed anything so that a run that
+  wrote nothing does not ask for a sync either.
 
 **The profile row reaches the store as two actions, not one.** `.setUserProfile` carries the
 identity half, `.setCycleSettings` the half the calendar draws with, and `DatabaseMiddleware`
