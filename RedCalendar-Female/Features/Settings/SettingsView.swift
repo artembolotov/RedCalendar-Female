@@ -123,11 +123,13 @@ struct SettingsView: View {
     // and the answer is not in this app. It draws off in that state whatever the account's own
     // preference is, because off is what this phone will actually do.
     private var notificationsSection: some View {
-        Section("Уведомления") {
-            Toggle("Присылать уведомления", isOn: notificationsBinding)
-                .disabled(store.state.notifications.isBlockedBySystem)
+        let isBlocked = store.state.notifications.isBlockedBySystem
 
-            if store.state.notifications.isBlockedBySystem {
+        return Section("Уведомления") {
+            Toggle("Присылать уведомления", isOn: notificationsBinding)
+                .disabled(isBlocked)
+
+            if isBlocked {
                 SystemNotificationsNote()
             }
         }

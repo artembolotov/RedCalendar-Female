@@ -841,6 +841,14 @@ Three things hold that rule up:
   run in that wake pulls the very profile that satisfies the condition — spending an alert that
   iOS only allows once per install on nobody. `RedCalendarApp` dispatches `.checkPermissionState`
   on every `.active`, and that is what brings the request back when there is someone to answer.
+- **Nothing is asked while `CycleOnboardingView` is up.** Signing in starts an undebounced sync
+  run, that run pulls the profile the server wrote at registration, and the pull satisfies the
+  condition — on top of the very screen asking this person about notifications, before they have
+  touched the switch. `isFreshRegistration` is the third thing the guard waits for. Nothing
+  re-checks on `.completedRegistrationOnboarding` either: that action is sent immediately after
+  onboarding's own write, which has not come back through the observation yet, so the preference
+  in state at that instant is the *pulled* one and someone who had just switched notifications off
+  would be asked anyway. The write's own observation is the only signal carrying their answer.
 - **A request is made at most once per process** (`hasRequestedPermissionThisSession`). The
   request ends by dispatching `.checkPermissionState`, which comes back as the trigger that asks
   again; a `requestAuthorization` that failed without the user answering anything leaves the state

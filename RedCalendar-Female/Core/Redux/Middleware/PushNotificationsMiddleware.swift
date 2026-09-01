@@ -142,8 +142,22 @@ final class PushNotificationsMiddleware {
     /// one changes: `preference == .enabled` (the account asked for it, and `.unknown` is not
     /// enough — see `NotificationPreference`) and `pushPermissionState == .notAsked` (iOS still
     /// has an answer to give; `.denied` is final and only the Settings app can undo it).
+    ///
+    /// `isFreshRegistration` is the third thing it waits for, and it is not a nicety. Signing in
+    /// starts an undebounced sync run (`SyncMiddleware`), that run pulls the profile the server
+    /// wrote at registration, and the pull satisfies the condition above — while
+    /// `CycleOnboardingView` is still on screen, asking this person about notifications. The
+    /// alert would land on top of the switch it is the answer to, before they had touched it.
+    ///
+    /// Nothing re-checks on `.completedRegistrationOnboarding` itself, deliberately: that action
+    /// is sent immediately after onboarding's own `.setNotificationsEnabled`, whose write has not
+    /// come back through the observation yet — so the preference in state at that instant is the
+    /// *pulled* one, and a person who had just turned the switch off would be asked anyway. The
+    /// write's own observation is the only signal that carries their actual answer, and it
+    /// arrives a moment later with the flag already cleared.
     private func requestSystemPermissionIfNeeded(state: AppState, dispatch: @escaping Dispatch) {
-        guard state.isAuthenticated,
+        guard case .authenticated(_, let isFreshRegistration) = state.authState,
+              !isFreshRegistration,
               state.notifications.shouldRequestSystemPermission,
               !hasRequestedPermissionThisSession else { return }
 
