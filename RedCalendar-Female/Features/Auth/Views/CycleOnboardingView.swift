@@ -112,6 +112,22 @@ struct CycleOnboardingView: View {
     // MARK: - Private Methods
 
     private func complete() {
+        // First of the three, and the order is load-bearing. Every one of these writes comes back
+        // as its own profile observation, and `.completedRegistrationOnboarding` below has
+        // already cleared the flag that holds the permission request off by the time the first
+        // one lands — the reducer runs synchronously, the observation does not. A delivery
+        // carrying the two cycle numbers and no `notifications` key resolves to
+        // `NotificationPreference.enabled`, by the rule that silence means on (every account
+        // imported from RedCalendar 2.0 is that shape), and that is enough to put the system
+        // alert on screen. So a person who had just switched notifications *off* here was asked
+        // anyway, a moment before their own answer reached the observation. Writing the switch
+        // first means the first delivery is the one carrying what they chose.
+        //
+        // The alert follows from this write rather than from a call here: the value comes back
+        // through the profile observation and `PushNotificationsMiddleware` decides on the
+        // strength of it, so the prompt appears once the calendar is on screen — by the same rule
+        // that covers a switch flicked in Settings a month from now, or on another phone.
+        store.send(.data(.setNotificationsEnabled(notificationsEnabled)))
         // Written even though nobody may have touched a stepper: unlike `SettingsView`, where
         // writing an unedited value would spend a sync revision for nothing, there is no stored
         // value yet here for "unchanged" to mean anything against. Tapping through with the
@@ -119,13 +135,6 @@ struct CycleOnboardingView: View {
         // something this person actually confirmed.
         store.send(.data(.setCycleLength(cycleLength)))
         store.send(.data(.setPeriodLength(periodLength)))
-        // The system permission alert follows from this, and not from a call here: the write
-        // comes back through the profile observation as `.enabled`, and
-        // `PushNotificationsMiddleware` asks iOS on the strength of that. So the prompt appears
-        // once the calendar is on screen — after this screen has done its job — and it appears by
-        // the same rule that covers a switch flicked in Settings a month from now, or on another
-        // phone entirely.
-        store.send(.data(.setNotificationsEnabled(notificationsEnabled)))
         store.send(.auth(.completedRegistrationOnboarding))
     }
 }

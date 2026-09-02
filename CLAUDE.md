@@ -890,7 +890,12 @@ Three things hold that rule up:
   re-checks on `.completedRegistrationOnboarding` either: that action is sent immediately after
   onboarding's own write, which has not come back through the observation yet, so the preference
   in state at that instant is the *pulled* one and someone who had just switched notifications off
-  would be asked anyway. The write's own observation is the only signal carrying their answer.
+  would be asked anyway. The write's own observation is the only signal carrying their answer —
+  which is why the switch is written **before** the two cycle numbers. All three writes come back
+  as separate profile observations, the flag is already off when the first one lands, and a
+  delivery carrying the cycle numbers and no `notifications` key resolves to `.enabled` by the
+  silence-means-on rule. Verified on device 2026-09-02: in the old order the request fired off the
+  cycle-length delivery, two deliveries before the switch's own.
 - **A request is made at most once per process** (`hasRequestedPermissionThisSession`). The
   request ends by dispatching `.checkPermissionState`, which comes back as the trigger that asks
   again; a `requestAuthorization` that failed without the user answering anything leaves the state
