@@ -19,8 +19,16 @@ let devicesMiddleware: Middleware = { state, action, dispatch in
 
     case .load:
         // Both endpoints are behind the device token, so a screen open without a session has
-        // nothing to ask. It cannot normally happen — the screen is one push inside Settings.
-        guard let deviceId = state.deviceId else { return }
+        // nothing to ask. It cannot normally happen — the screen is one push inside Settings,
+        // which itself draws nothing without a `deviceId` — but returning here would leave the
+        // spinner the reducer has already switched on with nothing to switch it off: the
+        // middleware sees the state its own action produced (see `AppStore`), so `isLoading` is
+        // true by now. Answering is what ends that.
+        guard let deviceId = state.deviceId else {
+            AppLogger.warn("Device list asked for without a session")
+            dispatch(.devices(.loadFailed))
+            return
+        }
 
         Task {
             do {
@@ -43,7 +51,13 @@ let devicesMiddleware: Middleware = { state, action, dispatch in
         }
 
     case .revoke(let targetDeviceId):
-        guard let deviceId = state.deviceId else { return }
+        // Same as above, and the row rather than the screen is what would hang: the reducer has
+        // already put this id into `revoking`, and only an answer takes it back out.
+        guard let deviceId = state.deviceId else {
+            AppLogger.warn("Device revocation asked for without a session")
+            dispatch(.devices(.revokeFailed(deviceId: targetDeviceId)))
+            return
+        }
 
         Task {
             do {
