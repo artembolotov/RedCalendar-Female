@@ -108,6 +108,27 @@ struct ProfileView: View {
         .task(id: draftName) { await commitAfterPause() }
         .task(id: draftCycleLength) { await commitAfterPause() }
         .task(id: draftPeriodLength) { await commitAfterPause() }
+        // A draft outlives its own write on purpose, and is dropped here — when the write comes
+        // back down the profile observation and the store agrees with it. Dropping it in
+        // `commitDrafts` instead would put the stored value back on screen for the length of the
+        // GRDB round trip, so a stepper would count down again under the finger.
+        //
+        // Held any longer than that, a draft stops describing an edit and starts overwriting one.
+        // These two numbers have a writer that is not the user: the forecast measured off the
+        // recorded cycles (`CycleForecast`), which a pull from another device can land at any
+        // moment this screen is open. A draft equal to what is already stored would then hide the
+        // new value here and `onDisappear` would commit the old one back over it.
+        .onChange(of: store.state.cycleSettings) { settings in
+            if draftCycleLength == settings.cycleLength { draftCycleLength = nil }
+            if draftPeriodLength == settings.periodLength { draftPeriodLength = nil }
+        }
+        // The same for the name, whose other writer is the same pull. Trimmed on both sides of
+        // the comparison, and against `""` for the cleared name, so it matches what
+        // `commitDrafts` actually sent.
+        .onChange(of: store.state.userProfile?.name) { name in
+            guard let draft = draftName else { return }
+            if draft.trimmingCharacters(in: .whitespacesAndNewlines) == (name ?? "") { draftName = nil }
+        }
         .sheet(isPresented: $isPresentingDeleteAccount) {
             DeleteAccountSheet()
         }
@@ -231,6 +252,12 @@ struct ProfileView: View {
     /// Each draft guarded against what the store already holds, so this is safe to call from all
     /// four places that call it and safe to call repeatedly. A draft equal to the stored value is
     /// not an edit and dispatches nothing.
+    ///
+    /// Such a draft is dropped here instead, because the `onChange` above cannot reach it: with
+    /// nothing dispatched there is no write, no observation and no change of store for it to
+    /// watch — and tapping + and back to − is enough to produce one. Dropping it costs nothing
+    /// visually, since it holds the value already on screen, and leaving it would let a stale
+    /// draft outlive the edit it never was.
     private func commitDrafts() {
         if let draft = draftName {
             let trimmed = draft.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -238,13 +265,23 @@ struct ProfileView: View {
             // every other soft-deleted field in this app uses (see `DatabaseService.updateName`).
             if trimmed != (store.state.userProfile?.name ?? "") {
                 store.send(.data(.setName(trimmed.isEmpty ? nil : trimmed)))
+            } else {
+                draftName = nil
             }
         }
-        if let draft = draftCycleLength, draft != store.state.cycleSettings.cycleLength {
-            store.send(.data(.setCycleLength(draft)))
+        if let draft = draftCycleLength {
+            if draft != store.state.cycleSettings.cycleLength {
+                store.send(.data(.setCycleLength(draft)))
+            } else {
+                draftCycleLength = nil
+            }
         }
-        if let draft = draftPeriodLength, draft != store.state.cycleSettings.periodLength {
-            store.send(.data(.setPeriodLength(draft)))
+        if let draft = draftPeriodLength {
+            if draft != store.state.cycleSettings.periodLength {
+                store.send(.data(.setPeriodLength(draft)))
+            } else {
+                draftPeriodLength = nil
+            }
         }
     }
 }
