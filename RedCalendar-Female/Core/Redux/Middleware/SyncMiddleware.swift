@@ -258,7 +258,10 @@ final class SyncMiddleware {
                     request: SyncRequest(
                         since: local.cursor,
                         syncSchema: Constants.Sync.schemaVersion,
-                        device: SyncRequest.Device(timezone: TimeZone.current.identifier),
+                        device: SyncRequest.Device(
+                            timezone: TimeZone.current.identifier,
+                            deviceModel: DeviceModel.identifier
+                        ),
                         changes: push.isEmpty ? nil : push
                     )
                 )

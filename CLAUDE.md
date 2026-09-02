@@ -144,12 +144,14 @@ Core/
                  NotificationPreference,
                  SyncPayload, SyncStorage, JSONValue, DirtyStamped, FlowLevelRecord,
                  CycleRecord, CycleRecord+Queries,
-                 CommentRecord, UserTagRecord, DayTagsRecord
+                 CommentRecord, UserTagRecord, DayTagsRecord, UserDevice
   Redux/
     Actions/  — AppAction, plus the per-domain AuthAction/CalendarAction/DataAction/
-                 SyncAction/PushAction/AnalyticsAction/AppearanceAction it wraps
+                 SyncAction/PushAction/AnalyticsAction/AppearanceAction/DevicesAction
+                 it wraps
     Middleware/
       AuthMiddleware.swift
+      DevicesMiddleware.swift
       MigrationMiddleware.swift
       DatabaseMiddleware.swift
       SyncMiddleware.swift
@@ -160,13 +162,13 @@ Core/
       LoggerMiddleware.swift
     Reducers/ — AppReducer, DayDisplayStateComputer
     States/   — AppState, AuthState, CalendarState, SyncState,
-                 EmailAuthState, PhoneAuthState, NotificationState
+                 EmailAuthState, PhoneAuthState, NotificationState, DevicesState
     AppMiddleware.swift  — combineAppMiddlewares()
     AppStore.swift       — AppStore, plus the Reducer/Dispatch/Middleware typealiases
   Services/   — APIService, KeychainService, AnalyticsService,
                  PushPermissionService, TapticFeedbackService,
                  AppearanceService, DatabaseService (GRDB)
-  Utils/      — Logger (AppLogger)
+  Utils/      — Logger (AppLogger), DeviceModel
 Common/
   Components/ — PrimaryButton, CloseButton, PhoneNumberKitField, FlowLayout
   Extensions/ — Bundle+AppInfo, String+Validation, View+AdaptiveShadow,
@@ -189,7 +191,7 @@ Features/
     Components/   — FloatingAddButton, HomeMenuView
     HomeView, DayDetailsView, FloatingButtonState,
     CommentSheetView, TagsSheetView
-  Settings/   — SettingsView
+  Settings/   — SettingsView, DevicesView
   Statistics/ — StatisticsView
 ```
 
@@ -199,7 +201,7 @@ Feature folders own their own views and feature-specific models. Shared types go
 
 ### AppState
 
-`AppState` has nine top-level fields:
+`AppState` has ten top-level fields:
 
 ```swift
 struct AppState {
@@ -212,6 +214,7 @@ struct AppState {
     var cycleSettings: ResolvedCycleSettings  // the same row's cycle half, resolved
     var syncState: SyncState           // what the sync indicator draws
     var emailBinding: EmailBindingState?      // the email binding/change screen, nil when closed
+    var devices: DevicesState?                // the device list screen, nil when closed
 }
 ```
 
@@ -1111,7 +1114,8 @@ Do not add new SPM packages without a clear reason.
 `SYNC.md` §12 is the source of truth for what has shipped and what hasn't — check it there rather
 than here before starting sync/storage work. As of this writing: CRUD for cycle data, the
 tags/symptoms system, offline sync, the `api.calendar.red` endpoint, day tap interactions, and
-account deletion (§17) and email binding/change (§18) are all shipped, server and client.
+account deletion (§17), email binding/change (§18) and the device list (§19) are all shipped,
+server and client.
 
 Open work is server-only, in `redcalendar-api` (SYNC.md §12, items 14–16): bulk phone→UID
 migration, moving `check-phone` to a local lookup, and retiring Firebase.

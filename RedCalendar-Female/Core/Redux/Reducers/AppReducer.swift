@@ -40,6 +40,9 @@ func appReducer(state: AppState, action: AppAction) -> AppState {
                 // sent on its behalf. Left standing, the sheet would reopen over the welcome
                 // screen on the next sign-in with somebody else's address in the field.
                 state.emailBinding = nil
+                // The list belongs to the account that has just gone, and a revocation in flight
+                // was asked for on its behalf.
+                state.devices = nil
             }
 
         case .logout, .deleteAccount:
@@ -70,6 +73,43 @@ func appReducer(state: AppState, action: AppAction) -> AppState {
             default:
                 state.emailBinding = bindingState
             }
+        }
+
+    case .devices(let devicesAction):
+        switch devicesAction {
+
+        case .load:
+            // Opening the screen. The previous list, if the screen is being reopened, is gone
+            // with it — showing yesterday's sessions while today's are being fetched is the one
+            // thing a list of live sessions must not do.
+            state.devices = DevicesState(isLoading: true)
+
+        case .setDevices(let devices):
+            state.devices?.devices = devices
+            state.devices?.isLoading = false
+            state.devices?.failure = nil
+
+        case .loadFailed:
+            state.devices?.isLoading = false
+            state.devices?.failure = .load
+
+        case .close:
+            state.devices = nil
+
+        case .revoke(let deviceId):
+            state.devices?.revoking.insert(deviceId)
+            state.devices?.failure = nil
+
+        case .revoked(let deviceId):
+            // The row goes here rather than on a re-fetch: the answer already says this session
+            // is gone, and asking the server again to be told the same thing costs a request and
+            // a moment of the list flickering.
+            state.devices?.revoking.remove(deviceId)
+            state.devices?.devices.removeAll { $0.id == deviceId }
+
+        case .revokeFailed(let deviceId):
+            state.devices?.revoking.remove(deviceId)
+            state.devices?.failure = .revoke
         }
 
     case .calendar(let calendarAction):

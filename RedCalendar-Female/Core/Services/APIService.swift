@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import UIKit
 
 // MARK: - Protocol
 protocol APIServiceProtocol: Sendable {
@@ -29,6 +28,13 @@ protocol APIServiceProtocol: Sendable {
     /// was sent to: the server refuses with `PENDING_ADDRESS_CHANGED` if a second device has
     /// asked for a different one since, rather than calling a right code wrong.
     func confirmEmailBinding(deviceId: String, email: String, code: String) async throws -> EmailBindingConfirmResponse
+    /// The sessions on this account (SYNC.md §19). Server truth, read while the screen is open:
+    /// nothing about it is stored locally.
+    func listDevices(deviceId: String) async throws -> DeviceListResponse
+    /// Drops one *other* session. The caller's own is refused by the server with
+    /// `CANNOT_REVOKE_CURRENT_DEVICE` (§19.3) — ending this one is `logout`, which also wipes
+    /// the local database (§6), and a second path into it would skip that.
+    func revokeDevice(deviceId: String, targetDeviceId: String) async throws -> RevokeDeviceResponse
     func sync(deviceId: String, request: SyncRequest) async throws -> SyncResponse
 }
 
@@ -141,6 +147,39 @@ struct DeleteAccountResponse: Codable {
             case purgeAfter = "purge_after"
         }
     }
+}
+
+struct DeviceListResponse: Codable {
+    let success: Bool
+    let data: DeviceListData?
+    let message: String?
+    let timestamp: String
+
+    struct DeviceListData: Codable {
+        let devices: [DeviceEntry]
+    }
+
+    struct DeviceEntry: Codable {
+        let deviceId: String
+        /// Already resolved on the server (§19.1): the table that turns `iPhone17,4` into a name
+        /// ages every September, and there it is fixed by a deploy for every build in the field.
+        let name: String
+        /// ISO 8601, like `purgeAfter` above — `nil` for a device that has never completed a
+        /// sync run.
+        let lastSeenAt: String?
+
+        enum CodingKeys: String, CodingKey {
+            case deviceId = "device_id"
+            case name
+            case lastSeenAt = "last_seen_at"
+        }
+    }
+}
+
+struct RevokeDeviceResponse: Codable {
+    let success: Bool
+    let message: String?
+    let timestamp: String
 }
 
 struct CheckEmailResponse: Codable {
@@ -352,10 +391,9 @@ final class APIService: APIServiceProtocol, Sendable {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         
-        let deviceModel = await getDeviceModel()
         let requestBody = MigrateUserRequest(
             userId: userId,
-            deviceModel: deviceModel
+            deviceModel: DeviceModel.identifier
         )
         
         request.httpBody = try JSONEncoder().encode(requestBody)
@@ -484,7 +522,7 @@ final class APIService: APIServiceProtocol, Sendable {
         let requestBody = VerifyCodeRequest(
             email: email,
             code: code,
-            deviceModel: await getDeviceModel(),
+            deviceModel: DeviceModel.identifier,
             name: name
         )
         
@@ -508,11 +546,10 @@ final class APIService: APIServiceProtocol, Sendable {
         // Add language headers for localized responses
         addLanguageHeaders(to: &request)
         
-        let deviceModel = await getDeviceModel()
         let requestBody = VerifyFlashCallRequest(
             requestId: requestId,
             code: code,
-            deviceModel: deviceModel
+            deviceModel: DeviceModel.identifier
         )
         request.httpBody = try JSONEncoder().encode(requestBody)
         
@@ -567,6 +604,43 @@ final class APIService: APIServiceProtocol, Sendable {
         return try JSONDecoder().decode(EmailBindingConfirmResponse.self, from: data)
     }
 
+    /// The account's sessions (SYNC.md §19).
+    ///
+    /// `X-App-Language` matters here for one row in the answer: a device whose model was never
+    /// recorded is named by the server, and that name is a sentence rather than an identifier.
+    func listDevices(deviceId: String) async throws -> DeviceListResponse {
+        let url = URL(string: "\(baseURL)/auth/devices")!
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(deviceId)", forHTTPHeaderField: "Authorization")
+        addLanguageHeaders(to: &request)
+
+        let (data, response) = try await performRequest(request)
+
+        try validateHTTPResponse(response, data: data)
+
+        return try JSONDecoder().decode(DeviceListResponse.self, from: data)
+    }
+
+    /// Revokes one other session (§19.4). Nothing tells the revoked device: its next run answers
+    /// 401, and §6 keeps its local database on that answer.
+    func revokeDevice(deviceId: String, targetDeviceId: String) async throws -> RevokeDeviceResponse {
+        let url = URL(string: "\(baseURL)/auth/devices")!
+            .appendingPathComponent(targetDeviceId)
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "DELETE"
+        request.setValue("Bearer \(deviceId)", forHTTPHeaderField: "Authorization")
+        addLanguageHeaders(to: &request)
+
+        let (data, response) = try await performRequest(request)
+
+        try validateHTTPResponse(response, data: data)
+
+        return try JSONDecoder().decode(RevokeDeviceResponse.self, from: data)
+    }
+
     /// One round of a sync run (SYNC.md §4).
     ///
     /// The 200 body is the bare object of §4.2 — no `success`/`timestamp` envelope, because a run
@@ -610,21 +684,6 @@ final class APIService: APIServiceProtocol, Sendable {
         }
     }
 
-    /// Gets device model identifier
-    @MainActor
-    private func getDeviceModel() -> String {
-        var systemInfo = utsname()
-        uname(&systemInfo)
-        
-        let machineMirror = Mirror(reflecting: systemInfo.machine)
-        let identifier = machineMirror.children.reduce("") { identifier, element in
-            guard let value = element.value as? Int8, value != 0 else { return identifier }
-            return identifier + String(UnicodeScalar(UInt8(value)))
-        }
-        
-        // Return exact device identifier (e.g., "iPhone17,4", "iPad14,5")
-        return identifier
-    }
     
     /// Validates HTTP response and handles errors
     private func validateHTTPResponse(_ response: URLResponse, data: Data) throws {

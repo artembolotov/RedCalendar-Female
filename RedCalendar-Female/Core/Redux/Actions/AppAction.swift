@@ -23,6 +23,7 @@
 enum AppAction: Sendable {
     case auth(AuthAction)
     case emailBinding(EmailBindingAction)
+    case devices(DevicesAction)
     case calendar(CalendarAction)
     case data(DataAction)
     case sync(SyncAction)
@@ -66,6 +67,31 @@ enum EmailBindingAction: Sendable {
     /// The whole screen, driven the way `AuthAction.set` drives sign-in — the transient states
     /// (`.requesting`, `.confirming`) are what the middleware acts on. `nil` closes the screen.
     case set(EmailBindingState?)
+}
+
+/// The account's own sessions (SYNC.md §19), owned by `devicesMiddleware`.
+///
+/// Its own domain rather than more cases on `AuthAction`, though it is served by `/auth/devices`:
+/// nothing here is a session transition for *this* phone. Revoking another device changes what
+/// some other phone may do, and this one goes on exactly as it was — which is why the caller's
+/// own row cannot be revoked at all (§19.3) and why `.logout` stays the only thing that ends this
+/// session.
+enum DevicesAction: Sendable {
+    /// The screen appeared. The list is fetched every time rather than cached: it is server
+    /// truth, and the interesting case — a session that is no longer there — is exactly the one
+    /// a cache would hide.
+    case load
+    case setDevices([UserDevice])
+    case loadFailed
+    /// The screen went away. Drops the list with it.
+    case close
+
+    case revoke(deviceId: String)
+    /// The session is gone from the server. Also the answer to a `404`: a device that is already
+    /// not on the account is the outcome the person asked for, and reporting it as a failure
+    /// would leave a row on screen that no longer exists anywhere.
+    case revoked(deviceId: String)
+    case revokeFailed(deviceId: String)
 }
 
 enum CalendarAction: Sendable {

@@ -185,6 +185,16 @@ struct SyncRequest: Encodable, Sendable {
     struct Device: Encodable, Sendable {
         /// IANA, not an offset — groundwork for notifications at 9am local (§4.1, §15).
         var timezone: String
+        /// The hardware identifier (§19.5). Sent on every run rather than kept from sign-in
+        /// because a restore carries the session onto a new phone: the `device_id` survives the
+        /// hardware, so a model written once would name the old phone in the device list forever.
+        /// The server merges it with `COALESCE`, so an omitted one never blanks what is known.
+        var deviceModel: String
+
+        enum CodingKeys: String, CodingKey {
+            case timezone
+            case deviceModel = "device_model"
+        }
     }
 
     enum CodingKeys: String, CodingKey {

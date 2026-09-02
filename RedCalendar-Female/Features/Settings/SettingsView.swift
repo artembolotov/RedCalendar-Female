@@ -43,6 +43,12 @@ struct SettingsView: View {
                         }
                     }
 
+                    Section("Безопасность") {
+                        NavigationLink("Мои устройства") {
+                            DevicesView()
+                        }
+                    }
+
                     Section {
                         versionRow
                     }
