@@ -43,6 +43,10 @@ struct AppState: Equatable, Sendable {
     /// result of its own: the address itself arrives on `userProfile` by the ordinary sync pull
     /// the confirmation asks for, because the server is the only thing that may write it (§4.4).
     var emailBinding: EmailBindingState?
+    /// The device list screen (SYNC.md §19), or `nil` while it is closed. Nothing outside that
+    /// screen reads it, and nothing about it is stored: the list is server truth, fetched on
+    /// every open, because a session that has gone is exactly what a cache would hide.
+    var devices: DevicesState?
 }
 
 extension AppState {

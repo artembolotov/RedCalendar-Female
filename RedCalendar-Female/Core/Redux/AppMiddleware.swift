@@ -11,6 +11,7 @@ func combineAppMiddlewares() -> [Middleware] {
         loggerMiddleware,
         authMiddleware,
         emailBindingMiddleware,
+        devicesMiddleware,
         migrationMiddleware,
         // A closure literal for the same reason the two below are: `handle` is a main-actor
         // method on a main-actor singleton, and a partial application of it is not `@Sendable`.
