@@ -118,6 +118,17 @@ struct Constants {
         static let emailRevertWindowDays = 14
     }
 
+    struct Devices {
+        /// How recent `last_seen_at` has to be for a device row to draw its online dot.
+        ///
+        /// `last_seen_at` is written by a sync run (SYNC.md §4.3, step 5), and a foregrounded app
+        /// runs one on activation and after every edit — so a phone somebody is holding stamps
+        /// itself far more often than this. Fifteen minutes is wide enough that a device idling on
+        /// an open screen still reads as present, and narrow enough that one closed yesterday
+        /// does not.
+        static let onlineWindow: TimeInterval = 15 * 60
+    }
+
     struct Cycle {
         static let minCycleLength = 20
         static let maxCycleLength = 90
