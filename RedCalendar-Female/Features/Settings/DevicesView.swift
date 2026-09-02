@@ -44,7 +44,7 @@ struct DevicesView: View {
                 // Said once, under the list, rather than on the row it applies to: it explains
                 // what happens to the *other* phone, which is not what the marked row is about.
                 if !devices.devices.isEmpty {
-                    Text("Отключённое устройство выйдет из аккаунта, когда приложение на нём в следующий раз выйдет в сеть. Записи на нём останутся.")
+                    Text("Отключённое устройство выйдет из аккаунта, когда приложение на нём в следующий раз выйдет в сеть.")
                 }
             }
         }
