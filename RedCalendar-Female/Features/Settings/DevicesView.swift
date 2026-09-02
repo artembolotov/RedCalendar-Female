@@ -44,7 +44,7 @@ struct DevicesView: View {
                 // Said once, under the list, rather than on the row it applies to: it explains
                 // what happens to the *other* phone, which is not what the marked row is about.
                 if !devices.devices.isEmpty {
-                    Text("Отключённое устройство выйдет из аккаунта при следующем обращении к серверу. Данные на нём останутся.")
+                    Text("Отключённое устройство выйдет из аккаунта, когда приложение на нём в следующий раз выйдет в сеть. Записи на нём останутся.")
                 }
             }
         }
@@ -78,9 +78,14 @@ struct DevicesView: View {
             }
             .padding(.vertical, 2)
 
+            Spacer()
+
             if isRevoking {
-                Spacer()
                 ProgressView()
+            } else if isOnline(device, isCurrent: isCurrent) {
+                Circle()
+                    .fill(Color.green)
+                    .frame(width: 10, height: 10)
             }
         }
         .swipeActions(edge: .trailing) {
@@ -95,6 +100,21 @@ struct DevicesView: View {
     }
 
     // MARK: - Private Methods
+
+    // This phone is online by definition — it is the one drawing the list, and the run that
+    // filled it has just stamped its own row. Every other row is judged by how recently its own
+    // run stamped it.
+    private func isOnline(_ device: UserDevice, isCurrent: Bool) -> Bool {
+        if isCurrent {
+            return true
+        }
+
+        guard let lastSeenAt = device.lastSeenAt else {
+            return false
+        }
+
+        return Date().timeIntervalSince(lastSeenAt) < Constants.Devices.onlineWindow
+    }
 
     // "This device" replaces the activity line rather than joining it: on this phone the answer
     // is always "seconds ago" — the run that filled the list has just written it — and a
@@ -123,6 +143,11 @@ struct DevicesView: View {
                         authState: .authenticated(deviceId: "test-device-id"),
                         devices: DevicesState(devices: [
                             UserDevice(id: "test-device-id", name: "iPhone 16 Pro", lastSeenAt: Date()),
+                            UserDevice(
+                                id: "online-device-id",
+                                name: "iPad Pro 11",
+                                lastSeenAt: Date().addingTimeInterval(-120)
+                            ),
                             UserDevice(
                                 id: "other-device-id",
                                 name: "iPhone 13",
