@@ -31,6 +31,584 @@
     "Email — это вход в аккаунт. Мы отправим на него код подтверждения." : {
 
     },
+    "Ovulation.before_4" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ovulation is expected within 4 days"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Овуляция наступит в течение 4 дней"
+          }
+        }
+      }
+    },
+    "Ovulation.before_4.named" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, ovulation is expected within 4 days"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, овуляция наступит в течение 4 дней"
+          }
+        }
+      }
+    },
+    "PeriodEnd.after_1" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Don’t forget to mark the end of your period"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Не забудьте отметить окончание менструации"
+          }
+        }
+      }
+    },
+    "PeriodEnd.after_1.named" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, don’t forget to mark the end of your period"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, не забудьте отметить окончание менструации"
+          }
+        }
+      }
+    },
+    "PeriodEnd.after_2" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The end of your period is still unmarked"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Окончание менструации всё ещё не отмечено"
+          }
+        }
+      }
+    },
+    "PeriodEnd.after_2.named" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, the end of your period is still unmarked"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, окончание менструации всё ещё не отмечено"
+          }
+        }
+      }
+    },
+    "PeriodEnd.before_1" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your period should end tomorrow"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Менструация закончится примерно завтра"
+          }
+        }
+      }
+    },
+    "PeriodEnd.before_1.named" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, your period should end tomorrow"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, менструация закончится примерно завтра"
+          }
+        }
+      }
+    },
+    "PeriodEnd.before_2" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your period should end in about 2 days"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Менструация закончится примерно через 2 дня"
+          }
+        }
+      }
+    },
+    "PeriodEnd.before_2.named" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, your period should end in about 2 days"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, менструация закончится примерно через 2 дня"
+          }
+        }
+      }
+    },
+    "PeriodEnd.today" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your period should end today"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Менструация должна закончиться сегодня"
+          }
+        }
+      }
+    },
+    "PeriodEnd.today.named" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, your period should end today"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, менструация должна закончиться сегодня"
+          }
+        }
+      }
+    },
+    "PeriodStart.after_1" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your period was due yesterday. Mark it if it has started."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Менструация должна была начаться вчера. Отметьте, если началась."
+          }
+        }
+      }
+    },
+    "PeriodStart.after_1.named" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, your period was due yesterday. Mark it if it has started."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, менструация должна была начаться вчера. Отметьте, если началась."
+          }
+        }
+      }
+    },
+    "PeriodStart.after_2" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your period was due 2 days ago. Mark it if it has started."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Менструация должна была начаться 2 дня назад. Отметьте, если началась."
+          }
+        }
+      }
+    },
+    "PeriodStart.after_2.named" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, your period was due 2 days ago. Mark it if it has started."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, менструация должна была начаться 2 дня назад. Отметьте, если началась."
+          }
+        }
+      }
+    },
+    "PeriodStart.after_3" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your period was due 3 days ago. Mark it if it has started."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Менструация должна была начаться 3 дня назад. Отметьте, если началась."
+          }
+        }
+      }
+    },
+    "PeriodStart.after_3.named" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, your period was due 3 days ago. Mark it if it has started."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, менструация должна была начаться 3 дня назад. Отметьте, если началась."
+          }
+        }
+      }
+    },
+    "PeriodStart.before_1" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your period is due tomorrow"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Менструация начнётся завтра"
+          }
+        }
+      }
+    },
+    "PeriodStart.before_1.named" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, your period is due tomorrow"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, менструация начнётся завтра"
+          }
+        }
+      }
+    },
+    "PeriodStart.before_2" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your period is due in 2 days"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Менструация начнётся через 2 дня"
+          }
+        }
+      }
+    },
+    "PeriodStart.before_2.named" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, your period is due in 2 days"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, менструация начнётся через 2 дня"
+          }
+        }
+      }
+    },
+    "PeriodStart.before_3" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your period is due in 3 days"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Менструация начнётся через 3 дня"
+          }
+        }
+      }
+    },
+    "PeriodStart.before_3.named" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, your period is due in 3 days"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, менструация начнётся через 3 дня"
+          }
+        }
+      }
+    },
+    "PeriodStart.before_4" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your period is due in 4 days"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Менструация начнётся через 4 дня"
+          }
+        }
+      }
+    },
+    "PeriodStart.before_4.named" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, your period is due in 4 days"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, менструация начнётся через 4 дня"
+          }
+        }
+      }
+    },
+    "PeriodStart.before_5" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your period is due in 5 days"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Менструация начнётся через 5 дней"
+          }
+        }
+      }
+    },
+    "PeriodStart.before_5.named" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, your period is due in 5 days"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, менструация начнётся через 5 дней"
+          }
+        }
+      }
+    },
+    "PeriodStart.before_6" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your period is due in 6 days"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Менструация начнётся через 6 дней"
+          }
+        }
+      }
+    },
+    "PeriodStart.before_6.named" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, your period is due in 6 days"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, менструация начнётся через 6 дней"
+          }
+        }
+      }
+    },
+    "PeriodStart.before_7" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your period is due in 7 days"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Менструация начнётся через 7 дней"
+          }
+        }
+      }
+    },
+    "PeriodStart.before_7.named" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, your period is due in 7 days"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, менструация начнётся через 7 дней"
+          }
+        }
+      }
+    },
+    "PeriodStart.today" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your period is due today"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Менструация начнётся сегодня"
+          }
+        }
+      }
+    },
+    "PeriodStart.today.named" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, your period is due today"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, менструация начнётся сегодня"
+          }
+        }
+      }
+    },
     "Push-уведомления" : {
 
     },
