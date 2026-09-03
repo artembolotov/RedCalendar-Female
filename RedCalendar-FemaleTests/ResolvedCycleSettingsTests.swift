@@ -18,6 +18,20 @@ final class ResolvedCycleSettingsTests: XCTestCase {
         XCTAssertEqual(resolved.cycleLength, Constants.Cycle.defaultCycleLength)
         XCTAssertEqual(resolved.periodLength, Constants.Cycle.defaultPeriodLength)
         XCTAssertEqual(resolved.lutealPhaseLength, Constants.Cycle.defaultLutealPhaseLength)
+        XCTAssertEqual(resolved.autoConfirmPreviousCycle, Constants.Cycle.defaultAutoConfirmPreviousCycle)
+    }
+
+    func testAutoConfirmPreviousCycleReadsTheStoredChoice() {
+        let resolved = ResolvedCycleSettings(
+            UserSettings.CycleSettings(
+                defaultLength: nil,
+                defaultPeriodLength: nil,
+                lutealPhaseLength: nil,
+                autoConfirmPreviousCycle: false
+            )
+        )
+
+        XCTAssertFalse(resolved.autoConfirmPreviousCycle)
     }
 
     func testFallbacksPerFieldWhenOnlySomeArePresent() {

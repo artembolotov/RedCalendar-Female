@@ -243,6 +243,9 @@ final class DatabaseService: DatabaseServiceProtocol {
             if let periodLength = patch.periodLength {
                 merged = merged.setting(["cycle", "default_period_length"], to: .int(periodLength))
             }
+            if let autoConfirmPreviousCycle = patch.autoConfirmPreviousCycle {
+                merged = merged.setting(["cycle", "auto_confirm_previous_cycle"], to: .bool(autoConfirmPreviousCycle))
+            }
             return merged
         }
     }
