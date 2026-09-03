@@ -18,6 +18,19 @@ import SwiftUI
 struct DevicesView: View {
     @EnvironmentObject var store: AppStore
 
+    /// What the trailing toolbar spinner actually draws. Deliberately not `devices.isLoading`
+    /// itself — `reconcileIndicator(isLoading:)` only flips this on once
+    /// `indicatorAppearDelayNanoseconds` has passed with the load still not answered, so a
+    /// request that resolves inside that window never draws a spinner at all. See
+    /// `SyncIndicatorView`, which the same scheme is copied from.
+    @State private var isIndicatorVisible = false
+    @State private var indicatorAppearTask: Task<Void, Never>?
+
+    // Same duration and same reason as `SyncIndicatorView.fadeDuration`: a state change made
+    // from a `Task.sleep` resuming, rather than a direct SwiftUI event, is not reliably caught by
+    // an ambient `.animation(value:)` — wrapping the mutation itself in `withAnimation` is.
+    private let indicatorFadeDuration: TimeInterval = 0.2
+
     private var devices: DevicesState { store.state.devices ?? DevicesState() }
 
     var body: some View {
@@ -50,15 +63,22 @@ struct DevicesView: View {
         }
         .navigationTitle("Мои устройства")
         .navigationBarTitleDisplayMode(.inline)
-        .overlay {
-            // Only while there is nothing to show. A refresh over an existing list would move
-            // the rows under a finger that is reaching for one of them.
-            if devices.isLoading && devices.devices.isEmpty {
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                // Always present, only `opacity` toggling — same reason as the icon in
+                // `SyncIndicatorView`: a `ViewBuilder` branch here would rebuild the toolbar's
+                // hosted content on every fade.
                 ProgressView()
+                    .opacity(isIndicatorVisible ? 1 : 0)
+                    .accessibilityHidden(!isIndicatorVisible)
             }
         }
+        .onChange(of: devices.isLoading) { reconcileIndicator(isLoading: $0) }
         .onAppear { store.send(.devices(.load)) }
-        .onDisappear { store.send(.devices(.close)) }
+        .onDisappear {
+            store.send(.devices(.close))
+            indicatorAppearTask?.cancel()
+        }
     }
 
     // MARK: - Private Views
@@ -100,6 +120,29 @@ struct DevicesView: View {
     }
 
     // MARK: - Private Methods
+
+    /// Gates *appearing*, never disappearing — same rule as `SyncIndicatorView.reconcile(to:)`.
+    /// A load that finishes is applied immediately; a load that just started only draws a spinner
+    /// once it has been running long enough that showing one is worth the flash of chrome.
+    private func reconcileIndicator(isLoading: Bool) {
+        indicatorAppearTask?.cancel()
+        indicatorAppearTask = nil
+
+        guard isLoading else {
+            withAnimation(.easeInOut(duration: indicatorFadeDuration)) {
+                isIndicatorVisible = false
+            }
+            return
+        }
+
+        indicatorAppearTask = Task {
+            try? await Task.sleep(nanoseconds: Constants.Devices.indicatorAppearDelayNanoseconds)
+            guard !Task.isCancelled else { return }
+            withAnimation(.easeInOut(duration: indicatorFadeDuration)) {
+                isIndicatorVisible = true
+            }
+        }
+    }
 
     // This phone is online by definition — it is the one drawing the list, and the run that
     // filled it has just stamped its own row. Every other row is judged by how recently its own

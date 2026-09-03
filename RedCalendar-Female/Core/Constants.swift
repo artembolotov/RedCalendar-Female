@@ -127,6 +127,12 @@ struct Constants {
         /// an open screen still reads as present, and narrow enough that one closed yesterday
         /// does not.
         static let onlineWindow: TimeInterval = 15 * 60
+
+        /// Same rationale as `Sync.indicatorAppearDelayNanoseconds`, and the same value: fetching
+        /// the device list is the same shape of request — TLS + a server hop, no local
+        /// computation — so a "fast" load lands in the same hundreds-of-milliseconds range, and a
+        /// load that resolves inside this window never draws a spinner at all.
+        static let indicatorAppearDelayNanoseconds: UInt64 = 700_000_000
     }
 
     struct Cycle {
