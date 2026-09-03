@@ -63,16 +63,7 @@ struct DevicesView: View {
         }
         .navigationTitle("Мои устройства")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                // Always present, only `opacity` toggling — same reason as the icon in
-                // `SyncIndicatorView`: a `ViewBuilder` branch here would rebuild the toolbar's
-                // hosted content on every fade.
-                ProgressView()
-                    .opacity(isIndicatorVisible ? 1 : 0)
-                    .accessibilityHidden(!isIndicatorVisible)
-            }
-        }
+        .modifier(DevicesToolbar(isIndicatorVisible: isIndicatorVisible))
         .onChange(of: devices.isLoading) { reconcileIndicator(isLoading: $0) }
         .onAppear { store.send(.devices(.load)) }
         .onDisappear {
@@ -174,6 +165,36 @@ struct DevicesView: View {
         }
 
         return "Активность: \(lastSeenAt.formatted(.relative(presentation: .named)))"
+    }
+}
+
+/// Same reason as `HomeToolbar` (`HomeView.swift`) — see its doc comment. `.sharedBackgroundVisibility`
+/// (iOS 26+) is a `ToolbarContent` modifier, not a `View` one, so hiding the system's "Liquid
+/// Glass" background at `.idle` needs the `if #available … else` to branch the `.toolbar {}` call
+/// itself; `ProgressView`'s own `.opacity(0)` never reaches that background, which is keyed off
+/// whether the item has content at all, not off what that content currently renders as.
+private struct DevicesToolbar: ViewModifier {
+    let isIndicatorVisible: Bool
+
+    func body(content: Content) -> some View {
+        if #available(iOS 26.0, *) {
+            content.toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    ProgressView()
+                        .opacity(isIndicatorVisible ? 1 : 0)
+                        .accessibilityHidden(!isIndicatorVisible)
+                }
+                .sharedBackgroundVisibility(isIndicatorVisible ? .visible : .hidden)
+            }
+        } else {
+            content.toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    ProgressView()
+                        .opacity(isIndicatorVisible ? 1 : 0)
+                        .accessibilityHidden(!isIndicatorVisible)
+                }
+            }
+        }
     }
 }
 
