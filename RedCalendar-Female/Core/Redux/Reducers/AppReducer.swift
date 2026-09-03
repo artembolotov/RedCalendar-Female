@@ -248,6 +248,7 @@ func appReducer(state: AppState, action: AppAction) -> AppState {
              .setFlowLevel,
              .setCycleLength,
              .setPeriodLength,
+             .setAutoConfirmPreviousCycle,
              .setName,
              // The switch holds its own position while the write goes round — same reason, and
              // the same consequence: there is nothing here to put back if the write fails.

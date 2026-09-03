@@ -26,6 +26,10 @@ struct ProfileView: View {
     @State private var draftPeriodLength: Int?
     @FocusState private var isNameFieldFocused: Bool
 
+    /// The switch's own position while the write goes round, exactly as `SettingsView`'s
+    /// notifications toggle holds its draft — undebounced, since one flick is the whole intent.
+    @State private var draftAutoConfirmPreviousCycle: Bool?
+
     @State private var isPresentingDeleteAccount = false
 
     var body: some View {
@@ -88,6 +92,7 @@ struct ProfileView: View {
 
             cycleLengthSection
             periodLengthSection
+            autoConfirmPreviousCycleSection
 
             // Its own section and the system red: this really does destroy the account, not just
             // the session `SettingsView`'s "Выйти" ends, and it sits at the bottom of the one
@@ -121,6 +126,9 @@ struct ProfileView: View {
         .onChange(of: store.state.cycleSettings) { settings in
             if draftCycleLength == settings.cycleLength { draftCycleLength = nil }
             if draftPeriodLength == settings.periodLength { draftPeriodLength = nil }
+            if draftAutoConfirmPreviousCycle == settings.autoConfirmPreviousCycle {
+                draftAutoConfirmPreviousCycle = nil
+            }
         }
         // The same for the name, whose other writer is the same pull. Trimmed on both sides of
         // the comparison, and against `""` for the cleared name, so it matches what
@@ -192,6 +200,16 @@ struct ProfileView: View {
         }
     }
 
+    // The option RedCalendar 2.0 had under the same name: a new period start left the previous
+    // one open more often than not, since ending it was a separate tap nobody remembered to make.
+    private var autoConfirmPreviousCycleSection: some View {
+        Section {
+            Toggle("Подтверждать автоматически", isOn: autoConfirmPreviousCycleBinding)
+        } footer: {
+            Text("Если начало новых месячных отмечено, а окончание предыдущих — нет, оно подтвердится автоматически, с длительностью \(periodLength.russianDays).")
+        }
+    }
+
     /// Both numbers are measured back off the recorded cycles once there are enough of them
     /// (`CycleForecast`), so a value typed here can change by itself once a later cycle is
     /// recorded. Said in both sections, and said before it happens: a number that moves on its
@@ -240,6 +258,18 @@ struct ProfileView: View {
 
     private var periodLengthBinding: Binding<Int> {
         Binding(get: { periodLength }, set: { draftPeriodLength = $0 })
+    }
+
+    // Undebounced and dispatched straight from the toggle, like `SettingsView`'s notifications
+    // switch: there are no intermediate values to coalesce, so `commitDrafts` never sees this one.
+    private var autoConfirmPreviousCycleBinding: Binding<Bool> {
+        Binding(
+            get: { draftAutoConfirmPreviousCycle ?? store.state.cycleSettings.autoConfirmPreviousCycle },
+            set: { enabled in
+                draftAutoConfirmPreviousCycle = enabled
+                store.send(.data(.setAutoConfirmPreviousCycle(enabled)))
+            }
+        )
     }
 
     private func commitAfterPause() async {

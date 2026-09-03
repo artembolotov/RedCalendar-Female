@@ -15,6 +15,9 @@ struct ResolvedCycleSettings: Equatable, Sendable {
     let cycleLength: Int
     let periodLength: Int
     let lutealPhaseLength: Int
+    /// Whether marking a new period start also confirms the previous one — using this same
+    /// `periodLength` — when it was left open. See `DatabaseMiddleware.handleMarkPeriodStart`.
+    let autoConfirmPreviousCycle: Bool
 
     init(_ settings: UserSettings.CycleSettings?) {
         cycleLength = clamp(
@@ -31,6 +34,8 @@ struct ResolvedCycleSettings: Equatable, Sendable {
             settings?.lutealPhaseLength ?? Constants.Cycle.defaultLutealPhaseLength,
             1...(cycleLength - 1)
         )
+        autoConfirmPreviousCycle = settings?.autoConfirmPreviousCycle
+            ?? Constants.Cycle.defaultAutoConfirmPreviousCycle
     }
 }
 
@@ -43,6 +48,7 @@ struct ResolvedCycleSettings: Equatable, Sendable {
 struct CycleSettingsPatch: Sendable, Equatable {
     var cycleLength: Int?
     var periodLength: Int?
+    var autoConfirmPreviousCycle: Bool?
 }
 
 private func clamp(_ value: Int, _ range: ClosedRange<Int>) -> Int {

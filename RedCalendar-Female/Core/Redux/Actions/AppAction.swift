@@ -154,6 +154,11 @@ enum DataAction: Sendable {
     case setCycleLength(Int)
     case setPeriodLength(Int)
 
+    /// The "auto-confirm previous cycle" switch in `ProfileView` (RedCalendar 2.0 had the same
+    /// option): whether marking a new period start also confirms a previous one left open, using
+    /// the forecasted period length. Same write path as the two above, one key of its own.
+    case setAutoConfirmPreviousCycle(Bool)
+
     /// The notifications switch, in `SettingsView` and on the onboarding screen. Written as
     /// `settings.notifications.muted` — inverted, because that is the key RedCalendar 2.0 wrote
     /// and every imported profile already carries (SYNC.md §10.2) — and the inversion happens at

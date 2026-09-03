@@ -158,6 +158,7 @@ final class DatabaseMiddleware {
                     stamp: stamp,
                     today: state.calendarState.todayDayStamp,
                     cycles: state.calendarState.cycles,
+                    cycleSettings: state.cycleSettings,
                     dispatch: dispatch
                 )
 
@@ -203,6 +204,11 @@ final class DatabaseMiddleware {
             case .setPeriodLength(let length):
                 await write(.cycleSettings, detail: "periodLength", dispatch: dispatch) {
                     try await dbService.updateCycleSettings(CycleSettingsPatch(periodLength: length))
+                }
+
+            case .setAutoConfirmPreviousCycle(let enabled):
+                await write(.cycleSettings, detail: "autoConfirmPreviousCycle", dispatch: dispatch) {
+                    try await dbService.updateCycleSettings(CycleSettingsPatch(autoConfirmPreviousCycle: enabled))
                 }
 
             // Immediate too, and here there is nothing to coalesce at all: one tap of the
@@ -417,6 +423,7 @@ final class DatabaseMiddleware {
         stamp: Daystamp,
         today: Daystamp,
         cycles: [CycleRecord],
+        cycleSettings: ResolvedCycleSettings,
         dispatch: @escaping Dispatch
     ) async {
         if let existing = cycles.first(where: { $0.startDay == stamp }) {
@@ -440,8 +447,22 @@ final class DatabaseMiddleware {
                 periodLength: 0,
                 ovulation: nil
             )
+            var recordsToWrite = [newCycle]
+
+            // RedCalendar 2.0's auto-confirm option: a new start left the previous cycle's period
+            // open (`periodLength == 0`, never ended) — confirm it now, at the forecasted length,
+            // in the same write as the new start. `owningCycle(for: stamp - 1)` is the cycle
+            // immediately before this one, whichever cycle that is — not necessarily `cycles.last`,
+            // since a start may be backfilled into a gap between two already-recorded cycles.
+            if cycleSettings.autoConfirmPreviousCycle,
+               var previous = cycles.owningCycle(for: stamp - 1),
+               previous.periodLength == 0 {
+                previous.periodLength = cycleSettings.periodLength
+                recordsToWrite.append(previous)
+            }
+
             await write(.periodStart, detail: "insert", dispatch: dispatch) {
-                try await dbService.upsert([newCycle])
+                try await dbService.upsert(recordsToWrite)
             }
         }
     }
