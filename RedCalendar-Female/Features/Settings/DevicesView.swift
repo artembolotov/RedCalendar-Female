@@ -53,11 +53,21 @@ struct DevicesView: View {
                 ForEach(devices.devices) { device in
                     row(for: device)
                 }
-            } footer: {
+
                 // Said once, under the list, rather than on the row it applies to: it explains
                 // what happens to the *other* phone, which is not what the marked row is about.
+                //
+                // A row in the section's own content, not `footer:` — a `Section` footer is a
+                // distinct supplementary view with its own self-sizing pass, separate from its
+                // rows', and that pass comes back from a background/foreground cycle unstable
+                // (confirmed on device for the same text elsewhere; `.fixedSize` on the footer
+                // text does not fix it — see `ProfileView`'s cycle-length section for the same
+                // workaround). Folding the text into the row content shares the rows' own
+                // self-sizing pass instead of getting one of its own.
                 if !devices.devices.isEmpty {
                     Text("Отключённое устройство выйдет из аккаунта, когда приложение на нём в следующий раз выйдет в сеть.")
+                        .font(.footnote)
+                        .foregroundColor(.secondary)
                 }
             }
         }
