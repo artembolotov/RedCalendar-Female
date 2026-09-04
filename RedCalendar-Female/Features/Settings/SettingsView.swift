@@ -56,6 +56,7 @@ struct SettingsView: View {
                     if versionTapCount >= 8 {
                         DeveloperSectionView(
                             deviceId: deviceId,
+                            userId: store.state.userProfile?.userId,
                             todayDayStamp: store.state.calendarState.todayDayStamp,
                             analyticsActivated: store.state.analyticsActivated,
                             pushRegistered: store.state.notifications.pushPermissionState == .authorized
@@ -242,6 +243,7 @@ struct SettingsView: View {
 
 private struct DeveloperSectionView: View {
     let deviceId: String
+    let userId: String?
     let todayDayStamp: Daystamp
     let analyticsActivated: Bool
     let pushRegistered: Bool
@@ -268,7 +270,18 @@ private struct DeveloperSectionView: View {
                 Text(deviceId)
                     .foregroundColor(.secondary)
                     .lineLimit(1)
-                    .truncationMode(.middle)
+                    .truncationMode(.tail)
+                copyButton(value: deviceId)
+            }
+
+            HStack {
+                Text("User ID")
+                Spacer()
+                Text(userId.orPlaceholder)
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                copyButton(value: userId)
             }
 
             HStack {
@@ -277,7 +290,7 @@ private struct DeveloperSectionView: View {
                 Text("\(todayDayStamp.rawValue)")
                     .foregroundColor(.secondary)
                     .lineLimit(1)
-                    .truncationMode(.middle)
+                    .truncationMode(.tail)
             }
 
             HStack {
@@ -286,7 +299,7 @@ private struct DeveloperSectionView: View {
                 Text(userName.orPlaceholder)
                     .foregroundColor(.secondary)
                     .lineLimit(1)
-                    .truncationMode(.middle)
+                    .truncationMode(.tail)
             }
 
             HStack {
@@ -295,7 +308,7 @@ private struct DeveloperSectionView: View {
                 Text(userEmail.orPlaceholder)
                     .foregroundColor(.secondary)
                     .lineLimit(1)
-                    .truncationMode(.middle)
+                    .truncationMode(.tail)
             }
 
             HStack {
@@ -304,7 +317,7 @@ private struct DeveloperSectionView: View {
                 Text(userPhoneNumber.orPlaceholder)
                     .foregroundColor(.secondary)
                     .lineLimit(1)
-                    .truncationMode(.middle)
+                    .truncationMode(.tail)
             }
 
             HStack {
@@ -325,6 +338,18 @@ private struct DeveloperSectionView: View {
         Circle()
             .fill(active ? Color.green : Color.red)
             .frame(width: 10, height: 10)
+    }
+
+    private func copyButton(value: String?) -> some View {
+        Button {
+            guard let value else { return }
+            UIPasteboard.general.string = value
+        } label: {
+            Image(systemName: "doc.on.doc")
+                .foregroundColor(.secondary)
+        }
+        .buttonStyle(.borderless)
+        .disabled(value == nil)
     }
 }
 
