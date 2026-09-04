@@ -37,13 +37,13 @@ struct SettingsView: View {
 
                     accentThemeSection
 
-                    Section("Теги") {
-                        NavigationLink("Редактировать") {
+                    Section {
+                        NavigationLink("Теги") {
                             TagsListView()
                         }
                     }
 
-                    Section("Безопасность") {
+                    Section {
                         NavigationLink("Мои устройства") {
                             DevicesView()
                         }
@@ -133,7 +133,7 @@ struct SettingsView: View {
     private var notificationsSection: some View {
         let isBlocked = store.state.notifications.isBlockedBySystem
 
-        return Section("Уведомления") {
+        return Section {
             Toggle("Присылать уведомления", isOn: notificationsBinding)
                 .disabled(isBlocked)
 
