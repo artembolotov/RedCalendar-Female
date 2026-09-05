@@ -3167,6 +3167,54 @@
         }
       }
     },
+    "Statistics.Period.AllTime" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All time"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Всё время"
+          }
+        }
+      }
+    },
+    "Statistics.Period.SixMonths" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "6 months"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "6 месяцев"
+          }
+        }
+      }
+    },
+    "Statistics.Period.Year" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 year"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 год"
+          }
+        }
+      }
+    },
     "Statistics.PeriodLength.Header" : {
       "localizations" : {
         "en" : {
