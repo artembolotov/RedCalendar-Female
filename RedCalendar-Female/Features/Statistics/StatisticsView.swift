@@ -158,26 +158,18 @@ struct StatisticsView: View {
     // MARK: - Period Menu
 
     // Which window `averages` measures over. Local to this view, like `headerHeight` — nothing
-    // else reads the choice, so it stays out of the store.
+    // else reads the choice, so it stays out of the store. `.menu` is the system's own dropdown
+    // chrome (value + chevron, checkmark on the selected row) — outside a List/Form row, the
+    // `label` is accessibility-only and never drawn, so it doubles as the button's VoiceOver text.
     private var periodMenu: some View {
-        Menu {
+        Picker(selection: $selectedPeriod) {
             ForEach(StatisticsPeriod.allCases) { period in
-                Button {
-                    selectedPeriod = period
-                } label: {
-                    if period == selectedPeriod {
-                        Label(period.titleKey, systemImage: "checkmark")
-                    } else {
-                        Text(period.titleKey)
-                    }
-                }
+                Text(period.titleKey).tag(period)
             }
         } label: {
-            HStack(spacing: 4) {
-                Text(selectedPeriod.titleKey)
-                Image(systemName: "chevron.up.chevron.down")
-            }
+            Text(selectedPeriod.titleKey)
         }
+        .pickerStyle(.menu)
     }
 
     // MARK: - Chart Legend
