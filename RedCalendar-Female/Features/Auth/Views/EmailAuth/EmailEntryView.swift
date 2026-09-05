@@ -34,17 +34,17 @@ struct EmailEntryView: View {
             GeometryReader { geometry in
                 ScrollView {
                     VStack(spacing: 20) {
-                        Text("Добро пожаловать!")
+                        Text("EmailEntry.Heading")
                             .font(.title2)
                             .fontWeight(.semibold)
                         
-                        Text("Данные хранятся на устройстве и в облаке. Email нужен для доступа к вашему профилю")
+                        Text("EmailEntry.Subtitle")
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
                         
                         // Email input with inline arrow button
                         HStack(spacing: 12) {
-                            TextField("Email", text: $emailText)
+                            TextField("EmailEntry.Email.Placeholder", text: $emailText)
                                 .keyboardType(.emailAddress)
                                 .textContentType(.emailAddress)
                                 .submitLabel(.continue)
@@ -76,10 +76,10 @@ struct EmailEntryView: View {
                         }
                         
                        Group {
-                           Text("Пользователи RedCalendar 2.0\nмогут войти [по номеру телефона](phone)")
+                           Text("EmailEntry.LegacyPhone.Footer")
                                      
                            if error != nil {
-                               Text("Нужна помощь?\n [support@calendar.red](email)")
+                               Text("EmailEntry.Support.Footer")
                            }
                        }
                        .font(.caption)
@@ -104,7 +104,7 @@ struct EmailEntryView: View {
                     }
                 }
             }
-            .navigationTitle("Вход")
+            .navigationTitle("EmailEntry.Title")
             .navigationBarTitleDisplayMode(.inline)
         }
     }

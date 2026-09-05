@@ -50,11 +50,11 @@ struct PhoneEntryView: View {
                         }
                         .padding(.top, 8)
                         
-                        Text("Вход по номеру")
+                        Text("PhoneEntry.Heading")
                             .font(.title2)
                             .fontWeight(.semibold)
                         
-                        Text("Мы позвоним для подтверждения входа в приложение")
+                        Text("PhoneEntry.Subtitle")
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
                         
@@ -95,7 +95,7 @@ struct PhoneEntryView: View {
                     }
                 }
             }
-            .navigationTitle("Вход")
+            .navigationTitle("PhoneEntry.Title")
             .navigationBarTitleDisplayMode(.inline)
         }
     }

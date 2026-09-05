@@ -29,28 +29,30 @@ enum AuthenticationError: Error, LocalizedError, Equatable {
     case serverError(String)                      // Server-side errors
     case unknownError(String)                     // Fallback error
     
+    // Key per case, mechanically: the type's name and the case's own. Nothing to invent, and a
+    // case added without a string is visible in the same glance as the switch itself.
     var errorDescription: String? {
         switch self {
         case .phoneNotRegistered:
-            return "Этот способ входа — только для пользователей RedCalendar 2.0. Новым пользователям нужно войти по email."
+            return String(localized: "AuthError.PhoneNotRegistered")
         case .phoneCallFailed:
-            return "Не удалось запросить звонок для подтверждения. Попробуйте ещё раз."
+            return String(localized: "AuthError.PhoneCallFailed")
         case .phoneVerificationFailed:
-            return "Неверные цифры звонка. Попробуйте ещё раз."
+            return String(localized: "AuthError.PhoneVerificationFailed")
         case .phoneCallTimeout:
-            return "Звонок для подтверждения не пришёл. Запросите новый."
+            return String(localized: "AuthError.PhoneCallTimeout")
         case .invalidVerificationCode:
-            return "Неверный код подтверждения. Попробуйте ещё раз."
+            return String(localized: "AuthError.InvalidVerificationCode")
         case .verificationCodeExpired:
-            return "Код подтверждения истёк. Запросите новый."
+            return String(localized: "AuthError.VerificationCodeExpired")
         case .verificationCodeLimitExceeded:
-            return "Слишком много попыток. Попробуйте позже."
+            return String(localized: "AuthError.VerificationCodeLimitExceeded")
         case .deviceIdStorageFailed:
-            return "Не удалось завершить вход на этом устройстве. Попробуйте ещё раз."
+            return String(localized: "AuthError.DeviceIdStorageFailed")
         case .registrationFailed:
-            return "Не удалось создать аккаунт. Попробуйте ещё раз."
+            return String(localized: "AuthError.RegistrationFailed")
         case .emailVerificationFailed:
-            return "Не удалось подтвердить email. Попробуйте ещё раз."
+            return String(localized: "AuthError.EmailVerificationFailed")
         case .networkError(let message):
             return message
         case .serverError(let message):
@@ -77,9 +79,9 @@ extension AuthenticationError {
         case APIServiceError.refused(let refusal):
             return .serverError(refusal.displayMessage)
         case APIServiceError.rateLimited(_, let refusal):
-            return .serverError(refusal?.displayMessage ?? "Слишком много запросов. Попробуйте позже.")
+            return .serverError(refusal?.displayMessage ?? String(localized: "AuthError.RateLimited"))
         case APIServiceError.serverUnavailable(let status, let message):
-            return .serverError(message ?? "Сервер недоступен (HTTP \(status)).")
+            return .serverError(message ?? String.localized("AuthError.ServerUnavailable", status))
         case APIServiceError.networkError(let networkError):
             return .networkError(networkError.localizedDescription)
         default:

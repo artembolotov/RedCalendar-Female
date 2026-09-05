@@ -7,6 +7,198 @@
     "AppMetrica" : {
 
     },
+    "AuthError.DeviceIdStorageFailed" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Signing in couldn't be finished on this device. Please try again."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Не удалось завершить вход на этом устройстве. Попробуйте ещё раз."
+          }
+        }
+      }
+    },
+    "AuthError.EmailVerificationFailed" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The email couldn't be confirmed. Please try again."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Не удалось подтвердить email. Попробуйте ещё раз."
+          }
+        }
+      }
+    },
+    "AuthError.InvalidVerificationCode" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "That confirmation code isn't right. Please try again."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Неверный код подтверждения. Попробуйте ещё раз."
+          }
+        }
+      }
+    },
+    "AuthError.PhoneCallFailed" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The confirmation call couldn't be requested. Please try again."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Не удалось запросить звонок для подтверждения. Попробуйте ещё раз."
+          }
+        }
+      }
+    },
+    "AuthError.PhoneCallTimeout" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The confirmation call never arrived. Request a new one."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Звонок для подтверждения не пришёл. Запросите новый."
+          }
+        }
+      }
+    },
+    "AuthError.PhoneNotRegistered" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This way of signing in is only for RedCalendar 2.0 users. New users sign in by email."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Этот способ входа — только для пользователей RedCalendar 2.0. Новым пользователям нужно войти по email."
+          }
+        }
+      }
+    },
+    "AuthError.PhoneVerificationFailed" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Those digits don't match the call. Please try again."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Неверные цифры звонка. Попробуйте ещё раз."
+          }
+        }
+      }
+    },
+    "AuthError.RateLimited" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Too many requests. Please try again later."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Слишком много запросов. Попробуйте позже."
+          }
+        }
+      }
+    },
+    "AuthError.RegistrationFailed" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The account couldn't be created. Please try again."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Не удалось создать аккаунт. Попробуйте ещё раз."
+          }
+        }
+      }
+    },
+    "AuthError.ServerUnavailable" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The server is unavailable (HTTP %lld)."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сервер недоступен (HTTP %lld)."
+          }
+        }
+      }
+    },
+    "AuthError.VerificationCodeExpired" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The confirmation code has expired. Request a new one."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Код подтверждения истёк. Запросите новый."
+          }
+        }
+      }
+    },
+    "AuthError.VerificationCodeLimitExceeded" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Too many attempts. Please try again later."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Слишком много попыток. Попробуйте позже."
+          }
+        }
+      }
+    },
     "Common.Cancel" : {
       "localizations" : {
         "en" : {
@@ -188,6 +380,102 @@
         }
       }
     },
+    "CycleOnboarding.Continue.Button" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Continue"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Продолжить"
+          }
+        }
+      }
+    },
+    "CycleOnboarding.CycleLength.Title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cycle length"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Длина цикла"
+          }
+        }
+      }
+    },
+    "CycleOnboarding.Heading" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tell us about your cycle"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Расскажите о своём цикле"
+          }
+        }
+      }
+    },
+    "CycleOnboarding.Notifications.Title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notifications"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Уведомления"
+          }
+        }
+      }
+    },
+    "CycleOnboarding.PeriodLength.Title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Period length"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Длительность месячных"
+          }
+        }
+      }
+    },
+    "CycleOnboarding.Subtitle" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This is what the calendar predicts from — a rough answer is fine, and you can change it in Settings at any time."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Это нужно для прогнозов в календаре — можно ответить примерно, значения всегда можно будет изменить в настройках."
+          }
+        }
+      }
+    },
     "Developer" : {
 
     },
@@ -199,6 +487,265 @@
     },
     "Email — это вход в аккаунт. Мы отправим на него код подтверждения." : {
 
+    },
+    "EmailCode.Code.Placeholder" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Code from the email"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Код из письма"
+          }
+        }
+      }
+    },
+    "EmailCode.Greeting.Named" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hi, %@!"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Привет, %@!"
+          }
+        }
+      }
+    },
+    "EmailCode.Greeting.Returning" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Welcome back!"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "С возвращением!"
+          }
+        }
+      }
+    },
+    "EmailCode.Name.Placeholder" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your name (optional)"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ваше имя (необязательно)"
+          }
+        }
+      }
+    },
+    "EmailCode.Register.Title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign up"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Регистрация"
+          }
+        }
+      }
+    },
+    "EmailCode.Resend.Footer" : {
+      "comment" : "The link target `resend` is read by the view — keep it as it is.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Didn't get the email?\n[Send a new code](resend)"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Не получили письмо?\n[Отправить новый код](resend)"
+          }
+        }
+      }
+    },
+    "EmailCode.Sent.Message" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "We sent a sign-in code to %@"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Код для входа отправлен на %@"
+          }
+        }
+      }
+    },
+    "EmailCode.SignIn.Title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign in"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вход"
+          }
+        }
+      }
+    },
+    "EmailCode.Submit.Register" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign up"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Зарегистрироваться"
+          }
+        }
+      }
+    },
+    "EmailCode.Submit.SignIn" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign in"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Войти"
+          }
+        }
+      }
+    },
+    "EmailEntry.Email.Placeholder" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Email"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Email"
+          }
+        }
+      }
+    },
+    "EmailEntry.Heading" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Welcome!"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Добро пожаловать!"
+          }
+        }
+      }
+    },
+    "EmailEntry.LegacyPhone.Footer" : {
+      "comment" : "The link target `phone` is read by the view — keep it as it is.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RedCalendar 2.0 users\ncan sign in [by phone number](phone)"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Пользователи RedCalendar 2.0\nмогут войти [по номеру телефона](phone)"
+          }
+        }
+      }
+    },
+    "EmailEntry.Subtitle" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your data is stored on this device and in the cloud. Email is what gives you access to your profile"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Данные хранятся на устройстве и в облаке. Email нужен для доступа к вашему профилю"
+          }
+        }
+      }
+    },
+    "EmailEntry.Support.Footer" : {
+      "comment" : "The link target `email` is read by the view — keep it as it is.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Need help?\n [support@calendar.red](email)"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Нужна помощь?\n [support@calendar.red](email)"
+          }
+        }
+      }
+    },
+    "EmailEntry.Title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign in"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вход"
+          }
+        }
+      }
     },
     "Ovulation.before_4" : {
       "extractionState" : "manual",
@@ -778,8 +1325,217 @@
         }
       }
     },
+    "PhoneCode.Calling.Heading" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Calling"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Звоним на номер"
+          }
+        }
+      }
+    },
+    "PhoneCode.Digits.Placeholder" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "XXXX"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "XXXX"
+          }
+        }
+      }
+    },
+    "PhoneCode.Hint" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Decline the call and enter the last 4 digits of the number"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Отклоните вызов и введите последние 4 цифры номера"
+          }
+        }
+      }
+    },
+    "PhoneCode.Retry.Footer" : {
+      "comment" : "The link target `retry` is read by the view — keep it as it is.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Didn't get the call?\n[Request a new one](retry)"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Не получили звонок?\n[Запросить новый](retry)"
+          }
+        }
+      }
+    },
+    "PhoneCode.Title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verification"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Проверка"
+          }
+        }
+      }
+    },
+    "PhoneEntry.Heading" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign in by phone"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вход по номеру"
+          }
+        }
+      }
+    },
+    "PhoneEntry.Subtitle" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "We'll call you to confirm you're signing in"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Мы позвоним для подтверждения входа в приложение"
+          }
+        }
+      }
+    },
+    "PhoneEntry.Title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign in"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вход"
+          }
+        }
+      }
+    },
+    "PhoneNumberField.Placeholder" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Phone number"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Номер телефона"
+          }
+        }
+      }
+    },
     "Push-уведомления" : {
 
+    },
+    "SignIn.Waiting.CheckingCode" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Checking the code"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Проверяем код"
+          }
+        }
+      }
+    },
+    "SignIn.Waiting.CheckingPhone" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Checking the number"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Проверяем номер"
+          }
+        }
+      }
+    },
+    "SignIn.Waiting.CreatingAccount" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Creating your account"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Создаём аккаунт"
+          }
+        }
+      }
+    },
+    "SignIn.Waiting.SendingCode" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sending the code"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Отправляем код"
+          }
+        }
+      }
     },
     "Today Daystamp" : {
 
@@ -787,13 +1543,151 @@
     "User ID" : {
 
     },
-    "XXXX" : {
-
+    "Welcome.SignIn.Button" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign in"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Войти"
+          }
+        }
+      }
+    },
+    "Welcome.Slide.Cycle.Heading" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Track your cycle"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Отслеживайте цикл"
+          }
+        }
+      }
+    },
+    "Welcome.Slide.Cycle.Subtitle" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keep a menstrual cycle calendar with accurate predictions"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ведите календарь менструального цикла с точными прогнозами"
+          }
+        }
+      }
+    },
+    "Welcome.Slide.Privacy.Heading" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your data is safe"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ваши данные в безопасности"
+          }
+        }
+      }
+    },
+    "Welcome.Slide.Privacy.Subtitle" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Complete privacy and protection of your personal information"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Полная приватность и защита персональной информации"
+          }
+        }
+      }
+    },
+    "Welcome.Slide.Reminders.Heading" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Get reminders"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Получайте напоминания"
+          }
+        }
+      }
+    },
+    "Welcome.Slide.Reminders.Subtitle" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Timely notifications about the days that matter"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Умные уведомления о важных днях цикла"
+          }
+        }
+      }
+    },
+    "Welcome.Slide.Wellbeing.Heading" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stay on top of how you feel"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Контролируйте самочувствие"
+          }
+        }
+      }
+    },
+    "Welcome.Slide.Wellbeing.Subtitle" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Log symptoms, moods and the things worth remembering"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Записывайте симптомы, настроение и важные события"
+          }
+        }
+      }
     },
     "Аккаунт помечается на удаление сразу, а данные стираются окончательно через %@. Если войти в аккаунт до этого срока — всё вернётся как было." : {
-
-    },
-    "Ваше имя (необязательно)" : {
 
     },
     "Введите новый адрес. Мы отправим на него код подтверждения." : {
@@ -802,19 +1696,7 @@
     "Версия" : {
 
     },
-    "Войти" : {
-
-    },
-    "Вход" : {
-
-    },
-    "Вход по номеру" : {
-
-    },
     "Выйти" : {
-
-    },
-    "Данные хранятся на устройстве и в облаке. Email нужен для доступа к вашему профилю" : {
 
     },
     "Длина цикла" : {
@@ -823,16 +1705,10 @@
     "Длительность месячных" : {
 
     },
-    "Добро пожаловать!" : {
-
-    },
     "Если начало новых месячных отмечено, а окончание предыдущих — нет, оно подтвердится автоматически, с длительностью %@." : {
 
     },
     "Есть несохранённые данные" : {
-
-    },
-    "Звоним на номер" : {
 
     },
     "Здесь будет статистика и аналитика" : {
@@ -856,12 +1732,6 @@
     "Категория %lld" : {
 
     },
-    "Код для входа отправлен на %@" : {
-
-    },
-    "Код из письма" : {
-
-    },
     "Код подтверждения отправлен на %@" : {
 
     },
@@ -877,9 +1747,6 @@
     "Мои устройства" : {
 
     },
-    "Мы позвоним для подтверждения входа в приложение" : {
-
-    },
     "На прежний адрес придёт письмо о смене с кнопкой возврата — на случай, если аккаунтом воспользовался кто-то посторонний. Она действует %@." : {
 
     },
@@ -892,13 +1759,7 @@
     "Настройки" : {
 
     },
-    "Не получили звонок?\n[Запросить новый](retry)" : {
-
-    },
     "Не получили письмо?\n[Отправить код ещё раз](resend)" : {
-
-    },
-    "Не получили письмо?\n[Отправить новый код](resend)" : {
 
     },
     "Не удалось синхронизировать данные" : {
@@ -916,16 +1777,10 @@
     "Новый тег" : {
 
     },
-    "Нужна помощь?\n [support@calendar.red](email)" : {
-
-    },
     "Обильность" : {
 
     },
     "Обновление системы авторизации..." : {
-
-    },
-    "Отклоните вызов и введите последние 4 цифры номера" : {
 
     },
     "Отключённое устройство выйдет из аккаунта, когда приложение на нём в следующий раз выйдет в сеть." : {
@@ -961,13 +1816,7 @@
     "Подтверждать автоматически" : {
 
     },
-    "Пользователи RedCalendar 2.0\nмогут войти [по номеру телефона](phone)" : {
-
-    },
     "Почта" : {
-
-    },
-    "Привет, %@!" : {
 
     },
     "Привязка email" : {
@@ -976,19 +1825,7 @@
     "Присылать уведомления" : {
 
     },
-    "Проверка" : {
-
-    },
     "Профиль" : {
-
-    },
-    "Расскажите о своём цикле" : {
-
-    },
-    "Регистрация" : {
-
-    },
-    "С возвращением!" : {
 
     },
     "Синхронизация" : {
@@ -1024,9 +1861,6 @@
     "Теперь ваш адрес — %@. Входите в аккаунт по нему." : {
 
     },
-    "Уведомления" : {
-
-    },
     "Уведомления отключены для приложения в настройках iOS. Включите их там, чтобы получать напоминания на этом устройстве." : {
 
     },
@@ -1043,9 +1877,6 @@
 
     },
     "Укажите email" : {
-
-    },
-    "Это нужно для прогнозов в календаре — можно ответить примерно, значения всегда можно будет изменить в настройках." : {
 
     },
     "Это удалит всю историю циклов, комментарии и теги, привязанные к аккаунту." : {

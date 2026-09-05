@@ -36,14 +36,14 @@ final class StringCatalogTests: XCTestCase {
     /// Keys still holding their English text, waiting on the `Developer`, `Settings` and
     /// `PhoneCode` scopes. Delete each as its screen migrates; the last one out empties the list.
     private static let pendingLatinKeys: Set<String> = [
-        "AppMetrica", "Developer", "Device ID", "Email", "Today Daystamp", "User ID", "XXXX",
+        "AppMetrica", "Developer", "Device ID", "Email", "Today Daystamp", "User ID",
     ]
 
     /// Keys still holding their Russian text. They are self-describing in Russian and fall back to
     /// themselves everywhere else, which is what the migration is replacing — until then they are
     /// exempt from both checks below. The count is asserted rather than the list, so a screen that
     /// migrates lowers it and a new Russian literal cannot quietly take the freed slot.
-    private static let pendingRussianKeyCount = 91
+    private static let pendingRussianKeyCount = 69
 
     // MARK: - Tests
 

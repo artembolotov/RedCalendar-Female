@@ -42,13 +42,13 @@ struct LoginView: View {
         case .entry(_, _):
             EmailEntryView()
         case .checking(_, _):
-            WaitingView("Отправляем код")
+            WaitingView("SignIn.Waiting.SendingCode")
         case .codeEntry(_, _, _, _), .registration(_, _, _, _):
             CodeEntryView()
         case .verifying(_, _, _):
-            WaitingView("Проверяем код")
+            WaitingView("SignIn.Waiting.CheckingCode")
         case .registering(_, _, _):
-            WaitingView("Создаём аккаунт")
+            WaitingView("SignIn.Waiting.CreatingAccount")
         }
     }
     
@@ -59,11 +59,11 @@ struct LoginView: View {
         case .entry(_, _):
             PhoneEntryView()
         case .requesting(_, _):
-            WaitingView("Проверяем номер")
+            WaitingView("SignIn.Waiting.CheckingPhone")
         case .verification(_, _, _, _, _):
             FlashCallCodeEntryView()
         case .verifying(_, _, _, _, _):
-            WaitingView("Проверяем код")
+            WaitingView("SignIn.Waiting.CheckingCode")
         }
     }
 }

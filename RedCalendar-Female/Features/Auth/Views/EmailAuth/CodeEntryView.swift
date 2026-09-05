@@ -63,19 +63,19 @@ struct CodeEntryView: View {
                     .padding(.top, 8)
                     
                     if !isRegistration {
-                        Text(name?.isEmpty == false ? "Привет, \(name!)!" : "С возвращением!")
+                        greeting(name: name)
                             .font(.title2)
                             .fontWeight(.semibold)
                     }
                     
-                    Text("Код для входа отправлен на \(email)")
+                    Text(String.localized("EmailCode.Sent.Message", email))
                         .font(.body)
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal)
                     
                     if isRegistration {
-                        TextField("Ваше имя (необязательно)", text: $nameInput)
+                        TextField("EmailCode.Name.Placeholder", text: $nameInput)
                             .textContentType(.name)
                             .submitLabel(.next)
                             .autocorrectionDisabled()
@@ -86,7 +86,7 @@ struct CodeEntryView: View {
                             .formFieldStyle()
                     }
                     
-                    TextField("Код из письма", text: $codeInput)
+                    TextField("EmailCode.Code.Placeholder", text: $codeInput)
                         .keyboardType(.numberPad)
                         .textContentType(.oneTimeCode)
                         .submitLabel(.continue)
@@ -115,7 +115,7 @@ struct CodeEntryView: View {
                             .multilineTextAlignment(.center)
                     }
                     
-                    Text("Не получили письмо?\n[Отправить новый код](resend)")
+                    Text("EmailCode.Resend.Footer")
                         .font(.caption)
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)
@@ -127,7 +127,7 @@ struct CodeEntryView: View {
                         })
                     
                     PrimaryButton(
-                        isRegistration ? "Зарегистрироваться" : "Войти",
+                        isRegistration ? "EmailCode.Submit.Register" : "EmailCode.Submit.SignIn",
                         isEnabled: isFormValid,
                         accent: store.state.accentTheme.accent,
                         action: { submitAction(
@@ -146,10 +146,19 @@ struct CodeEntryView: View {
                 }
             }
         }
-        .navigationTitle(isRegistration ? "Регистрация" : "Вход")
+        .navigationTitle(isRegistration ? "EmailCode.Register.Title" : "EmailCode.SignIn.Title")
         .navigationBarTitleDisplayMode(.inline)
     }
     
+    // MARK: - Private Views
+
+    private func greeting(name: String?) -> Text {
+        if let name, !name.isEmpty {
+            return Text(String.localized("EmailCode.Greeting.Named", name))
+        }
+        return Text("EmailCode.Greeting.Returning")
+    }
+
     // MARK: - Actions
     
     private func goBackToWelcome(email: String) {

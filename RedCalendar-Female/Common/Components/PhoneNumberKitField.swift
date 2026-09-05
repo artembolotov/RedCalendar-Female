@@ -33,7 +33,7 @@ struct PhoneNumberKitField: UIViewRepresentable {
         textField.withFlag = false
         textField.withPrefix = true
         textField.withExamplePlaceholder = false
-        textField.placeholder = "Номер телефона"
+        textField.placeholder = String(localized: "PhoneNumberField.Placeholder")
         
         // Basic styling
         textField.borderStyle = .none

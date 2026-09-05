@@ -48,23 +48,23 @@ struct WelcomeView: View {
     private let slides = [
         SlideData(
             image: "calendar.badge.plus",
-            title: "Отслеживайте цикл",
-            description: "Ведите календарь менструального цикла с точными прогнозами"
+            title: "Welcome.Slide.Cycle.Heading",
+            description: "Welcome.Slide.Cycle.Subtitle"
         ),
         SlideData(
             image: "heart.text.square",
-            title: "Контролируйте самочувствие",
-            description: "Записывайте симптомы, настроение и важные события"
+            title: "Welcome.Slide.Wellbeing.Heading",
+            description: "Welcome.Slide.Wellbeing.Subtitle"
         ),
         SlideData(
             image: "bell.badge",
-            title: "Получайте напоминания",
-            description: "Умные уведомления о важных днях цикла"
+            title: "Welcome.Slide.Reminders.Heading",
+            description: "Welcome.Slide.Reminders.Subtitle"
         ),
         SlideData(
             image: "lock.shield",
-            title: "Ваши данные в безопасности",
-            description: "Полная приватность и защита персональной информации"
+            title: "Welcome.Slide.Privacy.Heading",
+            description: "Welcome.Slide.Privacy.Subtitle"
         )
     ]
     
@@ -97,7 +97,7 @@ struct WelcomeView: View {
             PrimaryButton(accent: accent) {
                 store.send(.auth(.set(.authenticating(.email(.entry())))))
             } content: {
-                Text("Войти")
+                Text("Welcome.SignIn.Button")
                     .font(.headline)
                     .fontWeight(.semibold)
                 
@@ -128,8 +128,8 @@ struct WelcomeView: View {
 // MARK: - SlideData Model
 private struct SlideData {
     let image: String
-    let title: String
-    let description: String
+    let title: LocalizedStringKey
+    let description: LocalizedStringKey
 }
 
 // MARK: - SlideView Component

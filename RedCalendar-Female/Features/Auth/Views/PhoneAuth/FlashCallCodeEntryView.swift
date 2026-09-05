@@ -86,7 +86,7 @@ struct FlashCallCodeEntryView: View {
                     .padding(.top, 8)
                     
                     VStack(spacing: 8) {
-                        Text("Звоним на номер")
+                        Text("PhoneCode.Calling.Heading")
                             .font(.body)
                             .foregroundColor(.secondary)
                         Text(prettyPhoneNumber)
@@ -96,7 +96,7 @@ struct FlashCallCodeEntryView: View {
                     .padding(.horizontal)
                     
                     VStack(spacing: 12) {
-                        Text("Отклоните вызов и введите последние 4 цифры номера")
+                        Text("PhoneCode.Hint")
                             .font(.body)
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
@@ -107,7 +107,7 @@ struct FlashCallCodeEntryView: View {
                             Text(displayNumber)
                                 .font(.headline)
                             
-                            TextField("XXXX", text: $codeInput)
+                            TextField("PhoneCode.Digits.Placeholder", text: $codeInput)
                                 .keyboardType(.numberPad)
                                 .textContentType(.oneTimeCode)
                                 .submitLabel(.continue)
@@ -140,7 +140,7 @@ struct FlashCallCodeEntryView: View {
                     }
                     
                     Group {
-                        Text("Не получили звонок?\n[Запросить новый](retry)")
+                        Text("PhoneCode.Retry.Footer")
                     }
                     .font(.caption)
                     .foregroundColor(.secondary)
@@ -168,7 +168,7 @@ struct FlashCallCodeEntryView: View {
                 }
             }
         }
-        .navigationTitle("Проверка")
+        .navigationTitle("PhoneCode.Title")
         .navigationBarTitleDisplayMode(.inline)
     }
     

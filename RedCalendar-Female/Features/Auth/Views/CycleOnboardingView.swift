@@ -37,12 +37,12 @@ struct CycleOnboardingView: View {
                     .font(.system(size: 56))
                     .foregroundColor(accent)
 
-                Text("Расскажите о своём цикле")
+                Text("CycleOnboarding.Heading")
                     .font(.title2)
                     .fontWeight(.bold)
                     .multilineTextAlignment(.center)
 
-                Text("Это нужно для прогнозов в календаре — можно ответить примерно, значения всегда можно будет изменить в настройках.")
+                Text("CycleOnboarding.Subtitle")
                     .font(.body)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
@@ -51,7 +51,7 @@ struct CycleOnboardingView: View {
 
             VStack(spacing: 0) {
                 onboardingRow(
-                    title: "Длина цикла",
+                    title: "CycleOnboarding.CycleLength.Title",
                     value: $cycleLength,
                     bounds: Constants.Cycle.minCycleLength...Constants.Cycle.maxCycleLength
                 )
@@ -59,7 +59,7 @@ struct CycleOnboardingView: View {
                 Divider().padding(.leading)
 
                 onboardingRow(
-                    title: "Длительность месячных",
+                    title: "CycleOnboarding.PeriodLength.Title",
                     value: $periodLength,
                     bounds: Constants.Cycle.minPeriodLength...Constants.Cycle.maxPeriodLength
                 )
@@ -71,7 +71,7 @@ struct CycleOnboardingView: View {
                 // notifications here still gets to say what their next one does. `SettingsView`
                 // is where a phone-level refusal is explained, because that is where somebody
                 // wondering why nothing arrives will go looking.
-                Toggle("Уведомления", isOn: $notificationsEnabled)
+                Toggle("CycleOnboarding.Notifications.Title", isOn: $notificationsEnabled)
                     .padding()
             }
             .background(Color(.secondarySystemGroupedBackground))
@@ -80,7 +80,7 @@ struct CycleOnboardingView: View {
 
             Spacer()
 
-            PrimaryButton("Продолжить", accent: accent, action: complete)
+            PrimaryButton("CycleOnboarding.Continue.Button", accent: accent, action: complete)
                 .padding(.horizontal, 24)
                 .padding(.bottom, 40)
         }
@@ -94,7 +94,7 @@ struct CycleOnboardingView: View {
     // shows only the value, and `accessibilityLabel` reunites the two for VoiceOver — a stepper
     // announcing a bare "28 дней" belongs to nothing without it.
     @ViewBuilder
-    private func onboardingRow(title: String, value: Binding<Int>, bounds: ClosedRange<Int>) -> some View {
+    private func onboardingRow(title: LocalizedStringKey, value: Binding<Int>, bounds: ClosedRange<Int>) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title)
                 .font(.caption)
