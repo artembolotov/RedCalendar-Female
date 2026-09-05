@@ -108,7 +108,7 @@ struct TagsListView: View {
             Button {
                 pendingDeletion = tag
             } label: {
-                Label("Удалить", systemImage: "trash")
+                Label("Common.Delete", systemImage: "trash")
             }
             .tint(.red)
         }
@@ -125,7 +125,7 @@ struct TagsListView: View {
             titleVisibility: .visible
         ) {
             Button("Удалить тег", role: .destructive, action: performDelete)
-            Button("Отмена", role: .cancel) {}
+            Button("Common.Cancel", role: .cancel) {}
         } message: {
             Text("«\(tag.name ?? "")» пропадёт со всех дней, где он был проставлен.")
         }

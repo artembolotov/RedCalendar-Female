@@ -141,7 +141,7 @@ struct HomeView: View {
                 ) { _ in
                     // No action of its own — dismissal goes through the binding below, so there
                     // is one path that clears the failure rather than two that both have to.
-                    Button("Понятно", role: .cancel) {}
+                    Button("Common.GotIt", role: .cancel) {}
                 } message: { failure in
                     Text(failure.failureMessage)
                 }

@@ -39,7 +39,7 @@ struct CloseButton: View {
                 .font(.title3)
                 .foregroundColor(.secondary)
         }
-        .accessibilityLabel("Закрыть")
+        .accessibilityLabel("Common.Close")
     }
 }
 

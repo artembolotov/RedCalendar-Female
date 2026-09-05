@@ -1,9 +1,9 @@
 import SwiftUI
 
 struct WaitingView: View {
-    let message: String
-    
-    init(_ message: String) {
+    let message: LocalizedStringKey
+
+    init(_ message: LocalizedStringKey) {
         self.message = message
     }
     

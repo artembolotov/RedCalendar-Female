@@ -159,12 +159,12 @@ struct ProfileView: View {
                 value: cycleLengthBinding,
                 in: Constants.Cycle.minCycleLength...Constants.Cycle.maxCycleLength
             ) {
-                Text(cycleLength.russianDays)
+                Text(cycleLength.localizedDays)
             }
             // The section header names the setting on screen but is not part of the control, so
             // VoiceOver would otherwise announce an adjustable "28 дней" belonging to nothing.
             .accessibilityLabel("Длина цикла")
-            .accessibilityValue(cycleLength.russianDays)
+            .accessibilityValue(cycleLength.localizedDays)
 
             // A row in the section's own content, not `footer:` — see `SettingsView`'s original
             // comment on this same text for why: a `Section` footer's relayout path comes back
@@ -189,10 +189,10 @@ struct ProfileView: View {
                 value: periodLengthBinding,
                 in: Constants.Cycle.minPeriodLength...Constants.Cycle.maxPeriodLength
             ) {
-                Text(periodLength.russianDays)
+                Text(periodLength.localizedDays)
             }
             .accessibilityLabel("Длительность месячных")
-            .accessibilityValue(periodLength.russianDays)
+            .accessibilityValue(periodLength.localizedDays)
 
             Text(Self.forecastNote)
                 .font(.footnote)
@@ -206,7 +206,7 @@ struct ProfileView: View {
         Section {
             Toggle("Подтверждать автоматически", isOn: autoConfirmPreviousCycleBinding)
         } footer: {
-            Text("Если начало новых месячных отмечено, а окончание предыдущих — нет, оно подтвердится автоматически, с длительностью \(periodLength.russianDays).")
+            Text("Если начало новых месячных отмечено, а окончание предыдущих — нет, оно подтвердится автоматически, с длительностью \(periodLength.localizedDays).")
         }
     }
 

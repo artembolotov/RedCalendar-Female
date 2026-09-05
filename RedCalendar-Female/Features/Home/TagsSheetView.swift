@@ -172,7 +172,7 @@ struct TagsSheetView: View {
             .searchable(
                 text: $searchText,
                 placement: .navigationBarDrawer(displayMode: .always),
-                prompt: "Поиск"
+                prompt: "Common.Search"
             )
             .toolbar {
                 ToolbarItemGroup(placement: .bottomBar) {

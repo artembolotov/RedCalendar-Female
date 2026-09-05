@@ -97,7 +97,7 @@ struct EmailBindingView: View {
             // change, the letter to the old address is the whole of the protection (§18.6), and
             // the person deciding to press the button is who needs to know it is coming.
             if isChange {
-                Text("На прежний адрес придёт письмо о смене с кнопкой возврата — на случай, если аккаунтом воспользовался кто-то посторонний. Она действует \(Constants.Account.emailRevertWindowDays.russianDays).")
+                Text("На прежний адрес придёт письмо о смене с кнопкой возврата — на случай, если аккаунтом воспользовался кто-то посторонний. Она действует \(Constants.Account.emailRevertWindowDays.localizedDays).")
                     .font(.caption)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
@@ -172,7 +172,7 @@ struct EmailBindingView: View {
                 accent: store.state.accentTheme.accent,
                 action: { confirmCode(email: email) }
             ) {
-                buttonLabel("Подтвердить", isBusy: isBusy)
+                buttonLabel("Common.Confirm", isBusy: isBusy)
             }
         }
         .onAppear { focusedField = .code }
@@ -201,7 +201,7 @@ struct EmailBindingView: View {
             }
 
             PrimaryButton(
-                "Готово",
+                "Common.Done",
                 accent: store.state.accentTheme.accent,
                 action: { store.send(.emailBinding(.set(nil))) }
             )
@@ -238,7 +238,7 @@ struct EmailBindingView: View {
     }
 
     @ViewBuilder
-    private func buttonLabel(_ title: String, isBusy: Bool) -> some View {
+    private func buttonLabel(_ title: LocalizedStringKey, isBusy: Bool) -> some View {
         if isBusy {
             ProgressView()
                 .progressViewStyle(CircularProgressViewStyle(tint: .white))

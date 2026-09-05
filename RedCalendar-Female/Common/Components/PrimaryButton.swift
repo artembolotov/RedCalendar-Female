@@ -46,9 +46,14 @@ struct PrimaryButton<Content: View>: View {
     }
 }
 
-// Convenience init для простого текста
+// Convenience init для простого текста.
+//
+// `LocalizedStringKey` rather than `String`: a `String` parameter takes the literal at the call
+// site out of Xcode's reach entirely — it is never extracted, so it never reaches the catalog and
+// nothing marks it as untranslated. Every text-shaped parameter on a shared component takes the
+// key type for that reason.
 extension PrimaryButton where Content == Text {
-    init(_ title: String, isEnabled: Bool = true, accent: Color, action: @escaping () -> Void) {
+    init(_ title: LocalizedStringKey, isEnabled: Bool = true, accent: Color, action: @escaping () -> Void) {
         self.isEnabled = isEnabled
         self.accent = accent
         self.action = action

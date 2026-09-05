@@ -148,7 +148,7 @@ extension EmailBindingError {
 
     private static func dateText(_ date: Date) -> String {
         let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "ru_RU")
+        formatter.locale = .autoupdatingCurrent
         formatter.dateStyle = .long
         formatter.timeStyle = .none
         return formatter.string(from: date)

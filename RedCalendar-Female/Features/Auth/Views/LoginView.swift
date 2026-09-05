@@ -26,7 +26,7 @@ struct LoginView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Отмена") {
+                    Button("Common.Cancel") {
                         store.send(.auth(.set(.notAuthenticated)))
                     }
                 }

@@ -101,10 +101,10 @@ struct CycleOnboardingView: View {
                 .foregroundColor(.secondary)
 
             Stepper(value: value, in: bounds) {
-                Text(value.wrappedValue.russianDays)
+                Text(value.wrappedValue.localizedDays)
             }
             .accessibilityLabel(title)
-            .accessibilityValue(value.wrappedValue.russianDays)
+            .accessibilityValue(value.wrappedValue.localizedDays)
         }
         .padding()
     }

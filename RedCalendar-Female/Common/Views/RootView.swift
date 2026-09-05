@@ -39,7 +39,7 @@ struct RootView: View {
                             .multilineTextAlignment(.center)
                             .padding(.horizontal)
                         
-                        Button("Повторить") {
+                        Button("Common.Retry") {
                             store.send(.auth(.set(.migrating(userId: userId, error: nil))))
                         }
                         .buttonStyle(.borderedProminent)

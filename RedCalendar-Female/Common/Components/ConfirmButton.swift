@@ -12,11 +12,11 @@ import SwiftUI
 // button falls back to its title as plain text, the way a `.confirmationAction` toolbar button
 // always has.
 struct ConfirmButton: View {
-    let title: String
+    let title: LocalizedStringKey
     let isEnabled: Bool
     let action: () -> Void
 
-    init(_ title: String, isEnabled: Bool = true, action: @escaping () -> Void) {
+    init(_ title: LocalizedStringKey, isEnabled: Bool = true, action: @escaping () -> Void) {
         self.title = title
         self.isEnabled = isEnabled
         self.action = action
@@ -41,7 +41,7 @@ struct ConfirmButton: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    ConfirmButton("Готово") {}
+                    ConfirmButton("Common.Done") {}
                 }
             }
     }

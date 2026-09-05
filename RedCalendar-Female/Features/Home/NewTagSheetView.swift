@@ -88,10 +88,10 @@ struct NewTagSheetView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Отмена") { isPresented = false }
+                    Button("Common.Cancel") { isPresented = false }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    ConfirmButton("Готово", isEnabled: canSave, action: save)
+                    ConfirmButton("Common.Done", isEnabled: canSave, action: save)
                 }
             }
         }
@@ -192,7 +192,7 @@ struct NewTagSheetView: View {
             titleVisibility: .visible
         ) {
             Button("Удалить тег", role: .destructive, action: delete)
-            Button("Отмена", role: .cancel) {}
+            Button("Common.Cancel", role: .cancel) {}
         } message: {
             Text("«\(editingTag?.name ?? "")» пропадёт со всех дней, где он был проставлен.")
         }

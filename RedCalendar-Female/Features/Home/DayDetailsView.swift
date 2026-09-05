@@ -643,11 +643,11 @@ struct DayDetailsView: View {
     // and that measurement lands in its own untransacted `@State` write — the chips pop into
     // their final layout outside the entrance animation instead of sliding in with the card.
     private var tagsText: Text {
-        resolvedTags.enumerated().reduce(Text("")) { partial, element in
+        resolvedTags.enumerated().reduce(Text(verbatim: "")) { partial, element in
             let (index, tag) = element
-            let segment = Text("#\(tag.name ?? "")")
+            let segment = Text(verbatim: "#" + (tag.name ?? ""))
                 .foregroundColor(Color.tagColor(for: tag.category))
-            return index == 0 ? segment : partial + Text("  ") + segment
+            return index == 0 ? segment : partial + Text(verbatim: "  ") + segment
         }
     }
 

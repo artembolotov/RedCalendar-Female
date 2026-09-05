@@ -36,7 +36,7 @@ final class ResolvedCycleSettingsTests: XCTestCase {
 
     func testFallbacksPerFieldWhenOnlySomeArePresent() {
         let resolved = ResolvedCycleSettings(
-            UserSettings.CycleSettings(defaultLength: 31, defaultPeriodLength: nil, lutealPhaseLength: nil)
+            UserSettings.CycleSettings(defaultLength: 31, defaultPeriodLength: nil, lutealPhaseLength: nil, autoConfirmPreviousCycle: nil)
         )
 
         XCTAssertEqual(resolved.cycleLength, 31)
@@ -48,7 +48,7 @@ final class ResolvedCycleSettingsTests: XCTestCase {
     /// appear — the screen must not turn its own opinion into the user's stored choice.
     func testACycleLengthBelowTheMinimumIsClampedForDisplay() {
         let resolved = ResolvedCycleSettings(
-            UserSettings.CycleSettings(defaultLength: 19, defaultPeriodLength: nil, lutealPhaseLength: nil)
+            UserSettings.CycleSettings(defaultLength: 19, defaultPeriodLength: nil, lutealPhaseLength: nil, autoConfirmPreviousCycle: nil)
         )
 
         XCTAssertEqual(resolved.cycleLength, Constants.Cycle.minCycleLength)
@@ -57,13 +57,13 @@ final class ResolvedCycleSettingsTests: XCTestCase {
     func testCycleLengthIsClampedAtBothEnds() {
         XCTAssertEqual(
             ResolvedCycleSettings(
-                UserSettings.CycleSettings(defaultLength: 0, defaultPeriodLength: nil, lutealPhaseLength: nil)
+                UserSettings.CycleSettings(defaultLength: 0, defaultPeriodLength: nil, lutealPhaseLength: nil, autoConfirmPreviousCycle: nil)
             ).cycleLength,
             Constants.Cycle.minCycleLength
         )
         XCTAssertEqual(
             ResolvedCycleSettings(
-                UserSettings.CycleSettings(defaultLength: 400, defaultPeriodLength: nil, lutealPhaseLength: nil)
+                UserSettings.CycleSettings(defaultLength: 400, defaultPeriodLength: nil, lutealPhaseLength: nil, autoConfirmPreviousCycle: nil)
             ).cycleLength,
             Constants.Cycle.maxCycleLength
         )
@@ -74,13 +74,13 @@ final class ResolvedCycleSettingsTests: XCTestCase {
     func testPeriodLengthIsClampedAtBothEnds() {
         XCTAssertEqual(
             ResolvedCycleSettings(
-                UserSettings.CycleSettings(defaultLength: nil, defaultPeriodLength: 0, lutealPhaseLength: nil)
+                UserSettings.CycleSettings(defaultLength: nil, defaultPeriodLength: 0, lutealPhaseLength: nil, autoConfirmPreviousCycle: nil)
             ).periodLength,
             Constants.Cycle.minPeriodLength
         )
         XCTAssertEqual(
             ResolvedCycleSettings(
-                UserSettings.CycleSettings(defaultLength: nil, defaultPeriodLength: 16, lutealPhaseLength: nil)
+                UserSettings.CycleSettings(defaultLength: nil, defaultPeriodLength: 16, lutealPhaseLength: nil, autoConfirmPreviousCycle: nil)
             ).periodLength,
             Constants.Cycle.maxPeriodLength
         )
@@ -91,7 +91,7 @@ final class ResolvedCycleSettingsTests: XCTestCase {
     /// this is not a constant.
     func testLutealPhaseLeavesAtLeastOneFollicularDay() {
         let resolved = ResolvedCycleSettings(
-            UserSettings.CycleSettings(defaultLength: 20, defaultPeriodLength: nil, lutealPhaseLength: 25)
+            UserSettings.CycleSettings(defaultLength: 20, defaultPeriodLength: nil, lutealPhaseLength: 25, autoConfirmPreviousCycle: nil)
         )
 
         XCTAssertEqual(resolved.cycleLength, 20)
@@ -101,7 +101,7 @@ final class ResolvedCycleSettingsTests: XCTestCase {
     func testLutealPhaseIsClampedAgainstTheClampedCycleLength() {
         // The cycle length is clamped first, so the luteal bound follows the clamped 20, not 19.
         let resolved = ResolvedCycleSettings(
-            UserSettings.CycleSettings(defaultLength: 19, defaultPeriodLength: nil, lutealPhaseLength: 30)
+            UserSettings.CycleSettings(defaultLength: 19, defaultPeriodLength: nil, lutealPhaseLength: 30, autoConfirmPreviousCycle: nil)
         )
 
         XCTAssertEqual(resolved.lutealPhaseLength, Constants.Cycle.minCycleLength - 1)
@@ -109,7 +109,7 @@ final class ResolvedCycleSettingsTests: XCTestCase {
 
     func testZeroLutealPhaseIsRaisedToOne() {
         let resolved = ResolvedCycleSettings(
-            UserSettings.CycleSettings(defaultLength: 28, defaultPeriodLength: nil, lutealPhaseLength: 0)
+            UserSettings.CycleSettings(defaultLength: 28, defaultPeriodLength: nil, lutealPhaseLength: 0, autoConfirmPreviousCycle: nil)
         )
 
         XCTAssertEqual(resolved.lutealPhaseLength, 1)
@@ -124,7 +124,8 @@ final class ResolvedCycleSettingsTests: XCTestCase {
                     UserSettings.CycleSettings(
                         defaultLength: cycle,
                         defaultPeriodLength: nil,
-                        lutealPhaseLength: luteal
+                        lutealPhaseLength: luteal,
+                        autoConfirmPreviousCycle: nil
                     )
                 )
                 let ovulationOffset = resolved.cycleLength - resolved.lutealPhaseLength

@@ -42,7 +42,7 @@ struct DevicesView: View {
                         .foregroundColor(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
 
-                    Button("Повторить") {
+                    Button("Common.Retry") {
                         store.send(.devices(.load))
                     }
                     .font(.footnote)

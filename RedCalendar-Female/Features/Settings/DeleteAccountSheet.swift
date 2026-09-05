@@ -29,7 +29,7 @@ struct DeleteAccountSheet: View {
                 Text("Это удалит всю историю циклов, комментарии и теги, привязанные к аккаунту.")
                     .font(.body)
 
-                Text("Аккаунт помечается на удаление сразу, а данные стираются окончательно через \(Constants.Account.deletionGraceDays.russianDays). Если войти в аккаунт до этого срока — всё вернётся как было.")
+                Text("Аккаунт помечается на удаление сразу, а данные стираются окончательно через \(Constants.Account.deletionGraceDays.localizedDays). Если войти в аккаунт до этого срока — всё вернётся как было.")
                     .font(.body)
                     .foregroundColor(.secondary)
 
