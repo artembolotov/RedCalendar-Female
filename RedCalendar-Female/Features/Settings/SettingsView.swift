@@ -262,10 +262,14 @@ private struct DeveloperSectionView: View {
     // `Optional.orPlaceholder` is a nonisolated extension member.
     nonisolated fileprivate static let unsetPlaceholder = "—"
 
+    // This whole section is developer-only diagnostics, never shown to a real user, and is
+    // deliberately excluded from Localizable.xcstrings — `Text(verbatim:)` throughout, so it
+    // stays English regardless of the device's language and StringCatalogTests never expects
+    // an entry for it.
     var body: some View {
-        Section("Developer.Header") {
+        Section {
             HStack {
-                Text("Developer.DeviceId.Title")
+                Text(verbatim: "Device ID")
                 Spacer()
                 Text(deviceId)
                     .foregroundColor(.secondary)
@@ -275,7 +279,7 @@ private struct DeveloperSectionView: View {
             }
 
             HStack {
-                Text("Developer.UserId.Title")
+                Text(verbatim: "User ID")
                 Spacer()
                 Text(userId.orPlaceholder)
                     .foregroundColor(.secondary)
@@ -285,7 +289,7 @@ private struct DeveloperSectionView: View {
             }
 
             HStack {
-                Text("Developer.TodayDaystamp.Title")
+                Text(verbatim: "Today Daystamp")
                 Spacer()
                 Text(verbatim: "\(todayDayStamp.rawValue)")
                     .foregroundColor(.secondary)
@@ -294,7 +298,7 @@ private struct DeveloperSectionView: View {
             }
 
             HStack {
-                Text("Developer.Name.Title")
+                Text(verbatim: "Name")
                 Spacer()
                 Text(userName.orPlaceholder)
                     .foregroundColor(.secondary)
@@ -303,7 +307,7 @@ private struct DeveloperSectionView: View {
             }
 
             HStack {
-                Text("Developer.Email.Title")
+                Text(verbatim: "Email")
                 Spacer()
                 Text(userEmail.orPlaceholder)
                     .foregroundColor(.secondary)
@@ -312,7 +316,7 @@ private struct DeveloperSectionView: View {
             }
 
             HStack {
-                Text("Developer.Phone.Title")
+                Text(verbatim: "Phone")
                 Spacer()
                 Text(userPhoneNumber.orPlaceholder)
                     .foregroundColor(.secondary)
@@ -321,16 +325,18 @@ private struct DeveloperSectionView: View {
             }
 
             HStack {
-                Text("Developer.AppMetrica.Title")
+                Text(verbatim: "AppMetrica")
                 Spacer()
                 statusCircle(active: analyticsActivated)
             }
 
             HStack {
-                Text("Developer.Push.Title")
+                Text(verbatim: "Push notifications")
                 Spacer()
                 statusCircle(active: pushRegistered)
             }
+        } header: {
+            Text(verbatim: "Developer")
         }
     }
 
