@@ -7,11 +7,23 @@
 
 import SwiftUI
 
+// Reports a header's own (unwrapped-by-height) rendered height so `averagesRow` can give both
+// tiles' headers the same box — reduced to the taller one, same pattern as
+// `DayDetailsPagerView`'s `DayCardNaturalHeightKey`.
+private struct StatisticsHeaderHeightKey: PreferenceKey {
+    static var defaultValue: CGFloat { 0 }
+
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
+}
+
 /// Cycle history: the two windowed averages (`StatisticsAverages`), a trend of the last few
 /// cycles, and every recorded cycle underneath. Read-only — nothing here is edited from this
 /// screen, `ProfileView` owns that.
 struct StatisticsView: View {
     @EnvironmentObject var store: AppStore
+    @State private var headerHeight: CGFloat = 0
 
     private var cycles: [CycleRecord] {
         store.state.calendarState.cycles
@@ -111,23 +123,26 @@ struct StatisticsView: View {
             )
         }
         .padding(.vertical, 4)
+        .onPreferenceChange(StatisticsHeaderHeightKey.self) { headerHeight = $0 }
     }
 
-    // One of the two headers ("Average period length") wraps to two lines in Russian where the
-    // other doesn't, so a plain VStack puts the two values on different baselines. Reserving a
-    // fixed two-line header height — derived from the font so it still grows with Dynamic Type,
-    // same as `DayDetailsView.commentRowMinimumHeight` — keeps both values flush regardless of
-    // which header wraps.
-    private var headerHeight: CGFloat {
-        UIFont.preferredFont(forTextStyle: .caption1).lineHeight * 2
-    }
-
+    // One of the two headers ("Average period length") wraps onto more lines in Russian than the
+    // other, so a plain VStack puts the two values on different baselines. `headerHeight` is
+    // measured from whichever header actually wraps the most — at the current Dynamic Type size,
+    // not a guessed line count — and applied as a floor to both, so the shorter header leaves
+    // blank space below it instead of the value sitting higher.
     private func averageTile(header: LocalizedStringKey, value: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(header)
                 .font(.caption)
                 .foregroundColor(.secondary)
-                .frame(height: headerHeight, alignment: .topLeading)
+                .fixedSize(horizontal: false, vertical: true)
+                .background(
+                    GeometryReader { geometry in
+                        Color.clear.preference(key: StatisticsHeaderHeightKey.self, value: geometry.size.height)
+                    }
+                )
+                .frame(minHeight: headerHeight, alignment: .topLeading)
             Text(value)
                 .font(.title3.weight(.semibold))
         }
