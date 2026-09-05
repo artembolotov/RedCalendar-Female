@@ -7,39 +7,6 @@ enum DayDetailsMetrics {
     static let screenInset: CGFloat = 16
 }
 
-// Building a `DateFormatter` from a template costs more than the rest of the header put
-// together, and a swipe can rebuild three titles per frame — so the two templates the card
-// needs are memoized, and dropped when the user's region changes.
-private enum DayTitleFormatters {
-    private static let lock = NSLock()
-    // Every read and write happens inside `lock`'s critical section below — `nonisolated(unsafe)`
-    // hands the type system what the lock already guarantees at runtime.
-    nonisolated(unsafe) private static var cachedLocaleIdentifier: String?
-    nonisolated(unsafe) private static var formatters: [String: DateFormatter] = [:]
-
-    static func formatter(template: String) -> DateFormatter {
-        lock.lock()
-        defer { lock.unlock() }
-
-        let locale = Locale.current
-        if cachedLocaleIdentifier != locale.identifier {
-            formatters.removeAll()
-            cachedLocaleIdentifier = locale.identifier
-        }
-
-        if let cached = formatters[template] {
-            return cached
-        }
-
-        let formatter = DateFormatter()
-        formatter.locale = locale
-        formatter.setLocalizedDateFormatFromTemplate(template)
-        formatters[template] = formatter
-
-        return formatter
-    }
-}
-
 // Natural height of the flow level options, reported from outside the card's layout so the
 // card can slide the notes down by exactly that much.
 private struct FlowPickerHeightKey: PreferenceKey {
