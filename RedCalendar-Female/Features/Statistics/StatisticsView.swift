@@ -7,8 +7,9 @@
 
 import SwiftUI
 
-/// Cycle history: the two stored averages, a trend of the last few cycles, and every recorded
-/// cycle underneath. Read-only — nothing here is edited from this screen, `ProfileView` owns that.
+/// Cycle history: the two windowed averages (`StatisticsAverages`), a trend of the last few
+/// cycles, and every recorded cycle underneath. Read-only — nothing here is edited from this
+/// screen, `ProfileView` owns that.
 struct StatisticsView: View {
     @EnvironmentObject var store: AppStore
 
@@ -30,6 +31,12 @@ struct StatisticsView: View {
 
     private var rows: [StatisticsRow] {
         statisticsRows(cycles: cycles, today: today)
+    }
+
+    // Falls back to `cycleSettings` — the forecast/typed value — whenever the window has nothing
+    // plausible to average, so a tile is never left blank.
+    private var averages: StatisticsAverages {
+        StatisticsAverages(cycles: cycles, today: today)
     }
 
     // Reversed from `cycleTrendBars`' chronological order: the chart reads the same direction
@@ -94,8 +101,14 @@ struct StatisticsView: View {
 
     private var averagesRow: some View {
         HStack(spacing: 16) {
-            averageTile(header: "Statistics.CycleLength.Header", value: cycleSettings.cycleLength.localizedDays)
-            averageTile(header: "Statistics.PeriodLength.Header", value: cycleSettings.periodLength.localizedDays)
+            averageTile(
+                header: "Statistics.CycleLength.Header",
+                value: (averages.cycleLength ?? cycleSettings.cycleLength).localizedDays
+            )
+            averageTile(
+                header: "Statistics.PeriodLength.Header",
+                value: (averages.periodLength ?? cycleSettings.periodLength).localizedDays
+            )
         }
         .padding(.vertical, 4)
     }
