@@ -37,13 +37,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ovulation is expected within 4 days"
+            "value" : "Ovulation is expected within 5 days"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Овуляция наступит в течение 4 дней"
+            "value" : "Овуляция наступит в течение 5 дней"
           }
         }
       }
@@ -54,13 +54,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@, ovulation is expected within 4 days"
+            "value" : "%@, ovulation is expected within 5 days"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@, овуляция наступит в течение 4 дней"
+            "value" : "%@, овуляция наступит в течение 5 дней"
           }
         }
       }
@@ -71,13 +71,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Don’t forget to mark the end of your period"
+            "value" : "Your period was expected to end yesterday. Don't forget to log it in your calendar."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Не забудьте отметить окончание менструации"
+            "value" : "Менструация должна была закончиться вчера. Не забудьте отметить в календаре."
           }
         }
       }
@@ -88,13 +88,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@, don’t forget to mark the end of your period"
+            "value" : "%@, your period was expected to end yesterday. Don't forget to log it in your calendar."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@, не забудьте отметить окончание менструации"
+            "value" : "%@, менструация должна была закончиться вчера. Не забудьте отметить в календаре."
           }
         }
       }
@@ -105,13 +105,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The end of your period is still unmarked"
+            "value" : "Your period was expected to end 2 days ago. Don't forget to log it in your calendar."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Окончание менструации всё ещё не отмечено"
+            "value" : "Менструация должна была закончиться 2 дня назад. Не забудьте отметить в календаре."
           }
         }
       }
@@ -122,13 +122,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@, the end of your period is still unmarked"
+            "value" : "%@, your period was expected to end 2 days ago. Don't forget to log it in your calendar."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@, окончание менструации всё ещё не отмечено"
+            "value" : "%@, менструация должна была закончиться 2 дня назад. Не забудьте отметить в календаре."
           }
         }
       }
@@ -139,13 +139,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your period should end tomorrow"
+            "value" : "Your period is expected to end tomorrow. Don't forget to log it in your calendar."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Менструация закончится примерно завтра"
+            "value" : "Менструация закончится завтра. Не забудьте отметить в календаре."
           }
         }
       }
@@ -156,13 +156,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@, your period should end tomorrow"
+            "value" : "%@, your period is expected to end tomorrow. Don't forget to log it in your calendar."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@, менструация закончится примерно завтра"
+            "value" : "%@, менструация закончится завтра. Не забудьте отметить в календаре."
           }
         }
       }
@@ -173,13 +173,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your period should end in about 2 days"
+            "value" : "Your period is expected to end in about 2 days. Don't forget to log it in your calendar."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Менструация закончится примерно через 2 дня"
+            "value" : "Менструация закончится примерно через 2 дня. Не забудьте отметить в календаре."
           }
         }
       }
@@ -190,13 +190,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@, your period should end in about 2 days"
+            "value" : "%@, your period is expected to end in about 2 days. Don't forget to log it in your calendar."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@, менструация закончится примерно через 2 дня"
+            "value" : "%@, менструация закончится примерно через 2 дня. Не забудьте отметить в календаре."
           }
         }
       }
@@ -207,13 +207,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your period should end today"
+            "value" : "Your period is expected to end today. Don't forget to log it in your calendar."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Менструация должна закончиться сегодня"
+            "value" : "Менструация должна закончиться сегодня. Не забудьте отметить в календаре."
           }
         }
       }
@@ -224,13 +224,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@, your period should end today"
+            "value" : "%@, your period is expected to end today. Don't forget to log it in your calendar."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@, менструация должна закончиться сегодня"
+            "value" : "%@, менструация должна закончиться сегодня. Не забудьте отметить в календаре."
           }
         }
       }
@@ -241,7 +241,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your period was due yesterday. Mark it if it has started."
+            "value" : "Your period was due yesterday. Log it if it has started."
           }
         },
         "ru" : {
@@ -258,7 +258,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@, your period was due yesterday. Mark it if it has started."
+            "value" : "%@, your period was due yesterday. Log it if it has started."
           }
         },
         "ru" : {
@@ -275,7 +275,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your period was due 2 days ago. Mark it if it has started."
+            "value" : "Your period was due 2 days ago. Log it if it has started."
           }
         },
         "ru" : {
@@ -292,7 +292,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@, your period was due 2 days ago. Mark it if it has started."
+            "value" : "%@, your period was due 2 days ago. Log it if it has started."
           }
         },
         "ru" : {
@@ -309,7 +309,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your period was due 3 days ago. Mark it if it has started."
+            "value" : "Your period was due 3 days ago. Log it if it has started."
           }
         },
         "ru" : {
@@ -326,7 +326,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@, your period was due 3 days ago. Mark it if it has started."
+            "value" : "%@, your period was due 3 days ago. Log it if it has started."
           }
         },
         "ru" : {
@@ -343,13 +343,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your period is due tomorrow"
+            "value" : "Your period is due tomorrow. Don't forget to log it in your calendar."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Менструация начнётся завтра"
+            "value" : "Менструация начнётся завтра. Не забудьте отметить это в календаре."
           }
         }
       }
@@ -360,13 +360,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@, your period is due tomorrow"
+            "value" : "%@, your period is due tomorrow. Don't forget to log it in your calendar."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@, менструация начнётся завтра"
+            "value" : "%@, менструация начнётся завтра. Не забудьте отметить это в календаре."
           }
         }
       }
@@ -377,13 +377,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your period is due in 2 days"
+            "value" : "Your period is due in 2 days. Don't forget to log it in your calendar."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Менструация начнётся через 2 дня"
+            "value" : "Менструация начнётся через 2 дня. Не забудьте отметить это в календаре."
           }
         }
       }
@@ -394,13 +394,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@, your period is due in 2 days"
+            "value" : "%@, your period is due in 2 days. Don't forget to log it in your calendar."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@, менструация начнётся через 2 дня"
+            "value" : "%@, менструация начнётся через 2 дня. Не забудьте отметить это в календаре."
           }
         }
       }
@@ -411,13 +411,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your period is due in 3 days"
+            "value" : "Your period is due in 3 days. Don't forget to log it in your calendar."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Менструация начнётся через 3 дня"
+            "value" : "Менструация начнётся через 3 дня. Не забудьте отметить это в календаре."
           }
         }
       }
@@ -428,13 +428,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@, your period is due in 3 days"
+            "value" : "%@, your period is due in 3 days. Don't forget to log it in your calendar."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@, менструация начнётся через 3 дня"
+            "value" : "%@, менструация начнётся через 3 дня. Не забудьте отметить это в календаре."
           }
         }
       }
@@ -445,13 +445,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your period is due in 4 days"
+            "value" : "Your period is due in 4 days. Don't forget to log it in your calendar."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Менструация начнётся через 4 дня"
+            "value" : "Менструация начнётся через 4 дня. Не забудьте отметить это в календаре."
           }
         }
       }
@@ -462,13 +462,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@, your period is due in 4 days"
+            "value" : "%@, your period is due in 4 days. Don't forget to log it in your calendar."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@, менструация начнётся через 4 дня"
+            "value" : "%@, менструация начнётся через 4 дня. Не забудьте отметить это в календаре."
           }
         }
       }
@@ -479,13 +479,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your period is due in 5 days"
+            "value" : "Your period is due in 5 days. Don't forget to log it in your calendar."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Менструация начнётся через 5 дней"
+            "value" : "Менструация начнётся через 5 дней. Не забудьте отметить это в календаре."
           }
         }
       }
@@ -496,13 +496,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@, your period is due in 5 days"
+            "value" : "%@, your period is due in 5 days. Don't forget to log it in your calendar."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@, менструация начнётся через 5 дней"
+            "value" : "%@, менструация начнётся через 5 дней. Не забудьте отметить это в календаре."
           }
         }
       }
@@ -513,13 +513,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your period is due in 6 days"
+            "value" : "Your period is due in 6 days. Don't forget to log it in your calendar."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Менструация начнётся через 6 дней"
+            "value" : "Менструация начнётся через 6 дней. Не забудьте отметить это в календаре."
           }
         }
       }
@@ -530,13 +530,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@, your period is due in 6 days"
+            "value" : "%@, your period is due in 6 days. Don't forget to log it in your calendar."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@, менструация начнётся через 6 дней"
+            "value" : "%@, менструация начнётся через 6 дней. Не забудьте отметить это в календаре."
           }
         }
       }
@@ -547,13 +547,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your period is due in 7 days"
+            "value" : "Your period is due in 7 days. Don't forget to log it in your calendar."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Менструация начнётся через 7 дней"
+            "value" : "Менструация начнётся через 7 дней. Не забудьте отметить это в календаре."
           }
         }
       }
@@ -564,13 +564,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@, your period is due in 7 days"
+            "value" : "%@, your period is due in 7 days. Don't forget to log it in your calendar."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@, менструация начнётся через 7 дней"
+            "value" : "%@, менструация начнётся через 7 дней. Не забудьте отметить это в календаре."
           }
         }
       }
@@ -581,13 +581,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your period is due today"
+            "value" : "Your period is due today. Don't forget to log it in your calendar."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Менструация начнётся сегодня"
+            "value" : "Менструация начнётся сегодня. Не забудьте отметить это в календаре."
           }
         }
       }
@@ -598,13 +598,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@, your period is due today"
+            "value" : "%@, your period is due today. Don't forget to log it in your calendar."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@, менструация начнётся сегодня"
+            "value" : "%@, менструация начнётся сегодня. Не забудьте отметить это в календаре."
           }
         }
       }
