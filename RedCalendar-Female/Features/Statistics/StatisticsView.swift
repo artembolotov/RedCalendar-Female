@@ -32,8 +32,10 @@ struct StatisticsView: View {
         statisticsRows(cycles: cycles, today: today)
     }
 
+    // Reversed from `cycleTrendBars`' chronological order: the chart reads the same direction
+    // as the history list below it, current cycle first.
     private var trendBars: [CycleTrendBar] {
-        cycleTrendBars(cycles: cycles, flowLevels: store.state.calendarState.flowLevels, today: today)
+        Array(cycleTrendBars(cycles: cycles, flowLevels: store.state.calendarState.flowLevels, today: today).reversed())
     }
 
     var body: some View {
@@ -143,10 +145,37 @@ struct StatisticsView: View {
 
             Spacer()
 
-            Text(trailerText(for: row.trailer))
+            trailerView(for: row.trailer)
+        }
+    }
+
+    // MARK: - History Trailer
+
+    @ViewBuilder
+    private func trailerView(for trailer: StatisticsRow.Trailer) -> some View {
+        switch trailer {
+        case .cycleLength(let days):
+            // The same gray pill `DayDetailsView`'s cycle-day readout draws in — a recorded
+            // cycle's length is the same kind of plain fact, not a control.
+            durationChip(days.localizedDays)
+        case .daysElapsed(let days):
+            // Still counting, not yet a settled fact — stays plain text rather than the chip.
+            Text(days.localizedDays)
                 .font(.subheadline)
                 .foregroundColor(.secondary)
         }
+    }
+
+    private func durationChip(_ text: String) -> some View {
+        Text(text)
+            .font(.subheadline)
+            .foregroundColor(.secondary)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(
+                RoundedRectangle(cornerRadius: TagChipMetrics.cornerRadius)
+                    .fill(Color(UIColor.tertiarySystemFill))
+            )
     }
 
     // Same year/cross-year template `DayDetailsView`'s own title uses — a history spanning more
@@ -170,13 +199,6 @@ struct StatisticsView: View {
             return String(localized: "Statistics.Row.CurrentCycle")
         case .periodNotConfirmed:
             return String(localized: "Statistics.Row.PeriodNotConfirmed")
-        }
-    }
-
-    private func trailerText(for trailer: StatisticsRow.Trailer) -> String {
-        switch trailer {
-        case .cycleLength(let days), .daysElapsed(let days):
-            return days.localizedDays
         }
     }
 }

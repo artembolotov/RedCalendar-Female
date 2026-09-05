@@ -59,13 +59,18 @@ struct CycleTrendChartView: View {
     let averageCycleLength: Int
     let accent: Color
 
-    private let chartHeight: CGFloat = 70
-    // Reserved above every bar for its value label, so the tallest bar plus its label still
-    // fits inside `chartHeight` rather than the label pushing the column taller than its
-    // neighbours.
-    private let labelReservedHeight: CGFloat = 16
+    private let chartHeight: CGFloat = 90
+    // Reserved above and below every bar for its two value labels, so the tallest bar plus both
+    // labels still fits inside `chartHeight` rather than a label pushing the column taller than
+    // its neighbours.
+    private let labelHeight: CGFloat = 14
+    private let labelSpacing: CGFloat = 3
     private let barSpacing: CGFloat = 10
     private let cornerRadius: CGFloat = 3
+
+    private var barsHeight: CGFloat {
+        chartHeight - labelHeight * 2 - labelSpacing * 2
+    }
 
     private var maxTotal: Int {
         bars.map { total(for: $0) }.max() ?? averageCycleLength
@@ -90,7 +95,6 @@ struct CycleTrendChartView: View {
     @ViewBuilder
     private func column(for bar: CycleTrendBar) -> some View {
         let totalDays = total(for: bar)
-        let barsHeight = chartHeight - labelReservedHeight
         let scale = barsHeight / CGFloat(max(maxTotal, 1))
         let totalHeight = scale * CGFloat(totalDays)
         let periodHeight = min(scale * CGFloat(bar.periodDays), totalHeight)
@@ -101,10 +105,13 @@ struct CycleTrendChartView: View {
             ? [.bottomLeft, .bottomRight]
             : .allCorners
 
-        VStack(spacing: 3) {
-            Text(bar.cycleLength.map { "\($0)" } ?? "?")
+        VStack(spacing: labelSpacing) {
+            // Blank once the cycle's real length isn't known yet — the dashed, unfilled top
+            // already says "still running"; a "?" on top of that was saying it twice.
+            Text(bar.cycleLength.map { "\($0)" } ?? "")
                 .font(.caption2)
                 .foregroundColor(.secondary)
+                .frame(height: labelHeight)
 
             VStack(spacing: 0) {
                 if bar.cycleLength == nil {
@@ -121,6 +128,11 @@ struct CycleTrendChartView: View {
                     .fill(accent)
                     .frame(height: max(periodHeight, 2))
             }
+
+            Text(verbatim: "\(bar.periodDays)")
+                .font(.caption2)
+                .foregroundColor(.secondary)
+                .frame(height: labelHeight)
         }
     }
 }
