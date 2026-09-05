@@ -24,6 +24,7 @@ private struct StatisticsHeaderHeightKey: PreferenceKey {
 struct StatisticsView: View {
     @EnvironmentObject var store: AppStore
     @State private var headerHeight: CGFloat = 0
+    @State private var selectedPeriod: StatisticsPeriod = .sixMonths
 
     private var cycles: [CycleRecord] {
         store.state.calendarState.cycles
@@ -48,7 +49,7 @@ struct StatisticsView: View {
     // Falls back to `cycleSettings` — the forecast/typed value — whenever the window has nothing
     // plausible to average, so a tile is never left blank.
     private var averages: StatisticsAverages {
-        StatisticsAverages(cycles: cycles, today: today)
+        StatisticsAverages(cycles: cycles, today: today, period: selectedPeriod)
     }
 
     // Reversed from `cycleTrendBars`' chronological order: the chart reads the same direction
@@ -66,6 +67,11 @@ struct StatisticsView: View {
                     List {
                         Section {
                             averagesRow
+                        } header: {
+                            HStack {
+                                Spacer()
+                                periodMenu
+                            }
                         }
 
                         Section {
@@ -147,6 +153,31 @@ struct StatisticsView: View {
                 .font(.title3.weight(.semibold))
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    // MARK: - Period Menu
+
+    // Which window `averages` measures over. Local to this view, like `headerHeight` — nothing
+    // else reads the choice, so it stays out of the store.
+    private var periodMenu: some View {
+        Menu {
+            ForEach(StatisticsPeriod.allCases) { period in
+                Button {
+                    selectedPeriod = period
+                } label: {
+                    if period == selectedPeriod {
+                        Label(period.titleKey, systemImage: "checkmark")
+                    } else {
+                        Text(period.titleKey)
+                    }
+                }
+            }
+        } label: {
+            HStack(spacing: 4) {
+                Text(selectedPeriod.titleKey)
+                Image(systemName: "chevron.up.chevron.down")
+            }
+        }
     }
 
     // MARK: - Chart Legend

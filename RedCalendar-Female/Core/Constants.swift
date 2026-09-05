@@ -166,11 +166,4 @@ struct Constants {
         static let forecastWindow = 6
         static let forecastMinObservations = 3
     }
-
-    struct Statistics {
-        /// The window `StatisticsAverages` measures over, in plain days rather than a calendar
-        /// month subtraction — every other cycle number in this app is `Daystamp` arithmetic, not
-        /// calendar-relative, and this keeps the same shape. ~6 months.
-        static let averageWindowDays = 183
-    }
 }
