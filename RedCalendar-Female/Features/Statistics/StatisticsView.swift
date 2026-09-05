@@ -68,10 +68,7 @@ struct StatisticsView: View {
                         Section {
                             averagesRow
                         } header: {
-                            HStack {
-                                Spacer()
-                                periodMenu
-                            }
+                            periodMenu
                         }
 
                         Section {
