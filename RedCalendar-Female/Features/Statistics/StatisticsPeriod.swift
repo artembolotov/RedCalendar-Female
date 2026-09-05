@@ -5,10 +5,11 @@
 
 import SwiftUI
 
-/// The averaging window `StatisticsView`'s period menu offers, and `StatisticsAverages` measures
-/// over. `windowDays` is `nil` for `.allTime` — no cutoff at all, same plausibility filtering as
-/// every other window.
-enum StatisticsPeriod: CaseIterable, Identifiable, Equatable {
+/// The averaging window `StatisticsView`'s period picker offers, and `StatisticsAverages`
+/// measures over. `windowDays` is `nil` for `.allTime` — no cutoff at all, same plausibility
+/// filtering as every other window. `Hashable` is what `Picker`'s `.tag(_:)` needs to match a
+/// case back to `selectedPeriod`.
+enum StatisticsPeriod: CaseIterable, Identifiable, Hashable {
     case sixMonths
     case year
     case allTime
