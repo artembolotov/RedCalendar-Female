@@ -100,11 +100,21 @@ struct StatisticsView: View {
         .padding(.vertical, 4)
     }
 
+    // One of the two headers ("Average period length") wraps to two lines in Russian where the
+    // other doesn't, so a plain VStack puts the two values on different baselines. Reserving a
+    // fixed two-line header height — derived from the font so it still grows with Dynamic Type,
+    // same as `DayDetailsView.commentRowMinimumHeight` — keeps both values flush regardless of
+    // which header wraps.
+    private var headerHeight: CGFloat {
+        UIFont.preferredFont(forTextStyle: .caption1).lineHeight * 2
+    }
+
     private func averageTile(header: LocalizedStringKey, value: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(header)
                 .font(.caption)
                 .foregroundColor(.secondary)
+                .frame(height: headerHeight, alignment: .topLeading)
             Text(value)
                 .font(.title3.weight(.semibold))
         }
