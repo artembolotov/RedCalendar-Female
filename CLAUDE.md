@@ -915,6 +915,86 @@ writes its switch whatever iOS has already been told on this phone: the answer b
 account, and only Settings — where somebody wondering why nothing arrives will actually go — needs
 to explain a device-level refusal.
 
+### Localization
+
+Every user-facing string lives in `RedCalendar-Female/Localizable.xcstrings`, keyed by a name
+rather than by its own text, with `en` and `ru` both complete. The source language is `en`.
+
+**`Scope.Path.Role`, PascalCase in every segment, two to four of them.** The scope names the
+screen or the feature — not the view file, so renaming a view does not invalidate its keys
+(`NewTagSheetView` is `TagEditor`, `TagsSheetView` is `TagPicker`). The last segment says what the
+string is, from a closed list: `Title`, `Heading`, `Subtitle`, `Header`, `Footer`, `Placeholder`,
+`Button`, `Message`, `Hint`, `Empty`, `A11y`. `Title` is the screen's own name — what the
+navigation bar shows — and `Heading` the headline inside the content; `EmailEntry` has both, and
+without the distinction one of them is misnamed. Wanting a fifth segment means wanting a new scope.
+
+Two places the role suffix is not there, and both are the rule rather than an escape from it.
+`Common.*` is depth 2 and roleless — the whole scope is one role. And where a scope enumerates
+variants (`Welcome.Slide.*`, `SignIn.Waiting.*`, `AuthError.*`, `WriteError.*`) the leaf names the
+variant and the segment before it carries the role, rather than every key growing a fourth segment
+that says the same word four times.
+
+**`Common` is the only shared scope, and it holds words whose translation does not depend on the
+screen they are on** — `Cancel`, `Close`, `Confirm`, `Delete`, `Done`, `GotIt`, `Retry`, `Search`.
+Everything else keeps its own key even when the Russian is identical today: two screens showing
+the same word is usually a coincidence, and a shared key is what stops them from ever diverging.
+The exception is one feature spread over two screens — `TagEditor.Delete.*` is used by both the
+editor sheet and the swipe in the settings list, because it is the same dialog and two keys would
+let it drift into two wordings.
+
+**An error type's keys are its name and its cases'**: `AuthenticationError.phoneNotRegistered` is
+`AuthError.PhoneNotRegistered`. Nothing to invent, and a case added without a string is visible in
+the same glance as the switch. `WriteError` is the one scope named after what the strings are
+rather than after the type they hang off — `DataWriteOperation` names an operation, its
+`failureMessage` names a failure, and `logLabel` beside it keeps the operation's own name for the
+log.
+
+**A text-shaped parameter is `LocalizedStringKey`, never `String`.** A literal that never reaches
+a `LocalizedStringKey` is the one shape Xcode cannot see at all: it is not extracted, never reaches
+the catalog, and nothing marks it as untranslated. Roughly a hundred strings were invisible that
+way — through `String` parameters (`PrimaryButton`, `WaitingView`, `ConfirmButton`,
+`sectionHeader(_:)`, `onboardingRow(title:)`) and through `String`-returning properties (the
+onboarding slides, `DayDetailsView`'s relative day names and flow levels, every
+`errorDescription`). Where a `String` genuinely is the answer — a `UITextField.placeholder`, a
+`LocalizedError` — it is `String(localized:)`, not a literal.
+
+**A parameterised string is looked up bare and formatted after**, through
+`String.localized(_:_:)` (`Common/Extensions/String+Localized.swift`). `Text("Some.Key \(value)")`
+does not do this: SwiftUI folds the interpolation into the key, so the catalog is asked for
+`Some.Key %@`. That works, but it is not a name — it changes shape when the sentence does, and the
+same string used with and without an argument becomes two entries. Formatting after also puts the
+specifier inside the translation, where it can be moved: use positional specifiers
+(`%1$lld (%2$lld)`, as `DayDetails.CycleDay.Predicted.Subtitle` does) whenever two arguments could
+sensibly swap order.
+
+**Plural rules belong to the catalog's variations, never to Swift.** `Int.localizedDays` reads
+`Common.Days` through `localizedStringWithFormat`, so the count reaches the lookup and picks the
+variant. It replaced an `Int.russianDays` that spelled out Russia's one/few/many in a `switch` —
+which can only ever be right about one language, and «5 days» would have been its first casualty.
+
+**A `Text` that is formatting rather than text takes `Text(verbatim:)`.** `Text("\(number)")` and
+`Text("  ")` are extracted like anything else and land in the catalog as `%lld` and two spaces.
+
+**Two things are deliberately not localized here.** Server-sent messages arrive already localized
+via `X-App-Language` (see API Service below) — pass them through, do not re-key them. And preview
+fixtures stay Russian: sample names, tag names, `#Preview` display titles. None of it ships.
+
+**The 34 push keys are frozen.** `PeriodStart.*`, `PeriodEnd.*` and `Ovulation.*` are named by the
+server in the payload's `loc-key`, resolved by iOS against the bundle, and every build already in
+the wild expects them. They predate the scheme and cannot be renamed from here.
+
+**An abstract key has no fallback.** `Text("Settings.Title")` with nothing behind it draws
+`Settings.Title` on the screen — no crash, no warning, and none of the readable degradation
+Russian-text-as-key gave for free. `StringCatalogTests` is what replaces that: it reads the catalog
+out of the source tree and asserts every key follows the scheme, carries a string in both
+languages, and is not Russian text again.
+
+**Write the catalog back in Xcode's own format** if a script ever touches it: keys ordered by an
+`en`-locale `compare(options: [.caseInsensitive, .numeric, .diacriticInsensitive,
+.widthInsensitive])`, `"key" : value` with spaces around the colon, empty objects spelled over
+three lines. A plain JSON round-trip is reformatted wholesale by Xcode's next save, and every real
+change after that arrives buried in it.
+
 ### API Service
 
 - Base URL comes from `Info.plist` key `API_BASE_URL`, set per build configuration. Read it via `Constants.URLs.api`.
