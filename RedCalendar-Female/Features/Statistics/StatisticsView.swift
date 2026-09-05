@@ -158,15 +158,18 @@ struct StatisticsView: View {
             // The same gray pill `DayDetailsView`'s cycle-day readout draws in — a recorded
             // cycle's length is the same kind of plain fact, not a control.
             durationChip(days.localizedDays)
+        case .cycleLengthImplausible:
+            // A gap this large almost always means a period went unlogged in between — showing
+            // the raw number would read as a real, very long cycle rather than a data gap.
+            durationChip("—")
         case .daysElapsed(let days):
-            // Still counting, not yet a settled fact — stays plain text rather than the chip.
-            Text(days.localizedDays)
-                .font(.subheadline)
-                .foregroundColor(.secondary)
+            // Still counting, not yet a settled fact — same chip shape so the row still lines up
+            // with the others, just with nothing filled in behind it.
+            durationChip(days.localizedDays, filled: false)
         }
     }
 
-    private func durationChip(_ text: String) -> some View {
+    private func durationChip(_ text: String, filled: Bool = true) -> some View {
         Text(text)
             .font(.subheadline)
             .foregroundColor(.secondary)
@@ -174,7 +177,7 @@ struct StatisticsView: View {
             .padding(.vertical, 6)
             .background(
                 RoundedRectangle(cornerRadius: TagChipMetrics.cornerRadius)
-                    .fill(Color(UIColor.tertiarySystemFill))
+                    .fill(filled ? Color(UIColor.tertiarySystemFill) : Color.clear)
             )
     }
 
