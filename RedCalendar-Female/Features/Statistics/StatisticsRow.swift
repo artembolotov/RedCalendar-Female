@@ -22,6 +22,11 @@ struct StatisticsRow: Identifiable {
     enum Trailer {
         /// The cycle's real length — the distance to the next recorded cycle's start.
         case cycleLength(Int)
+        /// The distance to the next recorded cycle's start falls outside what a single cycle can
+        /// plausibly be — almost always a period the user forgot to log in between, not a fact
+        /// about this cycle. `CycleForecast` excludes the same gaps from its own median for the
+        /// same reason (see `Constants.Cycle`); shown as a dash rather than the raw number.
+        case cycleLengthImplausible
         /// No next cycle recorded yet: how many days have passed since this cycle started.
         case daysElapsed(Int)
     }
@@ -43,9 +48,14 @@ func statisticsRows(cycles: [CycleRecord], today: Daystamp) -> [StatisticsRow] {
         let periodLength = cycle.periodLength ?? 0
         let isMostRecent = index == cycles.count - 1
 
-        let trailer: StatisticsRow.Trailer = isMostRecent
-            ? .daysElapsed(today - cycle.startDay + 1)
-            : .cycleLength(cycles[index + 1].startDay - cycle.startDay)
+        let trailer: StatisticsRow.Trailer
+        if isMostRecent {
+            trailer = .daysElapsed(today - cycle.startDay + 1)
+        } else {
+            let cycleLength = cycles[index + 1].startDay - cycle.startDay
+            let plausibleRange = Constants.Cycle.minCycleLength...Constants.Cycle.maxCycleLength
+            trailer = plausibleRange.contains(cycleLength) ? .cycleLength(cycleLength) : .cycleLengthImplausible
+        }
 
         let subtitle: StatisticsRow.Subtitle
         if periodLength > 0 {

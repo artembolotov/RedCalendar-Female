@@ -30,7 +30,11 @@ func cycleTrendBars(
     flowLevels: [Daystamp: Int],
     today: Daystamp
 ) -> [CycleTrendBar] {
-    let bars = cycles.indices.map { index -> CycleTrendBar in
+    // A gap outside what a single cycle can plausibly be almost always means a period went
+    // unlogged in between, not a fact about this one — the bar would badly skew the scale every
+    // other bar is drawn against. `CycleForecast` drops the same gaps before windowing its
+    // median for the same reason, so this cycle is dropped here rather than drawn wrong.
+    let bars = cycles.indices.compactMap { index -> CycleTrendBar? in
         let cycle = cycles[index]
         let periodLength = cycle.periodLength ?? 0
 
@@ -40,7 +44,14 @@ func cycleTrendBars(
             ? periodLength
             : flowLevels.lastFlowDay(of: cycle, notAfter: today).map { $0 - cycle.startDay + 1 } ?? 0
 
-        let cycleLength = index + 1 < cycles.count ? cycles[index + 1].startDay - cycle.startDay : nil
+        guard index + 1 < cycles.count else {
+            return CycleTrendBar(startDay: cycle.startDay, periodDays: periodDays, cycleLength: nil)
+        }
+
+        let cycleLength = cycles[index + 1].startDay - cycle.startDay
+        let plausibleRange = Constants.Cycle.minCycleLength...Constants.Cycle.maxCycleLength
+        guard plausibleRange.contains(cycleLength) else { return nil }
+
         return CycleTrendBar(startDay: cycle.startDay, periodDays: periodDays, cycleLength: cycleLength)
     }
     return Array(bars.suffix(Constants.Cycle.forecastWindow))
