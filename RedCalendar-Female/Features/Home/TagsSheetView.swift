@@ -52,7 +52,7 @@ struct TagsSheetView: View {
                     picker
                 }
             }
-            .navigationTitle("Теги")
+            .navigationTitle("TagPicker.Title")
             .navigationBarTitleDisplayMode(.inline)
             // Saved before the dismissal rather than after it. `onDisappear` fires at the
             // *end* of the sheet's animation, so hanging the only save off it meant the day
@@ -140,12 +140,12 @@ struct TagsSheetView: View {
                 .foregroundColor(accent)
 
             VStack(spacing: 12) {
-                Text("Отмечайте, как прошёл день")
+                Text("TagPicker.Empty.Heading")
                     .font(.title3)
                     .fontWeight(.bold)
                     .multilineTextAlignment(.center)
 
-                Text("Тег — короткая пометка: симптом, настроение, лекарство. Дни с тегами видно в календаре, и со временем заметно, что повторяется из цикла в цикл.")
+                Text("TagPicker.Empty.Subtitle")
                     .font(.body)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
@@ -157,7 +157,7 @@ struct TagsSheetView: View {
         .padding(.bottom, 24)
         .toolbar {
             ToolbarItemGroup(placement: .bottomBar) {
-                Button("Новый тег") { showNewTagSheet = true }
+                Button("TagPicker.NewTag.Button") { showNewTagSheet = true }
             }
         }
     }
@@ -180,7 +180,7 @@ struct TagsSheetView: View {
                     // the day card, and a `.foregroundColor` here would be the second red.
                     // Editing moved to a long-press on the chip itself, so this bar has one job
                     // again.
-                    Button("Новый тег") { showNewTagSheet = true }
+                    Button("TagPicker.NewTag.Button") { showNewTagSheet = true }
                 }
             }
     }
@@ -204,7 +204,7 @@ struct TagsSheetView: View {
             if tagsByCategory.isEmpty {
                 // Only a search that matched nothing reaches this: an empty catalogue never
                 // draws the list at all.
-                Text("Ничего не найдено")
+                Text("TagPicker.NoResults.Empty")
                     .foregroundColor(.secondary)
             }
         }

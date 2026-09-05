@@ -43,7 +43,7 @@ final class StringCatalogTests: XCTestCase {
     /// themselves everywhere else, which is what the migration is replacing — until then they are
     /// exempt from both checks below. The count is asserted rather than the list, so a screen that
     /// migrates lowers it and a new Russian literal cannot quietly take the freed slot.
-    private static let pendingRussianKeyCount = 69
+    private static let pendingRussianKeyCount = 43
 
     // MARK: - Tests
 

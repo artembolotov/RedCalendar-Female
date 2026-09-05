@@ -84,13 +84,13 @@ struct HomeMenuView: View {
             Button(action: {
                 showSettings = true
             }) {
-                Label("Настройки", systemImage: "gear")
+                Label("HomeMenu.Settings.Button", systemImage: "gear")
             }
 
             Button(action: {
                 showStatistics = true
             }) {
-                Label("Статистика", systemImage: "chart.bar")
+                Label("HomeMenu.Statistics.Button", systemImage: "chart.bar")
             }
 
             if #available(iOS 16.0, *) {
@@ -98,7 +98,7 @@ struct HomeMenuView: View {
 
                 let link = URL(string: Constants.URLs.appLink)!
                 ShareLink(item: link) {
-                    Label("Поделиться приложением", systemImage: "square.and.arrow.up")
+                    Label("HomeMenu.Share.Button", systemImage: "square.and.arrow.up")
                 }
             }
         } label: {
@@ -113,6 +113,6 @@ struct HomeMenuView: View {
                     .foregroundStyle(.clear)
             }
         }
-        .accessibilityLabel("Меню")
+        .accessibilityLabel("HomeMenu.A11y")
     }
 }

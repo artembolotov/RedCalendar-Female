@@ -30,7 +30,7 @@ struct CommentSheetView: View {
             editor
                 .padding(.horizontal, DayDetailsMetrics.screenInset)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                .navigationTitle("Комментарий")
+                .navigationTitle("Comment.Title")
                 .navigationBarTitleDisplayMode(.inline)
                 // Saved before the dismissal rather than after it. `onDisappear` fires at the
                 // *end* of the sheet's animation, so hanging the only save off it meant the day
@@ -81,7 +81,7 @@ struct CommentSheetView: View {
                 if text.isEmpty {
                     // A literal rather than a stored `String`, so the string catalog extracts it
                     // the way it extracts every other piece of UI text in the app.
-                    Text("Как прошёл день?")
+                    Text("Comment.Placeholder")
                         .foregroundColor(Color(UIColor.tertiaryLabel))
                         .padding(.top, 8)
                         .allowsHitTesting(false)

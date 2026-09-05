@@ -149,11 +149,11 @@ struct DayDetailsView: View {
 
     private var titleText: String {
         switch dayStamp - today {
-        case -2: return "Позавчера"
-        case -1: return "Вчера"
-        case 0: return "Сегодня"
-        case 1: return "Завтра"
-        case 2: return "Послезавтра"
+        case -2: return String(localized: "DayDetails.RelativeDay.DayBeforeYesterday")
+        case -1: return String(localized: "DayDetails.RelativeDay.Yesterday")
+        case 0: return String(localized: "DayDetails.RelativeDay.Today")
+        case 1: return String(localized: "DayDetails.RelativeDay.Tomorrow")
+        case 2: return String(localized: "DayDetails.RelativeDay.DayAfterTomorrow")
         default:
             let calendar = Calendar.current
             let date = dayStamp.toDate(calendar: calendar)
@@ -200,21 +200,19 @@ struct DayDetailsView: View {
             .sorted { ($0.category, $0.name ?? "") < ($1.category, $1.name ?? "") }
     }
 
-    private func flowLevelLabel(for level: Int?) -> String {
+    private func flowLevelLabel(for level: Int?) -> LocalizedStringKey {
         switch level {
-        case 1: return "Скудные"
-        case 2: return "Умеренные"
-        case 3: return "Обильные"
-        default: return "Не указано"
+        case 1: return "DayDetails.Flow.Light"
+        case 2: return "DayDetails.Flow.Moderate"
+        case 3: return "DayDetails.Flow.Heavy"
+        default: return "DayDetails.Flow.Unset"
         }
     }
 
-    private let flowLevelOptions: [(Int?, String)] = [
-        (1, "Скудные"),
-        (2, "Умеренные"),
-        (3, "Обильные"),
-        (nil, "Не указано")
-    ]
+    // The levels themselves, with the picker reading its labels back through
+    // `flowLevelLabel(for:)` — the row above it already does, and a second list of the same four
+    // keys is a way for the two to disagree.
+    private let flowLevelOptions: [Int?] = [1, 2, 3, nil]
 
     // MARK: - Cycle subtitle
 
@@ -233,9 +231,9 @@ struct DayDetailsView: View {
         let cycleLength = store.state.cycleSettings.cycleLength
         if let predictedStart = context.predictedCycleStart(cycleLength: cycleLength) {
             let predictedDay = dayStamp - predictedStart + 1
-            return "\(cycleDay) (\(predictedDay)) день цикла"
+            return String.localized("DayDetails.CycleDay.Predicted.Subtitle", cycleDay, predictedDay)
         }
-        return "\(cycleDay) день цикла"
+        return String.localized("DayDetails.CycleDay.Subtitle", cycleDay)
     }
 
     // MARK: - Period button state
@@ -482,7 +480,7 @@ struct DayDetailsView: View {
     private func periodChip(buttonState: PeriodButtonState) -> some View {
         let isStart = buttonState == .startOutline || buttonState == .startFilled
         let isFilled = buttonState == .startFilled || buttonState == .endFilled
-        let title = isStart ? "Начало месячных" : "Конец месячных"
+        let title: LocalizedStringKey = isStart ? "DayDetails.Period.Start.Button" : "DayDetails.Period.End.Button"
         let shape = RoundedRectangle(cornerRadius: TagChipMetrics.cornerRadius)
 
         return Button(action: handlePeriodButton) {
@@ -523,7 +521,7 @@ struct DayDetailsView: View {
 
     // MARK: - Sections
 
-    private func sectionHeader(_ title: String) -> some View {
+    private func sectionHeader(_ title: LocalizedStringKey) -> some View {
         VStack(spacing: 0) {
             Text(title)
                 .font(.headline)
@@ -535,7 +533,7 @@ struct DayDetailsView: View {
 
     private func periodSection(currentLevel: Int?) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            sectionHeader("Менструация")
+            sectionHeader("DayDetails.Period.Header")
             flowLevelRow(currentLevel: currentLevel)
             if showFlowPicker {
                 flowLevelPicker(currentLevel: currentLevel)
@@ -550,7 +548,7 @@ struct DayDetailsView: View {
             }
         }) {
             HStack {
-                Text("Обильность")
+                Text("DayDetails.Flow.Title")
                     .foregroundColor(.primary)
                 Spacer()
                 Text(flowLevelLabel(for: currentLevel))
@@ -567,7 +565,7 @@ struct DayDetailsView: View {
     // distance so the two don't overlap once the animation has settled.
     private func flowLevelPicker(currentLevel: Int?) -> some View {
         VStack(spacing: 0) {
-            ForEach(flowLevelOptions, id: \.1) { level, label in
+            ForEach(flowLevelOptions, id: \.self) { level in
                 Button(action: {
                     store.send(.data(.setFlowLevel(dayStamp, level)))
                     withAnimation(.easeInOut(duration: flowPickerDuration)) {
@@ -575,7 +573,7 @@ struct DayDetailsView: View {
                     }
                 }) {
                     HStack {
-                        Text(label)
+                        Text(flowLevelLabel(for: level))
                             .foregroundColor(.primary)
                         Spacer()
                         ZStack {
@@ -610,7 +608,7 @@ struct DayDetailsView: View {
 
     private var notesSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            sectionHeader("Заметки")
+            sectionHeader("DayDetails.Notes.Header")
 
             Button(action: { showTagsSheet = true }) {
                 tagsRowContent
@@ -625,7 +623,7 @@ struct DayDetailsView: View {
     private var tagsRowContent: some View {
         Group {
             if resolvedTags.isEmpty {
-                Text("Теги")
+                Text("DayDetails.Tags.Placeholder")
                     .foregroundColor(Color(UIColor.tertiaryLabel))
             } else {
                 tagsText
@@ -665,7 +663,7 @@ struct DayDetailsView: View {
                     .foregroundColor(.primary)
                     .multilineTextAlignment(.leading)
             } else {
-                Text("Комментарий")
+                Text("DayDetails.Comment.Placeholder")
                     .foregroundColor(Color(UIColor.tertiaryLabel))
             }
         }

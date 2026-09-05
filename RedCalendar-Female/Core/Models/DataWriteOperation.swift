@@ -3,6 +3,8 @@
 //  RedCalendar-Female
 //
 
+import SwiftUI
+
 /// What the user was trying to record when a database write failed.
 ///
 /// The state tree carries *this* rather than the error that caused it, for the same reason every
@@ -23,17 +25,20 @@ enum DataWriteOperation: Sendable, Equatable {
     /// What the user is told. Names the thing that did not get saved, because the day card is
     /// still showing it — for a comment, the reducer has already put the new text on screen
     /// (see `appReducer`'s `.saveComment`), so "не сохранилось" is the only way they would know.
-    var failureMessage: String {
+    /// Scoped `WriteError` rather than after this type: the enum names an operation, the strings
+    /// name a failure, and the alert they end up in is the one the user reads. `logLabel` below
+    /// keeps the operation's own name, which is what a log is looking for.
+    var failureMessage: LocalizedStringKey {
         switch self {
-        case .periodStart: return "Отметка начала месячных не сохранилась. Попробуйте ещё раз."
-        case .periodEnd:   return "Отметка окончания месячных не сохранилась. Попробуйте ещё раз."
-        case .flowLevel:   return "Интенсивность не сохранилась. Попробуйте ещё раз."
-        case .comment:     return "Заметка не сохранилась. Попробуйте ещё раз."
-        case .dayTags:     return "Симптомы не сохранились. Попробуйте ещё раз."
-        case .userTag:     return "Тег не сохранился. Попробуйте ещё раз."
-        case .cycleSettings: return "Настройки цикла не сохранились. Попробуйте ещё раз."
-        case .notificationSettings: return "Настройка уведомлений не сохранилась. Попробуйте ещё раз."
-        case .profileName: return "Имя не сохранилось. Попробуйте ещё раз."
+        case .periodStart: return "WriteError.PeriodStart"
+        case .periodEnd:   return "WriteError.PeriodEnd"
+        case .flowLevel:   return "WriteError.FlowLevel"
+        case .comment:     return "WriteError.Comment"
+        case .dayTags:     return "WriteError.DayTags"
+        case .userTag:     return "WriteError.UserTag"
+        case .cycleSettings: return "WriteError.CycleSettings"
+        case .notificationSettings: return "WriteError.NotificationSettings"
+        case .profileName: return "WriteError.ProfileName"
         }
     }
 

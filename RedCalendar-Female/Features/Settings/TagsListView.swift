@@ -120,14 +120,14 @@ struct TagsListView: View {
         // correct — every row's own copy of this modifier would otherwise open together the
         // moment any one of them set `pendingDeletion`.
         .confirmationDialog(
-            "Удалить тег?",
+            "TagEditor.Delete.Confirm.Title",
             isPresented: deletionConfirmationPresented(for: tag),
             titleVisibility: .visible
         ) {
-            Button("Удалить тег", role: .destructive, action: performDelete)
+            Button("TagEditor.Delete.Button", role: .destructive, action: performDelete)
             Button("Common.Cancel", role: .cancel) {}
         } message: {
-            Text("«\(tag.name ?? "")» пропадёт со всех дней, где он был проставлен.")
+            Text(String.localized("TagEditor.Delete.Confirm.Message", tag.name ?? ""))
         }
     }
 

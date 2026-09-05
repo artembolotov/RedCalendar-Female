@@ -1,9 +1,6 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
-    "«%@» пропадёт со всех дней, где он был проставлен." : {
-
-    },
     "AppMetrica" : {
 
     },
@@ -195,6 +192,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Слишком много попыток. Попробуйте позже."
+          }
+        }
+      }
+    },
+    "Comment.Placeholder" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "How was your day?"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Как прошёл день?"
+          }
+        }
+      }
+    },
+    "Comment.Title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comment"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Комментарий"
           }
         }
       }
@@ -476,6 +505,295 @@
         }
       }
     },
+    "DayDetails.Comment.Placeholder" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comment"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Комментарий"
+          }
+        }
+      }
+    },
+    "DayDetails.CycleDay.Predicted.Subtitle" : {
+      "comment" : "The running day count, then the day within the predicted cycle in brackets.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Day %1$lld (%2$lld) of cycle"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld (%2$lld) день цикла"
+          }
+        }
+      }
+    },
+    "DayDetails.CycleDay.Subtitle" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Day %lld of cycle"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld день цикла"
+          }
+        }
+      }
+    },
+    "DayDetails.Flow.Heavy" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Heavy"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Обильные"
+          }
+        }
+      }
+    },
+    "DayDetails.Flow.Light" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Light"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Скудные"
+          }
+        }
+      }
+    },
+    "DayDetails.Flow.Moderate" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Moderate"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Умеренные"
+          }
+        }
+      }
+    },
+    "DayDetails.Flow.Title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Flow"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Обильность"
+          }
+        }
+      }
+    },
+    "DayDetails.Flow.Unset" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not set"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Не указано"
+          }
+        }
+      }
+    },
+    "DayDetails.Notes.Header" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notes"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Заметки"
+          }
+        }
+      }
+    },
+    "DayDetails.Period.End.Button" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Period ended"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Конец месячных"
+          }
+        }
+      }
+    },
+    "DayDetails.Period.Header" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Period"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Менструация"
+          }
+        }
+      }
+    },
+    "DayDetails.Period.Start.Button" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Period started"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Начало месячных"
+          }
+        }
+      }
+    },
+    "DayDetails.RelativeDay.DayAfterTomorrow" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The day after tomorrow"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Послезавтра"
+          }
+        }
+      }
+    },
+    "DayDetails.RelativeDay.DayBeforeYesterday" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The day before yesterday"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Позавчера"
+          }
+        }
+      }
+    },
+    "DayDetails.RelativeDay.Today" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Today"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сегодня"
+          }
+        }
+      }
+    },
+    "DayDetails.RelativeDay.Tomorrow" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tomorrow"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Завтра"
+          }
+        }
+      }
+    },
+    "DayDetails.RelativeDay.Yesterday" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yesterday"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вчера"
+          }
+        }
+      }
+    },
+    "DayDetails.Tags.Placeholder" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tags"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Теги"
+          }
+        }
+      }
+    },
     "Developer" : {
 
     },
@@ -743,6 +1061,86 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Вход"
+          }
+        }
+      }
+    },
+    "Home.WriteFailure.Title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't save"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Не удалось сохранить"
+          }
+        }
+      }
+    },
+    "HomeMenu.A11y" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Menu"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Меню"
+          }
+        }
+      }
+    },
+    "HomeMenu.Settings.Button" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Settings"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Настройки"
+          }
+        }
+      }
+    },
+    "HomeMenu.Share.Button" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Share the app"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Поделиться приложением"
+          }
+        }
+      }
+    },
+    "HomeMenu.Statistics.Button" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Statistics"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Статистика"
           }
         }
       }
@@ -1537,6 +1935,342 @@
         }
       }
     },
+    "Sync.Failed.A11y" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't sync"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Не удалось синхронизировать данные"
+          }
+        }
+      }
+    },
+    "Sync.Failed.Hint" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tap to find out more"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Нажмите, чтобы узнать больше"
+          }
+        }
+      }
+    },
+    "Sync.Failure.FirebaseImport.Message" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your data couldn't be brought over from the old app. It will be tried again at your next sign-in."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Не получилось перенести данные из старого приложения. Попытка повторится при следующем входе."
+          }
+        }
+      }
+    },
+    "Sync.Failure.SyncRun.Message" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your data couldn't be synced. The app will try again later."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Не получилось синхронизировать данные. Приложение попробует ещё раз позже."
+          }
+        }
+      }
+    },
+    "Sync.Pending.A11y" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unsaved changes"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Есть несохранённые данные"
+          }
+        }
+      }
+    },
+    "Sync.Retry.Button" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Try now"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Повторить сейчас"
+          }
+        }
+      }
+    },
+    "Sync.Syncing.A11y" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Syncing"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Синхронизация"
+          }
+        }
+      }
+    },
+    "TagEditor.Category.A11y" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Category %lld"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Категория %lld"
+          }
+        }
+      }
+    },
+    "TagEditor.Category.Header" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Category"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Категория"
+          }
+        }
+      }
+    },
+    "TagEditor.Delete.Button" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete tag"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Удалить тег"
+          }
+        }
+      }
+    },
+    "TagEditor.Delete.Confirm.Message" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@” will disappear from every day it was put on."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "«%@» пропадёт со всех дней, где он был проставлен."
+          }
+        }
+      }
+    },
+    "TagEditor.Delete.Confirm.Title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete tag?"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Удалить тег?"
+          }
+        }
+      }
+    },
+    "TagEditor.Duplicate.Message" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "That tag already exists"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Такой тег уже есть"
+          }
+        }
+      }
+    },
+    "TagEditor.Edit.Title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tag"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Тег"
+          }
+        }
+      }
+    },
+    "TagEditor.Name.Placeholder" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Name"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Название"
+          }
+        }
+      }
+    },
+    "TagEditor.New.Title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New tag"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Новый тег"
+          }
+        }
+      }
+    },
+    "TagPicker.Empty.Heading" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Log how your day went"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Отмечайте, как прошёл день"
+          }
+        }
+      }
+    },
+    "TagPicker.Empty.Subtitle" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A tag is a short note: a symptom, a mood, a medication. Days with tags show up in the calendar, and over time you can see what repeats from cycle to cycle."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Тег — короткая пометка: симптом, настроение, лекарство. Дни с тегами видно в календаре, и со временем заметно, что повторяется из цикла в цикл."
+          }
+        }
+      }
+    },
+    "TagPicker.NewTag.Button" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New tag"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Новый тег"
+          }
+        }
+      }
+    },
+    "TagPicker.NoResults.Empty" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nothing found"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ничего не найдено"
+          }
+        }
+      }
+    },
+    "TagPicker.Title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tags"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Теги"
+          }
+        }
+      }
+    },
     "Today Daystamp" : {
 
     },
@@ -1687,6 +2421,150 @@
         }
       }
     },
+    "WriteError.Comment" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The note wasn't saved. Please try again."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Заметка не сохранилась. Попробуйте ещё раз."
+          }
+        }
+      }
+    },
+    "WriteError.CycleSettings" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your cycle settings weren't saved. Please try again."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Настройки цикла не сохранились. Попробуйте ещё раз."
+          }
+        }
+      }
+    },
+    "WriteError.DayTags" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The tags weren't saved. Please try again."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Симптомы не сохранились. Попробуйте ещё раз."
+          }
+        }
+      }
+    },
+    "WriteError.FlowLevel" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The flow level wasn't saved. Please try again."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Интенсивность не сохранилась. Попробуйте ещё раз."
+          }
+        }
+      }
+    },
+    "WriteError.NotificationSettings" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The notification setting wasn't saved. Please try again."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Настройка уведомлений не сохранилась. Попробуйте ещё раз."
+          }
+        }
+      }
+    },
+    "WriteError.PeriodEnd" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The period end wasn't saved. Please try again."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Отметка окончания месячных не сохранилась. Попробуйте ещё раз."
+          }
+        }
+      }
+    },
+    "WriteError.PeriodStart" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The period start wasn't saved. Please try again."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Отметка начала месячных не сохранилась. Попробуйте ещё раз."
+          }
+        }
+      }
+    },
+    "WriteError.ProfileName" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your name wasn't saved. Please try again."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Имя не сохранилось. Попробуйте ещё раз."
+          }
+        }
+      }
+    },
+    "WriteError.UserTag" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The tag wasn't saved. Please try again."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Тег не сохранился. Попробуйте ещё раз."
+          }
+        }
+      }
+    },
     "Аккаунт помечается на удаление сразу, а данные стираются окончательно через %@. Если войти в аккаунт до этого срока — всё вернётся как было." : {
 
     },
@@ -1708,9 +2586,6 @@
     "Если начало новых месячных отмечено, а окончание предыдущих — нет, оно подтвердится автоматически, с длительностью %@." : {
 
     },
-    "Есть несохранённые данные" : {
-
-    },
     "Здесь будет статистика и аналитика" : {
 
     },
@@ -1723,25 +2598,10 @@
     "Имя, email и цикл" : {
 
     },
-    "Как прошёл день?" : {
-
-    },
-    "Категория" : {
-
-    },
-    "Категория %lld" : {
-
-    },
     "Код подтверждения отправлен на %@" : {
 
     },
     "Количество дней от начала одной менструации до первого дня следующей. %@" : {
-
-    },
-    "Комментарий" : {
-
-    },
-    "Меню" : {
 
     },
     "Мои устройства" : {
@@ -1750,34 +2610,10 @@
     "На прежний адрес придёт письмо о смене с кнопкой возврата — на случай, если аккаунтом воспользовался кто-то посторонний. Она действует %@." : {
 
     },
-    "Нажмите, чтобы узнать больше" : {
-
-    },
-    "Название" : {
-
-    },
-    "Настройки" : {
-
-    },
     "Не получили письмо?\n[Отправить код ещё раз](resend)" : {
 
     },
-    "Не удалось синхронизировать данные" : {
-
-    },
-    "Не удалось сохранить" : {
-
-    },
     "Не указан email" : {
-
-    },
-    "Ничего не найдено" : {
-
-    },
-    "Новый тег" : {
-
-    },
-    "Обильность" : {
 
     },
     "Обновление системы авторизации..." : {
@@ -1792,9 +2628,6 @@
     "Открыть настройки iOS" : {
 
     },
-    "Отмечайте, как прошёл день" : {
-
-    },
     "Оформление" : {
 
     },
@@ -1805,12 +2638,6 @@
 
     },
     "По этому адресу вы входите в аккаунт." : {
-
-    },
-    "Повторить сейчас" : {
-
-    },
-    "Поделиться приложением" : {
 
     },
     "Подтверждать автоматически" : {
@@ -1828,25 +2655,7 @@
     "Профиль" : {
 
     },
-    "Синхронизация" : {
-
-    },
     "Скоро вход по номеру телефона перестанет работать. Привяжите email, чтобы сохранить доступ к аккаунту." : {
-
-    },
-    "Статистика" : {
-
-    },
-    "Такой тег уже есть" : {
-
-    },
-    "Тег" : {
-
-    },
-    "Тег — короткая пометка: симптом, настроение, лекарство. Дни с тегами видно в календаре, и со временем заметно, что повторяется из цикла в цикл." : {
-
-    },
-    "Теги" : {
 
     },
     "Тегов пока нет" : {
@@ -1868,12 +2677,6 @@
 
     },
     "Удалить аккаунт" : {
-
-    },
-    "Удалить тег" : {
-
-    },
-    "Удалить тег?" : {
 
     },
     "Укажите email" : {

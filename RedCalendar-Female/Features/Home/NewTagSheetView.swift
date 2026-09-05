@@ -84,7 +84,7 @@ struct NewTagSheetView: View {
                 .padding(.horizontal, DayDetailsMetrics.screenInset)
                 .padding(.vertical, sectionSpacing)
             }
-            .navigationTitle(editingTag == nil ? "Новый тег" : "Тег")
+            .navigationTitle(editingTag == nil ? "TagEditor.New.Title" : "TagEditor.Edit.Title")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -105,7 +105,7 @@ struct NewTagSheetView: View {
 
     private var nameField: some View {
         VStack(alignment: .leading, spacing: 8) {
-            TextField("Название", text: $name)
+            TextField("TagEditor.Name.Placeholder", text: $name)
                 .focused($isFocused)
                 .submitLabel(.done)
                 .onSubmit(save)
@@ -115,7 +115,7 @@ struct NewTagSheetView: View {
             // thing the user typed, so a button that has gone grey without a reason reads as
             // the app having lost the text.
             if isDuplicate {
-                Text("Такой тег уже есть")
+                Text("TagEditor.Duplicate.Message")
                     .font(.footnote)
                     .foregroundColor(.secondary)
             }
@@ -130,7 +130,7 @@ struct NewTagSheetView: View {
     // went with the names — four colours fit on any line at any Dynamic Type size.
     private var categoryPicker: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Категория")
+            Text("TagEditor.Category.Header")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
 
@@ -165,7 +165,7 @@ struct NewTagSheetView: View {
         .buttonStyle(.plain)
         // A colour has nothing to say to VoiceOver, so the swatches are numbered rather than
         // named — the position in the row is the only thing about them that is stable.
-        .accessibilityLabel(Text("Категория \(candidate.rawValue + 1)"))
+        .accessibilityLabel(Text(String.localized("TagEditor.Category.A11y", candidate.rawValue + 1)))
         .accessibilityAddTraits(isSelected ? [.isSelected] : [])
     }
 
@@ -177,7 +177,7 @@ struct NewTagSheetView: View {
     // a destructive action sits at the bottom of its own form on this platform generally — one
     // more thing to scroll past, not a third top-level choice next to "Отмена" and "Готово".
     private var deleteSection: some View {
-        Button("Удалить тег", role: .destructive) {
+        Button("TagEditor.Delete.Button", role: .destructive) {
             showDeleteConfirmation = true
         }
         // On the button itself rather than on the `NavigationView`, which is where this sat
@@ -187,14 +187,14 @@ struct NewTagSheetView: View {
         // line a user actually reads says the consequence — a tag lives on every day it was put
         // on, and deleting it here does not ask those days first.
         .confirmationDialog(
-            "Удалить тег?",
+            "TagEditor.Delete.Confirm.Title",
             isPresented: $showDeleteConfirmation,
             titleVisibility: .visible
         ) {
-            Button("Удалить тег", role: .destructive, action: delete)
+            Button("TagEditor.Delete.Button", role: .destructive, action: delete)
             Button("Common.Cancel", role: .cancel) {}
         } message: {
-            Text("«\(editingTag?.name ?? "")» пропадёт со всех дней, где он был проставлен.")
+            Text(String.localized("TagEditor.Delete.Confirm.Message", editingTag?.name ?? ""))
         }
     }
 

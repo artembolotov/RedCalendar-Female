@@ -135,7 +135,7 @@ struct HomeView: View {
                 // cannot be: the flag stays true until the user answers, so SwiftUI presents it
                 // on the first pass where it is able to.
                 .alert(
-                    "Не удалось сохранить",
+                    "Home.WriteFailure.Title",
                     isPresented: writeFailurePresented,
                     presenting: store.state.calendarState.writeFailure
                 ) { _ in

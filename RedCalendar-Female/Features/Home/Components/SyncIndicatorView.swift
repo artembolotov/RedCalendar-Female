@@ -109,13 +109,13 @@ struct SyncIndicatorView: View {
         ZStack {
             ProgressView()
                 .tint(accent)
-                .accessibilityLabel("Синхронизация")
+                .accessibilityLabel("Sync.Syncing.A11y")
                 .opacity(displayedState == .syncing ? 1 : 0)
                 .accessibilityHidden(displayedState != .syncing)
 
             Image(systemName: "arrow.triangle.2.circlepath")
                 .foregroundStyle(accent)
-                .accessibilityLabel("Есть несохранённые данные")
+                .accessibilityLabel("Sync.Pending.A11y")
                 .opacity(displayedState == .pending ? 1 : 0)
                 .accessibilityHidden(displayedState != .pending)
 
@@ -127,8 +127,8 @@ struct SyncIndicatorView: View {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .symbolRenderingMode(.multicolor)
             }
-            .accessibilityLabel("Не удалось синхронизировать данные")
-            .accessibilityHint("Нажмите, чтобы узнать больше")
+            .accessibilityLabel("Sync.Failed.A11y")
+            .accessibilityHint("Sync.Failed.Hint")
             .opacity(hasFailed ? 1 : 0)
             .allowsHitTesting(hasFailed)
             .accessibilityHidden(!hasFailed)
@@ -234,7 +234,7 @@ struct SyncIndicatorView: View {
                 // `origin` is captured for the life of the presentation, so this branch is a
                 // constant while the popover is open — the *shape* of the content never changes
                 // under an in-flight presentation, only `disabled`.
-                Button("Повторить сейчас", action: onRetry)
+                Button("Sync.Retry.Button", action: onRetry)
                     .disabled(syncState == .syncing)
                     .tint(accent)
             }
@@ -250,12 +250,12 @@ struct SyncIndicatorView: View {
         .modifier(CompactPopoverAdaptation())
     }
 
-    private func explanationText(for origin: SyncState.FailureOrigin) -> String {
+    private func explanationText(for origin: SyncState.FailureOrigin) -> LocalizedStringKey {
         switch origin {
         case .syncRun:
-            "Не получилось синхронизировать данные. Приложение попробует ещё раз позже."
+            "Sync.Failure.SyncRun.Message"
         case .firebaseImport:
-            "Не получилось перенести данные из старого приложения. Попытка повторится при следующем входе."
+            "Sync.Failure.FirebaseImport.Message"
         }
     }
 }
