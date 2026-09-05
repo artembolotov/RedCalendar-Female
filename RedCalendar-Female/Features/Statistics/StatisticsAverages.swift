@@ -3,12 +3,14 @@
 //  RedCalendar-Female
 //
 
-/// The plain averages shown in `StatisticsView`'s top tiles, over the last
-/// `Constants.Statistics.averageWindowDays` — deliberately not the same number `CycleForecast`
-/// writes into `ResolvedCycleSettings`. The calendar's own predictions need the median's
-/// resistance to a single missed-period outlier (see `CycleForecast`'s doc comment); a stats
-/// screen answering "how long has my cycle actually been, lately" is a different question, and a
-/// windowed mean answers it more plainly. Nothing here feeds back into the store or the forecast.
+/// The two numbers shown in `StatisticsView`'s top tiles, over the last
+/// `Constants.Statistics.averageWindowDays`. Median, like `CycleForecast`, and for the same
+/// reason — resistance to a single missed-period outlier (see its doc comment) — but windowed by
+/// *time* rather than by count. `CycleForecast` looks at the last `forecastWindow` recorded
+/// cycles, however long ago that stretch was, because it exists to say what to predict next.
+/// Statistics is answering a different question — "what has my cycle actually looked like
+/// lately" — so it takes every plausible cycle whose own start falls in the last six months,
+/// whether that is two cycles or eight. Nothing here feeds back into the store or the forecast.
 struct StatisticsAverages {
     let cycleLength: Int?
     let periodLength: Int?
@@ -19,15 +21,15 @@ struct StatisticsAverages {
     init(cycles: [CycleRecord], today: Daystamp) {
         let cutoff = today - Constants.Statistics.averageWindowDays
 
-        cycleLength = Self.average(
+        cycleLength = Self.median(
             of: zip(cycles, cycles.dropFirst())
                 .filter { previous, _ in previous.startDay >= cutoff }
                 .map { previous, next in next.startDay - previous.startDay },
             within: Constants.Cycle.minCycleLength...Constants.Cycle.maxCycleLength
         )
         // Same `periodLength == 0` exclusion as `CycleForecast`: an open period is not yet a
-        // fact, and `minPeriodLength` being 1 is what keeps it out of the average.
-        periodLength = Self.average(
+        // fact, and `minPeriodLength` being 1 is what keeps it out of the median.
+        periodLength = Self.median(
             of: cycles
                 .filter { $0.startDay >= cutoff }
                 .compactMap(\.periodLength),
@@ -35,11 +37,12 @@ struct StatisticsAverages {
         )
     }
 
+    /// The lower of the two middles on an even count, same convention `CycleForecast` uses.
     /// `nil` while nothing plausible falls in the window — `StatisticsView` falls back to the
     /// stored `cycleSettings` for that case rather than leaving a tile blank.
-    private static func average(of observations: [Int], within range: ClosedRange<Int>) -> Int? {
-        let plausible = observations.filter { range.contains($0) }
+    private static func median(of observations: [Int], within range: ClosedRange<Int>) -> Int? {
+        let plausible = observations.filter { range.contains($0) }.sorted()
         guard !plausible.isEmpty else { return nil }
-        return Int((Double(plausible.reduce(0, +)) / Double(plausible.count)).rounded())
+        return plausible[(plausible.count - 1) / 2]
     }
 }
