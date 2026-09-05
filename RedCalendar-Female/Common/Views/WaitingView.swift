@@ -18,5 +18,5 @@ struct WaitingView: View {
 }
 
 #Preview {
-    WaitingView("Проверка авторизации")
+    WaitingView("Migration.CheckingAuth")
 }

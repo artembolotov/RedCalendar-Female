@@ -35,7 +35,7 @@ struct ProfileView: View {
     var body: some View {
         Form {
             Section {
-                TextField("Имя", text: nameBinding)
+                TextField("Profile.Name.Placeholder", text: nameBinding)
                     .textContentType(.name)
                     .autocapitalization(.words)
                     .disableAutocorrection(true)
@@ -43,7 +43,7 @@ struct ProfileView: View {
                     .focused($isNameFieldFocused)
                     .onSubmit { isNameFieldFocused = false }
             } header: {
-                Text("Имя")
+                Text("Profile.Name.Header")
             }
 
             // The row opens the flow of SYNC.md §18 — one sheet for both edges of it, because
@@ -59,7 +59,7 @@ struct ProfileView: View {
                     store.send(.emailBinding(.set(.entry())))
                 } label: {
                     HStack {
-                        Text("Email")
+                        Text("Profile.Email.Title")
                             .foregroundColor(.primary)
                         Spacer()
                         if let email = store.state.userProfile?.email {
@@ -68,7 +68,7 @@ struct ProfileView: View {
                                 .lineLimit(1)
                                 .truncationMode(.middle)
                         } else {
-                            Text("Укажите email")
+                            Text("Profile.Email.Unset")
                                 .foregroundColor(.red)
                         }
                         // The chevron a `NavigationLink` would have drawn for itself. This is a
@@ -84,9 +84,9 @@ struct ProfileView: View {
                     // Phone sign-in is on the way out (SYNC.md §12, items 14–16 retire Firebase
                     // and the phone lookup it backs) — an account with no email on file is an
                     // account with no way back in once that lands.
-                    Text("Скоро вход по номеру телефона перестанет работать. Привяжите email, чтобы сохранить доступ к аккаунту.")
+                    Text("Profile.Email.LegacyPhone.Footer")
                 } else {
-                    Text("По этому адресу вы входите в аккаунт.")
+                    Text("Profile.Email.Footer")
                 }
             }
 
@@ -99,12 +99,12 @@ struct ProfileView: View {
             // screen the account's own identity and cycle data live on, rather than next to
             // unrelated rows like the accent picker.
             Section {
-                Button("Удалить аккаунт", role: .destructive) {
+                Button("Profile.DeleteAccount.Button", role: .destructive) {
                     isPresentingDeleteAccount = true
                 }
             }
         }
-        .navigationTitle("Профиль")
+        .navigationTitle("Profile.Title")
         .navigationBarTitleDisplayMode(.inline)
         // No close button to commit from — this is a push, not a sheet — so `onDisappear` (the
         // swipe-back included) is the only safety net for a tap that fell inside the debounce
@@ -163,7 +163,7 @@ struct ProfileView: View {
             }
             // The section header names the setting on screen but is not part of the control, so
             // VoiceOver would otherwise announce an adjustable "28 дней" belonging to nothing.
-            .accessibilityLabel("Длина цикла")
+            .accessibilityLabel("Profile.CycleLength.Header")
             .accessibilityValue(cycleLength.localizedDays)
 
             // A row in the section's own content, not `footer:` — see `SettingsView`'s original
@@ -175,23 +175,23 @@ struct ProfileView: View {
             // rows in the same footnote grey, with a separator between them, read as one
             // paragraph broken in half. `periodLengthSection` has no description to fold into and
             // carries the note as a row of its own.
-            Text("Количество дней от начала одной менструации до первого дня следующей. \(Self.forecastNote)")
+            Text(String.localized("Profile.CycleLength.Footer", Self.forecastNote))
                 .font(.footnote)
                 .foregroundColor(.secondary)
         } header: {
-            Text("Длина цикла")
+            Text("Profile.CycleLength.Header")
         }
     }
 
     private var periodLengthSection: some View {
-        Section("Длительность месячных") {
+        Section("Profile.PeriodLength.Header") {
             Stepper(
                 value: periodLengthBinding,
                 in: Constants.Cycle.minPeriodLength...Constants.Cycle.maxPeriodLength
             ) {
                 Text(periodLength.localizedDays)
             }
-            .accessibilityLabel("Длительность месячных")
+            .accessibilityLabel("Profile.PeriodLength.Header")
             .accessibilityValue(periodLength.localizedDays)
 
             Text(Self.forecastNote)
@@ -204,9 +204,9 @@ struct ProfileView: View {
     // one open more often than not, since ending it was a separate tap nobody remembered to make.
     private var autoConfirmPreviousCycleSection: some View {
         Section {
-            Toggle("Подтверждать автоматически", isOn: autoConfirmPreviousCycleBinding)
+            Toggle("Profile.AutoConfirm.Title", isOn: autoConfirmPreviousCycleBinding)
         } footer: {
-            Text("Если начало новых месячных отмечено, а окончание предыдущих — нет, оно подтвердится автоматически, с длительностью \(periodLength.localizedDays).")
+            Text(String.localized("Profile.AutoConfirm.Footer", periodLength.localizedDays))
         }
     }
 
@@ -219,7 +219,7 @@ struct ProfileView: View {
     /// Present tense and no threshold in the wording, because the sentence has to be true on both
     /// sides of one: for the person whose value is already being measured, and for the person
     /// whose first cycles are still governed by the number they typed.
-    private static let forecastNote = "Значение уточняется автоматически по отмеченным циклам."
+    private static var forecastNote: String { String(localized: "Profile.Forecast.Note") }
 
     // MARK: - Private Methods
 

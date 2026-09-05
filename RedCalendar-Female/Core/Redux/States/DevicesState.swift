@@ -27,8 +27,8 @@ struct DevicesState: Equatable, Sendable {
 
         var message: String {
             switch self {
-            case .load: "Не удалось загрузить список устройств."
-            case .revoke: "Не удалось отключить устройство. Попробуйте ещё раз."
+            case .load: String(localized: "DevicesError.Load")
+            case .revoke: String(localized: "DevicesError.Revoke")
             }
         }
     }

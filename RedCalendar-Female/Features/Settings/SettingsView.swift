@@ -38,13 +38,13 @@ struct SettingsView: View {
                     accentThemeSection
 
                     Section {
-                        NavigationLink("Теги") {
+                        NavigationLink("Settings.Tags.Button") {
                             TagsListView()
                         }
                     }
 
                     Section {
-                        NavigationLink("Мои устройства") {
+                        NavigationLink("Settings.Devices.Button") {
                             DevicesView()
                         }
                     }
@@ -72,12 +72,12 @@ struct SettingsView: View {
                         // would take. Logout drops the session, not the local database, so the
                         // warning colour a truly destructive action gets — "Удалить аккаунт", one
                         // screen away on the profile row above — is not owed here.
-                        Button("Выйти") {
+                        Button("Settings.SignOut.Button") {
                             store.send(.auth(.logout))
                         }
                     }
                 }
-                .navigationTitle("Настройки")
+                .navigationTitle("Settings.Title")
                 .navigationBarTitleDisplayMode(.inline)
                 .closeButtonToolbar()
             }
@@ -101,8 +101,8 @@ struct SettingsView: View {
             } label: {
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Профиль")
-                        Text("Имя, email и цикл")
+                        Text("Settings.Profile.Title")
+                        Text("Settings.Profile.Subtitle")
                             .foregroundColor(.secondary)
                             .font(.subheadline)
                     }
@@ -116,7 +116,7 @@ struct SettingsView: View {
                         Spacer()
                         Image(systemName: "exclamationmark.circle.fill")
                             .foregroundColor(.red)
-                            .accessibilityLabel("Не указан email")
+                            .accessibilityLabel("Settings.Profile.NoEmail.A11y")
                     }
                 }
             }
@@ -134,7 +134,7 @@ struct SettingsView: View {
         let isBlocked = store.state.notifications.isBlockedBySystem
 
         return Section {
-            Toggle("Присылать уведомления", isOn: notificationsBinding)
+            Toggle("Settings.Notifications.Title", isOn: notificationsBinding)
                 .disabled(isBlocked)
 
             // There is nothing this app can do about a system-level refusal —
@@ -143,12 +143,12 @@ struct SettingsView: View {
             // the account's own preference, which this device has not touched.
             if isBlocked {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Уведомления отключены для приложения в настройках iOS. Включите их там, чтобы получать напоминания на этом устройстве.")
+                    Text("Settings.Notifications.Blocked.Footer")
                         .font(.footnote)
                         .foregroundColor(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
 
-                    Button("Открыть настройки iOS") {
+                    Button("Settings.Notifications.OpenSettings.Button") {
                         guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
                         UIApplication.shared.open(url)
                     }
@@ -163,7 +163,7 @@ struct SettingsView: View {
     // show its own colour at a size worth judging. A picker would collapse the three down to
     // their names.
     private var accentThemeSection: some View {
-        Section("Оформление") {
+        Section("Settings.Appearance.Header") {
             ForEach(AccentTheme.allCases) { theme in
                 let isSelected = store.state.accentTheme == theme
 
@@ -199,7 +199,7 @@ struct SettingsView: View {
 
     private var versionRow: some View {
         HStack {
-            Text("Версия")
+            Text("Settings.Version.Title")
             Spacer()
             Text(Bundle.main.versionString)
                 .foregroundColor(.secondary)
@@ -263,9 +263,9 @@ private struct DeveloperSectionView: View {
     nonisolated fileprivate static let unsetPlaceholder = "—"
 
     var body: some View {
-        Section("Developer") {
+        Section("Developer.Header") {
             HStack {
-                Text("Device ID")
+                Text("Developer.DeviceId.Title")
                 Spacer()
                 Text(deviceId)
                     .foregroundColor(.secondary)
@@ -275,7 +275,7 @@ private struct DeveloperSectionView: View {
             }
 
             HStack {
-                Text("User ID")
+                Text("Developer.UserId.Title")
                 Spacer()
                 Text(userId.orPlaceholder)
                     .foregroundColor(.secondary)
@@ -285,7 +285,7 @@ private struct DeveloperSectionView: View {
             }
 
             HStack {
-                Text("Today Daystamp")
+                Text("Developer.TodayDaystamp.Title")
                 Spacer()
                 Text(verbatim: "\(todayDayStamp.rawValue)")
                     .foregroundColor(.secondary)
@@ -294,7 +294,7 @@ private struct DeveloperSectionView: View {
             }
 
             HStack {
-                Text("Имя")
+                Text("Developer.Name.Title")
                 Spacer()
                 Text(userName.orPlaceholder)
                     .foregroundColor(.secondary)
@@ -303,7 +303,7 @@ private struct DeveloperSectionView: View {
             }
 
             HStack {
-                Text("Почта")
+                Text("Developer.Email.Title")
                 Spacer()
                 Text(userEmail.orPlaceholder)
                     .foregroundColor(.secondary)
@@ -312,7 +312,7 @@ private struct DeveloperSectionView: View {
             }
 
             HStack {
-                Text("Телефон")
+                Text("Developer.Phone.Title")
                 Spacer()
                 Text(userPhoneNumber.orPlaceholder)
                     .foregroundColor(.secondary)
@@ -321,13 +321,13 @@ private struct DeveloperSectionView: View {
             }
 
             HStack {
-                Text("AppMetrica")
+                Text("Developer.AppMetrica.Title")
                 Spacer()
                 statusCircle(active: analyticsActivated)
             }
 
             HStack {
-                Text("Push-уведомления")
+                Text("Developer.Push.Title")
                 Spacer()
                 statusCircle(active: pushRegistered)
             }

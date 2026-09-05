@@ -65,13 +65,13 @@ struct DevicesView: View {
                 // workaround). Folding the text into the row content shares the rows' own
                 // self-sizing pass instead of getting one of its own.
                 if !devices.devices.isEmpty {
-                    Text("Отключённое устройство выйдет из аккаунта, когда приложение на нём в следующий раз выйдет в сеть.")
+                    Text("Devices.Disconnect.Footer")
                         .font(.footnote)
                         .foregroundColor(.secondary)
                 }
             }
         }
-        .navigationTitle("Мои устройства")
+        .navigationTitle("Devices.Title")
         .navigationBarTitleDisplayMode(.inline)
         .modifier(DevicesToolbar(isIndicatorVisible: isIndicatorVisible))
         .onChange(of: devices.isLoading) { reconcileIndicator(isLoading: $0) }
@@ -113,7 +113,7 @@ struct DevicesView: View {
             // The current device has no action at all — the server refuses it too (§19.3), so
             // this is the affordance matching the rule rather than the rule itself.
             if !isCurrent && !isRevoking {
-                Button("Отключить", role: .destructive) {
+                Button("Devices.Disconnect.Button", role: .destructive) {
                     store.send(.devices(.revoke(deviceId: device.id)))
                 }
             }
@@ -165,16 +165,19 @@ struct DevicesView: View {
     // freshness reading is only worth reading about the phones that are not in your hand.
     private func subtitle(for device: UserDevice, isCurrent: Bool) -> String {
         if isCurrent {
-            return "Это устройство"
+            return String(localized: "Devices.ThisDevice.Subtitle")
         }
 
         guard let lastSeenAt = device.lastSeenAt else {
             // A device that signed in and never completed a sync run. Rare — signing in starts
             // one immediately — but its row has nothing else to say.
-            return "Нет данных об активности"
+            return String(localized: "Devices.NoActivity.Subtitle")
         }
 
-        return "Активность: \(lastSeenAt.formatted(.relative(presentation: .named)))"
+        return String.localized(
+            "Devices.LastSeen.Subtitle",
+            lastSeenAt.formatted(.relative(presentation: .named))
+        )
     }
 }
 

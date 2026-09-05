@@ -56,7 +56,7 @@ struct EmailBindingView: View {
                     Color.clear
                 }
             }
-            .navigationTitle(isChange ? "Изменение email" : "Привязка email")
+            .navigationTitle(isChange ? "EmailBinding.Change.Title" : "EmailBinding.Bind.Title")
             .navigationBarTitleDisplayMode(.inline)
             .closeButtonToolbar { store.send(.emailBinding(.set(nil))) }
         }
@@ -68,19 +68,19 @@ struct EmailBindingView: View {
     private func entryStep(email: String, error: EmailBindingError?, isBusy: Bool) -> some View {
         stepLayout {
             Text(isChange
-                 ? "Введите новый адрес. Мы отправим на него код подтверждения."
-                 : "Email — это вход в аккаунт. Мы отправим на него код подтверждения.")
+                 ? "EmailBinding.Change.Subtitle"
+                 : "EmailBinding.Bind.Subtitle")
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
 
             if isChange, let current = store.state.userProfile?.email {
-                Text("Текущий адрес: \(current)")
+                Text(String.localized("EmailBinding.Current.Message", current))
                     .font(.caption)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
             }
 
-            TextField("Email", text: $emailText)
+            TextField("EmailBinding.Email.Placeholder", text: $emailText)
                 .keyboardType(.emailAddress)
                 .textContentType(.emailAddress)
                 .submitLabel(.continue)
@@ -97,7 +97,7 @@ struct EmailBindingView: View {
             // change, the letter to the old address is the whole of the protection (§18.6), and
             // the person deciding to press the button is who needs to know it is coming.
             if isChange {
-                Text("На прежний адрес придёт письмо о смене с кнопкой возврата — на случай, если аккаунтом воспользовался кто-то посторонний. Она действует \(Constants.Account.emailRevertWindowDays.localizedDays).")
+                Text(String.localized("EmailBinding.Revert.Footer", Constants.Account.emailRevertWindowDays.localizedDays))
                     .font(.caption)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
@@ -108,7 +108,7 @@ struct EmailBindingView: View {
                 accent: store.state.accentTheme.accent,
                 action: requestCode
             ) {
-                buttonLabel("Отправить код", isBusy: isBusy)
+                buttonLabel("EmailBinding.SendCode.Button", isBusy: isBusy)
             }
         }
         .onAppear {
@@ -136,11 +136,11 @@ struct EmailBindingView: View {
                 Spacer()
             }
 
-            Text("Код подтверждения отправлен на \(email)")
+            Text(String.localized("EmailBinding.Sent.Message", email))
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
 
-            TextField("Код из письма", text: $codeInput)
+            TextField("EmailBinding.Code.Placeholder", text: $codeInput)
                 .keyboardType(.numberPad)
                 .textContentType(.oneTimeCode)
                 .focused($focusedField, equals: .code)
@@ -155,7 +155,7 @@ struct EmailBindingView: View {
 
             errorText(error)
 
-            Text("Не получили письмо?\n[Отправить код ещё раз](resend)")
+            Text("EmailBinding.Resend.Footer")
                 .font(.caption)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
@@ -193,10 +193,10 @@ struct EmailBindingView: View {
                 // Nothing here about the letter to the old address — the entry step already said
                 // that, before the button was pressed (§18.6). Nothing has changed since to make
                 // it worth repeating.
-                Text("Теперь ваш адрес — \(email). Входите в аккаунт по нему.")
+                Text(String.localized("EmailBinding.Done.Changed.Message", email))
                     .multilineTextAlignment(.center)
             } else {
-                Text("Этот адрес уже привязан к вашему аккаунту.")
+                Text("EmailBinding.Done.Unchanged.Message")
                     .multilineTextAlignment(.center)
             }
 

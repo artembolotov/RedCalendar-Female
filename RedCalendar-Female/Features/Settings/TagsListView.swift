@@ -33,13 +33,13 @@ struct TagsListView: View {
     var body: some View {
         Group {
             if tagsByCategory.isEmpty {
-                Text("Тегов пока нет")
+                Text("TagList.Empty")
                     .foregroundColor(.secondary)
             } else {
                 list
             }
         }
-        .navigationTitle("Теги")
+        .navigationTitle("TagList.Title")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {

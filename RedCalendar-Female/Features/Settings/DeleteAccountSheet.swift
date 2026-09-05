@@ -26,22 +26,22 @@ struct DeleteAccountSheet: View {
                     .font(.system(size: 36))
                     .foregroundColor(.red)
 
-                Text("Это удалит всю историю циклов, комментарии и теги, привязанные к аккаунту.")
+                Text("DeleteAccount.Message")
                     .font(.body)
 
-                Text("Аккаунт помечается на удаление сразу, а данные стираются окончательно через \(Constants.Account.deletionGraceDays.localizedDays). Если войти в аккаунт до этого срока — всё вернётся как было.")
+                Text(String.localized("DeleteAccount.Grace.Footer", Constants.Account.deletionGraceDays.localizedDays))
                     .font(.body)
                     .foregroundColor(.secondary)
 
                 Spacer()
 
-                PrimaryButton("Удалить аккаунт", accent: .red) {
+                PrimaryButton("DeleteAccount.Confirm.Button", accent: .red) {
                     store.send(.auth(.deleteAccount))
                     dismiss()
                 }
             }
             .padding(20)
-            .navigationTitle("Удаление аккаунта")
+            .navigationTitle("DeleteAccount.Title")
             .navigationBarTitleDisplayMode(.inline)
             .closeButtonToolbar()
         }

@@ -29,7 +29,7 @@ struct RootView: View {
                             .foregroundColor(.orange)
                             .padding(.bottom, 8)
                         
-                        Text("Ошибка миграции")
+                        Text("Migration.Failed.Heading")
                             .font(.headline)
                             .foregroundColor(.primary)
                         
@@ -46,9 +46,9 @@ struct RootView: View {
                         .controlSize(.large)
                         .padding(.top, 16)
                     } else {
-                        ProgressView("Обновление системы авторизации...")
+                        ProgressView("Migration.Progress.Title")
                         
-                        Text("Переходим на новую систему безопасности")
+                        Text("Migration.Progress.Subtitle")
                             .font(.caption)
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
@@ -59,7 +59,7 @@ struct RootView: View {
                 .background(Color("AppBackgroundColor"))
             }
         } else {
-            WaitingView("Проверка авторизации")
+            WaitingView("Migration.CheckingAuth")
         }
     }
 }

@@ -7,12 +7,14 @@ import XCTest
 
 /// An abstract key fails silently. `Text("Settings.Title")` with nothing behind it draws
 /// `Settings.Title` on the screen — there is no crash, no warning, and no fallback to read, which
-/// is what Russian-text-as-key used to give for free. So the two things that can go wrong are
+/// is what Russian-text-as-key used to give for free. So the three things that can go wrong are
 /// checked here rather than left to be noticed:
 ///
 /// 1. a key that does not follow the scheme (`Settings.title` in place of `Settings.Title` is a
-///    second entry, not an error), and
-/// 2. a key the catalog has no string for in one of the two languages.
+///    second entry, not an error),
+/// 2. a key the catalog has no string for in one of the two languages, and
+/// 3. a key that is the text itself again — the shape the whole catalog was in before, and the
+///    one a hurried `Text("Новая строка")` puts a corner of it back into.
 ///
 /// The catalog is read from the source tree rather than from a bundle: `.xcstrings` is compiled
 /// into `.strings`/`.stringsdict` on the way into the app, and the key list is what is being
@@ -33,34 +35,20 @@ final class StringCatalogTests: XCTestCase {
     /// scheme.
     private static let serverOwnedScopes = ["PeriodStart", "PeriodEnd", "Ovulation"]
 
-    /// Keys still holding their English text, waiting on the `Developer`, `Settings` and
-    /// `PhoneCode` scopes. Delete each as its screen migrates; the last one out empties the list.
-    private static let pendingLatinKeys: Set<String> = [
-        "AppMetrica", "Developer", "Device ID", "Email", "Today Daystamp", "User ID",
-    ]
-
-    /// Keys still holding their Russian text. They are self-describing in Russian and fall back to
-    /// themselves everywhere else, which is what the migration is replacing — until then they are
-    /// exempt from both checks below. The count is asserted rather than the list, so a screen that
-    /// migrates lowers it and a new Russian literal cannot quietly take the freed slot.
-    private static let pendingRussianKeyCount = 43
-
     // MARK: - Tests
 
     func testEveryKeyFollowsTheScheme() {
-        var offenders: [String] = []
-        for key in Self.catalog.keys where !Self.isPending(key) && !Self.isServerOwned(key) {
-            let range = NSRange(key.startIndex..., in: key)
-            if Self.schema.firstMatch(in: key, range: range) == nil {
-                offenders.append(key)
+        let offenders = catalog.keys
+            .filter { !Self.isServerOwned($0) }
+            .filter { key in
+                Self.schema.firstMatch(in: key, range: NSRange(key.startIndex..., in: key)) == nil
             }
-        }
         XCTAssertEqual(offenders.sorted(), [], "Keys outside Scope.Path.Role, PascalCase, 2–4 segments")
     }
 
     func testEveryKeyIsTranslatedIntoBothLanguages() {
         var offenders: [String] = []
-        for (key, entry) in Self.catalog where !Self.isPending(key) {
+        for (key, entry) in catalog {
             for language in ["en", "ru"] where !Self.hasString(entry, language) {
                 offenders.append("\(key) [\(language)]")
             }
@@ -68,29 +56,14 @@ final class StringCatalogTests: XCTestCase {
         XCTAssertEqual(offenders.sorted(), [], "Keys with no string in one of the two languages")
     }
 
-    func testTheRussianKeysAreOnlyEverBeingRemoved() {
-        let remaining = Self.catalog.keys.filter(Self.holdsRussianText).count
-        XCTAssertLessThanOrEqual(
-            remaining, Self.pendingRussianKeyCount,
-            "A new Russian-text key was added. Give it a Scope.Path.Role name instead."
-        )
-        XCTAssertEqual(
-            remaining, Self.pendingRussianKeyCount,
-            "Russian keys were migrated — lower `pendingRussianKeyCount` to \(remaining)."
-        )
-    }
-
-    func testThePendingListsDoNotRot() {
-        let keys = Set(Self.catalog.keys)
-        XCTAssertEqual(
-            Self.pendingLatinKeys.subtracting(keys), [],
-            "Listed as pending but no longer in the catalog — drop them from `pendingLatinKeys`."
-        )
+    func testNoKeyIsRussianTextAgain() {
+        let offenders = catalog.keys.filter(Self.holdsRussianText)
+        XCTAssertEqual(offenders.sorted(), [], "Give these a Scope.Path.Role name instead")
     }
 
     // MARK: - Catalog
 
-    private static var catalog: [String: [String: Any]] {
+    private var catalog: [String: [String: Any]] {
         // …/RedCalendar-FemaleTests/StringCatalogTests.swift → …/RedCalendar-Female/Localizable.xcstrings
         let url = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
@@ -107,10 +80,6 @@ final class StringCatalogTests: XCTestCase {
 
     private static func holdsRussianText(_ key: String) -> Bool {
         key.unicodeScalars.contains { (0x0400...0x04FF).contains(Int($0.value)) }
-    }
-
-    private static func isPending(_ key: String) -> Bool {
-        holdsRussianText(key) || pendingLatinKeys.contains(key)
     }
 
     /// True when the entry carries a non-empty string for the language, whether it is a plain unit

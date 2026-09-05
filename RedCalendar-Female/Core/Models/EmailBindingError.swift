@@ -46,26 +46,28 @@ enum EmailBindingError: Error, LocalizedError, Equatable {
         switch self {
         case .emailTaken(let availableAfter):
             if let availableAfter {
-                return "Этот адрес принадлежит аккаунту, который удаляется. Он освободится после \(Self.dateText(availableAfter))."
+                return String.localized("EmailBindingError.EmailTaken.Deleting", Self.dateText(availableAfter))
             }
-            return "Этот адрес уже используется другим аккаунтом RedCalendar. Войдите в тот аккаунт или укажите другой адрес."
+            return String(localized: "EmailBindingError.EmailTaken")
         case .invalidEmail:
-            return "Неверный формат email."
+            return String(localized: "EmailBindingError.InvalidEmail")
         case .pendingAddressChanged:
-            return "Код запрашивали для другого адреса. Введите код из последнего письма или запросите новый."
+            return String(localized: "EmailBindingError.PendingAddressChanged")
         case .invalidCode(let remainingAttempts):
-            guard let remainingAttempts, remainingAttempts > 0 else { return "Неверный код." }
-            return "Неверный код. Осталось попыток: \(remainingAttempts)."
+            guard let remainingAttempts, remainingAttempts > 0 else {
+                return String(localized: "EmailBindingError.InvalidCode")
+            }
+            return String.localized("EmailBindingError.InvalidCode.Remaining", remainingAttempts)
         case .codeExpired:
-            return "Код истёк. Запросите новый."
+            return String(localized: "EmailBindingError.CodeExpired")
         case .tooManyAttempts:
-            return "Слишком много попыток. Запросите новый код."
+            return String(localized: "EmailBindingError.TooManyAttempts")
         case .requestNotFound:
-            return "Код не найден. Запросите новый."
+            return String(localized: "EmailBindingError.RequestNotFound")
         case .rateLimited(let message):
-            return message ?? "Слишком много запросов. Попробуйте позже."
+            return message ?? String(localized: "EmailBindingError.RateLimited")
         case .accountUnavailable:
-            return "Аккаунт недоступен. Войдите в приложение заново."
+            return String(localized: "EmailBindingError.AccountUnavailable")
         case .networkError(let message), .serverError(let message):
             return message
         }

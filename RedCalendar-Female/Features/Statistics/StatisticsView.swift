@@ -13,11 +13,11 @@ struct StatisticsView: View {
     var body: some View {
         NavigationView {
             VStack {
-                Text("Здесь будет статистика и аналитика")
+                Text("Statistics.Empty")
                     .foregroundColor(.secondary)
             }
             .padding()
-            .navigationTitle("Статистика")
+            .navigationTitle("Statistics.Title")
             .navigationBarTitleDisplayMode(.inline)
             .closeButtonToolbar()
         }

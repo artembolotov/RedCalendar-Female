@@ -1,8 +1,53 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
-    "AppMetrica" : {
-
+    "Appearance.Theme.Berry" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Berry"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Малина"
+          }
+        }
+      }
+    },
+    "Appearance.Theme.Coral" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Coral"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Коралл"
+          }
+        }
+      }
+    },
+    "Appearance.Theme.Rose" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rose"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Роза"
+          }
+        }
+      }
     },
     "AuthError.DeviceIdStorageFailed" : {
       "localizations" : {
@@ -794,17 +839,726 @@
         }
       }
     },
-    "Developer" : {
-
+    "DeleteAccount.Confirm.Button" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete account"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Удалить аккаунт"
+          }
+        }
+      }
     },
-    "Device ID" : {
-
+    "DeleteAccount.Grace.Footer" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The account is marked for deletion right away, and the data is erased for good after %@. Sign in before then and everything comes back."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Аккаунт помечается на удаление сразу, а данные стираются окончательно через %@. Если войти в аккаунт до этого срока — всё вернётся как было."
+          }
+        }
+      }
     },
-    "Email" : {
-
+    "DeleteAccount.Message" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This will delete every cycle, comment and tag attached to the account."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Это удалит всю историю циклов, комментарии и теги, привязанные к аккаунту."
+          }
+        }
+      }
     },
-    "Email — это вход в аккаунт. Мы отправим на него код подтверждения." : {
-
+    "DeleteAccount.Title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deleting the account"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Удаление аккаунта"
+          }
+        }
+      }
+    },
+    "Developer.AppMetrica.Title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AppMetrica"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AppMetrica"
+          }
+        }
+      }
+    },
+    "Developer.DeviceId.Title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Device ID"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Device ID"
+          }
+        }
+      }
+    },
+    "Developer.Email.Title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Email"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Почта"
+          }
+        }
+      }
+    },
+    "Developer.Header" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Developer"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Developer"
+          }
+        }
+      }
+    },
+    "Developer.Name.Title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Name"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Имя"
+          }
+        }
+      }
+    },
+    "Developer.Phone.Title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Phone"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Телефон"
+          }
+        }
+      }
+    },
+    "Developer.Push.Title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Push notifications"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Push-уведомления"
+          }
+        }
+      }
+    },
+    "Developer.TodayDaystamp.Title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Today Daystamp"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Today Daystamp"
+          }
+        }
+      }
+    },
+    "Developer.UserId.Title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "User ID"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "User ID"
+          }
+        }
+      }
+    },
+    "Devices.Disconnect.Button" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Disconnect"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Отключить"
+          }
+        }
+      }
+    },
+    "Devices.Disconnect.Footer" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A disconnected device is signed out the next time the app on it reaches the network."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Отключённое устройство выйдет из аккаунта, когда приложение на нём в следующий раз выйдет в сеть."
+          }
+        }
+      }
+    },
+    "Devices.LastSeen.Subtitle" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Last active: %@"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Активность: %@"
+          }
+        }
+      }
+    },
+    "Devices.NoActivity.Subtitle" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No activity recorded"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Нет данных об активности"
+          }
+        }
+      }
+    },
+    "Devices.ThisDevice.Subtitle" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This device"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Это устройство"
+          }
+        }
+      }
+    },
+    "Devices.Title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "My devices"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Мои устройства"
+          }
+        }
+      }
+    },
+    "DevicesError.Load" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The device list couldn't be loaded."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Не удалось загрузить список устройств."
+          }
+        }
+      }
+    },
+    "DevicesError.Revoke" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The device couldn't be disconnected. Please try again."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Не удалось отключить устройство. Попробуйте ещё раз."
+          }
+        }
+      }
+    },
+    "EmailBinding.Bind.Subtitle" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Email is how you sign in. We'll send a confirmation code to it."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Email — это вход в аккаунт. Мы отправим на него код подтверждения."
+          }
+        }
+      }
+    },
+    "EmailBinding.Bind.Title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adding an email"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Привязка email"
+          }
+        }
+      }
+    },
+    "EmailBinding.Change.Subtitle" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter the new address. We'll send a confirmation code to it."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Введите новый адрес. Мы отправим на него код подтверждения."
+          }
+        }
+      }
+    },
+    "EmailBinding.Change.Title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Changing the email"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Изменение email"
+          }
+        }
+      }
+    },
+    "EmailBinding.Code.Placeholder" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Code from the email"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Код из письма"
+          }
+        }
+      }
+    },
+    "EmailBinding.Current.Message" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Current address: %@"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Текущий адрес: %@"
+          }
+        }
+      }
+    },
+    "EmailBinding.Done.Changed.Message" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your address is %@ now. Sign in with it from here on."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Теперь ваш адрес — %@. Входите в аккаунт по нему."
+          }
+        }
+      }
+    },
+    "EmailBinding.Done.Unchanged.Message" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "That address is already attached to your account."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Этот адрес уже привязан к вашему аккаунту."
+          }
+        }
+      }
+    },
+    "EmailBinding.Email.Placeholder" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Email"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Email"
+          }
+        }
+      }
+    },
+    "EmailBinding.Resend.Footer" : {
+      "comment" : "The link target `resend` is read by the view — keep it as it is.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Didn't get the email?\n[Send the code again](resend)"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Не получили письмо?\n[Отправить код ещё раз](resend)"
+          }
+        }
+      }
+    },
+    "EmailBinding.Revert.Footer" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A letter about the change goes to the old address with a button to undo it — in case someone else got into the account. It works for %@."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "На прежний адрес придёт письмо о смене с кнопкой возврата — на случай, если аккаунтом воспользовался кто-то посторонний. Она действует %@."
+          }
+        }
+      }
+    },
+    "EmailBinding.SendCode.Button" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Send the code"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Отправить код"
+          }
+        }
+      }
+    },
+    "EmailBinding.Sent.Message" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A confirmation code was sent to %@"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Код подтверждения отправлен на %@"
+          }
+        }
+      }
+    },
+    "EmailBindingError.AccountUnavailable" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The account is unavailable. Please sign in again."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Аккаунт недоступен. Войдите в приложение заново."
+          }
+        }
+      }
+    },
+    "EmailBindingError.CodeExpired" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The code has expired. Request a new one."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Код истёк. Запросите новый."
+          }
+        }
+      }
+    },
+    "EmailBindingError.EmailTaken" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "That address is already used by another RedCalendar account. Sign in to that account, or give a different address."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Этот адрес уже используется другим аккаунтом RedCalendar. Войдите в тот аккаунт или укажите другой адрес."
+          }
+        }
+      }
+    },
+    "EmailBindingError.EmailTaken.Deleting" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "That address belongs to an account that is being deleted. It frees up after %@."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Этот адрес принадлежит аккаунту, который удаляется. Он освободится после %@."
+          }
+        }
+      }
+    },
+    "EmailBindingError.InvalidCode" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "That code isn't right."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Неверный код."
+          }
+        }
+      }
+    },
+    "EmailBindingError.InvalidCode.Remaining" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "That code isn't right. Attempts left: %lld."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Неверный код. Осталось попыток: %lld."
+          }
+        }
+      }
+    },
+    "EmailBindingError.InvalidEmail" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "That isn't a valid email address."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Неверный формат email."
+          }
+        }
+      }
+    },
+    "EmailBindingError.PendingAddressChanged" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The code was requested for a different address. Enter the code from the most recent email, or request a new one."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Код запрашивали для другого адреса. Введите код из последнего письма или запросите новый."
+          }
+        }
+      }
+    },
+    "EmailBindingError.RateLimited" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Too many requests. Please try again later."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Слишком много запросов. Попробуйте позже."
+          }
+        }
+      }
+    },
+    "EmailBindingError.RequestNotFound" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The code wasn't found. Request a new one."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Код не найден. Запросите новый."
+          }
+        }
+      }
+    },
+    "EmailBindingError.TooManyAttempts" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Too many attempts. Request a new code."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Слишком много попыток. Запросите новый код."
+          }
+        }
+      }
     },
     "EmailCode.Code.Placeholder" : {
       "localizations" : {
@@ -1141,6 +1895,118 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Статистика"
+          }
+        }
+      }
+    },
+    "Migration.CheckingAuth" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Checking your sign-in"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Проверка авторизации"
+          }
+        }
+      }
+    },
+    "Migration.Failed.Heading" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Migration failed"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ошибка миграции"
+          }
+        }
+      }
+    },
+    "Migration.Progress.Subtitle" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Moving to the new security system"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Переходим на новую систему безопасности"
+          }
+        }
+      }
+    },
+    "Migration.Progress.Title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Updating the sign-in system…"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Обновление системы авторизации..."
+          }
+        }
+      }
+    },
+    "MigrationError.KeychainSaveError" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your sign-in couldn't be saved on this device."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Не удалось сохранить данные входа на этом устройстве."
+          }
+        }
+      }
+    },
+    "MigrationError.NoUserIdFound" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The account to migrate couldn't be identified."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Не удалось определить аккаунт для переноса."
+          }
+        }
+      }
+    },
+    "MigrationError.Unknown" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unknown error"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Неизвестная ошибка"
           }
         }
       }
@@ -1868,8 +2734,422 @@
         }
       }
     },
-    "Push-уведомления" : {
-
+    "Profile.AutoConfirm.Footer" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "If a new period is marked as started while the previous one was never ended, it will be confirmed automatically, with a length of %@."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Если начало новых месячных отмечено, а окончание предыдущих — нет, оно подтвердится автоматически, с длительностью %@."
+          }
+        }
+      }
+    },
+    "Profile.AutoConfirm.Title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Confirm automatically"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Подтверждать автоматически"
+          }
+        }
+      }
+    },
+    "Profile.CycleLength.Footer" : {
+      "comment" : "%@ is Profile.Forecast.Note, folded into the same paragraph.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The number of days from the start of one period to the first day of the next. %@"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Количество дней от начала одной менструации до первого дня следующей. %@"
+          }
+        }
+      }
+    },
+    "Profile.CycleLength.Header" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cycle length"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Длина цикла"
+          }
+        }
+      }
+    },
+    "Profile.DeleteAccount.Button" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete account"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Удалить аккаунт"
+          }
+        }
+      }
+    },
+    "Profile.Email.Footer" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This is the address you sign in with."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "По этому адресу вы входите в аккаунт."
+          }
+        }
+      }
+    },
+    "Profile.Email.LegacyPhone.Footer" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Signing in by phone number will stop working soon. Add an email to keep access to your account."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Скоро вход по номеру телефона перестанет работать. Привяжите email, чтобы сохранить доступ к аккаунту."
+          }
+        }
+      }
+    },
+    "Profile.Email.Title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Email"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Email"
+          }
+        }
+      }
+    },
+    "Profile.Email.Unset" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add an email"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Укажите email"
+          }
+        }
+      }
+    },
+    "Profile.Forecast.Note" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This value is refined automatically from the cycles you record."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Значение уточняется автоматически по отмеченным циклам."
+          }
+        }
+      }
+    },
+    "Profile.Name.Header" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Name"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Имя"
+          }
+        }
+      }
+    },
+    "Profile.Name.Placeholder" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Name"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Имя"
+          }
+        }
+      }
+    },
+    "Profile.PeriodLength.Header" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Period length"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Длительность месячных"
+          }
+        }
+      }
+    },
+    "Profile.Title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Profile"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Профиль"
+          }
+        }
+      }
+    },
+    "Settings.Appearance.Header" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Appearance"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Оформление"
+          }
+        }
+      }
+    },
+    "Settings.Devices.Button" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "My devices"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Мои устройства"
+          }
+        }
+      }
+    },
+    "Settings.Notifications.Blocked.Footer" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notifications are turned off for this app in iOS Settings. Turn them on there to get reminders on this device."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Уведомления отключены для приложения в настройках iOS. Включите их там, чтобы получать напоминания на этом устройстве."
+          }
+        }
+      }
+    },
+    "Settings.Notifications.OpenSettings.Button" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open iOS Settings"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Открыть настройки iOS"
+          }
+        }
+      }
+    },
+    "Settings.Notifications.Title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Send notifications"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Присылать уведомления"
+          }
+        }
+      }
+    },
+    "Settings.Profile.NoEmail.A11y" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No email set"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Не указан email"
+          }
+        }
+      }
+    },
+    "Settings.Profile.Subtitle" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Name, email and cycle"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Имя, email и цикл"
+          }
+        }
+      }
+    },
+    "Settings.Profile.Title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Profile"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Профиль"
+          }
+        }
+      }
+    },
+    "Settings.SignOut.Button" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign out"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Выйти"
+          }
+        }
+      }
+    },
+    "Settings.Tags.Button" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tags"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Теги"
+          }
+        }
+      }
+    },
+    "Settings.Title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Settings"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Настройки"
+          }
+        }
+      }
+    },
+    "Settings.Version.Title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Version"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Версия"
+          }
+        }
+      }
     },
     "SignIn.Waiting.CheckingCode" : {
       "localizations" : {
@@ -1931,6 +3211,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Отправляем код"
+          }
+        }
+      }
+    },
+    "Statistics.Empty" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Statistics and insights will live here"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Здесь будет статистика и аналитика"
+          }
+        }
+      }
+    },
+    "Statistics.Title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Statistics"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Статистика"
           }
         }
       }
@@ -2191,6 +3503,38 @@
         }
       }
     },
+    "TagList.Empty" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No tags yet"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Тегов пока нет"
+          }
+        }
+      }
+    },
+    "TagList.Title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tags"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Теги"
+          }
+        }
+      }
+    },
     "TagPicker.Empty.Heading" : {
       "localizations" : {
         "en" : {
@@ -2270,12 +3614,6 @@
           }
         }
       }
-    },
-    "Today Daystamp" : {
-
-    },
-    "User ID" : {
-
     },
     "Welcome.SignIn.Button" : {
       "localizations" : {
@@ -2564,129 +3902,6 @@
           }
         }
       }
-    },
-    "Аккаунт помечается на удаление сразу, а данные стираются окончательно через %@. Если войти в аккаунт до этого срока — всё вернётся как было." : {
-
-    },
-    "Введите новый адрес. Мы отправим на него код подтверждения." : {
-
-    },
-    "Версия" : {
-
-    },
-    "Выйти" : {
-
-    },
-    "Длина цикла" : {
-
-    },
-    "Длительность месячных" : {
-
-    },
-    "Если начало новых месячных отмечено, а окончание предыдущих — нет, оно подтвердится автоматически, с длительностью %@." : {
-
-    },
-    "Здесь будет статистика и аналитика" : {
-
-    },
-    "Изменение email" : {
-
-    },
-    "Имя" : {
-
-    },
-    "Имя, email и цикл" : {
-
-    },
-    "Код подтверждения отправлен на %@" : {
-
-    },
-    "Количество дней от начала одной менструации до первого дня следующей. %@" : {
-
-    },
-    "Мои устройства" : {
-
-    },
-    "На прежний адрес придёт письмо о смене с кнопкой возврата — на случай, если аккаунтом воспользовался кто-то посторонний. Она действует %@." : {
-
-    },
-    "Не получили письмо?\n[Отправить код ещё раз](resend)" : {
-
-    },
-    "Не указан email" : {
-
-    },
-    "Обновление системы авторизации..." : {
-
-    },
-    "Отключённое устройство выйдет из аккаунта, когда приложение на нём в следующий раз выйдет в сеть." : {
-
-    },
-    "Отключить" : {
-
-    },
-    "Открыть настройки iOS" : {
-
-    },
-    "Оформление" : {
-
-    },
-    "Ошибка миграции" : {
-
-    },
-    "Переходим на новую систему безопасности" : {
-
-    },
-    "По этому адресу вы входите в аккаунт." : {
-
-    },
-    "Подтверждать автоматически" : {
-
-    },
-    "Почта" : {
-
-    },
-    "Привязка email" : {
-
-    },
-    "Присылать уведомления" : {
-
-    },
-    "Профиль" : {
-
-    },
-    "Скоро вход по номеру телефона перестанет работать. Привяжите email, чтобы сохранить доступ к аккаунту." : {
-
-    },
-    "Тегов пока нет" : {
-
-    },
-    "Текущий адрес: %@" : {
-
-    },
-    "Телефон" : {
-
-    },
-    "Теперь ваш адрес — %@. Входите в аккаунт по нему." : {
-
-    },
-    "Уведомления отключены для приложения в настройках iOS. Включите их там, чтобы получать напоминания на этом устройстве." : {
-
-    },
-    "Удаление аккаунта" : {
-
-    },
-    "Удалить аккаунт" : {
-
-    },
-    "Укажите email" : {
-
-    },
-    "Это удалит всю историю циклов, комментарии и теги, привязанные к аккаунту." : {
-
-    },
-    "Этот адрес уже привязан к вашему аккаунту." : {
-
     }
   },
   "version" : "1.0"

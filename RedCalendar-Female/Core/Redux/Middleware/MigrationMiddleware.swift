@@ -16,9 +16,9 @@ enum MigrationError: Error, LocalizedError, Equatable {
     var errorDescription: String? {
         switch self {
         case .noUserIdFound:
-            return "Не удалось определить аккаунт для переноса."
+            return String(localized: "MigrationError.NoUserIdFound")
         case .keychainSaveError:
-            return "Не удалось сохранить данные входа на этом устройстве."
+            return String(localized: "MigrationError.KeychainSaveError")
         case .serverError(let message):
             return message
         }
@@ -40,7 +40,7 @@ let migrationMiddleware: Middleware = { state, action, dispatch in
                     let response = try await apiService.migrateUser(userId: userId)
                     
                     guard response.success, let data = response.data else {
-                        throw MigrationError.serverError(response.message ?? "Неизвестная ошибка")
+                        throw MigrationError.serverError(response.message ?? String(localized: "MigrationError.Unknown"))
                     }
                     
                     // The third point of §6's owner check. In practice it claims an unowned

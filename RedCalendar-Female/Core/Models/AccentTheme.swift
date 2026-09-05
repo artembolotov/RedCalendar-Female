@@ -18,9 +18,9 @@ enum AccentTheme: String, CaseIterable, Identifiable, Equatable {
 
     var title: String {
         switch self {
-        case .coral: return "Коралл"
-        case .rose:  return "Роза"
-        case .berry: return "Малина"
+        case .coral: return String(localized: "Appearance.Theme.Coral")
+        case .rose:  return String(localized: "Appearance.Theme.Rose")
+        case .berry: return String(localized: "Appearance.Theme.Berry")
         }
     }
 
