@@ -70,21 +70,26 @@ struct CycleTrendChartView: View {
     let averageCycleLength: Int
     let accent: Color
 
-    private let chartHeight: CGFloat = 90
-    // Reserved above and below every bar for its two value labels, so the tallest bar plus both
-    // labels still fits inside `chartHeight` rather than a label pushing the column taller than
-    // its neighbours.
+    // Fixed, not derived from `bars`' own max: a 30-day cycle must draw taller than a 28-day one
+    // even when they come from different charts (different people, side by side in screenshots),
+    // which a scale relative to each chart's own tallest bar could never guarantee.
+    private let pointsPerDay: CGFloat = 3.6
+    // Reserved above and below every bar for its two value labels.
     private let labelHeight: CGFloat = 14
     private let labelSpacing: CGFloat = 3
     private let barSpacing: CGFloat = 10
     private let cornerRadius: CGFloat = 3
 
-    private var barsHeight: CGFloat {
-        chartHeight - labelHeight * 2 - labelSpacing * 2
-    }
-
     private var maxTotal: Int {
         bars.map { total(for: $0) }.max() ?? averageCycleLength
+    }
+
+    private var barsHeight: CGFloat {
+        CGFloat(max(maxTotal, 1)) * pointsPerDay
+    }
+
+    private var chartHeight: CGFloat {
+        barsHeight + labelHeight * 2 + labelSpacing * 2
     }
 
     var body: some View {
@@ -106,9 +111,8 @@ struct CycleTrendChartView: View {
     @ViewBuilder
     private func column(for bar: CycleTrendBar) -> some View {
         let totalDays = total(for: bar)
-        let scale = barsHeight / CGFloat(max(maxTotal, 1))
-        let totalHeight = scale * CGFloat(totalDays)
-        let periodHeight = min(scale * CGFloat(bar.periodDays), totalHeight)
+        let totalHeight = pointsPerDay * CGFloat(totalDays)
+        let periodHeight = min(pointsPerDay * CGFloat(bar.periodDays), totalHeight)
         let restHeight = totalHeight - periodHeight
         // Rounded on every side only when the period fills the whole bar — otherwise it caps
         // against the rest-of-cycle segment (or the dashed outline) sitting above it.
