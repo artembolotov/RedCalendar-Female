@@ -41,14 +41,14 @@ struct DevicesView: View {
                         .font(.footnote)
                         .foregroundColor(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
-
+                    
                     Button("Common.Retry") {
                         store.send(.devices(.load))
                     }
                     .font(.footnote)
                 }
             }
-
+            
             Section {
                 ForEach(devices.devices) { device in
                     row(for: device)
@@ -59,11 +59,14 @@ struct DevicesView: View {
                 //
                 // A row in the section's own content, not `footer:` — a `Section` footer is a
                 // distinct supplementary view with its own self-sizing pass, separate from its
-                // rows', and that pass comes back from a background/foreground cycle unstable
-                // (confirmed on device for the same text elsewhere; `.fixedSize` on the footer
-                // text does not fix it — see `ProfileView`'s cycle-length section for the same
-                // workaround). Folding the text into the row content shares the rows' own
-                // self-sizing pass instead of getting one of its own.
+                // rows', and that pass comes back from a background/foreground cycle unstable.
+                // Extensively re-diagnosed on device 2026-09-07: still jitters on a native
+                // `footer:` even reduced to a single bare-`Text` row, no `.swipeActions`, no
+                // toolbar spinner, no async load, no trailing section — i.e. with every other
+                // difference from `ProfileView`'s (unaffected) footers stripped away. Whatever
+                // the actual trigger is, it wasn't isolated to anything in this file; folding the
+                // text into the row content is the only version confirmed stable across every
+                // variant tried.
                 if !devices.devices.isEmpty {
                     Text("Devices.Disconnect.Footer")
                         .font(.footnote)

@@ -153,6 +153,15 @@ struct ProfileView: View {
 
     // The two values the calendar predicts with. Ported from `SettingsView` verbatim — same
     // debounce, same clamped-for-display fallback, same reasoning: see `cycleLength` below.
+    // Experiment: back on the native `footer:` closure, undoing the content-row workaround from
+    // 40fb013 (and the same one applied to `DevicesView` in 8d3e6ad). That workaround was for a
+    // footer relayout jitter on background/foreground with no confirmed upstream fix at the time
+    // — if it still reproduces here, revert to the row-in-content form those commits verified.
+    //
+    // The forecast note is folded into this sentence rather than stacked under it: two rows in
+    // the same footnote grey, with a separator between them, read as one paragraph broken in
+    // half. `periodLengthSection` has no description to fold into and carries the note as its own
+    // footer.
     private var cycleLengthSection: some View {
         Section {
             Stepper(
@@ -165,26 +174,15 @@ struct ProfileView: View {
             // VoiceOver would otherwise announce an adjustable "28 дней" belonging to nothing.
             .accessibilityLabel("Profile.CycleLength.Header")
             .accessibilityValue(cycleLength.localizedDays)
-
-            // A row in the section's own content, not `footer:` — see `SettingsView`'s original
-            // comment on this same text for why: a `Section` footer's relayout path comes back
-            // from a background/foreground cycle unstable in a way folding the text into the row
-            // above does not.
-            //
-            // The forecast note is folded into this sentence rather than stacked under it: two
-            // rows in the same footnote grey, with a separator between them, read as one
-            // paragraph broken in half. `periodLengthSection` has no description to fold into and
-            // carries the note as a row of its own.
-            Text(String.localized("Profile.CycleLength.Footer", Self.forecastNote))
-                .font(.footnote)
-                .foregroundColor(.secondary)
         } header: {
             Text("Profile.CycleLength.Header")
+        } footer: {
+            Text(String.localized("Profile.CycleLength.Footer", Self.forecastNote))
         }
     }
 
     private var periodLengthSection: some View {
-        Section("Profile.PeriodLength.Header") {
+        Section {
             Stepper(
                 value: periodLengthBinding,
                 in: Constants.Cycle.minPeriodLength...Constants.Cycle.maxPeriodLength
@@ -193,10 +191,10 @@ struct ProfileView: View {
             }
             .accessibilityLabel("Profile.PeriodLength.Header")
             .accessibilityValue(periodLength.localizedDays)
-
+        } header: {
+            Text("Profile.PeriodLength.Header")
+        } footer: {
             Text(Self.forecastNote)
-                .font(.footnote)
-                .foregroundColor(.secondary)
         }
     }
 
