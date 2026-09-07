@@ -53,24 +53,16 @@ struct DevicesView: View {
                 ForEach(devices.devices) { device in
                     row(for: device)
                 }
-
+            } footer: {
                 // Said once, under the list, rather than on the row it applies to: it explains
                 // what happens to the *other* phone, which is not what the marked row is about.
                 //
-                // A row in the section's own content, not `footer:` — a `Section` footer is a
-                // distinct supplementary view with its own self-sizing pass, separate from its
-                // rows', and that pass comes back from a background/foreground cycle unstable.
-                // Extensively re-diagnosed on device 2026-09-07: still jitters on a native
-                // `footer:` even reduced to a single bare-`Text` row, no `.swipeActions`, no
-                // toolbar spinner, no async load, no trailing section — i.e. with every other
-                // difference from `ProfileView`'s (unaffected) footers stripped away. Whatever
-                // the actual trigger is, it wasn't isolated to anything in this file; folding the
-                // text into the row content is the only version confirmed stable across every
-                // variant tried.
+                // The font is stated rather than inherited: a footer that takes the list's font
+                // is measured with the default one instead, and comes back from a
+                // background/foreground cycle too tall.
                 if !devices.devices.isEmpty {
                     Text("Devices.Disconnect.Footer")
                         .font(.footnote)
-                        .foregroundColor(.secondary)
                 }
             }
         }

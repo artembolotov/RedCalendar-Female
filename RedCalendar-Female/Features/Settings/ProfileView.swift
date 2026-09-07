@@ -85,8 +85,10 @@ struct ProfileView: View {
                     // and the phone lookup it backs) — an account with no email on file is an
                     // account with no way back in once that lands.
                     Text("Profile.Email.LegacyPhone.Footer")
+                        .font(.footnote)
                 } else {
                     Text("Profile.Email.Footer")
+                        .font(.footnote)
                 }
             }
 
@@ -153,10 +155,6 @@ struct ProfileView: View {
 
     // The two values the calendar predicts with. Ported from `SettingsView` verbatim — same
     // debounce, same clamped-for-display fallback, same reasoning: see `cycleLength` below.
-    // Experiment: back on the native `footer:` closure, undoing the content-row workaround from
-    // 40fb013 (and the same one applied to `DevicesView` in 8d3e6ad). That workaround was for a
-    // footer relayout jitter on background/foreground with no confirmed upstream fix at the time
-    // — if it still reproduces here, revert to the row-in-content form those commits verified.
     //
     // The forecast note is folded into this sentence rather than stacked under it: two rows in
     // the same footnote grey, with a separator between them, read as one paragraph broken in
@@ -178,6 +176,7 @@ struct ProfileView: View {
             Text("Profile.CycleLength.Header")
         } footer: {
             Text(String.localized("Profile.CycleLength.Footer", Self.forecastNote))
+                .font(.footnote)
         }
     }
 
@@ -195,6 +194,7 @@ struct ProfileView: View {
             Text("Profile.PeriodLength.Header")
         } footer: {
             Text(Self.forecastNote)
+                .font(.footnote)
         }
     }
 
@@ -205,6 +205,7 @@ struct ProfileView: View {
             Toggle("Profile.AutoConfirm.Title", isOn: autoConfirmPreviousCycleBinding)
         } footer: {
             Text(String.localized("Profile.AutoConfirm.Footer", periodLength.localizedDays))
+                .font(.footnote)
         }
     }
 
