@@ -142,6 +142,10 @@ enum DataAction: Sendable {
     case setFlowLevel(Daystamp, Int?)
     case saveComment(Daystamp, String)
     case setDayTags(Daystamp, [String])
+    /// `OvulationSheetView`'s write path: what the user says about the cycle owning `dayStamp` —
+    /// not necessarily its actual ovulation day, see `CycleRecord.effectiveOvulationDay`. `nil`
+    /// clears an explicit answer back to automatic prediction.
+    case setOvulation(Daystamp, OvulationData?)
 
     // The cycle settings — the device's half of the profile (SYNC.md §4.4), and the first thing
     // in this app that produces a `changes.profile` at all.

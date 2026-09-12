@@ -246,6 +246,7 @@ func appReducer(state: AppState, action: AppAction) -> AppState {
              .markPeriodEnd,
              .unmarkPeriodEnd,
              .setFlowLevel,
+             .setOvulation,
              .setCycleLength,
              .setPeriodLength,
              .setAutoConfirmPreviousCycle,

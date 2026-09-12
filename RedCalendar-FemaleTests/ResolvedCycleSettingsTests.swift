@@ -107,12 +107,25 @@ final class ResolvedCycleSettingsTests: XCTestCase {
         XCTAssertEqual(resolved.lutealPhaseLength, Constants.Cycle.minCycleLength - 1)
     }
 
-    func testZeroLutealPhaseIsRaisedToOne() {
+    /// Raised to `minLutealPhaseLength` now, not to 1 — the plausibility floor is tighter than
+    /// the "leaves a follicular day" floor once a cycle is long enough for both to apply.
+    func testZeroLutealPhaseIsRaisedToThePlausibleMinimum() {
         let resolved = ResolvedCycleSettings(
             UserSettings.CycleSettings(defaultLength: 28, defaultPeriodLength: nil, lutealPhaseLength: 0, autoConfirmPreviousCycle: nil)
         )
 
-        XCTAssertEqual(resolved.lutealPhaseLength, 1)
+        XCTAssertEqual(resolved.lutealPhaseLength, Constants.Cycle.minLutealPhaseLength)
+    }
+
+    /// The plausibility ceiling, independent of the cycle being long enough to allow more:
+    /// a cycle length of 90 could otherwise fit a luteal phase far past what is physiologically
+    /// plausible.
+    func testALutealPhaseAboveThePlausibleMaximumIsLowered() {
+        let resolved = ResolvedCycleSettings(
+            UserSettings.CycleSettings(defaultLength: 90, defaultPeriodLength: nil, lutealPhaseLength: 60, autoConfirmPreviousCycle: nil)
+        )
+
+        XCTAssertEqual(resolved.lutealPhaseLength, Constants.Cycle.maxLutealPhaseLength)
     }
 
     /// Ovulation is `cycleLength - lutealPhaseLength` days after the start; the invariant above is

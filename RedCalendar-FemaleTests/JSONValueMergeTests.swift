@@ -45,6 +45,56 @@ final class JSONValueMergeTests: XCTestCase {
         )
     }
 
+    /// The mechanism `DatabaseService.updateLutealPhaseLength(nil)` relies on to clear
+    /// `luteal_phase_length` back to unset when `CycleForecast` no longer supports a measurement:
+    /// the key is removed outright, not overwritten with `null` — the row ends up exactly as it
+    /// would be if ovulation had never been confirmed at all.
+    func testRemovingSettingDeletesTheKeyOutright() throws {
+        let settings = try XCTUnwrap(JSONValue(jsonString: stored))
+
+        let merged = settings.removingSetting(["cycle", "luteal_phase_length"])
+
+        guard case .object(let root) = merged, case .object(let cycle)? = root["cycle"] else {
+            return XCTFail("removing from an object must produce an object")
+        }
+        XCTAssertNil(cycle["luteal_phase_length"], "the key itself must be gone, not merely null")
+        // The rest of the document survives the removal untouched.
+        XCTAssertEqual(cycle["default_length"], .int(26))
+        XCTAssertEqual(root["predictions"], .object(["enable_period": .bool(true)]))
+    }
+
+    /// Removing a key that was never there, or descending through a path whose intermediate key
+    /// is absent, is a no-op — it must not manufacture the structure `setting(_:to:)` would have.
+    func testRemovingAMissingKeyIsANoOp() throws {
+        let settings = try XCTUnwrap(JSONValue(jsonString: stored))
+
+        XCTAssertEqual(settings.removingSetting(["cycle", "never_written"]), settings)
+        XCTAssertEqual(settings.removingSetting(["absent_scope", "leaf"]), settings)
+    }
+
+    /// A scalar has nothing to remove a key from — it survives untouched, the same rule
+    /// `setting(_:to:)` follows for the opposite direction (§4.5).
+    func testRemovingFromANonObjectIsANoOp() {
+        XCTAssertEqual(JSONValue.int(5).removingSetting(["cycle", "luteal_phase_length"]), .int(5))
+    }
+
+    /// The other half of the same mechanism: an absent key decodes to `nil` on
+    /// `UserSettings.CycleSettings.lutealPhaseLength`, which is what lets `ResolvedCycleSettings`
+    /// fall back to `Constants.Cycle.defaultLutealPhaseLength` once the key has been removed.
+    func testARemovedLutealPhaseDecodesToNil() throws {
+        let settings = try XCTUnwrap(JSONValue(jsonString: stored))
+        let merged = settings.removingSetting(["cycle", "luteal_phase_length"])
+
+        let record = UserProfileRecord(
+            id: 1, userId: nil, name: nil, email: nil, phoneNumber: nil,
+            settingsJSON: merged.jsonString, dirtySeq: nil
+        )
+
+        XCTAssertNil(record.settings?.cycle?.lutealPhaseLength)
+        // The removal did not disturb the sibling key it shares an object with.
+        XCTAssertEqual(record.settings?.cycle?.defaultLength, 26)
+    }
+
     func testMergeCreatesAMissingPath() {
         let merged = JSONValue.object([:]).setting(["cycle", "default_period_length"], to: .int(6))
 

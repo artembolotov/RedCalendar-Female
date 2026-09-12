@@ -52,6 +52,20 @@ struct CycleDayContext {
     func canSetFlowLevel(today: Daystamp) -> Bool {
         day <= today && recorded != nil
     }
+
+    /// Whether `day` is where `owning`'s ovulation editor lives — see
+    /// `CycleRecord.effectiveOvulationDay`.
+    func isOvulationDay(cycleSettings: ResolvedCycleSettings) -> Bool {
+        guard let owning else { return false }
+        return day == owning.effectiveOvulationDay(nextRealStart: following?.startDay, cycleSettings: cycleSettings)
+    }
+
+    /// A cycle's ovulation may be edited only from the one day `isOvulationDay` names, and only
+    /// once that day has already come — the same "no editing the future" rule the period actions
+    /// follow.
+    func canEditOvulation(today: Daystamp, cycleSettings: ResolvedCycleSettings) -> Bool {
+        day <= today && isOvulationDay(cycleSettings: cycleSettings)
+    }
 }
 
 // MARK: - Cycle Queries
@@ -174,6 +188,18 @@ extension CycleRecord {
         let cyclesPassed = (day - startDay) / cycleLength
         guard cyclesPassed >= 1 else { return nil }
         return startDay.advanced(by: cyclesPassed * cycleLength)
+    }
+
+    /// Where this cycle's ovulation editor lives, whatever `ovulation` currently says — even an
+    /// anovulatory cycle has one, because `DayDetailsView` hangs the editor here, and a cycle
+    /// marked "Нет" would otherwise have no day left to reopen it from. A confirmed day always
+    /// wins; everything else — unset, or anovulatory — falls back to the same prediction
+    /// `DayDisplayStateComputer` draws when there is nothing explicit to draw instead, so the two
+    /// never point at different days before there is a real answer to point at.
+    func effectiveOvulationDay(nextRealStart: Daystamp?, cycleSettings: ResolvedCycleSettings) -> Daystamp {
+        if case .confirmed(let day) = ovulation { return day }
+        return nextRealStart?.advanced(by: -cycleSettings.lutealPhaseLength)
+            ?? startDay.advanced(by: cycleSettings.cycleLength - cycleSettings.lutealPhaseLength)
     }
 }
 

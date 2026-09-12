@@ -93,6 +93,7 @@ struct DayDetailsView: View {
     @State private var showFlowPicker = false
     @State private var showTagsSheet = false
     @State private var showCommentSheet = false
+    @State private var showOvulationSheet = false
     // Measured from the options themselves rather than assumed, so the notes travel the right
     // distance at any Dynamic Type size.
     @State private var flowPickerHeight: CGFloat = 0
@@ -144,6 +145,10 @@ struct DayDetailsView: View {
         store.state.calendarState.todayDayStamp
     }
 
+    private var cycleSettings: ResolvedCycleSettings {
+        store.state.cycleSettings
+    }
+
     private var comment: String? {
         store.state.calendarState.visibleComments[dayStamp]
     }
@@ -180,6 +185,14 @@ struct DayDetailsView: View {
     // `flowLevelLabel(for:)` — the row above it already does, and a second list of the same four
     // keys is a way for the two to disagree.
     private let flowLevelOptions: [Int?] = [1, 2, 3, nil]
+
+    private func ovulationStatusLabel(_ ovulation: OvulationData?) -> LocalizedStringKey {
+        switch ovulation {
+        case nil: return "DayDetails.Ovulation.Automatic"
+        case .anovulatory: return "DayDetails.Ovulation.None"
+        case .confirmed: return "DayDetails.Ovulation.Confirmed"
+        }
+    }
 
     // MARK: - Cycle subtitle
 
@@ -262,6 +275,7 @@ struct DayDetailsView: View {
 
         let subtitle = cycleSubtitleText(context: context)
         let periodActionValid = isPeriodActionValid(context: context, buttonState: buttonState)
+        let showOvulationRow = context.canEditOvulation(today: today, cycleSettings: cycleSettings)
 
         VStack(alignment: .leading, spacing: 0) {
             header
@@ -277,6 +291,10 @@ struct DayDetailsView: View {
                         // The options hang out of the section's box, so the section has to draw
                         // over the notes it pushes down rather than under them.
                         .zIndex(1)
+                }
+                if showOvulationRow {
+                    ovulationRow(status: context.owning?.ovulation)
+                        .padding(.top, 16)
                 }
                 notesSection
                     .padding(.top, 16)
@@ -368,6 +386,11 @@ struct DayDetailsView: View {
         }
         .sheet(isPresented: $showCommentSheet) {
             CommentSheetView(dayStamp: dayStamp, isPresented: $showCommentSheet)
+                .environmentObject(store)
+                .tint(store.state.accentTheme.accent)
+        }
+        .sheet(isPresented: $showOvulationSheet) {
+            OvulationSheetView(dayStamp: dayStamp, isPresented: $showOvulationSheet)
                 .environmentObject(store)
                 .tint(store.state.accentTheme.accent)
         }
@@ -571,6 +594,23 @@ struct DayDetailsView: View {
         )
         .frame(height: 0, alignment: .top)
         .transition(.opacity)
+    }
+
+    // Header-less, unlike `periodSection`: there is exactly one row here, so a divider naming the
+    // same thing the row itself says would only repeat it. Shown only on the one day
+    // `context.isOvulationDay` names — see `CycleRecord.effectiveOvulationDay` for why that day
+    // exists even for an anovulatory cycle, which is what keeps this reachable to undo "Нет".
+    private func ovulationRow(status: OvulationData?) -> some View {
+        Button(action: { showOvulationSheet = true }) {
+            HStack {
+                Text("DayDetails.Ovulation.Title")
+                    .foregroundColor(.primary)
+                Spacer()
+                Text(ovulationStatusLabel(status))
+                    .foregroundColor(accent)
+            }
+            .padding(.vertical, 12)
+        }
     }
 
     private var notesSection: some View {

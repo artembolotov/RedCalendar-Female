@@ -15,6 +15,7 @@ enum DataWriteOperation: Sendable, Equatable {
     case periodStart
     case periodEnd
     case flowLevel
+    case ovulation
     case comment
     case dayTags
     case userTag
@@ -33,6 +34,7 @@ enum DataWriteOperation: Sendable, Equatable {
         case .periodStart: return "WriteError.PeriodStart"
         case .periodEnd:   return "WriteError.PeriodEnd"
         case .flowLevel:   return "WriteError.FlowLevel"
+        case .ovulation:   return "WriteError.Ovulation"
         case .comment:     return "WriteError.Comment"
         case .dayTags:     return "WriteError.DayTags"
         case .userTag:     return "WriteError.UserTag"
@@ -47,6 +49,7 @@ enum DataWriteOperation: Sendable, Equatable {
         case .periodStart: return "markPeriodStart"
         case .periodEnd:   return "markPeriodEnd"
         case .flowLevel:   return "setFlowLevel"
+        case .ovulation:   return "setOvulation"
         case .comment:     return "saveComment"
         case .dayTags:     return "setDayTags"
         case .userTag:     return "userTag"

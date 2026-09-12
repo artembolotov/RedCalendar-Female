@@ -47,6 +47,29 @@ protocol DatabaseServiceProtocol: Sendable {
     @discardableResult
     func updateCycleSettings(_ patch: CycleSettingsPatch) async throws -> Bool
 
+    /// `DatabaseMiddleware.refreshForecast`'s own writer — the same column, one transaction for
+    /// all three numbers it might have to report, never split into a second call. Splitting it
+    /// once (a separate `updateLutealPhaseLength`, called right after this one) meant a database
+    /// error on the `cycleLength`/`periodLength` half left the luteal-phase half to run against a
+    /// row that write would have created — on an account with nothing stored yet, that stray
+    /// second call still created an empty `user_profile` row and asked for a sync, for a failure
+    /// that had nothing to do with luteal phase. One call removes the seam: it either writes
+    /// everything this run has evidence for, or (on failure) writes nothing at all, exactly as a
+    /// single `updateCycleSettings` call always has.
+    ///
+    /// `cycleLength`/`periodLength` keep `updateCycleSettings`'s "don't touch" `nil` — protecting
+    /// a value someone typed on a run that simply has nothing new to report. `lutealPhaseLength`
+    /// cannot mean that, because nothing but this call ever writes it: its `nil` *clears* the key
+    /// outright — `JSONValue.removingSetting(_:)`, not `setting(_:to: .null)` — back to exactly
+    /// the shape the row would have if ovulation had never been confirmed at all. See
+    /// `CycleForecast.lutealPhaseLength` and `CycleSettingsPatch`'s own doc comment for why it is
+    /// not folded into that patch type instead — its `nil` would collide with the "don't touch"
+    /// the other two fields need.
+    ///
+    /// Answers whether the row actually changed, for the same reason `updateCycleSettings` does.
+    @discardableResult
+    func updateForecast(cycleLength: Int?, periodLength: Int?, lutealPhaseLength: Int?) async throws -> Bool
+
     /// The same column and the same transaction shape, for the other setting a device may choose:
     /// whether this account wants notifications at all, stored as `notifications.muted` — the key
     /// RedCalendar 2.0 already wrote and the import carried over verbatim (§10.2).

@@ -250,6 +250,32 @@ final class DatabaseService: DatabaseServiceProtocol {
         }
     }
 
+    /// One transaction for all three numbers `refreshForecast` might report — see the protocol
+    /// for why this is not two calls (or three). `cycleLength`/`periodLength` merge exactly as
+    /// `updateCycleSettings` merges them, `nil` left untouched; the duplication against that
+    /// method is the cost of the two ever being one write, and is worth it here specifically,
+    /// since nothing else calls this one. `lutealPhaseLength` has no "don't touch" side at all —
+    /// `nil` removes `cycle.luteal_phase_length` outright (`removingSetting`, not `setting(_:to:
+    /// .null)`), so an account with nothing currently confirmed reads back exactly as it would if
+    /// ovulation had never been touched.
+    func updateForecast(cycleLength: Int?, periodLength: Int?, lutealPhaseLength: Int?) async throws -> Bool {
+        try await mergeIntoSettings { stored in
+            var merged = stored
+            if let cycleLength {
+                merged = merged.setting(["cycle", "default_length"], to: .int(cycleLength))
+            }
+            if let periodLength {
+                merged = merged.setting(["cycle", "default_period_length"], to: .int(periodLength))
+            }
+            if let lutealPhaseLength {
+                merged = merged.setting(["cycle", "luteal_phase_length"], to: .int(lutealPhaseLength))
+            } else {
+                merged = merged.removingSetting(["cycle", "luteal_phase_length"])
+            }
+            return merged
+        }
+    }
+
     /// The notifications half of the same column, written as `muted` rather than as "enabled":
     /// that is the key RedCalendar 2.0 wrote and the one every imported profile already carries
     /// (SYNC.md §10.2), and inventing a second key for the same question would leave two answers

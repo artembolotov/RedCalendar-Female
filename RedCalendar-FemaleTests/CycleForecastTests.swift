@@ -92,10 +92,89 @@ final class CycleForecastTests: XCTestCase {
         XCTAssertNil(forecast.periodLength)
     }
 
+    // MARK: - Luteal Phase
+
+    func testNoCyclesMeasureNoLutealPhase() {
+        XCTAssertNil(CycleForecast(cycles: []).lutealPhaseLength)
+    }
+
+    /// Unlike the two lengths above, one confirmed, completed cycle is already enough — the
+    /// luteal phase is close to constant for a given woman, so there is nothing to average it
+    /// against.
+    func testOneConfirmedCompletedCycleIsEnough() {
+        let cycles = [
+            cycle(startingAt: 9000, periodLength: 5, ovulation: .confirmed(day: Daystamp(rawValue: 9014))),
+            cycle(startingAt: 9028, periodLength: 5)
+        ]
+        XCTAssertEqual(CycleForecast(cycles: cycles).lutealPhaseLength, 14)
+    }
+
+    /// An automatic guess is not a measurement — nothing confirmed it — and an anovulatory cycle
+    /// has no ovulation to measure at all.
+    func testUnconfirmedAndAnovulatoryCyclesAreNotMeasured() {
+        let cycles = [
+            cycle(startingAt: 9000, periodLength: 5, ovulation: .anovulatory),
+            cycle(startingAt: 9028, periodLength: 5)
+        ]
+        XCTAssertNil(CycleForecast(cycles: cycles).lutealPhaseLength)
+    }
+
+    /// A confirmed ovulation on the cycle still open — no next start recorded — is not a
+    /// completed cycle: the distance to "the end" is not a fact yet.
+    func testAConfirmedCycleWithNoFollowingStartIsNotMeasured() {
+        let cycles = [cycle(startingAt: 9000, periodLength: 5, ovulation: .confirmed(day: Daystamp(rawValue: 9014)))]
+        XCTAssertNil(CycleForecast(cycles: cycles).lutealPhaseLength)
+    }
+
+    /// The most recent confirmed, completed cycle wins — not a median, and not the first one
+    /// found scanning forward.
+    func testTheMostRecentConfirmedCompletedCycleWins() {
+        let cycles = [
+            cycle(startingAt: 9000, periodLength: 5, ovulation: .confirmed(day: Daystamp(rawValue: 9012))),
+            cycle(startingAt: 9028, periodLength: 5, ovulation: .confirmed(day: Daystamp(rawValue: 9044))),
+            cycle(startingAt: 9058, periodLength: 5)
+        ]
+        XCTAssertEqual(CycleForecast(cycles: cycles).lutealPhaseLength, 14)
+    }
+
+    /// Confirming the wrong day — or a next start recorded weeks late — must not become a
+    /// "constant" every future prediction leans on.
+    func testAnImplausiblyShortOrLongDistanceIsNotMeasured() {
+        let tooShort = [
+            cycle(startingAt: 9000, periodLength: 5, ovulation: .confirmed(day: Daystamp(rawValue: 9026))),
+            cycle(startingAt: 9028, periodLength: 5)
+        ]
+        XCTAssertNil(CycleForecast(cycles: tooShort).lutealPhaseLength)
+
+        let tooLong = [
+            cycle(startingAt: 9000, periodLength: 5, ovulation: .confirmed(day: Daystamp(rawValue: 9002))),
+            cycle(startingAt: 9028, periodLength: 5)
+        ]
+        XCTAssertNil(CycleForecast(cycles: tooLong).lutealPhaseLength)
+    }
+
+    /// The bounds themselves, so a change to `Constants.Cycle.minLutealPhaseLength` /
+    /// `maxLutealPhaseLength` fails here first rather than in the two cases above.
+    func testTheImplausibleCasesAssumeTheseConstants() {
+        XCTAssertEqual(Constants.Cycle.minLutealPhaseLength, 8)
+        XCTAssertEqual(Constants.Cycle.maxLutealPhaseLength, 20)
+    }
+
+    /// An implausible distance does not forfeit the observation the way a dropped median
+    /// candidate would — the scan keeps walking backward for an older, plausible confirmation.
+    func testAnImplausibleDistanceFallsBackToAnOlderPlausibleOne() {
+        let cycles = [
+            cycle(startingAt: 9000, periodLength: 5, ovulation: .confirmed(day: Daystamp(rawValue: 9014))), // 14, plausible
+            cycle(startingAt: 9028, periodLength: 5, ovulation: .confirmed(day: Daystamp(rawValue: 9054))), // 2, implausible
+            cycle(startingAt: 9056, periodLength: 5)
+        ]
+        XCTAssertEqual(CycleForecast(cycles: cycles).lutealPhaseLength, 14)
+    }
+
     // MARK: - Helpers
 
-    private func cycle(startingAt day: Int, periodLength: Int) -> CycleRecord {
-        CycleRecord(startDay: Daystamp(rawValue: day), periodLength: periodLength, ovulation: nil, dirtySeq: nil)
+    private func cycle(startingAt day: Int, periodLength: Int, ovulation: OvulationData? = nil) -> CycleRecord {
+        CycleRecord(startDay: Daystamp(rawValue: day), periodLength: periodLength, ovulation: ovulation, dirtySeq: nil)
     }
 
     /// Cycles sorted ascending — the reducer's invariant, which the forecast relies on — built

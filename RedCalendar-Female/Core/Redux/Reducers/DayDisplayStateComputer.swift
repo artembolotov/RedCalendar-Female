@@ -42,12 +42,7 @@ func computeDayDisplayStates(
     var allCycles = realCycles
     var predictedStart = lastStartDay.advanced(by: cycleSettings.cycleLength)
     while predictedStart <= upperBound {
-        let ovulationDay = predictedStart.advanced(by: cycleSettings.cycleLength - cycleSettings.lutealPhaseLength)
-        let predicted = CycleRecord(
-            startDay: predictedStart,
-            periodLength: cycleSettings.periodLength,
-            ovulation: OvulationData(day: ovulationDay, confirmed: false)
-        )
+        let predicted = CycleRecord(startDay: predictedStart, periodLength: cycleSettings.periodLength, ovulation: nil)
         allCycles.append(predicted)
         predictedStart = predictedStart.advanced(by: cycleSettings.cycleLength)
     }
@@ -115,15 +110,28 @@ func computeDayDisplayStates(
         // so that user-created (real) cycles also show a fertile window / ovulation.
         // If a confirmed next cycle exists, anchor ovulation off its start (luteal phase
         // before it) so the previous cycle's prediction reflects actual cycle length.
-        let ovulationDay: Daystamp
+        let nextRealStart = index + 1 < realCycles.count ? realCycles[index + 1].startDay : nil
+        let ovulationDay = cycle.effectiveOvulationDay(nextRealStart: nextRealStart, cycleSettings: cycleSettings)
+
+        // An anovulatory cycle draws no fertile window — there is nothing to be fertile around
+        // — but the day the automatic prediction would have named still gets its own single-day
+        // marker, as a predicted (never confirmed) ovulation: the person said there was no
+        // ovulation, not that the guess itself should vanish from the calendar.
+        if case .anovulatory = cycle.ovulation {
+            let ownedByCycle = ovulationDay >= cycle.startDay && (nextStart.map { ovulationDay < $0 } ?? true)
+            if ownedByCycle, loadedRange.contains(ovulationDay) {
+                result[ovulationDay, default: .empty].fertileWindow = FertileWindow(
+                    phase: .ovulation(confirmed: false),
+                    position: .single
+                )
+            }
+            continue
+        }
+
         let ovulationConfirmed: Bool
-        if let ovulation = cycle.ovulation {
-            ovulationDay = ovulation.day
-            ovulationConfirmed = ovulation.confirmed
+        if case .confirmed = cycle.ovulation {
+            ovulationConfirmed = true
         } else {
-            let nextRealStart = index + 1 < realCycles.count ? realCycles[index + 1].startDay : nil
-            ovulationDay = nextRealStart?.advanced(by: -cycleSettings.lutealPhaseLength)
-                ?? cycle.startDay.advanced(by: cycleSettings.cycleLength - cycleSettings.lutealPhaseLength)
             ovulationConfirmed = false
         }
 

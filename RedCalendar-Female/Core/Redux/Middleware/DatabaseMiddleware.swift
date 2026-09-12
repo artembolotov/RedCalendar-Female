@@ -186,6 +186,16 @@ final class DatabaseMiddleware {
                     dispatch: dispatch
                 )
 
+            case .setOvulation(let stamp, let value):
+                await handleSetOvulation(
+                    stamp: stamp,
+                    value: value,
+                    today: state.calendarState.todayDayStamp,
+                    cycles: state.calendarState.cycles,
+                    cycleSettings: state.cycleSettings,
+                    dispatch: dispatch
+                )
+
             case .saveComment(let stamp, let text):
                 await handleSaveComment(stamp: stamp, text: text, dispatch: dispatch)
 
@@ -266,7 +276,7 @@ final class DatabaseMiddleware {
 
     // MARK: - Private Methods
 
-    /// Brings the two stored cycle settings — what the calendar predicts with, and what the
+    /// Brings the three stored cycle settings — what the calendar predicts with, and what the
     /// server will schedule notifications from — up to what the recorded cycles say.
     ///
     /// Stored rather than computed where they are read, so that each question keeps exactly one
@@ -287,6 +297,16 @@ final class DatabaseMiddleware {
     /// keeps the sync trigger honest: `.setCycles` arrives from a pull as readily as from an
     /// edit, and a run requested for a write that changed nothing would ask for the next pull,
     /// which would arrive as the next `.setCycles`.
+    ///
+    /// One call, `updateForecast`, for all three — not `updateCycleSettings` plus a second writer
+    /// for `lutealPhaseLength`. Two calls means two chances to fail independently: a database
+    /// error on the first would leave the second — unconditional, since a *fresh* whole-history
+    /// `nil` still has to clear a stale measurement — running against a row that call would have
+    /// created, and on an account with nothing stored yet, creating an empty one anyway just to
+    /// ask for a sync nobody needed. One call either writes everything this run has evidence for
+    /// or, on failure, writes nothing, the same guarantee a single `updateCycleSettings` call
+    /// always had. See `DatabaseServiceProtocol.updateForecast` for why `lutealPhaseLength` still
+    /// cannot share `CycleSettingsPatch`'s shape even sharing this call.
     private func refreshForecast(from cycles: [CycleRecord], dispatch: @escaping Dispatch) async {
         // The first delivery of an observation carries cycles that have not changed since the
         // last measurement, so it establishes the baseline and writes nothing — see
@@ -296,16 +316,20 @@ final class DatabaseMiddleware {
         guard let previouslyMeasured, previouslyMeasured != cycles else { return }
 
         let forecast = CycleForecast(cycles: cycles)
-        // Not merely an optimisation for an account with fewer than three cycles: an empty patch
-        // leaves the merged settings equal to the stored ones, and the merge's short circuit is
-        // `existing != nil, merged == stored` — so on an account whose profile row does not exist
-        // yet it would fall through, create the row, stamp it dirty and ask for a sync run, all
-        // to store nothing.
-        guard forecast.cycleLength != nil || forecast.periodLength != nil else { return }
+        // Not merely an optimisation for an account with nothing measurable at all: an empty
+        // write leaves the merged settings equal to the stored ones, and the merge's short
+        // circuit is `existing != nil, merged == stored` — so on an account whose profile row
+        // does not exist yet it would fall through, create the row, stamp it dirty and ask for a
+        // sync run, all to store nothing.
+        guard forecast.cycleLength != nil || forecast.periodLength != nil || forecast.lutealPhaseLength != nil else {
+            return
+        }
 
         do {
-            if try await dbService.updateCycleSettings(
-                CycleSettingsPatch(cycleLength: forecast.cycleLength, periodLength: forecast.periodLength)
+            if try await dbService.updateForecast(
+                cycleLength: forecast.cycleLength,
+                periodLength: forecast.periodLength,
+                lutealPhaseLength: forecast.lutealPhaseLength
             ) {
                 dispatch(.sync(.requested(.localEdit)))
             }
@@ -499,6 +523,23 @@ final class DatabaseMiddleware {
         }
     }
 
+    private func handleSetOvulation(
+        stamp: Daystamp,
+        value: OvulationData?,
+        today: Daystamp,
+        cycles: [CycleRecord],
+        cycleSettings: ResolvedCycleSettings,
+        dispatch: @escaping Dispatch
+    ) async {
+        let context = cycles.dayContext(for: stamp)
+        guard context.canEditOvulation(today: today, cycleSettings: cycleSettings), var cycle = context.owning else {
+            AppLogger.warn("setOvulation rejected for \(stamp): not this cycle's ovulation day, or in the future")
+            return
+        }
+        cycle.ovulation = value
+        await write(.ovulation, dispatch: dispatch) { try await dbService.upsert([cycle]) }
+    }
+
     private func handleSetFlowLevel(
         stamp: Daystamp,
         level: Int?,
@@ -579,8 +620,8 @@ final class DatabaseMiddleware {
                 await reloadDayTags(dispatch: dispatch)
             case .userTag:
                 await reloadUserTags(dispatch: dispatch)
-            case .periodStart, .periodEnd, .flowLevel, .cycleSettings, .notificationSettings,
-                 .profileName:
+            case .periodStart, .periodEnd, .flowLevel, .ovulation, .cycleSettings,
+                 .notificationSettings, .profileName:
                 break
             }
         }

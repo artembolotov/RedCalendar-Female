@@ -34,18 +34,43 @@ extension CycleRecord: Equatable {
 
 // MARK: - OvulationData
 
-struct OvulationData: Codable, Equatable {
-    var day: Daystamp
-    var confirmed: Bool
+/// What the user has explicitly said about a cycle's ovulation — confirmed on a specific day, or
+/// an anovulatory cycle with no ovulation at all. `nil` on `CycleRecord.ovulation` is not a third
+/// case of this type: it means nothing has been said yet, and the day stays automatic — see
+/// `CycleRecord.effectiveOvulationDay`.
+///
+/// `.confirmed` carries no distinction between "confirmed on the day the editor opened on" and "a
+/// different day picked from the calendar" — `OvulationSheetView` tells those apart from which day
+/// it was opened on, not from anything stored, so both write the same shape.
+enum OvulationData: Codable, Equatable {
+    case confirmed(day: Daystamp)
+    case anovulatory
 
-    init(day: Daystamp, confirmed: Bool = false) {
-        self.day = day
-        self.confirmed = confirmed
+    private enum CodingKeys: String, CodingKey {
+        case day, confirmed, anovulatory
     }
 
+    /// Reads the shape RedCalendar 2.0's Firebase import already wrote (`{day, confirmed}`) —
+    /// `confirmed` itself is not re-checked on the way in. An explicit `ovulation` object has
+    /// always meant a real answer: `confirmed: false` was never imported (SYNC.md §10.3), and
+    /// nothing wrote one at all before this feature existed.
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        day = try container.decode(Daystamp.self, forKey: .day)
-        confirmed = try container.decodeIfPresent(Bool.self, forKey: .confirmed) ?? false
+        if try container.decodeIfPresent(Bool.self, forKey: .anovulatory) == true {
+            self = .anovulatory
+            return
+        }
+        self = .confirmed(day: try container.decode(Daystamp.self, forKey: .day))
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        switch self {
+        case .confirmed(let day):
+            try container.encode(day, forKey: .day)
+            try container.encode(true, forKey: .confirmed)
+        case .anovulatory:
+            try container.encode(true, forKey: .anovulatory)
+        }
     }
 }

@@ -190,7 +190,7 @@ Features/
                      CalendarLayout, MonthCalculator, ScrollCommand, ViewportCalculator
     Components/   — FloatingAddButton, HomeMenuView
     HomeView, DayDetailsView, FloatingButtonState,
-    CommentSheetView, TagsSheetView
+    CommentSheetView, TagsSheetView, OvulationSheetView
   Settings/   — SettingsView, DevicesView
   Statistics/ — StatisticsView
 ```
@@ -837,6 +837,122 @@ wide: the report is delivered whatever happens to the view in between, and the q
 the value back so clearing it is enough. New teardown work belongs in `cleanUp()` for both reasons —
 `deinit` cannot be relied on to run at teardown, and it may not run on the main thread, where an
 `invalidate()` on a link added to `.main` wants to be.
+
+### Ovulation Editing
+
+RedCalendar 2.0 had the same screen (`OvulationSheetView`), reached from `DayDetailsView`'s one
+ovulation row: **Автоматически** (clear an explicit answer), **Подтверждена** (the day the editor
+opened on), **Указать день вручную** (a different day, from a bounded picker), **Нет**
+(anovulatory — no ovulation this cycle at all). `CycleRecord.ovulation` is `OvulationData?`: `nil`
+is unset and stays automatic; the type itself has two cases, `.confirmed(day:)` and `.anovulatory`
+— there is no third, unconfirmed-day case, because nothing before this feature ever wrote one
+(SYNC.md §10.3: an imported `ovulation` without `confirmed: true` was thrown away, not kept as a
+frozen guess). "Подтверждена" and "Указать день вручную" write the identical shape,
+`.confirmed(day:)` — the wire carries no memory of which button was tapped, only which day was
+named.
+
+**The row lives on one day, and that day is a fact about the cycle, not about the screen.**
+`CycleRecord.effectiveOvulationDay(nextRealStart:cycleSettings:)` answers it: a confirmed day
+always wins, and everything else — unset, or anovulatory — falls back to the exact prediction
+`DayDisplayStateComputer` draws when it has nothing explicit to draw instead, so the row and the
+calendar never point at different days before there is a real answer to point at.
+
+**An anovulatory cycle loses the window, not the day.** There is no fertile window to draw around
+an ovulation that did not happen, so `DayDisplayStateComputer` draws none of the surrounding
+band — but the effective day itself still gets a single-day marker, as a predicted (never
+confirmed) ovulation, the same dashed mark an unconfirmed automatic guess draws elsewhere. Erasing
+it too would make "Нет" indistinguishable from a day with nothing said about it at all, and would
+delete the one day that can still reopen the editor and undo "Нет" — `CycleDayContext.isOvulationDay`
+and the row in `DayDetailsView` both key off `effectiveOvulationDay`, whatever `ovulation` says.
+`canEditOvulation(today:cycleSettings:)` adds the one rule every other day-edit follows — no editing
+the future.
+
+**The manual picker offers a short list of days, not a date.** A `DatePicker` would let a
+`Constants.Cycle.ovulationManualPickerRangeDays` bound exist only as an invisible wall somewhere
+mid-scroll; a wheel `Picker` over the explicit, already-bounded `[Daystamp]` reads at a glance as
+the handful of nearby days it actually is — the same single column of "6 мая" rows RedCalendar 2.0
+drew. The list is bounded three ways at once: the range either side of the day the editor opened
+on; not past `today`; and not past the *next* cycle's start, when one is recorded — without that
+third clamp a manual pick near a cycle boundary could resolve, days later, to a day
+`owningCycle(for:)` attributes to a different cycle than the one the editor was actually for.
+
+**The luteal phase is measured, not typed, and measured differently from the other two.**
+`CycleForecast.lutealPhaseLength` joins `cycleLength` and `periodLength` as a third number
+`DatabaseMiddleware.refreshForecast` writes (see below for its own writer), from the same
+`measuredCycles`-guarded call and the same `luteal_phase_length` JSON key `ResolvedCycleSettings`
+already read. But it is not a median over `forecastWindow` observations: the luteal phase is close
+to constant for a given woman, so one confirmed, *completed* cycle (a real next start on record,
+so the distance is a fact) is already the answer, and averaging it against older, less certain
+cycles would only dilute the most reliable measurement this app ever gets. `.anovulatory` and an
+unconfirmed automatic guess are silent, the same way an open period is silent for `periodLength` —
+and there is no screen where a person types this number directly, the way `ProfileView`'s steppers
+let them type the other two.
+
+**A single confirmation is still filtered for plausibility, the same way a window of them is.**
+`median(of:within:)` drops an interval outside `minCycleLength...maxCycleLength` before it ever
+reaches the window; `lastConfirmedLutealPhase` does the equivalent for its one distance, against
+`Constants.Cycle.minLutealPhaseLength...maxLutealPhaseLength` (8–20 days) — without it, the wrong
+day confirmed once, or a next start recorded weeks late, would become a "constant" every future
+prediction leans on, with no window to average it back down. Dropping it does not forfeit the
+observation the way a filtered-out median candidate does, though: the scan keeps walking backward
+for an older, plausible confirmation instead of giving up and answering `nil`.
+
+The same bound is enforced again on the way out, in `ResolvedCycleSettings.init`, intersected with
+the existing `cycleLength - 1` ceiling ("leaves at least one day of follicular phase") rather than
+replacing it — `min(cycleLength - 1, maxLutealPhaseLength)` for the upper bound,
+`min(minLutealPhaseLength, that)` for the lower, so the range is never invalid however small
+`cycleLength` gets. This is what `lastConfirmedLutealPhase` cannot be, by itself: a measurement
+written by *this* build's own writer, but the column is checked for shape and not for contents
+(§4.5), so a number from the server, or from an old RedCalendar 2.0 import whose `settings` never
+passed through this filter, is drawn from exactly as any other out-of-range `cycleLength` or
+`periodLength` already is — clamped for the calendar's own math, never rewritten back to the row.
+
+**Un-confirming is not silent — it clears, not just stops updating.** `cycleLength` and
+`periodLength` are handed to `CycleSettingsPatch` as plain `Int?`: `nil` means "not enough cycles
+*this run* to say anything", and the stored value — someone's own typed number included — is left
+exactly as it was. `lutealPhaseLength` cannot mean that, because nothing ever types it: if the scan
+across the whole history finds no confirmed, completed cycle any more — the one that measured it
+was just reverted to "Автоматически", say — a stale number pretending to still be a measurement is
+strictly worse than no number at all, since every future automatic prediction would keep leaning on
+someone's retracted answer.
+
+So it is not a fourth field on `CycleSettingsPatch` at all — folding it in would force that type's
+`nil` to mean two different things depending on which field it was attached to. But it is also not
+a second writer, called separately from `updateCycleSettings`: that was tried and reverted. Two
+calls are two chances to fail independently — a database error on the `cycleLength`/`periodLength`
+half left the `lutealPhaseLength` half, unconditional since a fresh whole-history `nil` still has
+to clear a stale measurement, running anyway against a row that first call would have created. On
+an account with nothing stored yet, that stray second call still created an empty `user_profile`
+row and asked for a sync, for a failure that had nothing to do with luteal phase — exactly the
+thing the combined guard below exists to prevent, reopened by having two writers instead of one.
+
+`DatabaseServiceProtocol.updateForecast(cycleLength:periodLength:lutealPhaseLength:)` is the one
+call `refreshForecast` actually makes, with the forecast's fresh, whole-history answer for all
+three: it either writes everything this run has evidence for, in one transaction, or — on failure —
+writes nothing at all, the same guarantee a single `updateCycleSettings` call always had.
+`cycleLength`/`periodLength` merge exactly as `updateCycleSettings` merges them, `nil` left
+untouched; `lutealPhaseLength` has no "don't touch" side at all, since nothing else ever writes it
+— a value sets `cycle.luteal_phase_length` as usual, `nil` calls `JSONValue.removingSetting(_:)`
+and deletes the key outright. Deletes, not overwrites-with-`null` — the row ends up in exactly the
+shape it would be in if ovulation had never been confirmed at all, rather than carrying an explicit
+"measured: nothing" forever. `ResolvedCycleSettings` cannot tell an absent key from a `null` one
+anyway (both decode to `nil`), so the two would have behaved identically on read — the deletion is
+for the person who goes looking at the stored data, not for the calendar's own math. The
+duplication of `cycleLength`/`periodLength`'s merge logic against `updateCycleSettings` is the
+price of the three ever being one write; it is worth paying exactly once, here, since nothing else
+needs that combination.
+
+The combined `cycleLength != nil || periodLength != nil || lutealPhaseLength != nil` guard is what
+stops a fresh account from getting a `user_profile` row created for genuinely nothing (see
+`updateCycleSettings`'s own doc comment on why that matters) — unchanged by any of this, since it
+was never about how many calls followed it, only about whether there was anything to say at all.
+
+**Three of the four options commit on the tap that chose them.** There is nothing to confirm about
+"automatically", "this day", or "no ovulation this cycle" — the same reasoning that makes the
+period buttons and the flow-level picker commit immediately rather than wait for a "Готово". Only
+"Указать день вручную" needs a second action, because a day has to be chosen first; the sheet's own
+top-right close discards that pending pick without writing anything, exactly as swiping away an
+unconfirmed choice anywhere else in the app would.
 
 ### Notifications
 

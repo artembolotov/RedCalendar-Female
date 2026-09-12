@@ -140,6 +140,14 @@ struct Constants {
         static let maxCycleLength = 90
         static let minPeriodLength = 1
         static let maxPeriodLength = 14
+        /// The plausibility range `CycleForecast.lastConfirmedLutealPhase` measures within — the
+        /// same role `minCycleLength...maxCycleLength` plays for `median(of:within:)`, just for a
+        /// single confirmed distance rather than a window of them. A distance outside it is not
+        /// trusted as a measurement (most likely the wrong day was confirmed, or picked far from
+        /// where ovulation actually was), so the scan keeps looking for an older, plausible one
+        /// instead of writing it — see `CycleForecast`.
+        static let minLutealPhaseLength = 8
+        static let maxLutealPhaseLength = 20
 
         // Fallbacks when the user has no cycle settings yet
         static let defaultCycleLength = 28
@@ -151,6 +159,12 @@ struct Constants {
         // Fertile window drawn around ovulation
         static let fertileWindowDaysBefore = 3
         static let fertileWindowDaysAfter = 1
+
+        /// How many days either side of the editor's own day `OvulationSheetView`'s manual date
+        /// picker offers. Centered on the day the sheet opened from — the effective ovulation day,
+        /// see `CycleRecord.effectiveOvulationDay` — not on the whole cycle: a test strip or a
+        /// temperature chart disagrees with the prediction by a handful of days, not by weeks.
+        static let ovulationManualPickerRangeDays = 5
 
         /// How many of the most recent observations `CycleForecast` measures, and how many of
         /// them it needs before it says anything at all.

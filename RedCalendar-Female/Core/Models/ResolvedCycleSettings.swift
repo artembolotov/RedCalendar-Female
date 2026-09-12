@@ -28,11 +28,21 @@ struct ResolvedCycleSettings: Equatable, Sendable {
             settings?.defaultPeriodLength ?? Constants.Cycle.defaultPeriodLength,
             Constants.Cycle.minPeriodLength...Constants.Cycle.maxPeriodLength
         )
-        // The luteal phase has to leave at least one day of follicular phase, otherwise
-        // ovulation lands on or before the cycle start.
+        // Two bounds, intersected. The luteal phase has to leave at least one day of follicular
+        // phase, or ovulation lands on or before the cycle start — that upper bound is
+        // `cycleLength - 1` and has no constant of its own. It also has to stay inside
+        // `minLutealPhaseLength...maxLutealPhaseLength`, the same plausibility range
+        // `CycleForecast` itself trusts as a measurement, so a number from the server — or from
+        // an old RedCalendar 2.0 import — is never drawn from as-is when it is outside it, the
+        // same way `cycleLength`/`periodLength` are clamped to the exact range their own median
+        // trusts. `min(_:_:)` on the upper bound keeps the range valid (lower ≤ upper) however
+        // small `cycleLength - 1` gets; it cannot in practice drop below `minLutealPhaseLength`,
+        // since `cycleLength` is itself already clamped to `minCycleLength...`, but nothing here
+        // should depend on that holding.
+        let lutealUpperBound = min(cycleLength - 1, Constants.Cycle.maxLutealPhaseLength)
         lutealPhaseLength = clamp(
             settings?.lutealPhaseLength ?? Constants.Cycle.defaultLutealPhaseLength,
-            1...(cycleLength - 1)
+            min(Constants.Cycle.minLutealPhaseLength, lutealUpperBound)...lutealUpperBound
         )
         autoConfirmPreviousCycle = settings?.autoConfirmPreviousCycle
             ?? Constants.Cycle.defaultAutoConfirmPreviousCycle
@@ -45,6 +55,14 @@ struct ResolvedCycleSettings: Equatable, Sendable {
 /// `ResolvedCycleSettings` fills every field with a fallback; writing those fallbacks would turn
 /// "the user never said" into "the user chose 28" — in `users_female.settings`, for every device,
 /// permanently. An edit writes the one key it changed.
+///
+/// The luteal phase is deliberately not a fourth field here. `cycleLength` and `periodLength`
+/// have a screen that lets a person type them, so this patch's "don't touch" `nil` exists to
+/// protect that typed value from a forecast recompute that merely has nothing new to say.
+/// `lutealPhaseLength` has no such value to protect — nothing but `DatabaseMiddleware.refreshForecast`
+/// ever writes it — so it has no "don't touch" state at all and does not belong on a type whose
+/// whole point is distinguishing "not edited" from "edited to nothing". See
+/// `DatabaseServiceProtocol.updateLutealPhaseLength`.
 struct CycleSettingsPatch: Sendable, Equatable {
     var cycleLength: Int?
     var periodLength: Int?

@@ -114,4 +114,23 @@ extension JSONValue {
         object[key] = child.setting(Array(path.dropFirst()), to: value)
         return .object(object)
     }
+
+    /// The mirror of `setting(_:to:)`: a copy with the key at `path` removed outright rather than
+    /// overwritten, and everything else left exactly as it was. For the one field this build ever
+    /// needs to *un*-set instead of merely writing a new value over — see
+    /// `DatabaseServiceProtocol.updateLutealPhaseLength`.
+    ///
+    /// Not on a non-object (nothing to remove from a scalar) and not on a path whose intermediate
+    /// key is already absent (nothing to descend into) — both are no-ops, returning `self`
+    /// unchanged rather than manufacturing structure `setting(_:to:)` would have built.
+    func removingSetting(_ path: [String]) -> JSONValue {
+        guard let key = path.first, case .object(var object) = self else { return self }
+
+        if path.count == 1 {
+            object.removeValue(forKey: key)
+        } else if let child = object[key] {
+            object[key] = child.removingSetting(Array(path.dropFirst()))
+        }
+        return .object(object)
+    }
 }
