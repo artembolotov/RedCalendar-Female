@@ -160,8 +160,8 @@ struct Constants {
         static let fertileWindowDaysBefore = 3
         static let fertileWindowDaysAfter = 1
 
-        /// How many days either side of the editor's own day `OvulationSheetView`'s manual date
-        /// picker offers. Centered on the day the sheet opened from — the effective ovulation day,
+        /// How many days either side of the editor's own day `OvulationManualDayView`'s grid
+        /// offers. Centered on the day the editor opened from — the effective ovulation day,
         /// see `CycleRecord.effectiveOvulationDay` — not on the whole cycle: a test strip or a
         /// temperature chart disagrees with the prediction by a handful of days, not by weeks.
         static let ovulationManualPickerRangeDays = 5

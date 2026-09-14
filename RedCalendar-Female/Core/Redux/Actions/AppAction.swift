@@ -142,7 +142,7 @@ enum DataAction: Sendable {
     case setFlowLevel(Daystamp, Int?)
     case saveComment(Daystamp, String)
     case setDayTags(Daystamp, [String])
-    /// `OvulationSheetView`'s write path: what the user says about the cycle owning `dayStamp` —
+    /// `OvulationEditorView`'s write path: what the user says about the cycle owning `dayStamp` —
     /// not necessarily its actual ovulation day, see `CycleRecord.effectiveOvulationDay`. `nil`
     /// clears an explicit answer back to automatic prediction.
     case setOvulation(Daystamp, OvulationData?)

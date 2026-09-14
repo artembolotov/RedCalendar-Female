@@ -5,12 +5,16 @@ enum DayDetailsMetrics {
     // between two cards, so it has to be an explicit shared number rather than the
     // system's default padding.
     static let screenInset: CGFloat = 16
+    // A single-line row with its value or checkmark at the trailing edge — the card's own
+    // "Обильность" and "Статус" and the options on the screens they push. One number, so moving
+    // from a row to the list it opens does not change how dense a row is.
+    static let valueRowVerticalPadding: CGFloat = 15
 }
 
-// The four flow levels the menu picker in `DayDetailsView.flowLevelRow` offers, and the labels
-// it reads its rows' text from — one list of the keys rather than two, so the row's own trailing
-// value and the menu's options can't disagree.
-private enum FlowLevelOption {
+// The four flow levels `FlowLevelEditorView` offers, and the labels both it and
+// `DayDetailsView.flowLevelRow` read — one list of the keys rather than two, so the row's own
+// trailing value and the editor's options can't disagree.
+enum FlowLevelOption {
     static let all: [Int?] = [1, 2, 3, nil]
 
     static func label(for level: Int?) -> LocalizedStringKey {
@@ -21,6 +25,15 @@ private enum FlowLevelOption {
         default: return "DayDetails.Flow.Unset"
         }
     }
+}
+
+/// A screen pushed inside the day card, over its root content or over another pushed screen.
+/// The pager owns the transitions — it is the one holding the window's pan recognizer, which
+/// drives the interactive swipe back.
+enum DayCardRoute: Hashable {
+    case flowLevel
+    case ovulation
+    case ovulationManualDay
 }
 
 /// A card height together with the day it belongs to.
@@ -92,10 +105,16 @@ struct DayDetailsView: View {
     // `CalendarView.resolvedMaxCardHeight`. A day whose content asks for more than this is
     // clipped to it rather than pushing its own selected week under the chrome band.
     let maxHeight: CGFloat
+    // Written by a row to push a screen and by a screen to go back; the pager animates it.
+    @Binding var path: [DayCardRoute]
+    // The screens drawn over the root. Keeps the one going away for the whole of its transition.
+    let pushedPath: [DayCardRoute]
+    // The top screen's transition: 0 is off the card's trailing edge, 1 at rest.
+    let navigationProgress: CGFloat
+    let cardWidth: CGFloat
 
     @State private var showTagsSheet = false
     @State private var showCommentSheet = false
-    @State private var showOvulationSheet = false
     // Whether the content this frame asked for is taller than `maxHeight` — set from the same
     // measurement `reportedHeight` clips, so the two never disagree about whether a cut
     // happened. Drives the fade at the bottom edge that stands in for the part that got cut.
@@ -172,7 +191,7 @@ struct DayDetailsView: View {
 
     private func ovulationStatusLabel(_ ovulation: OvulationData?) -> LocalizedStringKey {
         switch ovulation {
-        case nil: return "DayDetails.Ovulation.Automatic"
+        case nil: return "DayDetails.Ovulation.Predicted"
         case .anovulatory: return "DayDetails.Ovulation.None"
         case .confirmed: return "DayDetails.Ovulation.Confirmed"
         }
@@ -261,47 +280,59 @@ struct DayDetailsView: View {
         let periodActionValid = isPeriodActionValid(context: context, buttonState: buttonState)
         let showOvulationRow = context.canEditOvulation(today: today, cycleSettings: cycleSettings)
 
-        VStack(alignment: .leading, spacing: 0) {
-            header
-            if !subtitle.isEmpty || periodActionValid {
-                chipsRow(subtitle: subtitle, buttonState: buttonState, periodActionValid: periodActionValid)
-                    .padding(.top, 8)
-            }
-
+        ZStack(alignment: .topLeading) {
             VStack(alignment: .leading, spacing: 0) {
-                if context.canSetFlowLevel(today: today) {
-                    periodSection(currentLevel: flowLevel)
+                header
+                if !subtitle.isEmpty || periodActionValid {
+                    chipsRow(subtitle: subtitle, buttonState: buttonState, periodActionValid: periodActionValid)
+                        .padding(.top, 8)
+                }
+
+                VStack(alignment: .leading, spacing: 0) {
+                    if context.canSetFlowLevel(today: today) {
+                        periodSection(currentLevel: flowLevel)
+                            .padding(.top, 16)
+                    }
+                    if showOvulationRow {
+                        ovulationSection(status: context.owning?.ovulation)
+                            .padding(.top, 16)
+                    }
+                    notesSection
                         .padding(.top, 16)
                 }
-                if showOvulationRow {
-                    ovulationRow(status: context.owning?.ovulation)
-                        .padding(.top, 16)
-                }
-                notesSection
-                    .padding(.top, 16)
+                .padding(.top, 4)
             }
-            .padding(.top, 4)
+            .padding(cardPadding)
+            .padding(.bottom, globalBottomOffset)
+            // Keeps the content at the height it asks for so that a level shorter than the content
+            // spills past the bottom edge and is cut, rather than squeezing the rows into the box.
+            .fixedSize(horizontal: false, vertical: true)
+            .background(
+                GeometryReader { geometry in
+                    Color.clear
+                        .preference(
+                            key: DayCardNaturalHeightKey.self,
+                            value: isActive
+                                ? DayCardHeight(day: dayStamp, height: reportedHeight(boxHeight: geometry.size.height))
+                                : .none
+                        )
+                        .preference(
+                            key: DayCardClippedKey.self,
+                            value: isActive && pushedPath.isEmpty && naturalHeight(boxHeight: geometry.size.height) > maxHeight
+                        )
+                }
+            )
+            .offset(x: layerOffset(depth: 0))
+            .accessibilityHidden(!isTopLayer(depth: 0))
+
+            // Identified by the route rather than by position: going back to the root from two
+            // screens deep drops the middle one first, and the top one must stay the same view.
+            ForEach(Array(pushedPath.enumerated()), id: \.element) { index, pushedRoute in
+                pushedLayer(pushedRoute, depth: index + 1)
+                    .offset(x: layerOffset(depth: index + 1))
+                    .accessibilityHidden(!isTopLayer(depth: index + 1))
+            }
         }
-        .padding(cardPadding)
-        .padding(.bottom, globalBottomOffset)
-        // Keeps the content at the height it asks for so that a level shorter than the content
-        // spills past the bottom edge and is cut, rather than squeezing the rows into the box.
-        .fixedSize(horizontal: false, vertical: true)
-        .background(
-            GeometryReader { geometry in
-                Color.clear
-                    .preference(
-                        key: DayCardNaturalHeightKey.self,
-                        value: isActive
-                            ? DayCardHeight(day: dayStamp, height: reportedHeight(boxHeight: geometry.size.height))
-                            : .none
-                    )
-                    .preference(
-                        key: DayCardClippedKey.self,
-                        value: isActive && naturalHeight(boxHeight: geometry.size.height) > maxHeight
-                    )
-            }
-        )
         // The pull's stretch, and it belongs on this side of the measurement above — which is
         // the only reason it is a padding of its own rather than folded into the one below the
         // content. The two sum to what that single padding always was, so the box is unchanged;
@@ -326,6 +357,10 @@ struct DayDetailsView: View {
         // obeys removes the inflated starting point instead of papering over its landing: a short
         // card's natural height never reaches it, so nothing here changes for it.
         .frame(maxHeight: levelHeight == nil ? maxHeight + globalBottomOffset : nil, alignment: .top)
+        .overlay(alignment: .topTrailing) {
+            closeButton
+                .padding([.top, .trailing], cardPadding)
+        }
         // The card is a fixed box: the open flow picker and the notes it pushes down run past
         // the bottom edge and are cut there instead of making the card taller. A comment long
         // enough to hit `maxHeight` is cut the same way — the fade below is what tells the two
@@ -368,14 +403,66 @@ struct DayDetailsView: View {
                 .environmentObject(store)
                 .tint(store.state.accentTheme.accent)
         }
-        .sheet(isPresented: $showOvulationSheet) {
-            OvulationSheetView(dayStamp: dayStamp, isPresented: $showOvulationSheet)
-                .environmentObject(store)
-                .tint(store.state.accentTheme.accent)
-        }
         .onPreferenceChange(DayCardClippedKey.self) { clipped in
             isContentClipped = clipped
         }
+    }
+
+    // MARK: - Pushed screens
+
+    private let underlayParallax: CGFloat = 0.3
+
+    // The top screen slides in from the trailing edge; the one under it slides a third of the way
+    // out, as a navigation controller's does; anything deeper stays where that left it.
+    private func layerOffset(depth: Int) -> CGFloat {
+        let top = pushedPath.count
+        if depth == top && top > 0 {
+            return cardWidth * (1 - navigationProgress)
+        }
+        if depth == top - 1 {
+            return -cardWidth * underlayParallax * navigationProgress
+        }
+        return depth < top ? -cardWidth * underlayParallax : 0
+    }
+
+    private func isTopLayer(depth: Int) -> Bool {
+        let top = pushedPath.count
+        guard top > 0 else { return depth == 0 }
+        return navigationProgress > 0.5 ? depth == top : depth == top - 1
+    }
+
+    // Drawn in the root's own box — the card keeps its height while a screen is pushed, so the
+    // calendar under it has nothing to re-centre on. Opaque and stretched to the whole box, so
+    // the screen underneath does not show below one shorter than it.
+    private func pushedLayer(_ pushedRoute: DayCardRoute, depth: Int) -> some View {
+        let isTop = depth == pushedPath.count
+
+        return Group {
+            switch pushedRoute {
+            case .flowLevel:
+                FlowLevelEditorView(
+                    dayStamp: dayStamp,
+                    path: $path,
+                    trailingControlWidth: trailingControlWidth
+                )
+            case .ovulation:
+                OvulationEditorView(
+                    dayStamp: dayStamp,
+                    path: $path,
+                    trailingControlWidth: trailingControlWidth
+                )
+            case .ovulationManualDay:
+                OvulationManualDayView(
+                    dayStamp: dayStamp,
+                    path: $path,
+                    trailingControlWidth: trailingControlWidth
+                )
+            }
+        }
+        .padding(cardPadding)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .background(cardBackgroundColor)
+        .shadow(color: .black.opacity(isTop ? 0.12 * (1 - navigationProgress) : 0), radius: 8, x: -2)
     }
 
     // MARK: - Header
@@ -388,16 +475,45 @@ struct DayDetailsView: View {
 
             Spacer()
 
-            Button(action: {
-                dismissView()
-            }) {
+            // The close button's slot — the button itself is `closeButton`, drawn over every
+            // screen of the card so a push does not carry it away.
+            Color.clear
+                .frame(width: trailingControlWidth, height: trailingControlWidth)
+        }
+    }
+
+    // Above both layers and outside the slide, so it stays put through a push and a swipe back.
+    // Whatever slides under it dissolves into a disc of the card's own colour rather than being
+    // cut by the glyph's edge; at rest nothing is under it and the disc is invisible.
+    private var closeButton: some View {
+        Button(action: dismissView) {
+            ZStack {
+                Circle()
+                    .fill(
+                        RadialGradient(
+                            gradient: Gradient(stops: [
+                                .init(color: cardBackgroundColor, location: 0),
+                                .init(color: cardBackgroundColor, location: 0.55),
+                                .init(color: cardBackgroundColor.opacity(0), location: 1)
+                            ]),
+                            center: .center,
+                            startRadius: 0,
+                            endRadius: closeButtonPlateRadius
+                        )
+                    )
+                    .frame(width: closeButtonPlateRadius * 2, height: closeButtonPlateRadius * 2)
+
                 Image(systemName: "xmark.circle.fill")
                     .font(.title2)
                     .foregroundColor(.secondary)
                     .frame(width: trailingControlWidth, height: trailingControlWidth)
             }
+            .frame(width: trailingControlWidth, height: trailingControlWidth)
         }
+        .accessibilityLabel(Text("Common.Close"))
     }
+
+    private let closeButtonPlateRadius: CGFloat = 26
 
     // MARK: - Chips row
 
@@ -497,46 +613,41 @@ struct DayDetailsView: View {
         }
     }
 
-    // A menu picker rather than a sheet or an inline-expanding wheel: tapping the row pops the
-    // system's own floating menu over whatever is beneath it — the card, the calendar, all of
-    // it — and dismisses itself on a choice, with no card resize and no navigation stack of our
-    // own to build. Commits on the tap that chose it, the same as every other one-tap edit on
-    // this card (the period buttons, ovulation's automatic/confirmed/anovulatory rows).
+    // Pushes `FlowLevelEditorView` inside the card.
     private func flowLevelRow(currentLevel: Int?) -> some View {
-        Picker(selection: Binding(
-            get: { currentLevel },
-            set: { store.send(.data(.setFlowLevel(dayStamp, $0))) }
-        )) {
-            ForEach(FlowLevelOption.all, id: \.self) { level in
-                Text(FlowLevelOption.label(for: level)).tag(level)
-            }
-        } label: {
+        Button(action: { path = [.flowLevel] }) {
             HStack {
                 Text("DayDetails.Flow.Title")
                     .foregroundColor(.primary)
                 Spacer()
+                // Secondary, as a value cell beside a disclosure chevron draws it — the accent
+                // would make the value read as its own control rather than as the row's state.
                 Text(FlowLevelOption.label(for: currentLevel))
-                    .foregroundColor(accent)
+                    .foregroundColor(.secondary)
+                DisclosureIndicator()
             }
-            .padding(.vertical, 12)
+            .padding(.vertical, DayDetailsMetrics.valueRowVerticalPadding)
         }
-        .pickerStyle(.menu)
     }
 
-    // Header-less, unlike `periodSection`: there is exactly one row here, so a divider naming the
-    // same thing the row itself says would only repeat it. Shown only on the one day
-    // `context.isOvulationDay` names — see `CycleRecord.effectiveOvulationDay` for why that day
-    // exists even for an anovulatory cycle, which is what keeps this reachable to undo "Нет".
-    private func ovulationRow(status: OvulationData?) -> some View {
-        Button(action: { showOvulationSheet = true }) {
-            HStack {
-                Text("DayDetails.Ovulation.Title")
-                    .foregroundColor(.primary)
-                Spacer()
-                Text(ovulationStatusLabel(status))
-                    .foregroundColor(accent)
+    // Shown only on the one day `context.isOvulationDay` names — see
+    // `CycleRecord.effectiveOvulationDay` for why that day exists even for an anovulatory cycle,
+    // which is what keeps this reachable to undo "Нет". Built as `periodSection` is: the header
+    // names the subject, the row names what about it is being set.
+    private func ovulationSection(status: OvulationData?) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            sectionHeader("DayDetails.Ovulation.Header")
+            Button(action: { path = [.ovulation] }) {
+                HStack {
+                    Text("DayDetails.Ovulation.Status.Title")
+                        .foregroundColor(.primary)
+                    Spacer()
+                    Text(ovulationStatusLabel(status))
+                        .foregroundColor(.secondary)
+                    DisclosureIndicator()
+                }
+                .padding(.vertical, DayDetailsMetrics.valueRowVerticalPadding)
             }
-            .padding(.vertical, 12)
         }
     }
 
@@ -565,8 +676,10 @@ struct DayDetailsView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.top, 12)
-        .padding(.bottom, 8)
+        // The divider above is as far off as `flowLevelRow`'s. Below, the tags and the comment share
+        // `notesRowGap` between them.
+        .padding(.top, DayDetailsMetrics.valueRowVerticalPadding)
+        .padding(.bottom, notesRowGap / 2)
     }
 
     // Concatenated `Text` rather than `FlowLayout`: wrapping is resolved by SwiftUI's own text
@@ -590,6 +703,11 @@ struct DayDetailsView: View {
         UIFont.preferredFont(forTextStyle: .body).lineHeight * 4
     }
 
+    // Between the tags and the comment, which have no divider between them. A full row's padding
+    // on each side (30) left them looking like unrelated blocks, a single one (15) like two lines
+    // of the same paragraph; 22 puts one line of body text every 44pt, the system's row pitch.
+    private let notesRowGap: CGFloat = 22
+
     private var commentRowContent: some View {
         Group {
             if let comment = comment, !comment.isEmpty {
@@ -602,7 +720,7 @@ struct DayDetailsView: View {
             }
         }
         .frame(maxWidth: .infinity, minHeight: commentRowMinimumHeight, alignment: .topLeading)
-        .padding(.top, 8)
+        .padding(.top, notesRowGap / 2)
         .padding(.bottom, 12)
     }
 
@@ -673,7 +791,11 @@ struct DayDetailsView: View {
             isActive: true,
             dragOffset: 0,
             levelHeight: nil,
-            maxHeight: .infinity
+            maxHeight: .infinity,
+            path: .constant([]),
+            pushedPath: [],
+            navigationProgress: 0,
+            cardWidth: 360
         )
     }
     .environmentObject(

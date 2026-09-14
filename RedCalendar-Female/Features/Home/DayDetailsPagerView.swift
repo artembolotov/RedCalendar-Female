@@ -28,6 +28,20 @@ struct DayDetailsPagerView: View {
     let maxHeight: CGFloat
 
     @StateObject private var animator = CardPagingAnimator()
+    // The top pushed screen's horizontal offset inside the card: `cardWidth` is off the trailing
+    // edge, 0 at rest. Driven frame by frame for the same reason paging is — a swipe back can
+    // take the screen over mid-transition.
+    @StateObject private var navigationAnimator = CardPagingAnimator()
+
+    // What the card asked for — see `DayDetailsView.path`.
+    @State private var path: [DayCardRoute] = []
+    // What is drawn over the root: grows on a push, shrinks only once the way back has landed.
+    @State private var mountedPath: [DayCardRoute] = []
+    // Where the running transition is heading. Lets `onChange(of: path)` tell a request from the
+    // card apart from a write the swipe back already made itself.
+    @State private var navigationTarget: [DayCardRoute] = []
+    @State private var isDraggingNavigation = false
+    @State private var navigationDragStart: CGFloat = 0
 
     // The visual state leads the store: `Store.send` lands a run loop later, so paging has to
     // be driven locally and let the selection catch up. The anchor is therefore seeded once,
@@ -136,6 +150,15 @@ struct DayDetailsPagerView: View {
 
     // The gap between two cards equals the card's own inset from the screen edge, so the
     // next card begins exactly where the screen ends and never shows an edge at rest.
+    private var cardWidth: CGFloat {
+        width - DayDetailsMetrics.screenInset * 2
+    }
+
+    private var navigationProgress: CGFloat {
+        guard !mountedPath.isEmpty, cardWidth > 0 else { return 0 }
+        return min(max(1 - navigationAnimator.offset / cardWidth, 0), 1)
+    }
+
     private var pageStride: CGFloat {
         width - DayDetailsMetrics.screenInset
     }
@@ -156,7 +179,11 @@ struct DayDetailsPagerView: View {
                     isActive: day == activeDay,
                     dragOffset: day == activeDay ? dragOffset : 0,
                     levelHeight: levelHeight,
-                    maxHeight: maxHeight
+                    maxHeight: maxHeight,
+                    path: $path,
+                    pushedPath: day == activeDay ? mountedPath : [],
+                    navigationProgress: day == activeDay ? navigationProgress : 0,
+                    cardWidth: cardWidth
                 )
                 .offset(x: CGFloat(day - anchor) * pageStride + animator.offset)
             }
@@ -177,6 +204,9 @@ struct DayDetailsPagerView: View {
             }
 
             guard newValue != activeDay else { return }
+            // A day tapped in the calendar while a screen is pushed takes the card back to the
+            // root of the new day without a transition — the screen belonged to the old one.
+            resetNavigation()
             anchor = newValue
             shiftInFlight = 0
             isPaging = false
@@ -213,6 +243,14 @@ struct DayDetailsPagerView: View {
             // rest by now.
             if !isPaging && !isDraggingHorizontally {
                 scheduleLevelSettle()
+            }
+        }
+        .onChange(of: path) { newValue in
+            guard newValue != navigationTarget else { return }
+            if newValue.count > navigationTarget.count {
+                push(newValue)
+            } else {
+                pop(to: newValue, velocity: 0)
             }
         }
         .onPreferenceChange(DayCardFrameKey.self) { frame in
@@ -345,6 +383,108 @@ struct DayDetailsPagerView: View {
         levelSettleTask = nil
     }
 
+    // MARK: - Navigation
+
+    private let navigationDuration: TimeInterval = 0.5
+    private let navigationDamping: Double = 1
+    private let navigationCommitRatio: CGFloat = 0.5
+    private let navigationVelocityProjection: CGFloat = 0.2
+
+    // The card keeps its height across a push, so none of this touches the level or the height
+    // the calendar centres against.
+    private func push(_ newPath: [DayCardRoute]) {
+        navigationTarget = newPath
+        if mountedPath != newPath {
+            mountedPath = newPath
+            navigationAnimator.setOffset(cardWidth)
+        }
+        animateNavigation(to: 0, velocity: 0)
+    }
+
+    private func pop(to newPath: [DayCardRoute], velocity: CGFloat) {
+        navigationTarget = newPath
+        if path != newPath {
+            path = newPath
+        }
+
+        guard mountedPath.count > newPath.count, let topRoute = mountedPath.last else {
+            mountedPath = newPath
+            return
+        }
+
+        // Going back more than one screen slides only the top one out, straight onto the
+        // destination, as `popToRootViewController` does. The screens in between are under the
+        // top one at this moment, so dropping them here is not visible.
+        if mountedPath.count > newPath.count + 1 {
+            mountedPath = newPath + [topRoute]
+        }
+
+        animateNavigation(to: cardWidth, velocity: velocity)
+    }
+
+    private func animateNavigation(to target: CGFloat, velocity: CGFloat) {
+        navigationAnimator.animate(
+            to: target,
+            duration: navigationDuration,
+            damping: navigationDamping,
+            velocity: velocity
+        ) {
+            guard navigationTarget.count < mountedPath.count else { return }
+            mountedPath = navigationTarget
+            // The animator tracks the top screen, and the top screen is now the one that was
+            // resting underneath.
+            navigationAnimator.setOffset(0)
+        }
+    }
+
+    private func resetNavigation() {
+        guard !mountedPath.isEmpty || !path.isEmpty else { return }
+        navigationAnimator.setOffset(0)
+        navigationTarget = []
+        path = []
+        mountedPath = []
+        isDraggingNavigation = false
+    }
+
+    // A horizontal drag over a pushed screen goes back instead of paging — anywhere on the card,
+    // as the content swipe back does in a navigation controller since iOS 26.
+    private func handleNavigationPan(translation: CGFloat, velocity: CGFloat, state: PanGestureState) {
+        switch state {
+        case .began:
+            break
+
+        case .changed:
+            if !isDraggingNavigation {
+                isDraggingNavigation = true
+                navigationAnimator.cancel()
+                // Caught on its way back: the screen is being held again, so it is heading
+                // nowhere until the finger decides.
+                if navigationTarget.count < mountedPath.count {
+                    navigationTarget = mountedPath
+                    path = mountedPath
+                }
+                navigationDragStart = navigationAnimator.offset - translation
+            }
+            let offset = navigationDragStart + translation
+            // Past the pushed screen's resting place there is nothing to reveal, so it resists
+            // rather than stopping dead under the finger.
+            navigationAnimator.setOffset(offset < 0 ? offset * rubberBandFactor : min(offset, cardWidth))
+
+        case .ended:
+            isDraggingNavigation = false
+            let projected = navigationAnimator.offset + velocity * navigationVelocityProjection
+            if projected > cardWidth * navigationCommitRatio {
+                pop(to: Array(mountedPath.dropLast()), velocity: velocity)
+            } else {
+                animateNavigation(to: 0, velocity: velocity)
+            }
+
+        case .cancelled, .failed:
+            isDraggingNavigation = false
+            animateNavigation(to: 0, velocity: 0)
+        }
+    }
+
     // MARK: - Gesture routing
 
     private func handlePan(translation: CGFloat, velocity: CGFloat, state: PanGestureState, axis: PanGestureAxis) {
@@ -352,7 +492,13 @@ struct DayDetailsPagerView: View {
         case .vertical:
             handleVerticalPan(translation: translation, velocity: velocity, state: state)
         case .horizontal:
-            handleHorizontalPan(translation: translation, velocity: velocity, state: state)
+            // Decided once per gesture: a swipe back that lands mid-drag must not turn the rest
+            // of the same drag into paging.
+            if isDraggingNavigation || (!mountedPath.isEmpty && !isDraggingHorizontally) {
+                handleNavigationPan(translation: translation, velocity: velocity, state: state)
+            } else {
+                handleHorizontalPan(translation: translation, velocity: velocity, state: state)
+            }
         }
     }
 

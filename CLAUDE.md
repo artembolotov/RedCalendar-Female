@@ -188,9 +188,9 @@ Features/
                      CalendarHeaderView, CalendarTopChrome, InfiniteScrollContainer
       Models/     — CalendarModels, CalendarConstants, CalendarBandGeometry,
                      CalendarLayout, MonthCalculator, ScrollCommand, ViewportCalculator
-    Components/   — FloatingAddButton, HomeMenuView
-    HomeView, DayDetailsView, FloatingButtonState,
-    CommentSheetView, TagsSheetView, OvulationSheetView
+    Components/   — FloatingAddButton, HomeMenuView, DayCardNavigationComponents
+    HomeView, DayDetailsView, DayDetailsPagerView, FloatingButtonState,
+    CommentSheetView, TagsSheetView, FlowLevelEditorView, OvulationEditorView
   Settings/   — SettingsView, DevicesView
   Statistics/ — StatisticsView
 ```
@@ -840,9 +840,10 @@ the value back so clearing it is enough. New teardown work belongs in `cleanUp()
 
 ### Ovulation Editing
 
-RedCalendar 2.0 had the same screen (`OvulationSheetView`), reached from `DayDetailsView`'s one
-ovulation row: **Автоматически** (clear an explicit answer), **Подтверждена** (the day the editor
-opened on), **Указать день вручную** (a different day, from a bounded picker), **Нет**
+RedCalendar 2.0 had the same screen (`OvulationEditorView`, pushed inside the day card — see
+"Screens inside the day card" below), reached from the "Статус" row of `DayDetailsView`'s ovulation
+section: **Автоматически** (clear an explicit answer), **Подтверждена** (the day the editor
+opened on), **Указать день вручную** (a different day, from a bounded grid), **Нет**
 (anovulatory — no ovulation this cycle at all). `CycleRecord.ovulation` is `OvulationData?`: `nil`
 is unset and stays automatic; the type itself has two cases, `.confirmed(day:)` and `.anovulatory`
 — there is no third, unconfirmed-day case, because nothing before this feature ever wrote one
@@ -867,11 +868,12 @@ and the row in `DayDetailsView` both key off `effectiveOvulationDay`, whatever `
 `canEditOvulation(today:cycleSettings:)` adds the one rule every other day-edit follows — no editing
 the future.
 
-**The manual picker offers a short list of days, not a date.** A `DatePicker` would let a
+**The manual pick offers a short list of days, not a date.** A `DatePicker` would let a
 `Constants.Cycle.ovulationManualPickerRangeDays` bound exist only as an invisible wall somewhere
-mid-scroll; a wheel `Picker` over the explicit, already-bounded `[Daystamp]` reads at a glance as
-the handful of nearby days it actually is — the same single column of "6 мая" rows RedCalendar 2.0
-drew. The list is bounded three ways at once: the range either side of the day the editor opened
+mid-scroll. `OvulationManualDayView` draws the explicit, already-bounded `[Daystamp]` as the weeks
+they fall in instead, with the days around them that cannot be chosen dimmed, so it reads at a
+glance as the handful of nearby days it actually is. It is not a wheel: a `UIPickerView` inside the
+card scrolls on the same axis the window's dismiss pan answers. The list is bounded three ways at once: the range either side of the day the editor opened
 on; not past `today`; and not past the *next* cycle's start, when one is recorded — without that
 third clamp a manual pick near a cycle boundary could resolve, days later, to a day
 `owningCycle(for:)` attributes to a different cycle than the one the editor was actually for.
@@ -949,10 +951,39 @@ was never about how many calls followed it, only about whether there was anythin
 
 **Three of the four options commit on the tap that chose them.** There is nothing to confirm about
 "automatically", "this day", or "no ovulation this cycle" — the same reasoning that makes the
-period buttons and the flow-level picker commit immediately rather than wait for a "Готово". Only
-"Указать день вручную" needs a second action, because a day has to be chosen first; the sheet's own
-top-right close discards that pending pick without writing anything, exactly as swiping away an
-unconfirmed choice anywhere else in the app would.
+period buttons and the flow levels commit immediately rather than wait for a "Готово". Only
+"Указать день вручную" needs a second action, because a day has to be chosen first; it pushes the
+grid, where the tap on a day is that action, and going back from the grid writes nothing.
+
+### Screens inside the day card
+
+The flow level (`FlowLevelEditorView`) and the ovulation status (`OvulationEditorView`, with
+`OvulationManualDayView` one level further) are pushed inside the card rather than presented as
+sheets or menus. It is a navigation stack of our own, not `NavigationView`: on iOS 15.4 a
+`UINavigationController` in the card takes every point of height it is offered, its content's
+preferences do not reach the pager, and its edge swipe fights the window pan. The route stack
+(`DayCardRoute`) lives in `DayDetailsPagerView`, because the pager holds the pan that drives the
+swipe back; the card only writes `path` and draws `pushedPath`.
+
+- **The card keeps its height while a screen is pushed.** Every pushed screen is drawn in the root's
+  own box, so the calendar underneath has nothing to re-centre on. A screen taller than the root
+  would be clipped — none is, today; check that before adding a long one.
+- **A horizontal drag over a pushed screen goes back, anywhere on the card**, as the content swipe
+  back does since iOS 26; paging between days is off until the stack is empty. Going back from two
+  levels deep (a day picked on the grid) slides only the top screen out, as
+  `popToRootViewController` does.
+- **The close button is one overlay above every layer**, so a transition never carries it. Content
+  sliding under it dissolves into a feathered disc of the card's colour; at rest nothing is under it.
+- **A pushed screen reads its state from the store, not from `onAppear`.** A layer entering from past
+  the card's edge only gets `onAppear` well into the slide, and a checkmark seeded there arrives late.
+- **`WindowGestureHandler` cancels touches once the pan is recognized.** A row that moves with the
+  finger lifts the touch inside the button it began on; with `cancelsTouchesInView = false` a swipe
+  back that started on "Подтверждена" wrote that answer.
+- **A single-line value row has one padding everywhere**, `DayDetailsMetrics.valueRowVerticalPadding`:
+  the card's "Обильность" and "Статус" and the options they push, so opening a row does not change how
+  dense a row is. The value beside a disclosure chevron is `.secondary`, and the chevron
+  (`DisclosureIndicator`) matches the system's pixel for pixel — `.body`, semibold, `.imageScale(.small)`;
+  `.footnote` was a stroke thinner. It marks rows that push, never rows that present a sheet.
 
 ### Notifications
 

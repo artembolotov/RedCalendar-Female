@@ -279,6 +279,22 @@
         }
       }
     },
+    "Common.Back" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Back"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Назад"
+          }
+        }
+      }
+    },
     "Common.Cancel" : {
       "localizations" : {
         "en" : {
@@ -701,22 +717,6 @@
         }
       }
     },
-    "DayDetails.Ovulation.Automatic" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Automatic"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Автоматически"
-          }
-        }
-      }
-    },
     "DayDetails.Ovulation.Confirmed" : {
       "localizations" : {
         "en" : {
@@ -729,6 +729,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Подтверждена"
+          }
+        }
+      }
+    },
+    "DayDetails.Ovulation.Header" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ovulation"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Овуляция"
           }
         }
       }
@@ -749,18 +765,34 @@
         }
       }
     },
-    "DayDetails.Ovulation.Title" : {
+    "DayDetails.Ovulation.Predicted" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ovulation"
+            "value" : "Predicted"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Овуляция"
+            "value" : "Прогноз"
+          }
+        }
+      }
+    },
+    "DayDetails.Ovulation.Status.Title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Status"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Статус"
           }
         }
       }
@@ -2095,6 +2127,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Указать день вручную"
+          }
+        }
+      }
+    },
+    "OvulationEditor.ManualDay.Title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose a Day"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Выберите день"
           }
         }
       }

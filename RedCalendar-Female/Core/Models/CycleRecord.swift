@@ -40,7 +40,7 @@ extension CycleRecord: Equatable {
 /// `CycleRecord.effectiveOvulationDay`.
 ///
 /// `.confirmed` carries no distinction between "confirmed on the day the editor opened on" and "a
-/// different day picked from the calendar" — `OvulationSheetView` tells those apart from which day
+/// different day picked from the calendar" — `OvulationEditorView` tells those apart from which day
 /// it was opened on, not from anything stored, so both write the same shape.
 enum OvulationData: Codable, Equatable {
     case confirmed(day: Daystamp)

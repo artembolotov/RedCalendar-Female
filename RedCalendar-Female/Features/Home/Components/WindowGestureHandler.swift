@@ -69,7 +69,12 @@ struct WindowGestureHandler: UIViewRepresentable {
         panGesture.maximumNumberOfTouches = 2
         panGesture.minimumNumberOfTouches = 1
         panGesture.delegate = context.coordinator
-        panGesture.cancelsTouchesInView = false
+        // A drag that started on a row carries the row along with the finger — the pushed
+        // screen on a swipe back moves one-to-one with it — so the touch can lift inside the
+        // button it began on and the button fires. Cancelling once the pan is recognized is what
+        // turns a drag back into "not a tap"; a tap never reaches recognition and is delivered
+        // as before.
+        panGesture.cancelsTouchesInView = true
         panGesture.delaysTouchesBegan = false
         panGesture.delaysTouchesEnded = false
         panGesture.name = "DayDetailsSwipeToDismiss"
