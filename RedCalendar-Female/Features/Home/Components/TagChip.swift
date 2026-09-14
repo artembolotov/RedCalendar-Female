@@ -8,8 +8,9 @@ import SwiftUI
 /// `TagChip`'s own shape, broken out so another view can draw in the same vocabulary without
 /// guessing its numbers. `DayDetailsView`'s period chip is the other reader — it sits in the same
 /// row as a tag chip and has to measure identically to one.
+/// The shape is a `Capsule` rather than a number here: an 8pt rounded rectangle read as a stamped
+/// label next to the day card's own large continuous corners.
 enum TagChipMetrics {
-    static let cornerRadius: CGFloat = 8
     static let lineWidth: CGFloat = 1
 }
 
@@ -54,21 +55,21 @@ struct TagChip: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
             .background(
-                RoundedRectangle(cornerRadius: TagChipMetrics.cornerRadius)
+                Capsule()
                     .fill(isFilled ? color : Color.clear)
             )
             // `strokeBorder` rather than `stroke`, so the outline stays inside the chip's
             // own bounds instead of straddling them — that is what keeps the outlined and
             // the filled chip exactly the same size, and it is what the day card draws.
             .overlay(
-                RoundedRectangle(cornerRadius: TagChipMetrics.cornerRadius)
+                Capsule()
                     .strokeBorder(color, lineWidth: TagChipMetrics.lineWidth)
             )
             // The whole chip takes the tap, not just the glyphs in it. An unfilled chip is
             // a word, a clear fill and a hairline outline, so without this the padding
             // between the word and the outline is a hole in the target — on a chip six
             // points tall either side of the text, a tap that missed by nothing at all.
-            .contentShape(RoundedRectangle(cornerRadius: TagChipMetrics.cornerRadius))
+            .contentShape(Capsule())
             // The dim alone read as barely-there in practice: a finger holding a chip down is
             // looking at the fingertip, not studying the chip's edges, and an alpha change is
             // exactly the kind of difference peripheral vision is worst at picking up. A change

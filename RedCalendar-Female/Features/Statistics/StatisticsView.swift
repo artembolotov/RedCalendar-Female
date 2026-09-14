@@ -234,7 +234,7 @@ struct StatisticsView: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
             .background(
-                RoundedRectangle(cornerRadius: TagChipMetrics.cornerRadius)
+                Capsule()
                     .fill(filled ? Color(UIColor.tertiarySystemFill) : Color.clear)
             )
     }

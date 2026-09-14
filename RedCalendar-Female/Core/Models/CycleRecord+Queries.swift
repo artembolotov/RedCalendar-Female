@@ -43,6 +43,13 @@ struct CycleDayContext {
         return owning?.predictedCycleStart(for: day, cycleLength: cycleLength)
     }
 
+    /// Whether the day is the last day of a closed period. Asked of the cycle's own coverage one
+    /// day on, rather than computed from `periodLength`, so it cannot disagree with `completed`.
+    var isCompletedPeriodEnd: Bool {
+        guard let completed else { return false }
+        return completed.periodCoverage(of: day + 1) != .completed
+    }
+
     /// See `canEndPeriod(at:today:)` — answered from the already-resolved context.
     func canEndPeriod(today: Daystamp) -> Bool {
         day <= today && recorded != nil

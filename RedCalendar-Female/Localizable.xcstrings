@@ -823,6 +823,22 @@
         }
       }
     },
+    "DayDetails.Period.Recorded.A11y" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Double-tap to remove the mark"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Коснитесь дважды, чтобы снять отметку"
+          }
+        }
+      }
+    },
     "DayDetails.Period.Start.Button" : {
       "localizations" : {
         "en" : {

@@ -1,68 +1,5 @@
 import SwiftUI
 
-enum DayDetailsMetrics {
-    // The card's inset from the screen edge. `DayDetailsPagerView` reuses it as the gap
-    // between two cards, so it has to be an explicit shared number rather than the
-    // system's default padding.
-    static let screenInset: CGFloat = 16
-    // A single-line row with its value or checkmark at the trailing edge — the card's own
-    // "Обильность" and "Статус" and the options on the screens they push. One number, so moving
-    // from a row to the list it opens does not change how dense a row is.
-    static let valueRowVerticalPadding: CGFloat = 15
-}
-
-// The four flow levels `FlowLevelEditorView` offers, and the labels both it and
-// `DayDetailsView.flowLevelRow` read — one list of the keys rather than two, so the row's own
-// trailing value and the editor's options can't disagree.
-enum FlowLevelOption {
-    static let all: [Int?] = [1, 2, 3, nil]
-
-    static func label(for level: Int?) -> LocalizedStringKey {
-        switch level {
-        case 1: return "DayDetails.Flow.Light"
-        case 2: return "DayDetails.Flow.Moderate"
-        case 3: return "DayDetails.Flow.Heavy"
-        default: return "DayDetails.Flow.Unset"
-        }
-    }
-}
-
-/// A screen pushed inside the day card, over its root content or over another pushed screen.
-/// The pager owns the transitions — it is the one holding the window's pan recognizer, which
-/// drives the interactive swipe back.
-enum DayCardRoute: Hashable {
-    case flowLevel
-    case ovulation
-    case ovulationManualDay
-}
-
-/// A card height together with the day it belongs to.
-///
-/// The calendar centres the selected day in the space above the card, so it cannot leave until
-/// it knows how tall the card for *that* day is. The day travels with the number because the
-/// number alone is not the signal: a card keeping its level across a day change reports the same
-/// height for a new day, and a new day whose content happens to measure the same as the last
-/// one's would otherwise never be reported at all.
-struct DayCardHeight: Equatable {
-    var day: Daystamp?
-    var height: CGFloat
-
-    static let none = DayCardHeight(day: nil, height: 0)
-}
-
-// Height the active card's content asks for, reported from inside the card's own layout so the
-// pager can decide when to move every card to it. Inactive cards contribute `.none`.
-struct DayCardNaturalHeightKey: PreferenceKey {
-    static var defaultValue: DayCardHeight { .none }
-
-    static func reduce(value: inout DayCardHeight, nextValue: () -> DayCardHeight) {
-        let next = nextValue()
-        if next.height > 0 {
-            value = next
-        }
-    }
-}
-
 // Whether the active card's content is taller than the ceiling it is being held to, reported
 // from the same measurement `DayCardNaturalHeightKey` carries. Read back inside the same view
 // that writes it — see the `.onPreferenceChange` in `DayDetailsView.body` — so it never picks up
@@ -75,23 +12,10 @@ private struct DayCardClippedKey: PreferenceKey {
     }
 }
 
-// The active card's box, reported up to the pager: it drives the drag gesture's hit test.
-// Inactive cards contribute `.zero`. The calendar's centering does not come from here — it is
-// written from the level, in `reportedHeight`'s unit, which is the card alone.
-struct DayCardFrameKey: PreferenceKey {
-    static var defaultValue: CGRect { .zero }
-
-    static func reduce(value: inout CGRect, nextValue: () -> CGRect) {
-        let next = nextValue()
-        if next != .zero {
-            value = next
-        }
-    }
-}
-
 struct DayDetailsView: View {
     @EnvironmentObject var store: AppStore
     @Environment(\.colorScheme) var colorScheme
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     let dayStamp: Daystamp
     // Only the centre card of the pager reports its frame and follows the dismiss drag.
@@ -120,12 +44,17 @@ struct DayDetailsView: View {
     // happened. Drives the fade at the bottom edge that stands in for the part that got cut.
     @State private var isContentClipped = false
 
-    private let globalBottomOffset: CGFloat = 25
+    // Has to clear the full reach of the card's continuous bottom corners (~1.5x the radius), so
+    // the part of the card below the screen edge is still straight-sided.
+    private let globalBottomOffset: CGFloat = 44
     private let cardPadding: CGFloat = 16
-    private let cardCornerRadius: CGFloat = 16
+    private let cardCornerRadius: CGFloat = 28
+    private var cardShape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: cardCornerRadius, style: .continuous)
+    }
     // Shared box for the close button, trailing-aligned to the same edge the other
     // trailing-aligned controls on the card use.
-    private let trailingControlWidth: CGFloat = 28
+    private let trailingControlWidth: CGFloat = 30
 
     // The period button and the flow controls are the accent, not the system red — they mark
     // the same thing the calendar's period bar marks, and two reds in one card read as two
@@ -211,8 +140,7 @@ struct DayDetailsView: View {
         // the running day count and the day within the current predicted cycle. The context
         // drops the prediction as soon as the next cycle is recorded — the cycle's real
         // length is known then, so a day inside it is only ever its actual day.
-        let cycleLength = store.state.cycleSettings.cycleLength
-        if let predictedStart = context.predictedCycleStart(cycleLength: cycleLength) {
+        if let predictedStart = context.predictedCycleStart(cycleLength: cycleSettings.cycleLength) {
             let predictedDay = dayStamp - predictedStart + 1
             return String.localized("DayDetails.CycleDay.Predicted.Subtitle", cycleDay, predictedDay)
         }
@@ -237,9 +165,8 @@ struct DayDetailsView: View {
             return .endOutline
         }
 
-        if let cycle = context.completed {
-            let lastDay = cycle.startDay.advanced(by: (cycle.periodLength ?? 0) - 1)
-            return dayStamp == lastDay ? .endFilled : .endOutline
+        if context.completed != nil {
+            return context.isCompletedPeriodEnd ? .endFilled : .endOutline
         }
 
         return .startOutline
@@ -258,14 +185,9 @@ struct DayDetailsView: View {
         case .startOutline:
             return cycles.canStartPeriod(at: dayStamp, today: today)
         case .endOutline:
-            guard context.canEndPeriod(today: today) else { return false }
-            // Inside a completed period (not the last day) — period is already closed, hide.
-            if let completed = context.completed,
-               completed.startDay < dayStamp,
-               dayStamp < completed.startDay.advanced(by: (completed.periodLength ?? 0) - 1) {
-                return false
-            }
-            return true
+            // Inside a completed period the outline state is only ever a middle day — its first
+            // day is `.startFilled` and its last `.endFilled` — and the period is already closed.
+            return context.canEndPeriod(today: today) && context.completed == nil
         }
     }
 
@@ -279,6 +201,7 @@ struct DayDetailsView: View {
         let subtitle = cycleSubtitleText(context: context)
         let periodActionValid = isPeriodActionValid(context: context, buttonState: buttonState)
         let showOvulationRow = context.canEditOvulation(today: today, cycleSettings: cycleSettings)
+        let layers = DayCardLayers(pushedCount: pushedPath.count, progress: navigationProgress, cardWidth: cardWidth)
 
         ZStack(alignment: .topLeading) {
             VStack(alignment: .leading, spacing: 0) {
@@ -324,15 +247,15 @@ struct DayDetailsView: View {
                         )
                 }
             )
-            .offset(x: layerOffset(depth: 0))
-            .accessibilityHidden(!isTopLayer(depth: 0))
+            .offset(x: layers.offset(depth: 0))
+            .accessibilityHidden(!layers.isTop(depth: 0))
 
             // Identified by the route rather than by position: going back to the root from two
             // screens deep drops the middle one first, and the top one must stay the same view.
             ForEach(Array(pushedPath.enumerated()), id: \.element) { index, pushedRoute in
                 pushedLayer(pushedRoute, depth: index + 1)
-                    .offset(x: layerOffset(depth: index + 1))
-                    .accessibilityHidden(!isTopLayer(depth: index + 1))
+                    .offset(x: layers.offset(depth: index + 1))
+                    .accessibilityHidden(!layers.isTop(depth: index + 1))
             }
         }
         // The pull's stretch, and it belongs on this side of the measurement above — which is
@@ -360,7 +283,7 @@ struct DayDetailsView: View {
         // card's natural height never reaches it, so nothing here changes for it.
         .frame(maxHeight: levelHeight == nil ? maxHeight + globalBottomOffset : nil, alignment: .top)
         .overlay(alignment: .topTrailing) {
-            closeButton
+            DayCardCloseButton(size: trailingControlWidth, backgroundColor: cardBackgroundColor, action: dismissView)
                 .padding([.top, .trailing], cardPadding)
         }
         // The card is a fixed box: the open flow picker and the notes it pushes down run past
@@ -378,12 +301,12 @@ struct DayDetailsView: View {
                 .allowsHitTesting(false)
             }
         }
-        .clipShape(RoundedRectangle(cornerRadius: cardCornerRadius))
+        .clipShape(cardShape)
         // Clipping hides the rows pushed past the edge but still lets them take a tap, so the
         // hit area is cut back to the card as well.
-        .contentShape(RoundedRectangle(cornerRadius: cardCornerRadius))
+        .contentShape(cardShape)
         .background(
-            RoundedRectangle(cornerRadius: cardCornerRadius)
+            cardShape
                 .adaptiveBackground(colorScheme: colorScheme)
                 .adaptiveShadow(colorScheme: colorScheme)
         )
@@ -411,27 +334,6 @@ struct DayDetailsView: View {
     }
 
     // MARK: - Pushed screens
-
-    private let underlayParallax: CGFloat = 0.3
-
-    // The top screen slides in from the trailing edge; the one under it slides a third of the way
-    // out, as a navigation controller's does; anything deeper stays where that left it.
-    private func layerOffset(depth: Int) -> CGFloat {
-        let top = pushedPath.count
-        if depth == top && top > 0 {
-            return cardWidth * (1 - navigationProgress)
-        }
-        if depth == top - 1 {
-            return -cardWidth * underlayParallax * navigationProgress
-        }
-        return depth < top ? -cardWidth * underlayParallax : 0
-    }
-
-    private func isTopLayer(depth: Int) -> Bool {
-        let top = pushedPath.count
-        guard top > 0 else { return depth == 0 }
-        return navigationProgress > 0.5 ? depth == top : depth == top - 1
-    }
 
     // Drawn in the root's own box — the card keeps its height while a screen is pushed, so the
     // calendar under it has nothing to re-centre on. Opaque and stretched to the whole box, so
@@ -477,45 +379,12 @@ struct DayDetailsView: View {
 
             Spacer()
 
-            // The close button's slot — the button itself is `closeButton`, drawn over every
+            // The close button's slot — the button itself is `DayCardCloseButton`, drawn over every
             // screen of the card so a push does not carry it away.
             Color.clear
                 .frame(width: trailingControlWidth, height: trailingControlWidth)
         }
     }
-
-    // Above both layers and outside the slide, so it stays put through a push and a swipe back.
-    // Whatever slides under it dissolves into a disc of the card's own colour rather than being
-    // cut by the glyph's edge; at rest nothing is under it and the disc is invisible.
-    private var closeButton: some View {
-        Button(action: dismissView) {
-            ZStack {
-                Circle()
-                    .fill(
-                        RadialGradient(
-                            gradient: Gradient(stops: [
-                                .init(color: cardBackgroundColor, location: 0),
-                                .init(color: cardBackgroundColor, location: 0.55),
-                                .init(color: cardBackgroundColor.opacity(0), location: 1)
-                            ]),
-                            center: .center,
-                            startRadius: 0,
-                            endRadius: closeButtonPlateRadius
-                        )
-                    )
-                    .frame(width: closeButtonPlateRadius * 2, height: closeButtonPlateRadius * 2)
-
-                Image(systemName: "xmark.circle.fill")
-                    .font(.title2)
-                    .foregroundColor(.secondary)
-                    .frame(width: trailingControlWidth, height: trailingControlWidth)
-            }
-            .frame(width: trailingControlWidth, height: trailingControlWidth)
-        }
-        .accessibilityLabel(Text("Common.Close"))
-    }
-
-    private let closeButtonPlateRadius: CGFloat = 26
 
     // MARK: - Chips row
 
@@ -526,8 +395,12 @@ struct DayDetailsView: View {
     // one actionable thing in the row, and the tappable element leading reads as the row's point
     // rather than an afterthought tacked onto a plain fact. The cycle-day chip is neutral and
     // inert — it states a number, it does nothing — so only the period chip needs a tap target.
+    //
+    // Side by side the two chips already fill most of a narrow card at the default text size, so
+    // a larger one stacks them rather than pushing the second past the card's edge.
+    @ViewBuilder
     private func chipsRow(subtitle: String, buttonState: PeriodButtonState, periodActionValid: Bool) -> some View {
-        HStack(spacing: 8) {
+        let chips = Group {
             if periodActionValid {
                 periodChip(buttonState: buttonState)
             }
@@ -535,21 +408,40 @@ struct DayDetailsView: View {
                 cycleDayChip(subtitle)
             }
         }
+
+        if #available(iOS 16.0, *) {
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: chipSpacing) { chips }
+                VStack(alignment: .leading, spacing: chipSpacing) { chips }
+            }
+        } else if dynamicTypeSize > .large {
+            VStack(alignment: .leading, spacing: chipSpacing) { chips }
+        } else {
+            HStack(spacing: chipSpacing) { chips }
+        }
     }
+
+    private let chipSpacing: CGFloat = 8
 
     private func cycleDayChip(_ text: String) -> some View {
         Text(text)
+            .numericTextTransition()
             .font(.subheadline)
             .foregroundColor(.secondary)
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
             .background(
-                RoundedRectangle(cornerRadius: TagChipMetrics.cornerRadius)
+                Capsule()
                     .fill(Color(UIColor.tertiarySystemFill))
             )
+            // Scoped to this chip alone: the period chip's fill changes in the same update, and
+            // animating it looked wrong on device — it switches instantly, as it always did. The
+            // value is the key because the change arrives from the database observation, not
+            // from inside a tap's transaction.
+            .animation(.easeInOut(duration: 0.25), value: text)
     }
 
-    // Drawn in `TagChip`'s own vocabulary now — 8pt corner, 12/6 padding, outline text in the
+    // Drawn in `TagChip`'s own vocabulary now — capsule, 12/6 padding, outline text in the
     // chip's own colour — rather than the calendar period bar's shape, since it sits in the same
     // row as the cycle-day chip instead of standing alone as a CTA under the title. What still
     // carries over unchanged is `PeriodButtonState`'s meaning: solid accent once a day is
@@ -558,7 +450,7 @@ struct DayDetailsView: View {
         let isStart = buttonState == .startOutline || buttonState == .startFilled
         let isFilled = buttonState == .startFilled || buttonState == .endFilled
         let title: LocalizedStringKey = isStart ? "DayDetails.Period.Start.Button" : "DayDetails.Period.End.Button"
-        let shape = RoundedRectangle(cornerRadius: TagChipMetrics.cornerRadius)
+        let shape = Capsule()
 
         return Button(action: handlePeriodButton) {
             Text(title)
@@ -579,7 +471,12 @@ struct DayDetailsView: View {
                         }
                     }
                 )
+                .tapTargetMargin(DayDetailsMetrics.chipTapMargin)
         }
+        .accessibilityAddTraits(isFilled ? .isSelected : [])
+        // A recorded mark is undone by the same tap that made it, which the title alone does not
+        // say — it names the mark, not what tapping it now will do.
+        .accessibilityHint(isFilled ? Text("DayDetails.Period.Recorded.A11y") : Text(verbatim: ""))
     }
 
     // Resolved here rather than handed down from `body`: this runs once per tap, and a
@@ -604,31 +501,33 @@ struct DayDetailsView: View {
                 .font(.headline)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.bottom, 8)
+                .accessibilityAddTraits(.isHeader)
             Divider()
+        }
+    }
+
+    // A single-line row that pushes a screen inside the card: what is being set, its current
+    // value, and the chevron.
+    private func valueRow(_ title: LocalizedStringKey, value: LocalizedStringKey, push route: DayCardRoute) -> some View {
+        Button(action: { path = [route] }) {
+            HStack {
+                Text(title)
+                    .foregroundColor(.primary)
+                Spacer()
+                // Secondary, as a value cell beside a disclosure chevron draws it — the accent
+                // would make the value read as its own control rather than as the row's state.
+                Text(value)
+                    .foregroundColor(.secondary)
+                DisclosureIndicator()
+            }
+            .padding(.vertical, DayDetailsMetrics.valueRowVerticalPadding)
         }
     }
 
     private func periodSection(currentLevel: Int?) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             sectionHeader("DayDetails.Period.Header")
-            flowLevelRow(currentLevel: currentLevel)
-        }
-    }
-
-    // Pushes `FlowLevelEditorView` inside the card.
-    private func flowLevelRow(currentLevel: Int?) -> some View {
-        Button(action: { path = [.flowLevel] }) {
-            HStack {
-                Text("DayDetails.Flow.Title")
-                    .foregroundColor(.primary)
-                Spacer()
-                // Secondary, as a value cell beside a disclosure chevron draws it — the accent
-                // would make the value read as its own control rather than as the row's state.
-                Text(FlowLevelOption.label(for: currentLevel))
-                    .foregroundColor(.secondary)
-                DisclosureIndicator()
-            }
-            .padding(.vertical, DayDetailsMetrics.valueRowVerticalPadding)
+            valueRow("DayDetails.Flow.Title", value: FlowLevelOption.label(for: currentLevel), push: .flowLevel)
         }
     }
 
@@ -639,17 +538,7 @@ struct DayDetailsView: View {
     private func ovulationSection(status: OvulationData?) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             sectionHeader("DayDetails.Ovulation.Header")
-            Button(action: { path = [.ovulation] }) {
-                HStack {
-                    Text("DayDetails.Ovulation.Status.Title")
-                        .foregroundColor(.primary)
-                    Spacer()
-                    Text(ovulationStatusLabel(status))
-                        .foregroundColor(.secondary)
-                    DisclosureIndicator()
-                }
-                .padding(.vertical, DayDetailsMetrics.valueRowVerticalPadding)
-            }
+            valueRow("DayDetails.Ovulation.Status.Title", value: ovulationStatusLabel(status), push: .ovulation)
         }
     }
 
@@ -675,10 +564,13 @@ struct DayDetailsView: View {
             } else {
                 tagsText
                     .multilineTextAlignment(.leading)
+                    // Read as a list of names, not as the hash signs and double spaces that lay
+                    // them out on screen.
+                    .accessibilityLabel(Text(verbatim: resolvedTags.compactMap(\.name).joined(separator: ", ")))
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        // The divider above is as far off as `flowLevelRow`'s. Below, the tags and the comment share
+        // The divider above is as far off as `valueRow`'s. Below, the tags and the comment share
         // `notesRowGap` between them.
         .padding(.top, DayDetailsMetrics.valueRowVerticalPadding)
         .padding(.bottom, notesRowGap / 2)
@@ -780,6 +672,18 @@ struct DayDetailsView: View {
 
     private func dismissView() {
         store.send(.calendar(.selectDay(nil)))
+    }
+}
+
+private extension View {
+    // Below iOS 16 the text simply cross-fades, which is what an animated `Text` change did anyway.
+    @ViewBuilder
+    func numericTextTransition() -> some View {
+        if #available(iOS 16.0, *) {
+            contentTransition(.numericText())
+        } else {
+            self
+        }
     }
 }
 

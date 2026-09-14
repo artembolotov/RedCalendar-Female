@@ -5,7 +5,23 @@
 
 import SwiftUI
 
-// Pushed inside the day card from `DayDetailsView.flowLevelRow` (see `DayCardRoute`). Every
+// The four flow levels this editor offers, and the labels both it and
+// `DayDetailsView.periodSection` read — one list of the keys rather than two, so the row's own
+// trailing value and the editor's options can't disagree.
+enum FlowLevelOption {
+    static let all: [Int?] = [1, 2, 3, nil]
+
+    static func label(for level: Int?) -> LocalizedStringKey {
+        switch level {
+        case 1: return "DayDetails.Flow.Light"
+        case 2: return "DayDetails.Flow.Moderate"
+        case 3: return "DayDetails.Flow.Heavy"
+        default: return "DayDetails.Flow.Unset"
+        }
+    }
+}
+
+// Pushed inside the day card from `DayDetailsView.periodSection` (see `DayCardRoute`). Every
 // option commits on the tap that chose it and goes back to the card — a flow level is one value
 // out of four, and there is nothing to confirm about it.
 struct FlowLevelEditorView: View {
