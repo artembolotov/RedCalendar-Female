@@ -1,12 +1,6 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
-    "" : {
-
-    },
-    "%lld" : {
-
-    },
     "Appearance.Theme.Berry" : {
       "localizations" : {
         "en" : {

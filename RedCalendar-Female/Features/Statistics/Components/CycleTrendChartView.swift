@@ -123,7 +123,9 @@ struct CycleTrendChartView: View {
         VStack(spacing: labelSpacing) {
             // Blank once the cycle's real length isn't known yet — the dashed, unfilled top
             // already says "still running"; a "?" on top of that was saying it twice.
-            Text(bar.cycleLength.map { "\($0)" } ?? "")
+            // `verbatim`: both branches of a bare literal here are inferred as `LocalizedStringKey`,
+            // and Xcode extracts them into the catalog as the keys `%lld` and `""`.
+            Text(verbatim: bar.cycleLength.map(String.init) ?? "")
                 .font(.caption2)
                 .foregroundColor(.secondary)
                 .frame(height: labelHeight)
