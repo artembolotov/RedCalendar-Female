@@ -45,6 +45,8 @@ struct CalendarView: View {
     // scrolls beneath `CalendarTopChrome`.
     @State private var calendarHeight: CGFloat = 0
     @State private var calendarWidth: CGFloat = 0
+    @State private var measurement = MeasurementRecord()
+    @State private var measurementCheck = 0
 
     /// The inset everything here is measured against — `topInset`, held somewhere that survives
     /// being read outside `body`.
@@ -210,7 +212,23 @@ struct CalendarView: View {
         let height: CGFloat
         let topInset: CGFloat
     }
-    
+
+    /// The reader's last measurement, held where code running after the update can read it — see
+    /// `settleOnLatestMeasurement()`. A class, so that recording it from `body` invalidates nothing.
+    private final class MeasurementRecord {
+        private(set) var latest: CalendarMetrics?
+
+        func record(_ metrics: CalendarMetrics) {
+            latest = metrics
+        }
+    }
+
+    /// The metrics the calendar is currently set up against. `setupCalculator` writes all three
+    /// before anything else, a zero-sized pass included.
+    private var appliedMetrics: CalendarMetrics {
+        CalendarMetrics(width: calendarWidth, height: calendarHeight, topInset: bandInset)
+    }
+
     var body: some View {
         GeometryReader { geometry in
 
@@ -221,6 +239,7 @@ struct CalendarView: View {
                 height: geometry.size.height,
                 topInset: topInset
             )
+            let _ = measurement.record(metrics)
 
             // The grid fills the screen and passes under the bar; the bar is laid over it
             // rather than stacked above it, which is the whole point — a month title sliding
@@ -288,6 +307,12 @@ struct CalendarView: View {
             // would never change again, and nothing would ever be built.
             .onAppear {
                 setupCalculator(metrics)
+            }
+            // Where `settleOnLatestMeasurement()` lands. It reads the record rather than
+            // `metrics`, which is the same value on this pass, to keep the question in one place.
+            .onChange(of: measurementCheck) { _ in
+                guard let latest = measurement.latest, latest != appliedMetrics else { return }
+                setupCalculator(latest)
             }
             // Ahead of the height handler below: when a selection and a height land in the
             // same pass, the selection is what decides whether the height is the one being
@@ -577,6 +602,8 @@ struct CalendarView: View {
         self.calendarWidth = width
         self.bandInset = metrics.topInset
 
+        settleOnLatestMeasurement()
+
         guard height > 0 && width > 0 else { return }
 
         // Sized against the readable area, not the drawing area. The grid is drawn across the
@@ -603,6 +630,38 @@ struct CalendarView: View {
         updateFloatingButtonState(scrollOffset: scrollOffset)
     }
     
+    /// Asks for the calendar to be set up again, once the update is over, if the reader's last
+    /// measurement is not the one it was just set up against.
+    ///
+    /// `onChange(of: metrics)` cannot promise the last measurement, because its action is cut off
+    /// when it loops. `setupCalculator` writes `maxCardHeight`, and anything in `HomeView` that is
+    /// sized by that number and can size the stack around this reader closes a loop: the write
+    /// changes the metrics, the metrics fire `onChange`, `onChange` writes again. SwiftUI stops
+    /// such an action for the rest of the frame ("action tried to update multiple times per
+    /// frame") but still records every value it declines to deliver — so when the real size lands
+    /// inside that frame it is recorded, never delivered, and never changes again. The hidden
+    /// warm-up card, mounted beside the calendar's first pass, did exactly that: `HomeView`'s
+    /// reader measures zero on that pass, the stack took the card's own width, and the calendar
+    /// stayed 102pt wide for the whole run. `.task(id:)` goes through the same guard.
+    ///
+    /// A `Task` is not an update action, so nothing cuts it off, and it runs after the frame's
+    /// passes, when `measurement` holds what the reader was actually last given. On an ordinary
+    /// pass that is already what `appliedMetrics` says, and the comparison is all it costs.
+    ///
+    /// It bumps `measurementCheck` rather than calling `setupCalculator` itself. The frame being
+    /// corrected is also the one that laid the scroll view out, and the scroll view reports its
+    /// offset a run loop turn later (`InfiniteScrollContainer.report`) — a report queued behind
+    /// this task, carrying the offset of the setup that was wrong. Set up from the task, the new
+    /// `scrollOffset` was overwritten by that report and the calendar rested 21pt off, at the
+    /// degenerate pass's centre. The update the bump schedules comes after the queue has drained,
+    /// which is where an ordinary `onChange` setup runs too.
+    private func settleOnLatestMeasurement() {
+        Task { @MainActor in
+            guard let latest = measurement.latest, latest != appliedMetrics else { return }
+            measurementCheck += 1
+        }
+    }
+
     private func updateCalculatorIfNeeded() {
         guard let currentCalculator = calculator else {
             return
