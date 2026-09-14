@@ -300,7 +300,9 @@ struct DayDetailsView: View {
                     notesSection
                         .padding(.top, 16)
                 }
-                .padding(.top, 4)
+                // The title and chips are one group above every section, so the first section sits
+                // at least as far from them as sections sit from each other (a row's 15 plus 16).
+                .padding(.top, 12)
             }
             .padding(cardPadding)
             .padding(.bottom, globalBottomOffset)
@@ -525,7 +527,7 @@ struct DayDetailsView: View {
     // rather than an afterthought tacked onto a plain fact. The cycle-day chip is neutral and
     // inert — it states a number, it does nothing — so only the period chip needs a tap target.
     private func chipsRow(subtitle: String, buttonState: PeriodButtonState, periodActionValid: Bool) -> some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 8) {
             if periodActionValid {
                 periodChip(buttonState: buttonState)
             }
