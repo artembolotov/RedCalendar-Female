@@ -7,15 +7,18 @@ enum DayDetailsMetrics {
     static let screenInset: CGFloat = 16
 }
 
-// Natural height of the flow level options, reported from outside the card's layout so the
-// card can slide the notes down by exactly that much.
-private struct FlowPickerHeightKey: PreferenceKey {
-    static var defaultValue: CGFloat { 0 }
+// The four flow levels the menu picker in `DayDetailsView.flowLevelRow` offers, and the labels
+// it reads its rows' text from — one list of the keys rather than two, so the row's own trailing
+// value and the menu's options can't disagree.
+private enum FlowLevelOption {
+    static let all: [Int?] = [1, 2, 3, nil]
 
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        let next = nextValue()
-        if next > 0 {
-            value = next
+    static func label(for level: Int?) -> LocalizedStringKey {
+        switch level {
+        case 1: return "DayDetails.Flow.Light"
+        case 2: return "DayDetails.Flow.Moderate"
+        case 3: return "DayDetails.Flow.Heavy"
+        default: return "DayDetails.Flow.Unset"
         }
     }
 }
@@ -90,13 +93,9 @@ struct DayDetailsView: View {
     // clipped to it rather than pushing its own selected week under the chrome band.
     let maxHeight: CGFloat
 
-    @State private var showFlowPicker = false
     @State private var showTagsSheet = false
     @State private var showCommentSheet = false
     @State private var showOvulationSheet = false
-    // Measured from the options themselves rather than assumed, so the notes travel the right
-    // distance at any Dynamic Type size.
-    @State private var flowPickerHeight: CGFloat = 0
     // Whether the content this frame asked for is taller than `maxHeight` — set from the same
     // measurement `reportedHeight` clips, so the two never disagree about whether a cut
     // happened. Drives the fade at the bottom edge that stands in for the part that got cut.
@@ -105,9 +104,8 @@ struct DayDetailsView: View {
     private let globalBottomOffset: CGFloat = 25
     private let cardPadding: CGFloat = 16
     private let cardCornerRadius: CGFloat = 16
-    private let flowPickerDuration: TimeInterval = 0.15
-    // Shared box for the close button and the flow level circles so both sit
-    // trailing-aligned to the same edge and share a centre line.
+    // Shared box for the close button, trailing-aligned to the same edge the other
+    // trailing-aligned controls on the card use.
     private let trailingControlWidth: CGFloat = 28
 
     // The period button and the flow controls are the accent, not the system red — they mark
@@ -171,20 +169,6 @@ struct DayDetailsView: View {
             .filter { $0.name != nil }
             .sorted { ($0.category, $0.name ?? "") < ($1.category, $1.name ?? "") }
     }
-
-    private func flowLevelLabel(for level: Int?) -> LocalizedStringKey {
-        switch level {
-        case 1: return "DayDetails.Flow.Light"
-        case 2: return "DayDetails.Flow.Moderate"
-        case 3: return "DayDetails.Flow.Heavy"
-        default: return "DayDetails.Flow.Unset"
-        }
-    }
-
-    // The levels themselves, with the picker reading its labels back through
-    // `flowLevelLabel(for:)` — the row above it already does, and a second list of the same four
-    // keys is a way for the two to disagree.
-    private let flowLevelOptions: [Int?] = [1, 2, 3, nil]
 
     private func ovulationStatusLabel(_ ovulation: OvulationData?) -> LocalizedStringKey {
         switch ovulation {
@@ -288,9 +272,6 @@ struct DayDetailsView: View {
                 if context.canSetFlowLevel(today: today) {
                     periodSection(currentLevel: flowLevel)
                         .padding(.top, 16)
-                        // The options hang out of the section's box, so the section has to draw
-                        // over the notes it pushes down rather than under them.
-                        .zIndex(1)
                 }
                 if showOvulationRow {
                     ovulationRow(status: context.owning?.ovulation)
@@ -298,8 +279,6 @@ struct DayDetailsView: View {
                 }
                 notesSection
                     .padding(.top, 16)
-                    .offset(y: notesOffset)
-                    .animation(.easeInOut(duration: flowPickerDuration), value: notesOffset)
             }
             .padding(.top, 4)
         }
@@ -394,19 +373,9 @@ struct DayDetailsView: View {
                 .environmentObject(store)
                 .tint(store.state.accentTheme.accent)
         }
-        .onPreferenceChange(FlowPickerHeightKey.self) { height in
-            // The options report nothing while they're closed — keeping the last measurement
-            // means the notes have a distance to travel on the very first frame of an opening.
-            guard height > 0 else { return }
-            flowPickerHeight = height
-        }
         .onPreferenceChange(DayCardClippedKey.self) { clipped in
             isContentClipped = clipped
         }
-    }
-
-    private var notesOffset: CGFloat {
-        showFlowPicker ? flowPickerHeight : 0
     }
 
     // MARK: - Header
@@ -525,75 +494,33 @@ struct DayDetailsView: View {
         VStack(alignment: .leading, spacing: 0) {
             sectionHeader("DayDetails.Period.Header")
             flowLevelRow(currentLevel: currentLevel)
-            if showFlowPicker {
-                flowLevelPicker(currentLevel: currentLevel)
-            }
         }
     }
 
+    // A menu picker rather than a sheet or an inline-expanding wheel: tapping the row pops the
+    // system's own floating menu over whatever is beneath it — the card, the calendar, all of
+    // it — and dismisses itself on a choice, with no card resize and no navigation stack of our
+    // own to build. Commits on the tap that chose it, the same as every other one-tap edit on
+    // this card (the period buttons, ovulation's automatic/confirmed/anovulatory rows).
     private func flowLevelRow(currentLevel: Int?) -> some View {
-        Button(action: {
-            withAnimation(.easeInOut(duration: flowPickerDuration)) {
-                showFlowPicker.toggle()
+        Picker(selection: Binding(
+            get: { currentLevel },
+            set: { store.send(.data(.setFlowLevel(dayStamp, $0))) }
+        )) {
+            ForEach(FlowLevelOption.all, id: \.self) { level in
+                Text(FlowLevelOption.label(for: level)).tag(level)
             }
-        }) {
+        } label: {
             HStack {
                 Text("DayDetails.Flow.Title")
                     .foregroundColor(.primary)
                 Spacer()
-                Text(flowLevelLabel(for: currentLevel))
+                Text(FlowLevelOption.label(for: currentLevel))
                     .foregroundColor(accent)
             }
             .padding(.vertical, 12)
         }
-    }
-
-    // Opening the picker must not resize the card — the calendar centres on the card's box, so
-    // a card that grew would drag the month under it. The options are therefore laid out at
-    // their natural height inside a zero-height frame: they hang below the row without the
-    // section ever measuring taller, and `notesOffset` slides the notes down by the same
-    // distance so the two don't overlap once the animation has settled.
-    private func flowLevelPicker(currentLevel: Int?) -> some View {
-        VStack(spacing: 0) {
-            ForEach(flowLevelOptions, id: \.self) { level in
-                Button(action: {
-                    store.send(.data(.setFlowLevel(dayStamp, level)))
-                    withAnimation(.easeInOut(duration: flowPickerDuration)) {
-                        showFlowPicker = false
-                    }
-                }) {
-                    HStack {
-                        Text(flowLevelLabel(for: level))
-                            .foregroundColor(.primary)
-                        Spacer()
-                        ZStack {
-                            // strokeBorder keeps the outline inside the 22pt box, so the
-                            // drawn circle matches the box the centring below aligns.
-                            Circle()
-                                .strokeBorder(currentLevel == level ? accent : Color.secondary, lineWidth: 1.5)
-                                .frame(width: 22, height: 22)
-                            if currentLevel == level {
-                                Circle()
-                                    .fill(accent)
-                                    .frame(width: 12, height: 12)
-                            }
-                        }
-                        .frame(width: trailingControlWidth)
-                    }
-                    .padding(.vertical, 12)
-                    .padding(.leading, 16)
-                }
-            }
-        }
-        .fixedSize(horizontal: false, vertical: true)
-        .background(
-            GeometryReader { geometry in
-                Color.clear
-                    .preference(key: FlowPickerHeightKey.self, value: geometry.size.height)
-            }
-        )
-        .frame(height: 0, alignment: .top)
-        .transition(.opacity)
+        .pickerStyle(.menu)
     }
 
     // Header-less, unlike `periodSection`: there is exactly one row here, so a divider naming the
