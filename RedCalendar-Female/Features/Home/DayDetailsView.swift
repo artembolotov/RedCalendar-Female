@@ -128,7 +128,16 @@ struct DayDetailsView: View {
         // frame. Capping this pre-measurement frame at the same ceiling the settled one already
         // obeys removes the inflated starting point instead of papering over its landing: a short
         // card's natural height never reaches it, so nothing here changes for it.
+        //
+        // That last sentence holds only because of the `fixedSize` below. A frame with a maximum
+        // and no minimum is flexible: offered the whole screen, it takes all of it up to the
+        // ceiling, whatever its content asks for. So every card — a short one included — entered
+        // from `maxHeight + globalBottomOffset` below its resting place, about twice its own
+        // height, and spent the fast first half of the spring below the screen edge: the
+        // entrance read as a snap while the exit, measured from the settled box, was visible
+        // end to end. Offered no height, the frame takes its content's and only clamps it.
         .frame(maxHeight: levelHeight == nil ? maxHeight + globalBottomOffset : nil, alignment: .top)
+        .fixedSize(horizontal: false, vertical: true)
         .overlay(alignment: .topTrailing) {
             DayCardCloseButton(size: trailingControlWidth, backgroundColor: cardBackgroundColor, action: dismissView)
                 .padding([.top, .trailing], cardPadding)
