@@ -22,12 +22,18 @@ struct HomeView: View {
     // Written by `SyncIndicatorView`, read here to drive `.sharedBackgroundVisibility` on its
     // `ToolbarItem` — see that binding's doc for why the badge can't do this to itself.
     @State private var syncIndicatorVisible = false
+    // Whether a day card has been built in this process yet — see `cardWarmUp(width:)`.
+    @State private var isCardWarmedUp = false
 
     var body: some View {
         NavigationView {
             if store.state.isAuthenticated {
                 GeometryReader { geometry in
                     ZStack(alignment: .bottomLeading) {
+                        if !isCardWarmedUp, maxDayCardHeight.isFinite, store.state.calendarState.selectedDayStamp == nil {
+                            cardWarmUp(width: geometry.size.width)
+                        }
+
                         CalendarView(
                             cardHeight: $dayCardHeight,
                             floatingButtonState: $floatingButtonState,
@@ -88,6 +94,11 @@ struct HomeView: View {
                             dragOffset = 0
                             dayCardHeight = .none
                             detailsPresentation += 1
+                        } else if !isCardWarmedUp {
+                            // A real card has now paid what the warm-up exists to pay, so a
+                            // warm-up still waiting for its turn has nothing left to do — and
+                            // must not mount later, in the middle of this card's exit.
+                            isCardWarmedUp = true
                         }
                     }
                     // On the stack, never on the reader around it. A `GeometryReader` that
@@ -157,6 +168,51 @@ struct HomeView: View {
                 store.send(.data(.dismissWriteFailure))
             }
         )
+    }
+
+    /// The day card, built once while nothing is animating and thrown away a run loop later.
+    ///
+    /// The first card of a process costs several times what every later one does: the view
+    /// graph for the pager and the card is instantiated from cold, and that one-off cost lands in
+    /// the frame the card starts sliding in on. Measured on the simulator in a Debug build, the
+    /// first opening spent 56–96ms before the card could be measured and dropped a 73–138ms frame;
+    /// a second opening of the same day took 15ms. Built here first, the first opening measures
+    /// at ~21ms and its longest frame is ~31ms — the same as any later one. Nothing is kept: what
+    /// warms is the runtime's and SwiftUI's per-type caches, which outlive the view.
+    ///
+    /// The whole pager rather than the card alone, because the pager's own cold cost was a third
+    /// of what was left once the card had been warmed. It is inert here by construction: its
+    /// height is written only while its day is the selected one (`applyLevel`), which the guard
+    /// at its use makes impossible — the warm-up mounts only while nothing is selected. Its window
+    /// pan is installed and removed within that run loop, and `WindowGestureHandler.Coordinator`
+    /// clears `current` only if it is still the one that set it.
+    ///
+    /// Launch is where it goes because launch is the one moment nothing is moving: mounted later
+    /// it would take the same frame out of a scroll instead. But not the *first* pass of launch,
+    /// which is why the guard at its use also waits for `maxDayCardHeight` — the one value
+    /// `CalendarView` writes once it has built its calculator. Mounted alongside the calendar's
+    /// first pass, it left the calendar set up against a width of about a hundred points that no
+    /// later pass corrected — seven columns squeezed against the leading edge, for as long as the
+    /// app ran. Most likely the warm-up's weight moved which pass the calendar's `GeometryReader`
+    /// first reported on, and the calendar's own setup already says it cannot count on that (see
+    /// the `onAppear` beside its `onChange(of: metrics)`). Not proven; what is observed is that
+    /// waiting one pass keeps launch exactly as it was without the warm-up.
+    private func cardWarmUp(width: CGFloat) -> some View {
+        DayDetailsPagerView(
+            dayStamp: store.state.calendarState.todayDayStamp,
+            width: width,
+            dragOffset: .constant(0),
+            height: .constant(.none),
+            maxHeight: maxDayCardHeight
+        )
+        .hidden()
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+        .onAppear {
+            Task { @MainActor in
+                isCardWarmedUp = true
+            }
+        }
     }
 
     private func setTodaySelected() {

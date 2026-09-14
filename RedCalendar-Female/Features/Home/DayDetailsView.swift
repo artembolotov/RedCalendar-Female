@@ -15,7 +15,6 @@ private struct DayCardClippedKey: PreferenceKey {
 struct DayDetailsView: View {
     @EnvironmentObject var store: AppStore
     @Environment(\.colorScheme) var colorScheme
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     let dayStamp: Daystamp
     // Only the centre card of the pager reports its frame and follows the dismiss drag.
@@ -55,6 +54,244 @@ struct DayDetailsView: View {
     // Shared box for the close button, trailing-aligned to the same edge the other
     // trailing-aligned controls on the card use.
     private let trailingControlWidth: CGFloat = 30
+
+    // MARK: - Body
+
+    var body: some View {
+        let layers = DayCardLayers(pushedCount: pushedPath.count, progress: navigationProgress, cardWidth: cardWidth)
+
+        ZStack(alignment: .topLeading) {
+            DayCardRootContent(
+                dayStamp: dayStamp,
+                path: $path,
+                showTagsSheet: $showTagsSheet,
+                showCommentSheet: $showCommentSheet,
+                trailingControlWidth: trailingControlWidth
+            )
+            // Everything below it moves on every frame of a pull, a push inside the card and a
+            // level change — `dragOffset`, `navigationProgress`, `levelHeight` — and none of it is
+            // what the rows are made of. Compared on the day alone, the title, the chips and the
+            // sections are laid out again on those frames but not rebuilt; the store and the
+            // environment still reach them directly, as they would any view that reads them.
+            .equatable()
+            .padding(cardPadding)
+            .padding(.bottom, globalBottomOffset)
+            // Keeps the content at the height it asks for so that a level shorter than the content
+            // spills past the bottom edge and is cut, rather than squeezing the rows into the box.
+            .fixedSize(horizontal: false, vertical: true)
+            .background(
+                GeometryReader { geometry in
+                    Color.clear
+                        .preference(
+                            key: DayCardNaturalHeightKey.self,
+                            value: isActive
+                                ? DayCardHeight(day: dayStamp, height: reportedHeight(boxHeight: geometry.size.height))
+                                : .none
+                        )
+                        .preference(
+                            key: DayCardClippedKey.self,
+                            value: isActive && pushedPath.isEmpty && naturalHeight(boxHeight: geometry.size.height) > maxHeight
+                        )
+                }
+            )
+            .offset(x: layers.offset(depth: 0))
+            .accessibilityHidden(!layers.isTop(depth: 0))
+
+            // Identified by the route rather than by position: going back to the root from two
+            // screens deep drops the middle one first, and the top one must stay the same view.
+            ForEach(Array(pushedPath.enumerated()), id: \.element) { index, pushedRoute in
+                pushedLayer(pushedRoute, depth: index + 1)
+                    .offset(x: layers.offset(depth: index + 1))
+                    .accessibilityHidden(!layers.isTop(depth: index + 1))
+            }
+        }
+        // The pull's stretch, and it belongs on this side of the measurement above — which is
+        // the only reason it is a padding of its own rather than folded into the one below the
+        // content. The two sum to what that single padding always was, so the box is unchanged;
+        // what changes is the height the card reports for itself. `dragOffset` returns to zero
+        // the instant the finger lifts, while the geometry goes on carrying the pull for the
+        // whole `.cardEntrance` spring — so measured from inside, every frame of that return
+        // read as the day's own content growing, and the level settle committed about a third
+        // of the pull as the card's height a fifth of a second later.
+        .padding(.bottom, -dragOffset)
+        // A `nil` height is the natural one, so the two cases need no branch here.
+        .frame(height: drawnBoxHeight, alignment: .top)
+        // `drawnBoxHeight` is `nil` for exactly one window: between mount and the first
+        // `DayCardNaturalHeightKey` measurement landing, which is also when `.move(edge: .bottom)`
+        // (see `HomeView`) takes its offset from this view's own current height. Left
+        // unconstrained, a long comment draws its full natural height there — well past
+        // `maxHeight` — and the entrance spring leaves from that inflated height only to have it
+        // snap down, without animation, the instant the measurement arrives (`applyLevel` in
+        // `DayDetailsPagerView`). The transition's offset, recomputed from the now-smaller box,
+        // jumps with it and tears the card's bottom edge away from the screen mid-flight — the
+        // rubber-band drag never shows this because its `drawnBoxHeight` is exact from the first
+        // frame. Capping this pre-measurement frame at the same ceiling the settled one already
+        // obeys removes the inflated starting point instead of papering over its landing: a short
+        // card's natural height never reaches it, so nothing here changes for it.
+        .frame(maxHeight: levelHeight == nil ? maxHeight + globalBottomOffset : nil, alignment: .top)
+        .overlay(alignment: .topTrailing) {
+            DayCardCloseButton(size: trailingControlWidth, backgroundColor: cardBackgroundColor, action: dismissView)
+                .padding([.top, .trailing], cardPadding)
+        }
+        // The card is a fixed box: the open flow picker and the notes it pushes down run past
+        // the bottom edge and are cut there instead of making the card taller. A comment long
+        // enough to hit `maxHeight` is cut the same way — the fade below is what tells the two
+        // apart from a card that simply ends.
+        .overlay(alignment: .bottom) {
+            if isContentClipped {
+                LinearGradient(
+                    colors: [cardBackgroundColor.opacity(0), cardBackgroundColor],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .frame(height: truncationFadeHeight)
+                .allowsHitTesting(false)
+            }
+        }
+        .clipShape(cardShape)
+        // Clipping hides the rows pushed past the edge but still lets them take a tap, so the
+        // hit area is cut back to the card as well.
+        .contentShape(cardShape)
+        .background(
+            cardShape
+                .adaptiveBackground(colorScheme: colorScheme)
+                .adaptiveShadow(colorScheme: colorScheme)
+        )
+        .padding([.horizontal, .top], DayDetailsMetrics.screenInset)
+        .offset(y: globalBottomOffset)
+        .background(
+            GeometryReader { geometry in
+                Color.clear
+                    .preference(key: DayCardFrameKey.self, value: reportedFrame(geometry.frame(in: .global)))
+            }
+        )
+        .sheet(isPresented: $showTagsSheet) {
+            TagsSheetView(dayStamp: dayStamp, isPresented: $showTagsSheet)
+                .environmentObject(store)
+                .tint(store.state.accentTheme.accent)
+        }
+        .sheet(isPresented: $showCommentSheet) {
+            CommentSheetView(dayStamp: dayStamp, isPresented: $showCommentSheet)
+                .environmentObject(store)
+                .tint(store.state.accentTheme.accent)
+        }
+        .onPreferenceChange(DayCardClippedKey.self) { clipped in
+            isContentClipped = clipped
+        }
+    }
+
+    // MARK: - Pushed screens
+
+    // Drawn in the root's own box — the card keeps its height while a screen is pushed, so the
+    // calendar under it has nothing to re-centre on. Opaque and stretched to the whole box, so
+    // the screen underneath does not show below one shorter than it.
+    private func pushedLayer(_ pushedRoute: DayCardRoute, depth: Int) -> some View {
+        let isTop = depth == pushedPath.count
+
+        return Group {
+            switch pushedRoute {
+            case .flowLevel:
+                FlowLevelEditorView(
+                    dayStamp: dayStamp,
+                    path: $path,
+                    trailingControlWidth: trailingControlWidth
+                )
+            case .ovulation:
+                OvulationEditorView(
+                    dayStamp: dayStamp,
+                    path: $path,
+                    trailingControlWidth: trailingControlWidth
+                )
+            case .ovulationManualDay:
+                OvulationManualDayView(
+                    dayStamp: dayStamp,
+                    path: $path,
+                    trailingControlWidth: trailingControlWidth
+                )
+            }
+        }
+        .padding(cardPadding)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .background(cardBackgroundColor)
+        .shadow(color: .black.opacity(isTop ? 0.12 * (1 - navigationProgress) : 0), radius: 8, x: -2)
+    }
+
+    // MARK: - Frame reporting
+
+    // How tall the content actually asked to be, in the same unit `reportedHeight` reports in.
+    // Kept separate from it so both `reportedHeight` (which clips) and the clipped-detection
+    // preference (which needs the *un*clipped number to notice the clip happened) read off one
+    // calculation instead of two that could drift apart.
+    private func naturalHeight(boxHeight: CGFloat) -> CGFloat {
+        boxHeight - globalBottomOffset
+    }
+
+    // The level the pager works in is the card's own box as it stands on screen: the measured
+    // height less the bottom offset that hangs off the screen edge, and never past `maxHeight` —
+    // the calendar centres the selected day in the space above this box, and a box taller than
+    // that ceiling would push the day itself under the chrome band. The inset above the box is
+    // deliberately *not* part of it — that band is where the shadow is drawn, and counting it
+    // centred the selected day in the space above the shadow rather than above the card. Both
+    // conversions live here so the pager only ever handles one unit.
+    private func reportedHeight(boxHeight: CGFloat) -> CGFloat {
+        min(naturalHeight(boxHeight: boxHeight), maxHeight)
+    }
+
+    // Matches `.adaptiveBackground(colorScheme:)`'s two fills exactly, so the fade dissolves
+    // into a colour the card's own surface actually is rather than an approximation of it.
+    private var cardBackgroundColor: Color {
+        colorScheme == .dark ? Color(.secondarySystemBackground) : Color(.systemBackground)
+    }
+
+    // Tall enough to read as a dissolve rather than a stripe — measured against the same
+    // `commentRowMinimumHeight` floor the row itself keeps, so the fade never claims more than
+    // a fraction of even the shortest comment box.
+    private let truncationFadeHeight: CGFloat = 40
+
+    private var drawnBoxHeight: CGFloat? {
+        guard let levelHeight = levelHeight else { return nil }
+        return max(0, levelHeight + globalBottomOffset - dragOffset)
+    }
+
+    // The pager slides the card with `.offset`, so the reported global frame moves sideways
+    // on every drag frame. The card spans the full width at rest, so the horizontal position
+    // is dropped rather than reported — otherwise every frame of a swipe would look like a
+    // new box to the pager.
+    private func reportedFrame(_ globalFrame: CGRect) -> CGRect {
+        guard isActive else { return .zero }
+
+        return CGRect(
+            x: 0,
+            y: globalFrame.minY + globalBottomOffset,
+            width: globalFrame.width,
+            height: globalFrame.height - globalBottomOffset
+        )
+    }
+
+    private func dismissView() {
+        store.send(.calendar(.selectDay(nil)))
+    }
+}
+
+// MARK: - Root content
+
+/// The card's own screen — title, chips and sections — for one day. See the comment at its use in
+/// `DayDetailsView.body` for why it is a view of its own.
+private struct DayCardRootContent: View, @MainActor Equatable {
+    @EnvironmentObject var store: AppStore
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    let dayStamp: Daystamp
+    // Written, never read: a row pushes a screen and the notes rows present a sheet. Both point at
+    // state that outlives any one render, so a comparison that skips them loses nothing.
+    @Binding var path: [DayCardRoute]
+    @Binding var showTagsSheet: Bool
+    @Binding var showCommentSheet: Bool
+    let trailingControlWidth: CGFloat
+
+    static func == (lhs: DayCardRootContent, rhs: DayCardRootContent) -> Bool {
+        lhs.dayStamp == rhs.dayStamp && lhs.trailingControlWidth == rhs.trailingControlWidth
+    }
 
     // The period button and the flow controls are the accent, not the system red — they mark
     // the same thing the calendar's period bar marks, and two reds in one card read as two
@@ -201,172 +438,30 @@ struct DayDetailsView: View {
         let subtitle = cycleSubtitleText(context: context)
         let periodActionValid = isPeriodActionValid(context: context, buttonState: buttonState)
         let showOvulationRow = context.canEditOvulation(today: today, cycleSettings: cycleSettings)
-        let layers = DayCardLayers(pushedCount: pushedPath.count, progress: navigationProgress, cardWidth: cardWidth)
 
-        ZStack(alignment: .topLeading) {
+        VStack(alignment: .leading, spacing: 0) {
+            header
+            if !subtitle.isEmpty || periodActionValid {
+                chipsRow(subtitle: subtitle, buttonState: buttonState, periodActionValid: periodActionValid)
+                    .padding(.top, 8)
+            }
+
             VStack(alignment: .leading, spacing: 0) {
-                header
-                if !subtitle.isEmpty || periodActionValid {
-                    chipsRow(subtitle: subtitle, buttonState: buttonState, periodActionValid: periodActionValid)
-                        .padding(.top, 8)
-                }
-
-                VStack(alignment: .leading, spacing: 0) {
-                    if context.canSetFlowLevel(today: today) {
-                        periodSection(currentLevel: flowLevel)
-                            .padding(.top, 16)
-                    }
-                    if showOvulationRow {
-                        ovulationSection(status: context.owning?.ovulation)
-                            .padding(.top, 16)
-                    }
-                    notesSection
+                if context.canSetFlowLevel(today: today) {
+                    periodSection(currentLevel: flowLevel)
                         .padding(.top, 16)
                 }
-                // The title and chips are one group above every section, so the first section sits
-                // at least as far from them as sections sit from each other (a row's 15 plus 16).
-                .padding(.top, 12)
-            }
-            .padding(cardPadding)
-            .padding(.bottom, globalBottomOffset)
-            // Keeps the content at the height it asks for so that a level shorter than the content
-            // spills past the bottom edge and is cut, rather than squeezing the rows into the box.
-            .fixedSize(horizontal: false, vertical: true)
-            .background(
-                GeometryReader { geometry in
-                    Color.clear
-                        .preference(
-                            key: DayCardNaturalHeightKey.self,
-                            value: isActive
-                                ? DayCardHeight(day: dayStamp, height: reportedHeight(boxHeight: geometry.size.height))
-                                : .none
-                        )
-                        .preference(
-                            key: DayCardClippedKey.self,
-                            value: isActive && pushedPath.isEmpty && naturalHeight(boxHeight: geometry.size.height) > maxHeight
-                        )
+                if showOvulationRow {
+                    ovulationSection(status: context.owning?.ovulation)
+                        .padding(.top, 16)
                 }
-            )
-            .offset(x: layers.offset(depth: 0))
-            .accessibilityHidden(!layers.isTop(depth: 0))
-
-            // Identified by the route rather than by position: going back to the root from two
-            // screens deep drops the middle one first, and the top one must stay the same view.
-            ForEach(Array(pushedPath.enumerated()), id: \.element) { index, pushedRoute in
-                pushedLayer(pushedRoute, depth: index + 1)
-                    .offset(x: layers.offset(depth: index + 1))
-                    .accessibilityHidden(!layers.isTop(depth: index + 1))
+                notesSection
+                    .padding(.top, 16)
             }
+            // The title and chips are one group above every section, so the first section sits
+            // at least as far from them as sections sit from each other (a row's 15 plus 16).
+            .padding(.top, 12)
         }
-        // The pull's stretch, and it belongs on this side of the measurement above — which is
-        // the only reason it is a padding of its own rather than folded into the one below the
-        // content. The two sum to what that single padding always was, so the box is unchanged;
-        // what changes is the height the card reports for itself. `dragOffset` returns to zero
-        // the instant the finger lifts, while the geometry goes on carrying the pull for the
-        // whole `.cardEntrance` spring — so measured from inside, every frame of that return
-        // read as the day's own content growing, and the level settle committed about a third
-        // of the pull as the card's height a fifth of a second later.
-        .padding(.bottom, -dragOffset)
-        // A `nil` height is the natural one, so the two cases need no branch here.
-        .frame(height: drawnBoxHeight, alignment: .top)
-        // `drawnBoxHeight` is `nil` for exactly one window: between mount and the first
-        // `DayCardNaturalHeightKey` measurement landing, which is also when `.move(edge: .bottom)`
-        // (see `HomeView`) takes its offset from this view's own current height. Left
-        // unconstrained, a long comment draws its full natural height there — well past
-        // `maxHeight` — and the entrance spring leaves from that inflated height only to have it
-        // snap down, without animation, the instant the measurement arrives (`applyLevel` in
-        // `DayDetailsPagerView`). The transition's offset, recomputed from the now-smaller box,
-        // jumps with it and tears the card's bottom edge away from the screen mid-flight — the
-        // rubber-band drag never shows this because its `drawnBoxHeight` is exact from the first
-        // frame. Capping this pre-measurement frame at the same ceiling the settled one already
-        // obeys removes the inflated starting point instead of papering over its landing: a short
-        // card's natural height never reaches it, so nothing here changes for it.
-        .frame(maxHeight: levelHeight == nil ? maxHeight + globalBottomOffset : nil, alignment: .top)
-        .overlay(alignment: .topTrailing) {
-            DayCardCloseButton(size: trailingControlWidth, backgroundColor: cardBackgroundColor, action: dismissView)
-                .padding([.top, .trailing], cardPadding)
-        }
-        // The card is a fixed box: the open flow picker and the notes it pushes down run past
-        // the bottom edge and are cut there instead of making the card taller. A comment long
-        // enough to hit `maxHeight` is cut the same way — the fade below is what tells the two
-        // apart from a card that simply ends.
-        .overlay(alignment: .bottom) {
-            if isContentClipped {
-                LinearGradient(
-                    colors: [cardBackgroundColor.opacity(0), cardBackgroundColor],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .frame(height: truncationFadeHeight)
-                .allowsHitTesting(false)
-            }
-        }
-        .clipShape(cardShape)
-        // Clipping hides the rows pushed past the edge but still lets them take a tap, so the
-        // hit area is cut back to the card as well.
-        .contentShape(cardShape)
-        .background(
-            cardShape
-                .adaptiveBackground(colorScheme: colorScheme)
-                .adaptiveShadow(colorScheme: colorScheme)
-        )
-        .padding([.horizontal, .top], DayDetailsMetrics.screenInset)
-        .offset(y: globalBottomOffset)
-        .background(
-            GeometryReader { geometry in
-                Color.clear
-                    .preference(key: DayCardFrameKey.self, value: reportedFrame(geometry.frame(in: .global)))
-            }
-        )
-        .sheet(isPresented: $showTagsSheet) {
-            TagsSheetView(dayStamp: dayStamp, isPresented: $showTagsSheet)
-                .environmentObject(store)
-                .tint(store.state.accentTheme.accent)
-        }
-        .sheet(isPresented: $showCommentSheet) {
-            CommentSheetView(dayStamp: dayStamp, isPresented: $showCommentSheet)
-                .environmentObject(store)
-                .tint(store.state.accentTheme.accent)
-        }
-        .onPreferenceChange(DayCardClippedKey.self) { clipped in
-            isContentClipped = clipped
-        }
-    }
-
-    // MARK: - Pushed screens
-
-    // Drawn in the root's own box — the card keeps its height while a screen is pushed, so the
-    // calendar under it has nothing to re-centre on. Opaque and stretched to the whole box, so
-    // the screen underneath does not show below one shorter than it.
-    private func pushedLayer(_ pushedRoute: DayCardRoute, depth: Int) -> some View {
-        let isTop = depth == pushedPath.count
-
-        return Group {
-            switch pushedRoute {
-            case .flowLevel:
-                FlowLevelEditorView(
-                    dayStamp: dayStamp,
-                    path: $path,
-                    trailingControlWidth: trailingControlWidth
-                )
-            case .ovulation:
-                OvulationEditorView(
-                    dayStamp: dayStamp,
-                    path: $path,
-                    trailingControlWidth: trailingControlWidth
-                )
-            case .ovulationManualDay:
-                OvulationManualDayView(
-                    dayStamp: dayStamp,
-                    path: $path,
-                    trailingControlWidth: trailingControlWidth
-                )
-            }
-        }
-        .padding(cardPadding)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .background(cardBackgroundColor)
-        .shadow(color: .black.opacity(isTop ? 0.12 * (1 - navigationProgress) : 0), radius: 8, x: -2)
     }
 
     // MARK: - Header
@@ -557,16 +652,20 @@ struct DayDetailsView: View {
     }
 
     private var tagsRowContent: some View {
-        Group {
-            if resolvedTags.isEmpty {
+        // Resolved once for the row: it builds a lookup of every tag the user has, and the row
+        // asks for the result three times.
+        let tags = resolvedTags
+
+        return Group {
+            if tags.isEmpty {
                 Text("DayDetails.Tags.Placeholder")
                     .foregroundColor(Color(UIColor.tertiaryLabel))
             } else {
-                tagsText
+                tagsText(tags)
                     .multilineTextAlignment(.leading)
                     // Read as a list of names, not as the hash signs and double spaces that lay
                     // them out on screen.
-                    .accessibilityLabel(Text(verbatim: resolvedTags.compactMap(\.name).joined(separator: ", ")))
+                    .accessibilityLabel(Text(verbatim: tags.compactMap(\.name).joined(separator: ", ")))
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -581,8 +680,8 @@ struct DayDetailsView: View {
     // like every other label here. `FlowLayout` needs a `GeometryReader`-measured width first,
     // and that measurement lands in its own untransacted `@State` write — the chips pop into
     // their final layout outside the entrance animation instead of sliding in with the card.
-    private var tagsText: Text {
-        resolvedTags.enumerated().reduce(Text(verbatim: "")) { partial, element in
+    private func tagsText(_ tags: [UserTagRecord]) -> Text {
+        tags.enumerated().reduce(Text(verbatim: "")) { partial, element in
             let (index, tag) = element
             let segment = Text(verbatim: "#" + (tag.name ?? ""))
                 .foregroundColor(Color.tagColor(for: tag.category))
@@ -616,62 +715,6 @@ struct DayDetailsView: View {
         .frame(maxWidth: .infinity, minHeight: commentRowMinimumHeight, alignment: .topLeading)
         .padding(.top, notesRowGap / 2)
         .padding(.bottom, 12)
-    }
-
-    // MARK: - Frame reporting
-
-    // How tall the content actually asked to be, in the same unit `reportedHeight` reports in.
-    // Kept separate from it so both `reportedHeight` (which clips) and the clipped-detection
-    // preference (which needs the *un*clipped number to notice the clip happened) read off one
-    // calculation instead of two that could drift apart.
-    private func naturalHeight(boxHeight: CGFloat) -> CGFloat {
-        boxHeight - globalBottomOffset
-    }
-
-    // The level the pager works in is the card's own box as it stands on screen: the measured
-    // height less the bottom offset that hangs off the screen edge, and never past `maxHeight` —
-    // the calendar centres the selected day in the space above this box, and a box taller than
-    // that ceiling would push the day itself under the chrome band. The inset above the box is
-    // deliberately *not* part of it — that band is where the shadow is drawn, and counting it
-    // centred the selected day in the space above the shadow rather than above the card. Both
-    // conversions live here so the pager only ever handles one unit.
-    private func reportedHeight(boxHeight: CGFloat) -> CGFloat {
-        min(naturalHeight(boxHeight: boxHeight), maxHeight)
-    }
-
-    // Matches `.adaptiveBackground(colorScheme:)`'s two fills exactly, so the fade dissolves
-    // into a colour the card's own surface actually is rather than an approximation of it.
-    private var cardBackgroundColor: Color {
-        colorScheme == .dark ? Color(.secondarySystemBackground) : Color(.systemBackground)
-    }
-
-    // Tall enough to read as a dissolve rather than a stripe — measured against the same
-    // `commentRowMinimumHeight` floor the row itself keeps, so the fade never claims more than
-    // a fraction of even the shortest comment box.
-    private let truncationFadeHeight: CGFloat = 40
-
-    private var drawnBoxHeight: CGFloat? {
-        guard let levelHeight = levelHeight else { return nil }
-        return max(0, levelHeight + globalBottomOffset - dragOffset)
-    }
-
-    // The pager slides the card with `.offset`, so the reported global frame moves sideways
-    // on every drag frame. The card spans the full width at rest, so the horizontal position
-    // is dropped rather than reported — otherwise every frame of a swipe would look like a
-    // new box to the pager.
-    private func reportedFrame(_ globalFrame: CGRect) -> CGRect {
-        guard isActive else { return .zero }
-
-        return CGRect(
-            x: 0,
-            y: globalFrame.minY + globalBottomOffset,
-            width: globalFrame.width,
-            height: globalFrame.height - globalBottomOffset
-        )
-    }
-
-    private func dismissView() {
-        store.send(.calendar(.selectDay(nil)))
     }
 }
 
