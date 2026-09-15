@@ -128,18 +128,20 @@ final class AppStore: ObservableObject {
         guard !isDraining else { return }
         isDraining = true
 
-        Task {
-            while !queue.isEmpty {
-                let effect = queue.removeFirst()
+        Task { [weak self] in
+            guard let self else { return }
 
-                for middleware in middlewares {
-                    await middleware(effect.state, effect.action) { [weak self] followUp in
-                        self?.send(followUp)
+            while !self.queue.isEmpty {
+                let effect = self.queue.removeFirst()
+
+                for middleware in self.middlewares {
+                    await middleware(effect.state, effect.action) { followUp in
+                        self.send(followUp)
                     }
                 }
             }
 
-            isDraining = false
+            self.isDraining = false
         }
     }
 }
