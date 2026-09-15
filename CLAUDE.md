@@ -841,8 +841,7 @@ the value back so clearing it is enough. New teardown work belongs in `cleanUp()
 ### Ovulation Editing
 
 RedCalendar 2.0 had the same screen (`OvulationEditorView`, pushed inside the day card — see
-"Screens inside the day card" below), reached from the "Статус" row of `DayDetailsView`'s ovulation
-section: **Автоматически** (clear an explicit answer), **Подтверждена** (the day the editor
+"Screens inside the day card" below), reached from the "Овуляция" row of `DayDetailsView`: **Автоматически** (clear an explicit answer), **Подтверждена** (the day the editor
 opened on), **Указать день вручную** (a different day, from a bounded grid), **Нет**
 (anovulatory — no ovulation this cycle at all). `CycleRecord.ovulation` is `OvulationData?`: `nil`
 is unset and stays automatic; the type itself has two cases, `.confirmed(day:)` and `.anovulatory`
@@ -965,9 +964,13 @@ preferences do not reach the pager, and its edge swipe fights the window pan. Th
 (`DayCardRoute`) lives in `DayDetailsPagerView`, because the pager holds the pan that drives the
 swipe back; the card only writes `path` and draws `pushedPath`.
 
-- **The card keeps its height while a screen is pushed.** Every pushed screen is drawn in the root's
-  own box, so the calendar underneath has nothing to re-centre on. A screen taller than the root
-  would be clipped — none is, today; check that before adding a long one.
+- **A pushed screen grows the card, never shrinks it.** Every pushed screen is drawn in the root's
+  own box; one that fits leaves the height alone, so the calendar underneath has nothing to
+  re-centre on. One taller than the root (the manual-day grid) reports its own height through
+  `DayCardPushedNaturalHeightKey`, padded by the home indicator's inset, and the pager grows the
+  level to it, up to `maxHeight`. The level from before each push is kept in
+  `preNavigationLevels` and handed back only once the pop has landed — except on the root, which
+  takes its current measurement, since an answer given on the pushed screen may have changed it.
 - **A horizontal drag over a pushed screen goes back, anywhere on the card**, as the content swipe
   back does since iOS 26; paging between days is off until the stack is empty. Going back from two
   levels deep (a day picked on the grid) slides only the top screen out, as
@@ -980,7 +983,7 @@ swipe back; the card only writes `path` and draws `pushedPath`.
   finger lifts the touch inside the button it began on; with `cancelsTouchesInView = false` a swipe
   back that started on "Подтверждена" wrote that answer.
 - **A single-line value row has one padding everywhere**, `DayDetailsMetrics.valueRowVerticalPadding`:
-  the card's "Обильность" and "Статус" and the options they push, so opening a row does not change how
+  the card's "Обильность" and "Овуляция" and the options they push, so opening a row does not change how
   dense a row is. The value beside a disclosure chevron is `.secondary`, and the chevron
   (`DisclosureIndicator`) matches the system's pixel for pixel — `.body`, semibold, `.imageScale(.small)`;
   `.footnote` was a stroke thinner. It marks rows that push, never rows that present a sheet.

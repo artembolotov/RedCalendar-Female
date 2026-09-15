@@ -8,7 +8,7 @@ import CoreGraphics
 /// Where the calendar sits on the screen, as arithmetic rather than as view state.
 ///
 /// Every number here used to be a computed property or a `@State` on `CalendarView`, mixed in
-/// among the scroll handling, the flight scheduling and the two grid layers. They are four
+/// among the scroll handling, the flight scheduling and the two grid layers. They are three
 /// inputs and six answers, and none of the six needs a view to be worked out — which is the whole
 /// argument for the type: the questions this file answers are the ones that get subtly wrong
 /// (which height a week is measured against, whether the band counts, what "today is off screen"
@@ -28,12 +28,6 @@ struct CalendarLayout: Equatable {
 
     /// Zero until the calculator exists, which is what the two guards below are for.
     let weekHeight: CGFloat
-
-    /// The home indicator's own reserve at the bottom of the screen — `HomeView`'s outer
-    /// `GeometryReader`, read the same way `topInset` is and for the same reason: by the time
-    /// the geometry reaches `CalendarView`'s own reader, the content has already escaped the
-    /// safe area (`.ignoresSafeArea(edges: [.top, .bottom])`) and there is none left to report.
-    let bottomInset: CGFloat
 
     /// What a *week* is sized against: the height left under the bar. A week's height answers to
     /// how much of it can be read, not to how much of it is drawn.
@@ -64,19 +58,11 @@ struct CalendarLayout: Equatable {
     /// centring point up under the band, which is what let an unbounded multi-line comment grow
     /// the card to cover the whole screen.
     ///
-    /// Less `bottomInset` besides: the card's own box sits flush with the bottom of the screen
-    /// whatever its height is — only its top moves — so a card standing at this ceiling is the
-    /// one case where that flush bottom edge matters. A pushed screen that grows all the way to
-    /// it (`DayCardPushedNaturalHeightKey`) draws its lowest row at the very bottom of the box,
-    /// and without this the box's own bottom edge is the literal bottom of the screen, under the
-    /// home indicator — reachable by a swipe meant for the OS, not for the row sitting on it.
-    /// Ordinary, short cards never reach this ceiling and are unaffected.
-    ///
     /// `.infinity` before there is a calculator — the very first geometry pass, which no card can
     /// be open during — so nothing is clipped against a limit that has no meaning yet.
     var maxCardHeight: CGFloat {
         guard weekHeight > 0, screenHeight > 0 else { return .infinity }
-        return max(0, screenHeight - chromeHeight - weekHeight * CalendarConstants.minWeeksAboveCard - bottomInset)
+        return max(0, screenHeight - chromeHeight - weekHeight * CalendarConstants.minWeeksAboveCard)
     }
 
     /// How far off the resting centre the selected week has to sit while a card is open.

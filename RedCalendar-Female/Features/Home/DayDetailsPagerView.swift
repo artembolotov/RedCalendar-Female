@@ -492,11 +492,16 @@ struct DayDetailsPagerView: View {
     // `DayCardNaturalHeightKey`'s own handler is what keeps the shrink from happening mid-slide:
     // that handler stays disarmed for as long as `mountedPath` is non-empty, and `mountedPath`
     // only drops to `landedDepth` in the line above, the moment before this runs.
+    //
+    // Landing on the root takes the root's current measurement rather than the saved level. The
+    // root kept measuring itself while it was covered — an answer given on the pushed screen
+    // changes its rows — and that measurement was recorded but not applied; a preference is
+    // delivered only on change, so nothing would apply it later.
     private func restoreLevel(forDepth depth: Int) {
         guard preNavigationLevels.count > depth else { return }
-        let restored = preNavigationLevels[depth]
+        let saved = preNavigationLevels[depth]
         preNavigationLevels.removeLast(preNavigationLevels.count - depth)
-        applyLevel(restored, animated: true)
+        applyLevel(depth == 0 && naturalHeight > 0 ? naturalHeight : saved, animated: true)
     }
 
     private func resetNavigation() {

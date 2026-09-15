@@ -128,20 +128,20 @@ final class AppStore: ObservableObject {
         guard !isDraining else { return }
         isDraining = true
 
-        Task { [weak self] in
-            guard let self else { return }
+        // Strong on purpose: the store lives as long as the app, and a weak capture unwrapped on
+        // the first line would be strong for the whole drain anyway.
+        Task {
+            while !queue.isEmpty {
+                let effect = queue.removeFirst()
 
-            while !self.queue.isEmpty {
-                let effect = self.queue.removeFirst()
-
-                for middleware in self.middlewares {
+                for middleware in middlewares {
                     await middleware(effect.state, effect.action) { followUp in
                         self.send(followUp)
                     }
                 }
             }
 
-            self.isDraining = false
+            isDraining = false
         }
     }
 }

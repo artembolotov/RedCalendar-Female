@@ -33,9 +33,6 @@ struct CalendarView: View {
     /// **Read it in `body` and nowhere else** — everything below goes through `bandInset`
     /// instead, for the reason given there.
     let topInset: CGFloat
-    /// The home indicator's reserve, handed in for the identical reason `topInset` is — see
-    /// `CalendarLayout.maxCardHeight`, the one place this is used.
-    let bottomInset: CGFloat
 
 
     // MARK: - State: Core Calendar
@@ -140,8 +137,7 @@ struct CalendarView: View {
         CalendarLayout(
             screenHeight: calendarHeight,
             chromeHeight: band.barHeight,
-            weekHeight: calculator?.weekHeight ?? 0,
-            bottomInset: bottomInset
+            weekHeight: calculator?.weekHeight ?? 0
         )
     }
 
@@ -194,15 +190,13 @@ struct CalendarView: View {
         floatingButtonState: Binding<FloatingButtonState>,
         scrollCommand: Binding<ScrollCommand>,
         maxCardHeight: Binding<CGFloat> = .constant(.infinity),
-        topInset: CGFloat = 0,
-        bottomInset: CGFloat = 0
+        topInset: CGFloat = 0
     ) {
         self._cardHeight = cardHeight
         self._floatingButtonState = floatingButtonState
         self._scrollCommand = scrollCommand
         self._maxCardHeight = maxCardHeight
         self.topInset = topInset
-        self.bottomInset = bottomInset
     }
 
     /// Everything a layout change can tell the calendar, in one value.
@@ -706,9 +700,7 @@ struct CalendarView: View {
         floatingButtonState: .constant(.plus),
         scrollCommand: .constant(.none),
         // Stood in for, since there is no navigation bar here to measure one from.
-        topInset: 100,
-        // Stood in for the same reason — no real device chrome in a preview to read it from.
-        bottomInset: 34
+        topInset: 100
     )
     .ignoresSafeArea()
 }

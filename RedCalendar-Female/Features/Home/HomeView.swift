@@ -38,8 +38,7 @@ struct HomeView: View {
                             // Read here and handed down, because here is the last place it
                             // can be read: a reader inside a view that has already escaped
                             // the safe area has none left to report and hands back zero.
-                            topInset: geometry.safeAreaInsets.top,
-                            bottomInset: geometry.safeAreaInsets.bottom
+                            topInset: geometry.safeAreaInsets.top
                         )
 
                         // The spring covers only the card/button pair: a transaction opened
