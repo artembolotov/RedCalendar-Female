@@ -7,7 +7,9 @@ import SwiftUI
 
 // The four flow levels this editor offers, and the labels both it and
 // `DayDetailsView.periodSection` read — one list of the keys rather than two, so the row's own
-// trailing value and the editor's options can't disagree.
+// trailing value and the editor's options can't disagree. The `nil` case reads as "don't set a
+// level" in the option list; `DayDetailsView`'s row never shows this text for `nil` — it just
+// omits the value and shows the chevron.
 enum FlowLevelOption {
     static let all: [Int?] = [1, 2, 3, nil]
 

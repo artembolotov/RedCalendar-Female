@@ -632,17 +632,21 @@ private struct DayCardRootContent: View, @MainActor Equatable {
     // MARK: - Sections
 
     // A single-line row that pushes a screen inside the card: what is being set, its current
-    // value, and the chevron.
-    private func valueRow(_ title: LocalizedStringKey, value: LocalizedStringKey, push route: DayCardRoute) -> some View {
+    // value, and the chevron. `value` is nil when nothing has been set — the row then shows only
+    // the chevron rather than a placeholder like "not set".
+    private func valueRow(_ title: LocalizedStringKey, value: LocalizedStringKey?, push route: DayCardRoute) -> some View {
         Button(action: { path = [route] }) {
             HStack {
                 Text(title)
                     .foregroundColor(.primary)
                 Spacer()
-                // Secondary, as a value cell beside a disclosure chevron draws it — the accent
-                // would make the value read as its own control rather than as the row's state.
-                Text(value)
-                    .foregroundColor(.secondary)
+                if let value {
+                    // Secondary, as a value cell beside a disclosure chevron draws it — the
+                    // accent would make the value read as its own control rather than as the
+                    // row's state.
+                    Text(value)
+                        .foregroundColor(.secondary)
+                }
                 DisclosureIndicator()
             }
             .padding(.vertical, DayDetailsMetrics.valueRowVerticalPadding)
@@ -650,7 +654,7 @@ private struct DayCardRootContent: View, @MainActor Equatable {
     }
 
     private func periodSection(currentLevel: Int?) -> some View {
-        valueRow("DayDetails.Flow.Title", value: FlowLevelOption.label(for: currentLevel), push: .flowLevel)
+        valueRow("DayDetails.Flow.Title", value: currentLevel.map { FlowLevelOption.label(for: $0) }, push: .flowLevel)
     }
 
     // Shown only on the one day `context.isOvulationDay` names — see
