@@ -684,13 +684,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Not set"
+            "value" : "Don't specify"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Не указано"
+            "value" : "Не указывать"
           }
         }
       }
