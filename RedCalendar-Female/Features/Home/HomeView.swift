@@ -30,10 +30,6 @@ struct HomeView: View {
             if store.state.isAuthenticated {
                 GeometryReader { geometry in
                     ZStack(alignment: .bottomLeading) {
-                        if !isCardWarmedUp, maxDayCardHeight.isFinite, store.state.calendarState.selectedDayStamp == nil {
-                            cardWarmUp(width: geometry.size.width)
-                        }
-
                         CalendarView(
                             cardHeight: $dayCardHeight,
                             floatingButtonState: $floatingButtonState,
@@ -79,6 +75,13 @@ struct HomeView: View {
                         // bottom alignment with it — the outer one is sized by the calendar.
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
                         .animation(.cardEntrance, value: store.state.calendarState.selectedDayStamp != nil)
+                    }
+                    // A background, not a child of the stack: a child sizes the stack the
+                    // calendar is measured in, and a hidden view still takes its space.
+                    .background(alignment: .bottomLeading) {
+                        if !isCardWarmedUp, store.state.calendarState.selectedDayStamp == nil {
+                            cardWarmUp(width: geometry.size.width)
+                        }
                     }
                     // A very shallow fall in luminance down the screen — enough to stop the
                     // page reading as a flat sheet, small enough that the day indicator's ring
@@ -188,15 +191,13 @@ struct HomeView: View {
     /// clears `current` only if it is still the one that set it.
     ///
     /// Launch is where it goes because launch is the one moment nothing is moving: mounted later
-    /// it would take the same frame out of a scroll instead. But not the *first* pass of launch,
-    /// which is why the guard at its use also waits for `maxDayCardHeight` — the one value
-    /// `CalendarView` writes once it has built its calculator. Mounted alongside the calendar's
-    /// first pass, it left the calendar set up against a width of about a hundred points that no
-    /// later pass corrected — seven columns squeezed against the leading edge, for as long as the
-    /// app ran. Most likely the warm-up's weight moved which pass the calendar's `GeometryReader`
-    /// first reported on, and the calendar's own setup already says it cannot count on that (see
-    /// the `onAppear` beside its `onChange(of: metrics)`). Not proven; what is observed is that
-    /// waiting one pass keeps launch exactly as it was without the warm-up.
+    /// it would take the same frame out of a scroll instead.
+    ///
+    /// It must stay out of layout. Mounted as a child of the stack around `CalendarView`, it sized
+    /// that stack on the pass where `HomeView`'s reader still measures zero, and it is sized by
+    /// `maxDayCardHeight`, which the calendar writes from its own setup — a loop SwiftUI cuts off
+    /// mid-frame, leaving the calendar set up about a hundred points wide for the whole run. As a
+    /// background it is offered the stack's size and cannot change it.
     private func cardWarmUp(width: CGFloat) -> some View {
         DayDetailsPagerView(
             dayStamp: store.state.calendarState.todayDayStamp,

@@ -126,16 +126,14 @@ struct DayDetailsView: View {
         // jumps with it and tears the card's bottom edge away from the screen mid-flight — the
         // rubber-band drag never shows this because its `drawnBoxHeight` is exact from the first
         // frame. Capping this pre-measurement frame at the same ceiling the settled one already
-        // obeys removes the inflated starting point instead of papering over its landing: a short
-        // card's natural height never reaches it, so nothing here changes for it.
+        // obeys removes the inflated starting point instead of papering over its landing.
         //
-        // That last sentence holds only because of the `fixedSize` below. A frame with a maximum
-        // and no minimum is flexible: offered the whole screen, it takes all of it up to the
-        // ceiling, whatever its content asks for. So every card — a short one included — entered
-        // from `maxHeight + globalBottomOffset` below its resting place, about twice its own
-        // height, and spent the fast first half of the spring below the screen edge: the
-        // entrance read as a snap while the exit, measured from the settled box, was visible
-        // end to end. Offered no height, the frame takes its content's and only clamps it.
+        // The cap must only clamp, never fill — hence the `fixedSize` after it. A frame with a
+        // maximum and no minimum is flexible: offered the whole screen, it takes all of it up to
+        // the ceiling, and every card, a short one included, would enter from about twice its own
+        // height below its place and spend the fast half of the spring under the screen edge.
+        // Offered no height, the frame takes its content's and only clamps it, so a short card
+        // enters from exactly its own height.
         .frame(maxHeight: levelHeight == nil ? maxHeight + globalBottomOffset : nil, alignment: .top)
         .fixedSize(horizontal: false, vertical: true)
         .overlay(alignment: .topTrailing) {
