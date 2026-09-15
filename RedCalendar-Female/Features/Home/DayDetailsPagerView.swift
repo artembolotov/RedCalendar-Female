@@ -26,6 +26,10 @@ struct DayDetailsPagerView: View {
     // The ceiling every card is drawn under — see `CalendarView.resolvedMaxCardHeight`. Handed
     // straight to each `DayDetailsView`, which is where a card too tall for it is clipped.
     let maxHeight: CGFloat
+    // The home indicator's reserve — handed straight to each `DayDetailsView`, which is where
+    // it becomes room a grown pushed screen leaves at the bottom of the box. See
+    // `DayDetailsView.pushedLayer`.
+    let bottomInset: CGFloat
 
     @StateObject private var animator = CardPagingAnimator()
     // The top pushed screen's horizontal offset inside the card: `cardWidth` is off the trailing
@@ -73,6 +77,15 @@ struct DayDetailsPagerView: View {
     // would stay raised and hand the next swipe the wrong behaviour.
     @State private var immediateLevelDay: Daystamp?
     @State private var levelSettleTask: Task<Void, Never>?
+
+    // The level to return to once a pop has landed, one entry per currently pushed depth:
+    // index *i* is what `levelHeight` was when `path` had length *i*, i.e. right before the
+    // push that grew it past that length. `push(_:)` appends to this and `animateNavigation`'s
+    // completion trims it back — the same "grows on push, shrinks only once the way back has
+    // landed" shape `mountedPath` itself already has, kept in step with it rather than derived
+    // from it, because unlike `mountedPath` this needs the value from *before* the push, which
+    // is gone the instant the push happens.
+    @State private var preNavigationLevels: [CGFloat] = []
 
     private let velocityThreshold: CGFloat = 1200
     private let rubberBandFactor: CGFloat = 0.3
@@ -131,13 +144,15 @@ struct DayDetailsPagerView: View {
         width: CGFloat,
         dragOffset: Binding<CGFloat>,
         height: Binding<DayCardHeight>,
-        maxHeight: CGFloat = .infinity
+        maxHeight: CGFloat = .infinity,
+        bottomInset: CGFloat = 0
     ) {
         self.dayStamp = dayStamp
         self.width = width
         self._dragOffset = dragOffset
         self._height = height
         self.maxHeight = maxHeight
+        self.bottomInset = bottomInset
         // Fixed when the card opens. The anchor must not follow `dayStamp`: that moves under
         // the pager exactly when the store catches up with a page the pager has already
         // committed, which would carry `activeDay` a further day along with it.
@@ -180,6 +195,7 @@ struct DayDetailsPagerView: View {
                     dragOffset: day == activeDay ? dragOffset : 0,
                     levelHeight: levelHeight,
                     maxHeight: maxHeight,
+                    bottomInset: bottomInset,
                     path: $path,
                     pushedPath: day == activeDay ? mountedPath : [],
                     navigationProgress: day == activeDay ? navigationProgress : 0,
@@ -275,6 +291,12 @@ struct DayDetailsPagerView: View {
             // Applying it is what must not happen under a finger. The dwell armed when the
             // gesture ends picks up whatever arrived in the meantime.
             guard dragOffset == 0 else { return }
+            // The card keeps its root height while a screen is pushed — see
+            // `DayCardPushedNaturalHeightKey` below for what is allowed to grow it during that
+            // time, and `preNavigationLevels` for what restores it once the pop back has landed.
+            // Without this, a root re-render while a screen sits on top (a database observation
+            // firing again, say) would reapply the root's own, smaller height mid-navigation.
+            guard mountedPath.isEmpty else { return }
 
             if levelHeight == nil {
                 // The first card of an opening has no level to inherit.
@@ -287,6 +309,21 @@ struct DayDetailsPagerView: View {
                 // adding a comment or a tag resizes it there and then, as it always has.
                 applyLevel(measured, animated: false)
             }
+        }
+        .onPreferenceChange(DayCardPushedNaturalHeightKey.self) { measurement in
+            guard measurement.height > 0, measurement.day == activeDay else { return }
+            guard dragOffset == 0 else { return }
+            // Only while a screen is actually mounted — a stale delivery from a layer that has
+            // already unmounted (its preference simply stops contributing, but SwiftUI can still
+            // resolve one more combined value on the way out) must not re-grow an empty stack.
+            guard !mountedPath.isEmpty else { return }
+
+            // Grow only: content shorter than the current level is content that fits already,
+            // and shrinking for it here is exactly what `preNavigationLevels` exists to do
+            // instead, once the user actually goes back.
+            let current = levelHeight ?? naturalHeight
+            guard measurement.height > current else { return }
+            applyLevel(measurement.height, animated: true)
         }
         .onDisappear {
             cancelLevelSettle()
@@ -355,13 +392,16 @@ struct DayDetailsPagerView: View {
     }
 
     // Armed where the card comes to rest, so the level never moves under a finger or midway
-    // through a settle.
+    // through a settle. Reachable from a cancelled vertical drag as well as from paging, and a
+    // dismiss pull that snaps back while a screen is pushed must not reassert the root's own
+    // height under it — see the same guard in `DayCardNaturalHeightKey`'s handler.
     private func scheduleLevelSettle() {
         cancelLevelSettle()
 
         let day = activeDay
         levelSettleTask = Task { @MainActor in
             guard await sleepUnlessCancelled(levelDwellDelay), isResting(on: day) else { return }
+            guard mountedPath.isEmpty else { return }
             applyLevel(naturalHeight, animated: true)
         }
     }
@@ -390,11 +430,17 @@ struct DayDetailsPagerView: View {
     private let navigationCommitRatio: CGFloat = 0.5
     private let navigationVelocityProjection: CGFloat = 0.2
 
-    // The card keeps its height across a push, so none of this touches the level or the height
-    // the calendar centres against.
+    // The card keeps its height across a push unless the pushed screen itself does not fit —
+    // see `DayCardPushedNaturalHeightKey`'s handler for the growth itself. What happens here is
+    // only the bookkeeping that growth needs undone later: the level as it stood right before
+    // each newly pushed depth, so `animateNavigation`'s completion can hand it back once the
+    // user is actually looking at that depth again.
     private func push(_ newPath: [DayCardRoute]) {
         navigationTarget = newPath
         if mountedPath != newPath {
+            for _ in mountedPath.count..<newPath.count {
+                preNavigationLevels.append(levelHeight ?? naturalHeight)
+            }
             mountedPath = newPath
             navigationAnimator.setOffset(cardWidth)
         }
@@ -430,11 +476,27 @@ struct DayDetailsPagerView: View {
             velocity: velocity
         ) {
             guard navigationTarget.count < mountedPath.count else { return }
+            let landedDepth = navigationTarget.count
             mountedPath = navigationTarget
             // The animator tracks the top screen, and the top screen is now the one that was
             // resting underneath.
             navigationAnimator.setOffset(0)
+            restoreLevel(forDepth: landedDepth)
         }
+    }
+
+    // The way back has landed: whatever grew the card for the screen just dismissed is gone
+    // from the box, so the level goes back to what it was for the depth now on screen — even
+    // when that depth's own content is smaller than the level it is leaving, unlike the pushed
+    // screen's own measurement, which is one-way. Doing this here rather than from
+    // `DayCardNaturalHeightKey`'s own handler is what keeps the shrink from happening mid-slide:
+    // that handler stays disarmed for as long as `mountedPath` is non-empty, and `mountedPath`
+    // only drops to `landedDepth` in the line above, the moment before this runs.
+    private func restoreLevel(forDepth depth: Int) {
+        guard preNavigationLevels.count > depth else { return }
+        let restored = preNavigationLevels[depth]
+        preNavigationLevels.removeLast(preNavigationLevels.count - depth)
+        applyLevel(restored, animated: true)
     }
 
     private func resetNavigation() {
@@ -444,6 +506,10 @@ struct DayDetailsPagerView: View {
         path = []
         mountedPath = []
         isDraggingNavigation = false
+        // Discarded rather than unwound: this is a jump to a different day's own root, not a
+        // step back through this one's stack, and that day's level arrives fresh from its own
+        // measurement (`immediateLevelDay`).
+        preNavigationLevels = []
     }
 
     // A horizontal drag over a pushed screen goes back instead of paging — anywhere on the card,

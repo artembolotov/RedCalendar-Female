@@ -28,6 +28,11 @@ struct DayDetailsView: View {
     // `CalendarView.resolvedMaxCardHeight`. A day whose content asks for more than this is
     // clipped to it rather than pushing its own selected week under the chrome band.
     let maxHeight: CGFloat
+    // The home indicator's reserve — see `pushedLayer`, the one place this is used. Not part of
+    // the root's own measurement: the root has been sized without it for as long as the app has
+    // existed, and widening every card's footprint is a bigger change than growing one for a
+    // pushed screen that genuinely does not fit.
+    let bottomInset: CGFloat
     // Written by a row to push a screen and by a screen to go back; the pager animates it.
     @Binding var path: [DayCardRoute]
     // The screens drawn over the root. Keeps the one going away for the whole of its transition.
@@ -190,8 +195,9 @@ struct DayDetailsView: View {
     // MARK: - Pushed screens
 
     // Drawn in the root's own box — the card keeps its height while a screen is pushed, so the
-    // calendar under it has nothing to re-centre on. Opaque and stretched to the whole box, so
-    // the screen underneath does not show below one shorter than it.
+    // calendar under it has nothing to re-centre on unless the pushed screen itself asks for
+    // more (see the measurement below, and `DayDetailsPagerView.preNavigationLevels`). Opaque and
+    // stretched to the whole box, so the screen underneath does not show below one shorter than it.
     private func pushedLayer(_ pushedRoute: DayCardRoute, depth: Int) -> some View {
         let isTop = depth == pushedPath.count
 
@@ -218,6 +224,27 @@ struct DayDetailsView: View {
             }
         }
         .padding(cardPadding)
+        // Reserved only in the measurement a *grown* card is sized against, never in the root's
+        // own — the box is bottom-anchored and only its top moves (`drawnBoxHeight`), so this is
+        // what stands between a pushed screen's own lowest row and the physical bottom edge once
+        // it has grown the box: without it, that edge is the home indicator's own gesture strip,
+        // not a margin above it.
+        .padding(.bottom, bottomInset)
+        // Measured at its own natural height before the frame below stretches it to fill the
+        // box — the same two-step the root content uses (see `DayDetailsView.body`'s own
+        // `GeometryReader`), so the two report in one unit and the pager can compare them.
+        .fixedSize(horizontal: false, vertical: true)
+        .background(
+            GeometryReader { geometry in
+                Color.clear
+                    .preference(
+                        key: DayCardPushedNaturalHeightKey.self,
+                        value: isActive
+                            ? DayCardHeight(day: dayStamp, height: min(geometry.size.height, maxHeight))
+                            : .none
+                    )
+            }
+        )
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(cardBackgroundColor)
         .shadow(color: .black.opacity(isTop ? 0.12 * (1 - navigationProgress) : 0), radius: 8, x: -2)
@@ -456,17 +483,21 @@ private struct DayCardRootContent: View, @MainActor Equatable {
             VStack(alignment: .leading, spacing: 0) {
                 if context.canSetFlowLevel(today: today) {
                     periodSection(currentLevel: flowLevel)
-                        .padding(.top, 16)
+                        .padding(.top, 18)
                 }
                 if showOvulationRow {
                     ovulationSection(status: context.owning?.ovulation)
-                        .padding(.top, 16)
+                        .padding(.top, 18)
                 }
                 notesSection
-                    .padding(.top, 16)
+                    .padding(.top, 18)
             }
             // The title and chips are one group above every section, so the first section sits
-            // at least as far from them as sections sit from each other (a row's 15 plus 16).
+            // at least as far from them as sections sit from each other (a row's 15 plus 18).
+            //
+            // Without a header on any section any more, a row's own 15pt vertical padding alone
+            // read as continuous list rhythm rather than three separate topics — this is the gap
+            // that used to be carried by the header text and its divider.
             .padding(.top, 12)
         }
     }
@@ -597,17 +628,6 @@ private struct DayCardRootContent: View, @MainActor Equatable {
 
     // MARK: - Sections
 
-    private func sectionHeader(_ title: LocalizedStringKey) -> some View {
-        VStack(spacing: 0) {
-            Text(title)
-                .font(.headline)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.bottom, 8)
-                .accessibilityAddTraits(.isHeader)
-            Divider()
-        }
-    }
-
     // A single-line row that pushes a screen inside the card: what is being set, its current
     // value, and the chevron.
     private func valueRow(_ title: LocalizedStringKey, value: LocalizedStringKey, push route: DayCardRoute) -> some View {
@@ -627,27 +647,18 @@ private struct DayCardRootContent: View, @MainActor Equatable {
     }
 
     private func periodSection(currentLevel: Int?) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            sectionHeader("DayDetails.Period.Header")
-            valueRow("DayDetails.Flow.Title", value: FlowLevelOption.label(for: currentLevel), push: .flowLevel)
-        }
+        valueRow("DayDetails.Flow.Title", value: FlowLevelOption.label(for: currentLevel), push: .flowLevel)
     }
 
     // Shown only on the one day `context.isOvulationDay` names — see
     // `CycleRecord.effectiveOvulationDay` for why that day exists even for an anovulatory cycle,
-    // which is what keeps this reachable to undo "Нет". Built as `periodSection` is: the header
-    // names the subject, the row names what about it is being set.
+    // which is what keeps this reachable to undo "Нет".
     private func ovulationSection(status: OvulationData?) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            sectionHeader("DayDetails.Ovulation.Header")
-            valueRow("DayDetails.Ovulation.Status.Title", value: ovulationStatusLabel(status), push: .ovulation)
-        }
+        valueRow("DayDetails.Ovulation.Title", value: ovulationStatusLabel(status), push: .ovulation)
     }
 
     private var notesSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            sectionHeader("DayDetails.Notes.Header")
-
             Button(action: { showTagsSheet = true }) {
                 tagsRowContent
             }
@@ -748,6 +759,7 @@ private extension View {
             dragOffset: 0,
             levelHeight: nil,
             maxHeight: .infinity,
+            bottomInset: 34,
             path: .constant([]),
             pushedPath: [],
             navigationProgress: 0,

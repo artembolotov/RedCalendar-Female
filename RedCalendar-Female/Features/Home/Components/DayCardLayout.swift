@@ -48,6 +48,22 @@ struct DayCardNaturalHeightKey: PreferenceKey {
     }
 }
 
+// The tallest currently-mounted pushed screen's own natural height — see `DayDetailsView.
+// pushedLayer`. During a push or a swipe back the incoming and outgoing screens are both
+// mounted at once (`DayCardLayers`), so this takes the taller of the two rather than whichever
+// fires last: shrinking mid-transition would clip whichever one is still on screen. Inactive
+// cards contribute `.none`, as `DayCardNaturalHeightKey` does.
+struct DayCardPushedNaturalHeightKey: PreferenceKey {
+    static var defaultValue: DayCardHeight { .none }
+
+    static func reduce(value: inout DayCardHeight, nextValue: () -> DayCardHeight) {
+        let next = nextValue()
+        if next.height > value.height {
+            value = next
+        }
+    }
+}
+
 // The active card's box, reported up to the pager: it drives the drag gesture's hit test.
 // Inactive cards contribute `.zero`. The calendar's centering does not come from here — it is
 // written from the level, in `reportedHeight`'s unit, which is the card alone.

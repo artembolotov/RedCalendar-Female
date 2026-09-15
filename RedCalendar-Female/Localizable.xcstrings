@@ -695,22 +695,6 @@
         }
       }
     },
-    "DayDetails.Notes.Header" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Notes"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Заметки"
-          }
-        }
-      }
-    },
     "DayDetails.Ovulation.Confirmed" : {
       "localizations" : {
         "en" : {
@@ -723,22 +707,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Подтверждена"
-          }
-        }
-      }
-    },
-    "DayDetails.Ovulation.Header" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ovulation"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Овуляция"
           }
         }
       }
@@ -775,18 +743,18 @@
         }
       }
     },
-    "DayDetails.Ovulation.Status.Title" : {
+    "DayDetails.Ovulation.Title" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Status"
+            "value" : "Ovulation"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Статус"
+            "value" : "Овуляция"
           }
         }
       }
@@ -803,22 +771,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Конец месячных"
-          }
-        }
-      }
-    },
-    "DayDetails.Period.Header" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Period"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Менструация"
           }
         }
       }

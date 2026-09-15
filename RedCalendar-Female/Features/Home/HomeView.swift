@@ -38,7 +38,8 @@ struct HomeView: View {
                             // Read here and handed down, because here is the last place it
                             // can be read: a reader inside a view that has already escaped
                             // the safe area has none left to report and hands back zero.
-                            topInset: geometry.safeAreaInsets.top
+                            topInset: geometry.safeAreaInsets.top,
+                            bottomInset: geometry.safeAreaInsets.bottom
                         )
 
                         // The spring covers only the card/button pair: a transaction opened
@@ -51,7 +52,8 @@ struct HomeView: View {
                                     width: geometry.size.width,
                                     dragOffset: $dragOffset,
                                     height: $dayCardHeight,
-                                    maxHeight: maxDayCardHeight
+                                    maxHeight: maxDayCardHeight,
+                                    bottomInset: geometry.safeAreaInsets.bottom
                                 )
                                 // Reopening while the previous card is still transitioning out
                                 // would revive that one, and a revived view keeps the position it
@@ -80,7 +82,7 @@ struct HomeView: View {
                     // calendar is measured in, and a hidden view still takes its space.
                     .background(alignment: .bottomLeading) {
                         if !isCardWarmedUp, store.state.calendarState.selectedDayStamp == nil {
-                            cardWarmUp(width: geometry.size.width)
+                            cardWarmUp(width: geometry.size.width, bottomInset: geometry.safeAreaInsets.bottom)
                         }
                     }
                     // A very shallow fall in luminance down the screen — enough to stop the
@@ -198,13 +200,14 @@ struct HomeView: View {
     /// `maxDayCardHeight`, which the calendar writes from its own setup — a loop SwiftUI cuts off
     /// mid-frame, leaving the calendar set up about a hundred points wide for the whole run. As a
     /// background it is offered the stack's size and cannot change it.
-    private func cardWarmUp(width: CGFloat) -> some View {
+    private func cardWarmUp(width: CGFloat, bottomInset: CGFloat) -> some View {
         DayDetailsPagerView(
             dayStamp: store.state.calendarState.todayDayStamp,
             width: width,
             dragOffset: .constant(0),
             height: .constant(.none),
-            maxHeight: maxDayCardHeight
+            maxHeight: maxDayCardHeight,
+            bottomInset: bottomInset
         )
         .hidden()
         .allowsHitTesting(false)
