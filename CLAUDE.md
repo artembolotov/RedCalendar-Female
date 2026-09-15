@@ -967,10 +967,22 @@ swipe back; the card only writes `path` and draws `pushedPath`.
 - **A pushed screen grows the card, never shrinks it.** Every pushed screen is drawn in the root's
   own box; one that fits leaves the height alone, so the calendar underneath has nothing to
   re-centre on. One taller than the root (the manual-day grid) reports its own height through
-  `DayCardPushedNaturalHeightKey`, padded by the home indicator's inset, and the pager grows the
-  level to it, up to `maxHeight`. The level from before each push is kept in
-  `preNavigationLevels` and handed back only once the pop has landed — except on the root, which
-  takes its current measurement, since an answer given on the pushed screen may have changed it.
+  `DayCardPushedNaturalHeightKey`, padded by the home indicator's inset, and the pager records it
+  in `pushedLevels`, one entry per pushed depth, up to `maxHeight`. `levelHeight` is left untouched
+  for the whole of a navigation, so the root's own level is still there to come back to and nothing
+  has to be saved before a push.
+
+  **The growth is interpolated, not animated.** `drawnLevelHeight` is the level under the running
+  transition and the level above it mixed by `navigationProgress` — the same number the slide
+  itself is drawn from — so the box grows with the screen coming in and shrinks under the finger on
+  a swipe back, including one turned round halfway. A spring of its own can only start when the
+  transition starts and land when its own curve says; it cannot be reversed mid-way by a drag that
+  changed its mind. The calendar cannot follow frame by frame — each height it is handed is one
+  re-centring flight there — so `publishDestinationLevel` gives it the height the transition is
+  *heading* for the moment that is decided (the push, the commit of a pop, the spring back from a
+  cancelled one), and a held drag publishes nothing. Landing back on the root is the one case with
+  anything left to apply: the root kept measuring itself while it was covered, and that measurement
+  is applied once the pop has landed.
 - **A horizontal drag over a pushed screen goes back, anywhere on the card**, as the content swipe
   back does since iOS 26; paging between days is off until the stack is empty. Going back from two
   levels deep (a day picked on the grid) slides only the top screen out, as

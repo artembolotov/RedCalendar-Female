@@ -78,14 +78,16 @@ struct DayDetailsPagerView: View {
     @State private var immediateLevelDay: Daystamp?
     @State private var levelSettleTask: Task<Void, Never>?
 
-    // The level to return to once a pop has landed, one entry per currently pushed depth:
-    // index *i* is what `levelHeight` was when `path` had length *i*, i.e. right before the
-    // push that grew it past that length. `push(_:)` appends to this and `animateNavigation`'s
-    // completion trims it back — the same "grows on push, shrinks only once the way back has
-    // landed" shape `mountedPath` itself already has, kept in step with it rather than derived
-    // from it, because unlike `mountedPath` this needs the value from *before* the push, which
-    // is gone the instant the push happens.
-    @State private var preNavigationLevels: [CGFloat] = []
+    // The height each mounted pushed screen stands at, one entry per pushed depth: index *i* is
+    // the screen at depth *i + 1*. A screen is seeded with the height of the one it covers and
+    // only ever grows from there, so the entries never decrease going deeper. `push(_:)` appends
+    // and `animateNavigation`'s completion trims, in step with `mountedPath` and the same "grows
+    // on push, shrinks only once the way back has landed" shape it has.
+    //
+    // `levelHeight` itself is left untouched for the whole of a navigation — it is the root's own
+    // level, still there to come back to — so nothing has to be saved before a push and handed
+    // back after a pop. What the card is actually drawn at is `drawnLevelHeight`.
+    @State private var pushedLevels: [CGFloat] = []
 
     private let velocityThreshold: CGFloat = 1200
     private let rubberBandFactor: CGFloat = 0.3
@@ -174,6 +176,23 @@ struct DayDetailsPagerView: View {
         return min(max(1 - navigationAnimator.offset / cardWidth, 0), 1)
     }
 
+    // The height the card is drawn at, this frame: the level under the running transition and
+    // the level above it, interpolated by the transition's own progress.
+    //
+    // That is the whole of what makes the growth interactive, and it is interactive because
+    // there is no second animation to keep in step with the slide — `navigationProgress` is the
+    // animator's offset while a push or a pop is running and the finger's own position while a
+    // swipe back is being held, so the box follows the screen in both. A spring of its own, run
+    // on a state change the way every other level change here is, can only start when the
+    // transition starts and land when its own curve says: it cannot be turned round mid-way by a
+    // drag that changed its mind, which is exactly what the swipe back has to be able to do.
+    private var drawnLevelHeight: CGFloat? {
+        guard let levelHeight else { return nil }
+        guard let top = pushedLevels.last else { return levelHeight }
+        let base = pushedLevels.count > 1 ? pushedLevels[pushedLevels.count - 2] : levelHeight
+        return base + (top - base) * navigationProgress
+    }
+
     private var pageStride: CGFloat {
         width - DayDetailsMetrics.screenInset
     }
@@ -193,7 +212,7 @@ struct DayDetailsPagerView: View {
                     dayStamp: day,
                     isActive: day == activeDay,
                     dragOffset: day == activeDay ? dragOffset : 0,
-                    levelHeight: levelHeight,
+                    levelHeight: drawnLevelHeight,
                     maxHeight: maxHeight,
                     bottomInset: bottomInset,
                     path: $path,
@@ -293,7 +312,7 @@ struct DayDetailsPagerView: View {
             guard dragOffset == 0 else { return }
             // The card keeps its root height while a screen is pushed — see
             // `DayCardPushedNaturalHeightKey` below for what is allowed to grow it during that
-            // time, and `preNavigationLevels` for what restores it once the pop back has landed.
+            // time, and `drawnLevelHeight` for what the card is drawn at meanwhile.
             // Without this, a root re-render while a screen sits on top (a database observation
             // firing again, say) would reapply the root's own, smaller height mid-navigation.
             guard mountedPath.isEmpty else { return }
@@ -318,12 +337,7 @@ struct DayDetailsPagerView: View {
             // resolve one more combined value on the way out) must not re-grow an empty stack.
             guard !mountedPath.isEmpty else { return }
 
-            // Grow only: content shorter than the current level is content that fits already,
-            // and shrinking for it here is exactly what `preNavigationLevels` exists to do
-            // instead, once the user actually goes back.
-            let current = levelHeight ?? naturalHeight
-            guard measurement.height > current else { return }
-            applyLevel(measurement.height, animated: true)
+            growTopPushedLevel(to: measurement.height)
         }
         .onDisappear {
             cancelLevelSettle()
@@ -430,16 +444,14 @@ struct DayDetailsPagerView: View {
     private let navigationCommitRatio: CGFloat = 0.5
     private let navigationVelocityProjection: CGFloat = 0.2
 
-    // The card keeps its height across a push unless the pushed screen itself does not fit —
-    // see `DayCardPushedNaturalHeightKey`'s handler for the growth itself. What happens here is
-    // only the bookkeeping that growth needs undone later: the level as it stood right before
-    // each newly pushed depth, so `animateNavigation`'s completion can hand it back once the
-    // user is actually looking at that depth again.
+    // A screen enters at the height of the one it covers and grows the box only once it has
+    // measured itself — see `growTopPushedLevel(to:)`, which is the one place a pushed screen's
+    // own height is ever written.
     private func push(_ newPath: [DayCardRoute]) {
         navigationTarget = newPath
         if mountedPath != newPath {
             for _ in mountedPath.count..<newPath.count {
-                preNavigationLevels.append(levelHeight ?? naturalHeight)
+                pushedLevels.append(pushedLevels.last ?? levelHeight ?? naturalHeight)
             }
             mountedPath = newPath
             navigationAnimator.setOffset(cardWidth)
@@ -461,14 +473,20 @@ struct DayDetailsPagerView: View {
         // Going back more than one screen slides only the top one out, straight onto the
         // destination, as `popToRootViewController` does. The screens in between are under the
         // top one at this moment, so dropping them here is not visible.
+        //
+        // Their heights are dropped in the same shape, and that is not bookkeeping for its own
+        // sake: what the box interpolates towards is the level of the screen *under* the top one,
+        // which from here on is the destination rather than the screen that was dropped.
         if mountedPath.count > newPath.count + 1 {
             mountedPath = newPath + [topRoute]
+            pushedLevels = Array(pushedLevels.prefix(newPath.count) + pushedLevels.suffix(1))
         }
 
         animateNavigation(to: cardWidth, velocity: velocity)
     }
 
     private func animateNavigation(to target: CGFloat, velocity: CGFloat) {
+        publishDestinationLevel()
         navigationAnimator.animate(
             to: target,
             duration: navigationDuration,
@@ -481,27 +499,78 @@ struct DayDetailsPagerView: View {
             // The animator tracks the top screen, and the top screen is now the one that was
             // resting underneath.
             navigationAnimator.setOffset(0)
-            restoreLevel(forDepth: landedDepth)
+            // The slide's last frame already drew the box at the depth now on screen — the
+            // interpolation reached it as the slide did — so the entries above it are spent.
+            trimPushedLevels(to: landedDepth)
+
+            // Landing on the root is the one case with anything left to apply. The root kept
+            // measuring itself while it was covered — an answer given on the pushed screen
+            // changes its rows — and that measurement was recorded but not applied, so nothing
+            // would apply it later: a preference is delivered only on change. Reached with the
+            // box already at `levelHeight`, so it moves only when the root genuinely resized
+            // under the screen, and not at all before the first measurement, which `applyLevel`
+            // declines.
+            if landedDepth == 0 {
+                applyLevel(naturalHeight, animated: true)
+            }
         }
     }
 
-    // The way back has landed: whatever grew the card for the screen just dismissed is gone
-    // from the box, so the level goes back to what it was for the depth now on screen — even
-    // when that depth's own content is smaller than the level it is leaving, unlike the pushed
-    // screen's own measurement, which is one-way. Doing this here rather than from
-    // `DayCardNaturalHeightKey`'s own handler is what keeps the shrink from happening mid-slide:
-    // that handler stays disarmed for as long as `mountedPath` is non-empty, and `mountedPath`
-    // only drops to `landedDepth` in the line above, the moment before this runs.
-    //
-    // Landing on the root takes the root's current measurement rather than the saved level. The
-    // root kept measuring itself while it was covered — an answer given on the pushed screen
-    // changes its rows — and that measurement was recorded but not applied; a preference is
-    // delivered only on change, so nothing would apply it later.
-    private func restoreLevel(forDepth depth: Int) {
-        guard preNavigationLevels.count > depth else { return }
-        let saved = preNavigationLevels[depth]
-        preNavigationLevels.removeLast(preNavigationLevels.count - depth)
-        applyLevel(depth == 0 && naturalHeight > 0 ? naturalHeight : saved, animated: true)
+    /// Grows the top pushed screen's own entry to what it has just measured, which is the one
+    /// thing that moves the box while a screen is up.
+    ///
+    /// The preference carries the tallest mounted screen, and during a transition that is the one
+    /// on top either way — the screen entering on a push, the screen leaving on a pop — so it
+    /// belongs to the deepest entry in both cases. Grow only: a screen that fits inside the level
+    /// under it keeps that level, and coming back down is what going back does.
+    ///
+    /// Deferred a run loop turn for the reason `applyLevel` is: this feeds `drawnLevelHeight`,
+    /// which is what `DayCardFrameKey`'s own GeometryReader measures, and writing it straight from
+    /// the preference callback re-resolves that preference inside the update SwiftUI is still
+    /// processing.
+    private func growTopPushedLevel(to height: CGFloat) {
+        Task { @MainActor in
+            guard pushedLevels.count == mountedPath.count, let index = pushedLevels.indices.last else { return }
+
+            let base = index > 0 ? pushedLevels[index - 1] : (levelHeight ?? naturalHeight)
+            let grown = max(height, base)
+            guard pushedLevels[index] != grown else { return }
+
+            pushedLevels[index] = grown
+            publishDestinationLevel()
+        }
+    }
+
+    private func trimPushedLevels(to depth: Int) {
+        guard pushedLevels.count > depth else { return }
+        pushedLevels.removeLast(pushedLevels.count - depth)
+    }
+
+    /// Hands the calendar the height the card will stand at once the running transition lands,
+    /// the moment that destination is decided rather than once it is reached — so the calendar's
+    /// own re-centring runs alongside the card's growth instead of starting after it.
+    ///
+    /// A held drag decides nothing, and deliberately publishes nothing: every write here is one
+    /// flight in the calendar (see `publish`), so the frames in between are not its business —
+    /// the pop or the spring back that ends the drag is.
+    ///
+    /// Going back to the root aims at the root's own measurement rather than at the level the box
+    /// is interpolating towards, because that is where it will actually come to rest: landing at
+    /// depth 0 applies that measurement (see `animateNavigation`). The two differ only when the
+    /// root resized while it was covered.
+    private func publishDestinationLevel() {
+        guard store.state.calendarState.selectedDayStamp == activeDay else { return }
+
+        let depth = navigationTarget.count
+        let destination: CGFloat?
+        if depth == 0 {
+            destination = naturalHeight > 0 ? naturalHeight : levelHeight
+        } else {
+            destination = depth <= pushedLevels.count ? pushedLevels[depth - 1] : nil
+        }
+
+        guard let destination, destination > 0 else { return }
+        publish(destination, for: activeDay)
     }
 
     private func resetNavigation() {
@@ -514,7 +583,7 @@ struct DayDetailsPagerView: View {
         // Discarded rather than unwound: this is a jump to a different day's own root, not a
         // step back through this one's stack, and that day's level arrives fresh from its own
         // measurement (`immediateLevelDay`).
-        preNavigationLevels = []
+        pushedLevels = []
     }
 
     // A horizontal drag over a pushed screen goes back instead of paging — anywhere on the card,

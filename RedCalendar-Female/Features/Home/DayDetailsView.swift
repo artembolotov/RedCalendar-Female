@@ -23,6 +23,9 @@ struct DayDetailsView: View {
     let dragOffset: CGFloat
     // The level every card in the pager is drawn at, in the same units `reportedHeight` uses.
     // `nil` means "your own content decides" — the state of the very first card of an opening.
+    // While a screen is pushed this is the transition's own interpolation between the level under
+    // it and the level above it, and so changes every frame — see
+    // `DayDetailsPagerView.drawnLevelHeight`.
     let levelHeight: CGFloat?
     // The ceiling on the card's own box, in `reportedHeight`'s unit — see
     // `CalendarView.resolvedMaxCardHeight`. A day whose content asks for more than this is
@@ -196,7 +199,7 @@ struct DayDetailsView: View {
 
     // Drawn in the root's own box — the card keeps its height while a screen is pushed, so the
     // calendar under it has nothing to re-centre on unless the pushed screen itself asks for
-    // more (see the measurement below, and `DayDetailsPagerView.preNavigationLevels`). Opaque and
+    // more (see the measurement below, and `DayDetailsPagerView.drawnLevelHeight`). Opaque and
     // stretched to the whole box, so the screen underneath does not show below one shorter than it.
     private func pushedLayer(_ pushedRoute: DayCardRoute, depth: Int) -> some View {
         let isTop = depth == pushedPath.count
