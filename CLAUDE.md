@@ -798,8 +798,11 @@ per month; never recompute it per frame.
 **The scroll rail is measured once per calculator.** `getScrollLimits()` is the content-space position
 of `minMonthOffset` and `maxMonthOffset`, so reaching it measures every month in between — two
 `Calendar` calls each — and `scrollViewDidScroll` asks for it on every frame. It is cached on the
-calculator and dropped only when the locale or first weekday changes. The month range is what keeps
-that one walk affordable: at the ±200 years it once was, the first frame of the first drag paid for
+calculator and never dropped, because a calculator never outlives the answer: `MonthCalculator` is
+immutable with respect to the locale and the first weekday, and `CalendarView.updateCalculatorIfNeeded()`
+replaces the whole object — caches and all — when either moves. Nothing in the class invalidates in
+place, and nothing should; that was tried and the mechanism was unreachable. The month range is what
+keeps that one walk affordable: at the ±200 years it once was, the first frame of the first drag paid for
 ~9600 `Calendar` calls. Do not widen it without measuring, and do not reach past the cache.
 
 **A flight is capped, because a flight is only a flight while someone can follow it.**
