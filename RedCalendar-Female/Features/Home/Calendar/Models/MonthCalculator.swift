@@ -28,8 +28,8 @@ final class MonthCalculator: ObservableObject {
     // None of these are evicted from, and none of them need to be: every key is a month offset,
     // and every offset that reaches this class has already been clamped to
     // `CalendarConstants.minMonthOffset ... maxMonthOffset` — by `ViewportCalculator` on both
-    // ends of its walk, by `CalendarView.centerDaystamp`, and by the scroll rail itself. So the
-    // ceiling is 1441 entries each, by construction rather than by policy.
+    // ends of its walk, by `monthCenterDaystamp(atContentY:)` below, and by the scroll rail
+    // itself. So the ceiling is 1441 entries each, by construction rather than by policy.
     //
     // In bytes that is ~46KB apiece for the three below that hold a number, ~58KB of month
     // names, and ~2MB of month cells — and the last of those only fills if someone drags
@@ -59,8 +59,21 @@ final class MonthCalculator: ObservableObject {
     private var cachedScrollLimits: (min: CGFloat, max: CGFloat)?
 
 
-    private(set) var cachedLocaleIdentifier: String
-    private(set) var cachedFirstWeekday: Int
+    // The locale and first weekday this calculator was built for, read from outside:
+    // `CalendarView.updateCalculatorIfNeeded()` compares them against the current ones and
+    // replaces the whole object when either has moved. They are its identity, not a cache.
+    //
+    // Which is why nothing here invalidates in place. A `checkAndInvalidateCacheIfNeeded()` used
+    // to flush every cache above when it noticed a change, called from six of the accessors, and
+    // it could not fire: changing either setting means a trip to Settings.app, so the foreground
+    // notification has already replaced this object before anything reads it again. It was also
+    // not called from `getYPosition(for:)` — the one accessor that returns a cached value before
+    // touching any other — so had it ever fired, every position already in
+    // `cumulativePositionCache` would have been handed back stale, and the rail measurement
+    // fills that cache for all 1441 months on the first drag. Two mechanisms for one question,
+    // and the unreachable one was the broken one.
+    let cachedLocaleIdentifier: String
+    let cachedFirstWeekday: Int
     
     var weekHeight: CGFloat {
         return floor(max(50, (screenHeight - CalendarConstants.weekdaysHeaderHeight) / 15))
@@ -75,29 +88,7 @@ final class MonthCalculator: ObservableObject {
         self.cachedFirstWeekday = calendar.firstWeekday
     }
     
-    private func checkAndInvalidateCacheIfNeeded() {
-        let currentLocale = Locale.current.identifier
-        let currentFirstWeekday = calendar.firstWeekday
-        
-        if currentLocale != cachedLocaleIdentifier || currentFirstWeekday != cachedFirstWeekday {
-            weekCountCache.removeAll()
-            monthHeightCache.removeAll()
-            monthCellsCache.removeAll()
-            monthNameCache.removeAll()
-            cumulativePositionCache = [0: 0]
-            // Month heights follow the first weekday, so the rail moves with it too.
-            cachedScrollLimits = nil
-
-            dateFormatter.locale = Locale.current
-            
-            cachedLocaleIdentifier = currentLocale
-            cachedFirstWeekday = currentFirstWeekday
-        }
-    }
-    
     func getWeeksCount(for monthOffset: Int) -> Int {
-        checkAndInvalidateCacheIfNeeded()
-        
         if let cached = weekCountCache[monthOffset] {
             return cached
         }
@@ -111,8 +102,6 @@ final class MonthCalculator: ObservableObject {
     }
     
     func getMonthHeight(for monthOffset: Int) -> CGFloat {
-        checkAndInvalidateCacheIfNeeded()
-        
         if let cached = monthHeightCache[monthOffset] {
             return cached
         }
@@ -152,8 +141,6 @@ final class MonthCalculator: ObservableObject {
     // Per-day calendar work (day number, daystamp) is the same for every viewport rebuild,
     // so it is paid once per month instead of on every scroll step.
     func getMonthCells(for monthOffset: Int) -> [MonthCell?] {
-        checkAndInvalidateCacheIfNeeded()
-
         if let cached = monthCellsCache[monthOffset] {
             return cached
         }
@@ -209,8 +196,6 @@ final class MonthCalculator: ObservableObject {
     }
     
     func getMonthName(for monthOffset: Int) -> String {
-        checkAndInvalidateCacheIfNeeded()
-
         if let cached = monthNameCache[monthOffset] {
             return cached
         }
@@ -226,8 +211,6 @@ final class MonthCalculator: ObservableObject {
     }
     
     func getLocalizedWeekdays() -> [String] {
-        checkAndInvalidateCacheIfNeeded()
-        
         let weekdays = dateFormatter.shortWeekdaySymbols!
         let firstWeekday = calendar.firstWeekday
         
@@ -301,8 +284,6 @@ final class MonthCalculator: ObservableObject {
     }
 
     func getScrollLimits() -> (min: CGFloat, max: CGFloat) {
-        checkAndInvalidateCacheIfNeeded()
-
         if let cached = cachedScrollLimits {
             return cached
         }
@@ -312,7 +293,7 @@ final class MonthCalculator: ObservableObject {
         let lastMonthHeight = getMonthHeight(for: maxMonthOffset)
 
         let maxScrollUp = -firstMonthY
-        let availableHeight = screenHeight - 31
+        let availableHeight = screenHeight - CalendarConstants.railBottomInset
         let maxScrollDown = availableHeight - (lastMonthY + lastMonthHeight)
 
         let limits = (min: maxScrollDown, max: maxScrollUp)

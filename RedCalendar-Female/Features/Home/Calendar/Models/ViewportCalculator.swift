@@ -56,7 +56,7 @@ class ViewportCalculator {
             currentY += monthHeight
             monthOffset += 1
 
-            if visibleMonths.count >= 12 {
+            if visibleMonths.count >= CalendarConstants.maxVisibleMonths {
                 break
             }
         }

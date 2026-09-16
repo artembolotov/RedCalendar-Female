@@ -156,6 +156,16 @@ enum CalendarConstants {
     // there is no drift between them to absorb, only the rounding to whole months.
     static let viewportBufferRatio: CGFloat = 0.6
     static let averageMonthHeight: CGFloat = 290
+    // A hard stop on how many months one viewport may carry, so a bad estimate or a
+    // pathological month height cannot send `ViewportCalculator` walking the rail building
+    // `VisibleDay`s for months nobody will draw.
+    //
+    // It is a guard rather than a budget, and it has to stay clear of what the buffer above can
+    // actually produce: the walk covers `screenHeight * (1 + 2 * viewportBufferRatio)`, which at
+    // today's 0.6 and the 50pt week floor is about seven months on a phone. Raise
+    // `viewportBufferRatio` without raising this and the trailing months are not culled — they
+    // are never built, and the calendar simply ends part way down the screen.
+    static let maxVisibleMonths: Int = 12
 
     // MARK: - Scroll flight
     // How far the calendar may actually travel when it is sent back to a day, in screens.
@@ -211,7 +221,7 @@ enum CalendarConstants {
     static let cardHeightTolerance: CGFloat = 12
 
     // How much calendar an open card has to leave standing, in weeks. It is what
-    // `CalendarView.resolvedMaxCardHeight` reserves before the card is allowed any of the
+    // `CalendarLayout.maxCardHeight` reserves before the card is allowed any of the
     // screen, so it is the one number that decides how tall a long comment may grow the card.
     //
     // One week is what the geometry alone would allow: at that point the selected row is flush
@@ -231,4 +241,20 @@ enum CalendarConstants {
     // is what keeps that once affordable.
     static let minMonthOffset: Int = -720
     static let maxMonthOffset: Int = 720
+
+    // How far above the bottom of the screen the last month's own bottom edge comes to rest —
+    // the downward end of the rail, in `MonthCalculator.getScrollLimits()`.
+    //
+    // The one number here with no derivation on record: it has been 31 for as long as the rail
+    // has existed and nothing says what it was measured against. Named rather than left inline
+    // so that it sits next to the values that do have one, and so that anyone moving it knows
+    // they are moving where the calendar stops rather than rounding something off.
+    static let railBottomInset: CGFloat = 31
+
+    // How close to either end of the rail a fling has to be projected to land before
+    // `InfiniteScrollContainer.scrollViewWillEndDragging` takes the deceleration over.
+    static let railApproachBuffer: CGFloat = 200
+    // How much of an overshoot past the rail survives that takeover. The end still gives, so
+    // reaching it reads as a limit rather than as a wall; at 1.0 it would not be a limit at all.
+    static let railOvershootDamping: CGFloat = 0.3
 }
