@@ -62,7 +62,7 @@ struct ResolvedCycleSettings: Equatable, Sendable {
 /// `lutealPhaseLength` has no such value to protect — nothing but `DatabaseMiddleware.refreshForecast`
 /// ever writes it — so it has no "don't touch" state at all and does not belong on a type whose
 /// whole point is distinguishing "not edited" from "edited to nothing". See
-/// `DatabaseServiceProtocol.updateLutealPhaseLength`.
+/// `DatabaseServiceProtocol.updateForecast(cycleLength:periodLength:lutealPhaseLength:)`.
 struct CycleSettingsPatch: Sendable, Equatable {
     var cycleLength: Int?
     var periodLength: Int?

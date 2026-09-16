@@ -23,7 +23,7 @@ struct DayDetailsPagerView: View {
     // The height the calendar centres against, published for the day it belongs to — see
     // `DayCardHeight`. Every path that settles what height a day's card stands at writes it.
     @Binding var height: DayCardHeight
-    // The ceiling every card is drawn under — see `CalendarView.resolvedMaxCardHeight`. Handed
+    // The ceiling every card is drawn under — see `CalendarLayout.maxCardHeight`. Handed
     // straight to each `DayDetailsView`, which is where a card too tall for it is clipped.
     let maxHeight: CGFloat
     // The home indicator's reserve — handed straight to each `DayDetailsView`, which is where

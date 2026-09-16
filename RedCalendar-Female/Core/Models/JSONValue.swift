@@ -118,7 +118,7 @@ extension JSONValue {
     /// The mirror of `setting(_:to:)`: a copy with the key at `path` removed outright rather than
     /// overwritten, and everything else left exactly as it was. For the one field this build ever
     /// needs to *un*-set instead of merely writing a new value over — see
-    /// `DatabaseServiceProtocol.updateLutealPhaseLength`.
+    /// `DatabaseServiceProtocol.updateForecast(cycleLength:periodLength:lutealPhaseLength:)`.
     ///
     /// Not on a non-object (nothing to remove from a scalar) and not on a path whose intermediate
     /// key is already absent (nothing to descend into) — both are no-ops, returning `self`

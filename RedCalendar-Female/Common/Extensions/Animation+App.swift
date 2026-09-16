@@ -39,7 +39,7 @@ extension Animation {
     /// deliberate where an unfollowable flight reads as a glitch.
     ///
     /// A midnight rollover is **not** one of these cases, though it looks like it should be:
-    /// `.updateTodayDayStamp` moves `todayDayStamp` alone and never touches `selectedDayStamp`,
+    /// `.calendar(.updateToday)` moves `todayDayStamp` alone and never touches `selectedDayStamp`,
     /// so the disc does not move at all when the day turns over. What moves is the today marker
     /// inside the grid, which is drawn per-cell and has no animation of its own.
     ///

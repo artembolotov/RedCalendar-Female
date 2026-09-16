@@ -13,7 +13,7 @@ struct HomeView: View {
     @State private var floatingButtonState: FloatingButtonState = .plus
     @State private var scrollCommand: ScrollCommand = .none
     // Written by CalendarView, which is what knows the screen and the chrome band; read by the
-    // pager, which is what has to keep the card under it. See `CalendarView.resolvedMaxCardHeight`.
+    // pager, which is what has to keep the card under it. See `CalendarLayout.maxCardHeight`.
     @State private var maxDayCardHeight: CGFloat = .infinity
     @State private var dragOffset: CGFloat = 0
     // Bumped every time the card closes, so the next one is a new view rather than the one

@@ -97,7 +97,7 @@ final class AppStore: ObservableObject {
     /// Every dispatch used to be its own unstructured `Task` opening with `await Task.yield()`,
     /// which gave away both halves: two actions sent back to back diverged at that first
     /// suspension point and ran their middleware concurrently. That is the shape behind both
-    /// crashes this app has shipped — a burst of `.calendarScrolledTo` during a fling restarting
+    /// crashes this app has shipped — a burst of `.calendar(.scrolledTo)` during a fling restarting
     /// the same GRDB observation from two threads, and a haptic generator driven from the pool.
     /// Isolating the two middlewares that got caught fixed those two cases and never fixed the
     /// ordering; the main actor is reentrant, so an `await` inside any middleware stayed a

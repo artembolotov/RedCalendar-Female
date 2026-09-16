@@ -28,7 +28,7 @@ struct DayDetailsView: View {
     // `DayDetailsPagerView.drawnLevelHeight`.
     let levelHeight: CGFloat?
     // The ceiling on the card's own box, in `reportedHeight`'s unit — see
-    // `CalendarView.resolvedMaxCardHeight`. A day whose content asks for more than this is
+    // `CalendarLayout.maxCardHeight`. A day whose content asks for more than this is
     // clipped to it rather than pushing its own selected week under the chrome band.
     let maxHeight: CGFloat
     // The home indicator's reserve — see `pushedLayer`, the one place this is used. Not part of

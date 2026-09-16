@@ -15,7 +15,7 @@ import GRDB
 /// (`AnyDatabaseCancellable.deinit` calls `cancel()`), so overwriting one from two threads at
 /// once loses a reference count and corrupts the heap; the crash then lands wherever the
 /// allocator happens to notice, with nothing of ours on the stack. A fast calendar scroll
-/// produced exactly that, because `.calendarScrolledTo` arrives in bursts and every action used
+/// produced exactly that, because `.calendar(.scrolledTo)` arrives in bursts and every action used
 /// to get its own `Task` on the cooperative pool.
 ///
 /// The store no longer works that way — actions are drained one at a time — so this isolation is
