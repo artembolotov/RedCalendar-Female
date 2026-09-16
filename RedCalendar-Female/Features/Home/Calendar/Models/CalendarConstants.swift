@@ -242,13 +242,26 @@ enum CalendarConstants {
     static let minMonthOffset: Int = -720
     static let maxMonthOffset: Int = 720
 
-    // How far above the bottom of the screen the last month's own bottom edge comes to rest —
-    // the downward end of the rail, in `MonthCalculator.getScrollLimits()`.
+    // Where the downward end of the rail sits, in `MonthCalculator.getScrollLimits()`: the last
+    // month's bottom edge comes to rest this far above the bottom of the *readable* strip.
     //
-    // The one number here with no derivation on record: it has been 31 for as long as the rail
-    // has existed and nothing says what it was measured against. Named rather than left inline
-    // so that it sits next to the values that do have one, and so that anyone moving it knows
-    // they are moving where the calendar stops rather than rounding something off.
+    // It is `weekdaysHeaderHeight`, fossilised. The rail was written as `screenHeight - 31` in
+    // July 2025, when `weekHeight` next to it read `(screenHeight - 31) / 15` and carried the
+    // comment "31 is calendar header height" — one number, used twice. A month later the strip's
+    // height was given a name and `weekHeight` was moved onto it; the rail's copy was left as a
+    // literal, and in August 2026 the named constant went to 38 without it. So the two have been
+    // silently 7pt apart ever since, and this one stopped meaning what it was named for.
+    //
+    // It is also read in the wrong frame, which matters more than the 7pt. `MonthCalculator` is
+    // built with `CalendarLayout.visibleHeight` — correct for `weekHeight`, since a week is sized
+    // against what can be read — but `getScrollLimits()` produces a scroll offset, and every
+    // other offset in this calendar is measured from the top of the *whole* screen. So the real
+    // gap at the bottom of the rail is `chromeHeight + 31`, about 180pt, not 31. That has been
+    // true since the grid started scrolling under the navigation bar.
+    //
+    // Nothing shows it: the bottom of the rail is sixty years out and only a sustained fling
+    // reaches it. Left as it is deliberately — the honest fix is the frame, not the number, and
+    // it changes `MonthCalculator`'s interface for something nobody can see.
     static let railBottomInset: CGFloat = 31
 
     // How close to either end of the rail a fling has to be projected to land before
