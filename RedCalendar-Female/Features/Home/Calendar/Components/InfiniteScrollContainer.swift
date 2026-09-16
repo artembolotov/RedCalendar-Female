@@ -50,6 +50,8 @@ struct InfiniteScrollContainer: UIViewRepresentable {
     }
     
     func updateUIView(_ uiView: UIScrollView, context: Context) {
+        // Before anything below can call back out: `parent` is where the callbacks live.
+        context.coordinator.parent = self
         context.coordinator.updateToday(today)
         context.coordinator.updateCalculator(calculator)
         context.coordinator.updateScrollOffset(scrollOffset)
@@ -173,7 +175,18 @@ struct InfiniteScrollContainer: UIViewRepresentable {
     }
     
     class Coordinator: NSObject, UIScrollViewDelegate, UIGestureRecognizerDelegate {
-        let parent: InfiniteScrollContainer
+        /// Re-pointed at the current view value on every `updateUIView`, which is what makes
+        /// the four callbacks below safe to call from a scroll frame.
+        ///
+        /// It used to be a `let`, captured once in `makeCoordinator()`, so `onScrollChanged`,
+        /// `onDayTapped`, `onEmptyAreaTapped` and `onDragStateChanged` were the closures from the
+        /// calendar's *first* body pass for the whole life of the scroll view — and with them
+        /// every plain `let` those closures had captured off `CalendarView`. That is a shape that
+        /// goes wrong silently and has already shipped once: `topInset` arrived as zero and the
+        /// real value landed a pass later, so the grid was built against a 38pt band instead of a
+        /// 154pt one. `CalendarView.bandInset` is the `@State` that works around it, and it still
+        /// has to, for the other half of the same problem — `onChange(of:perform:)` hands its
+        /// action the view value from before the update, which nothing here can reach.
         var isDragging = false
         private var today: Daystamp
         private var calculator: MonthCalculator
@@ -205,6 +218,8 @@ struct InfiniteScrollContainer: UIViewRepresentable {
 
         /// True while an offset has been observed but not yet handed to SwiftUI.
         var isSyncingOffset: Bool { pendingReport != nil }
+
+        var parent: InfiniteScrollContainer
 
         init(_ parent: InfiniteScrollContainer) {
             self.parent = parent
@@ -450,39 +465,35 @@ struct InfiniteScrollContainer: UIViewRepresentable {
         }
         
         func scrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate: Bool) {
-            if !willDecelerate {
-                isDragging = false
-                
-                let physicalY = scrollView.contentOffset.y
-                var calendarOffset = self.parent.centerY - physicalY
-                let limits = self.calculator.getScrollLimits()
-                let correctedOffset = max(limits.min, min(limits.max, calendarOffset))
-                
-                if abs(correctedOffset - calendarOffset) > 0.1 {
-                    let correctedPhysicalY = self.parent.centerY - correctedOffset
-                    scrollView.contentOffset.y = correctedPhysicalY
-                    calendarOffset = correctedOffset
-                }
-                
-                report(calendarOffset)
-                DispatchQueue.main.async { self.parent.onDragStateChanged(false) }
-            }
+            // A drag that hands over to deceleration is not the end of the scroll — the
+            // deceleration's own end is, below.
+            guard !willDecelerate else { return }
+            settle(scrollView)
         }
 
         func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
+            settle(scrollView)
+        }
+
+        /// The scroll has stopped: pull it back inside the rail if the bounce left it outside,
+        /// and report where it actually came to rest.
+        ///
+        /// Both ways a scroll can end run this. They were two copies of it, differing only in
+        /// the `willDecelerate` guard above — which is the kind of duplication that survives
+        /// until one copy is fixed and the other is not.
+        private func settle(_ scrollView: UIScrollView) {
             isDragging = false
-            
+
             let physicalY = scrollView.contentOffset.y
             var calendarOffset = self.parent.centerY - physicalY
             let limits = self.calculator.getScrollLimits()
             let correctedOffset = max(limits.min, min(limits.max, calendarOffset))
-            
+
             if abs(correctedOffset - calendarOffset) > 0.1 {
-                let correctedPhysicalY = self.parent.centerY - correctedOffset
-                scrollView.contentOffset.y = correctedPhysicalY
+                scrollView.contentOffset.y = self.parent.centerY - correctedOffset
                 calendarOffset = correctedOffset
             }
-            
+
             report(calendarOffset)
             DispatchQueue.main.async { self.parent.onDragStateChanged(false) }
         }
@@ -493,7 +504,7 @@ struct InfiniteScrollContainer: UIViewRepresentable {
             
             let limits = self.calculator.getScrollLimits()
             
-            let boundaryBuffer: CGFloat = 200
+            let boundaryBuffer = CalendarConstants.railApproachBuffer
             let isApproachingTop = targetCalendarOffset > (limits.max - boundaryBuffer)
             let isApproachingBottom = targetCalendarOffset < (limits.min + boundaryBuffer)
             
@@ -502,12 +513,12 @@ struct InfiniteScrollContainer: UIViewRepresentable {
                 
                 if isApproachingTop && targetCalendarOffset > limits.max {
                     let overshoot = targetCalendarOffset - limits.max
-                    let dampenedOvershoot = overshoot * 0.3
+                    let dampenedOvershoot = overshoot * CalendarConstants.railOvershootDamping
                     let smoothTarget = limits.max + dampenedOvershoot
                     targetContentOffset.pointee.y = parent.centerY - smoothTarget
                 } else if isApproachingBottom && targetCalendarOffset < limits.min {
                     let overshoot = limits.min - targetCalendarOffset
-                    let dampenedOvershoot = overshoot * 0.3
+                    let dampenedOvershoot = overshoot * CalendarConstants.railOvershootDamping
                     let smoothTarget = limits.min - dampenedOvershoot
                     targetContentOffset.pointee.y = parent.centerY - smoothTarget
                 } else {

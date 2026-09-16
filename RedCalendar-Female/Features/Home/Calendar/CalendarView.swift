@@ -19,7 +19,7 @@ struct CalendarView: View {
     @Binding var floatingButtonState: FloatingButtonState
     @Binding var scrollCommand: ScrollCommand
     /// The tallest the day card may draw without its own selected week disappearing under the
-    /// chrome band — see `recalculateMaxCardHeight()`. Written by this view, in the opposite
+    /// chrome band — see `CalendarLayout.maxCardHeight`. Written by this view, in the opposite
     /// direction from `cardHeight`: the calendar is what knows the screen and the chrome, the
     /// card is what has to obey the number.
     @Binding var maxCardHeight: CGFloat
@@ -49,12 +49,17 @@ struct CalendarView: View {
     /// The inset everything here is measured against — `topInset`, held somewhere that survives
     /// being read outside `body`.
     ///
-    /// `topInset` is a plain `let`, so it belongs to one view value. Every function in this file
-    /// that is not `body` runs from a closure that captured an *older* one: `onChange(of:perform:)`
-    /// hands its action the `self` from before the update, and `InfiniteScrollContainer` keeps
-    /// the first `onScrollChanged` it is given for the life of the scroll view. `@State` is
-    /// immune — it reads from storage the view value only points at — which is why the two behave
-    /// differently in the same closure, and why this is the only shape of the fix.
+    /// `topInset` is a plain `let`, so it belongs to one view value, and `onChange(of:perform:)`
+    /// hands its action the `self` from *before* the update — so every function in this file that
+    /// is not `body` and is reached from an `onChange` sees the previous pass's inset. `@State` is
+    /// immune, because it reads from storage the view value only points at, which is why the two
+    /// behave differently inside the same closure and why this is the only shape of the fix.
+    ///
+    /// `InfiniteScrollContainer` used to be the other half of this: its coordinator held the view
+    /// value it was built with, so the scroll callbacks were the first ones ever handed over. It
+    /// re-points at the current one on every `updateUIView` now (see `Coordinator.parent`), so
+    /// that half is gone — but `onChange` is not something this view can reach, and it is what
+    /// this exists for.
     ///
     /// Left unfixed it is not a stale pixel or two. The inset arrives as zero and the real value
     /// lands a pass later, so `setupCalculator` built the whole calendar against a 38pt band
@@ -232,8 +237,9 @@ struct CalendarView: View {
                             scrollOffset: $scrollOffset,
                             scrollCommand: scrollCommand,
                             onScrollChanged: { newOffset in
-                                // Read the calculator from state, not from the captured `calc`:
-                                // the container keeps the first callback it was given.
+                                // From state rather than from the captured `calc`: this closure
+                                // outlives the body that made it, and `@State` is what reads
+                                // through to the current value rather than the captured one.
                                 if let current = calculator {
                                     updateViewportTracking(for: newOffset, calculator: current)
                                 }
