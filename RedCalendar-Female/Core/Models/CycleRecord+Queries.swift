@@ -230,6 +230,24 @@ extension Dictionary where Key == Daystamp, Value == Int {
     ///
     /// Walks the window backwards rather than the map forwards: the window is at most
     /// `maxPeriodLength` days, and the map is several hundred.
+    /// How long an open period has run as the calendar draws it: the forecast, lengthened by
+    /// reported flow and never shortened by it.
+    ///
+    /// Two callers, and they have to agree. `DayDisplayStateComputer` draws the bar this long,
+    /// and `DatabaseMiddleware`'s auto-confirm closes the period at this length when a new start
+    /// is marked — a period confirmed shorter than the flow reported for it would shrink the bar
+    /// under the very tap that confirmed it, and hand `CycleForecast` a length the days beneath
+    /// it contradict.
+    ///
+    /// Deliberately not the chart's rule. `CycleTrendChartView` measures an open period by its
+    /// reported flow alone, because it is drawing what was observed and a forecast is not an
+    /// observation.
+    func drawnPeriodLength(of cycle: CycleRecord, notAfter today: Daystamp, forecast: Int) -> Int {
+        let reported = lastFlowDay(of: cycle, notAfter: today)
+            .map { $0 - cycle.startDay + 1 } ?? 0
+        return Swift.max(forecast, reported)
+    }
+
     func lastFlowDay(of cycle: CycleRecord, notAfter today: Daystamp) -> Daystamp? {
         let windowEnd = Swift.min(today, cycle.startDay.advanced(by: Constants.Cycle.maxPeriodLength - 1))
         guard cycle.startDay <= windowEnd else { return nil }
