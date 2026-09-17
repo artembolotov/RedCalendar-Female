@@ -221,7 +221,8 @@ final class NotificationScheduleParityTests: XCTestCase {
     /// server widened without a matching string here is not a missing translation but a push
     /// reading `PeriodStart.before_8`. The ranges are the server's
     /// `services/notification-messages.js`; §20.11 is why they are frozen.
-    func testEveryKeyTheServerCanSendExistsInTheCatalog() {
+    func testEveryKeyTheServerCanSendExistsInTheCatalog() throws {
+        let catalog = try sourceStringCatalog()
         let dictionary: [(prefix: String, offsets: ClosedRange<Int>)] = [
             ("PeriodStart", -7...3),
             ("PeriodEnd", -2...2),
@@ -242,7 +243,8 @@ final class NotificationScheduleParityTests: XCTestCase {
 
     /// And nothing beyond them, because an unused key is a widened range nobody carried through
     /// to the server — the same drift from the other end.
-    func testTheCatalogCarriesNoKeyTheServerCannotSend() {
+    func testTheCatalogCarriesNoKeyTheServerCannotSend() throws {
+        let catalog = try sourceStringCatalog()
         let expected = 2 * (11 + 5 + 1)
         let actual = catalog.keys.filter { key in
             ["PeriodStart.", "PeriodEnd.", "Ovulation."].contains { key.hasPrefix($0) }
@@ -328,19 +330,5 @@ final class NotificationScheduleParityTests: XCTestCase {
         if case .ovulation = window.phase {
             XCTFail("\(what): still drawn as an ovulation", file: file, line: line)
         }
-    }
-
-    // MARK: - Catalog
-
-    /// Read from the source tree for the reason `StringCatalogTests` gives: `.xcstrings` is
-    /// compiled on the way into the app, and it is the key list being checked, not the lookup.
-    private var catalog: [String: [String: Any]] {
-        let url = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .appendingPathComponent("RedCalendar-Female/Localizable.xcstrings")
-        let data = try! Data(contentsOf: url)
-        let root = try! JSONSerialization.jsonObject(with: data) as! [String: Any]
-        return root["strings"] as! [String: [String: Any]]
     }
 }

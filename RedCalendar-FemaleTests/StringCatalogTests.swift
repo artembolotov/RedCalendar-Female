@@ -16,15 +16,14 @@ import XCTest
 /// 3. a key that is the text itself again — the shape the whole catalog was in before, and the
 ///    one a hurried `Text("Новая строка")` puts a corner of it back into.
 ///
-/// The catalog is read from the source tree rather than from a bundle: `.xcstrings` is compiled
-/// into `.strings`/`.stringsdict` on the way into the app, and the key list is what is being
-/// checked, not the lookup.
+/// The catalog is read from the source tree — see `sourceStringCatalog()` for why, and for why that
+/// skips on a device.
 final class StringCatalogTests: XCTestCase {
 
     /// `Scope.Path.Role`, PascalCase throughout, two to four segments.
     ///
     /// Computed rather than stored: a `static let` of a non-`Sendable` type is global mutable
-    /// state under `SWIFT_VERSION = 6.0`, and the same goes for `catalog` below.
+    /// state under `SWIFT_VERSION = 6.0`.
     private static var schema: NSRegularExpression {
         try! NSRegularExpression(pattern: "^[A-Z][A-Za-z0-9]*(\\.[A-Z][A-Za-z0-9]*){1,3}$")
     }
@@ -37,7 +36,8 @@ final class StringCatalogTests: XCTestCase {
 
     // MARK: - Tests
 
-    func testEveryKeyFollowsTheScheme() {
+    func testEveryKeyFollowsTheScheme() throws {
+        let catalog = try sourceStringCatalog()
         let offenders = catalog.keys
             .filter { !Self.isServerOwned($0) }
             .filter { key in
@@ -46,7 +46,8 @@ final class StringCatalogTests: XCTestCase {
         XCTAssertEqual(offenders.sorted(), [], "Keys outside Scope.Path.Role, PascalCase, 2–4 segments")
     }
 
-    func testEveryKeyIsTranslatedIntoBothLanguages() {
+    func testEveryKeyIsTranslatedIntoBothLanguages() throws {
+        let catalog = try sourceStringCatalog()
         var offenders: [String] = []
         for (key, entry) in catalog {
             for language in ["en", "ru"] where !Self.hasString(entry, language) {
@@ -56,23 +57,13 @@ final class StringCatalogTests: XCTestCase {
         XCTAssertEqual(offenders.sorted(), [], "Keys with no string in one of the two languages")
     }
 
-    func testNoKeyIsRussianTextAgain() {
+    func testNoKeyIsRussianTextAgain() throws {
+        let catalog = try sourceStringCatalog()
         let offenders = catalog.keys.filter(Self.holdsRussianText)
         XCTAssertEqual(offenders.sorted(), [], "Give these a Scope.Path.Role name instead")
     }
 
-    // MARK: - Catalog
-
-    private var catalog: [String: [String: Any]] {
-        // …/RedCalendar-FemaleTests/StringCatalogTests.swift → …/RedCalendar-Female/Localizable.xcstrings
-        let url = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .appendingPathComponent("RedCalendar-Female/Localizable.xcstrings")
-        let data = try! Data(contentsOf: url)
-        let root = try! JSONSerialization.jsonObject(with: data) as! [String: Any]
-        return root["strings"] as! [String: [String: Any]]
-    }
+    // MARK: - Private Methods
 
     private static func isServerOwned(_ key: String) -> Bool {
         serverOwnedScopes.contains { key.hasPrefix($0 + ".") }
