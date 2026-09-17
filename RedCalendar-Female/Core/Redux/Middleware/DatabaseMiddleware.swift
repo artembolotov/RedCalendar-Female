@@ -158,6 +158,7 @@ final class DatabaseMiddleware {
                     stamp: stamp,
                     today: state.calendarState.todayDayStamp,
                     cycles: state.calendarState.cycles,
+                    flowLevels: state.calendarState.flowLevels,
                     cycleSettings: state.cycleSettings,
                     dispatch: dispatch
                 )
@@ -447,6 +448,7 @@ final class DatabaseMiddleware {
         stamp: Daystamp,
         today: Daystamp,
         cycles: [CycleRecord],
+        flowLevels: [Daystamp: Int],
         cycleSettings: ResolvedCycleSettings,
         dispatch: @escaping Dispatch
     ) async {
@@ -474,14 +476,20 @@ final class DatabaseMiddleware {
             var recordsToWrite = [newCycle]
 
             // RedCalendar 2.0's auto-confirm option: a new start left the previous cycle's period
-            // open (`periodLength == 0`, never ended) — confirm it now, at the forecasted length,
-            // in the same write as the new start. `owningCycle(for: stamp - 1)` is the cycle
-            // immediately before this one, whichever cycle that is — not necessarily `cycles.last`,
-            // since a start may be backfilled into a gap between two already-recorded cycles.
+            // open (`periodLength == 0`, never ended) — confirm it now, in the same write as the
+            // new start. `owningCycle(for: stamp - 1)` is the cycle immediately before this one,
+            // whichever cycle that is — not necessarily `cycles.last`, since a start may be
+            // backfilled into a gap between two already-recorded cycles.
+            //
+            // At the length the calendar is drawing it, not at the bare forecast: reported flow
+            // lengthens an open period's bar, so confirming at the forecast would shrink it under
+            // the tap that confirmed it and store a length the flow rows beneath it contradict —
+            // which `CycleForecast` would then measure as an observation.
             if cycleSettings.autoConfirmPreviousCycle,
                var previous = cycles.owningCycle(for: stamp - 1),
                previous.periodLength == 0 {
-                previous.periodLength = cycleSettings.periodLength
+                previous.periodLength = flowLevels.drawnPeriodLength(
+                    of: previous, notAfter: today, forecast: cycleSettings.periodLength)
                 recordsToWrite.append(previous)
             }
 

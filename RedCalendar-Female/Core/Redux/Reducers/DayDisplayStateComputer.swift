@@ -69,9 +69,8 @@ func computeDayDisplayStates(
             // forecast stretches to cover it — but it never shortens the forecast, and only
             // the start stays confirmed: nothing but markPeriodEnd can end a period, so
             // everything after the start keeps rendering as a prediction.
-            let flowLength = calendarState.flowLevels.lastFlowDay(of: cycle, notAfter: today)
-                .map { $0 - cycle.startDay + 1 } ?? 0
-            effectivePeriodLength = max(cycleSettings.periodLength, flowLength)
+            effectivePeriodLength = calendarState.flowLevels.drawnPeriodLength(
+                of: cycle, notAfter: today, forecast: cycleSettings.periodLength)
             lastConfirmedDay = cycle.startDay
         }
 
