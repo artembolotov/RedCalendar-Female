@@ -173,10 +173,11 @@ final class NotificationScheduleParityTests: XCTestCase {
         XCTAssertNil(drawn[day + 1]?.fertileWindow, "none the day after")
     }
 
-    /// The schedule skips an open period's end once reported flow runs past the forecast, and
-    /// what it is taking on faith is this: that the bar on screen really does stretch to cover
-    /// the flow, so the day it would have named is no longer the end of anything drawn. Both
-    /// halves are pinned, because the skip is only right while they hold.
+    /// The schedule counts an open period's end off reported flow, exactly as this app draws
+    /// it: flow on day six of a five-day forecast says the period did not end on day five, so
+    /// the day it names is day six. That is the one member of the period_end series that is not
+    /// a cycle apart from its neighbours, which is why it is pinned separately from the series
+    /// test above — and why the cron has to read the cycle to roll past it (§20.2).
     func testReportedFlowStretchesAnOpenPeriodPastItsForecast() {
         let testCase = Case(name: "open, still running", anchorDaysAgo: 6, openPeriod: true,
                             ovulation: nil, cycleLength: 28, periodLength: 5, lutealPhase: 14)
@@ -188,17 +189,19 @@ final class NotificationScheduleParityTests: XCTestCase {
                      "no flow: the forecast's last day ends the bar")
 
         // With flow on the sixth day of a five-day forecast it is not the end any more — it is
-        // mid-bar, and the bar runs a day further.
+        // mid-bar, and the bar ends a day later. Day six is what the schedule now names.
         let running = states(for: testCase, flow: [start + 5: 2])
         assertPeriod(running[start + 5 - 1], caps: [.middle], "flow: the forecast's day is mid-bar")
         assertPeriod(running[start + 5], caps: [.end, .single], "flow: the bar ends a day later")
 
-        // And the next end is the predicted cycle's, one length on — the day the skip lands on.
+        // And the end after it is the predicted cycle's own, not a cycle on from the stretched
+        // day — that would be start + 5 + 28, which is mid-bar of nothing.
         assertPeriod(running[start + 28 + 5 - 1], caps: [.end, .single], "the next end")
+        assertNoPeriodEnd(running[start + 5 + 28], "a cycle on from the stretched day ends nothing")
     }
 
-    /// Flow inside the forecast leaves the bar alone, which is why the skip is keyed on
-    /// *strictly past* the forecast's last day rather than on flow existing at all.
+    /// Flow inside the forecast leaves the bar alone — reported flow lengthens the forecast and
+    /// never shortens it — so the day the schedule names is the forecast's own.
     func testFlowInsideTheForecastLeavesTheBarWhereItWas() {
         let testCase = Case(name: "open", anchorDaysAgo: 6, openPeriod: true, ovulation: nil,
                             cycleLength: 28, periodLength: 5, lutealPhase: 14)
@@ -308,6 +311,14 @@ final class NotificationScheduleParityTests: XCTestCase {
         guard case .ovulation = window.phase else {
             return XCTFail("\(what): drawn as .\(window.phase), not an ovulation",
                            file: file, line: line)
+        }
+    }
+
+    private func assertNoPeriodEnd(_ state: DayDisplayState?, _ what: String,
+                                   file: StaticString = #filePath, line: UInt = #line) {
+        guard case .period(let position, _)? = state?.cyclePhase else { return }
+        if position == .end || position == .single {
+            XCTFail("\(what): drawn as .\(position)", file: file, line: line)
         }
     }
 
