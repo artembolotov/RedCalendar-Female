@@ -238,9 +238,10 @@ final class NotificationScheduleParityTests: XCTestCase {
             autoConfirmPreviousCycle: nil
         ))
 
-        // The case table is written in the numbers the server was given, so a case whose
-        // settings this build would clamp would be comparing two different rules (see the
-        // divergence noted in SYNC.md §20.11).
+        // The case table is written in the numbers the server was given, and both sides now
+        // clamp settings the same way (SYNC.md §20.2). So this is not a domain boundary but a
+        // check that the expectations below mean what they say: a case this build clamped
+        // would be measured against settings the case does not state.
         XCTAssertEqual(settings.cycleLength, testCase.cycleLength, "\(testCase.name): cycle length")
         XCTAssertEqual(settings.periodLength, testCase.periodLength, "\(testCase.name): period length")
         XCTAssertEqual(settings.lutealPhaseLength, testCase.lutealPhase, "\(testCase.name): luteal phase")
