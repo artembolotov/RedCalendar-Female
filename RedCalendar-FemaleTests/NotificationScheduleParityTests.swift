@@ -173,6 +173,43 @@ final class NotificationScheduleParityTests: XCTestCase {
         XCTAssertNil(drawn[day + 1]?.fertileWindow, "none the day after")
     }
 
+    /// The schedule skips an open period's end once reported flow runs past the forecast, and
+    /// what it is taking on faith is this: that the bar on screen really does stretch to cover
+    /// the flow, so the day it would have named is no longer the end of anything drawn. Both
+    /// halves are pinned, because the skip is only right while they hold.
+    func testReportedFlowStretchesAnOpenPeriodPastItsForecast() {
+        let testCase = Case(name: "open, still running", anchorDaysAgo: 6, openPeriod: true,
+                            ovulation: nil, cycleLength: 28, periodLength: 5, lutealPhase: 14)
+        let start = anchor(testCase)
+
+        // Without flow the forecast's own last day is the end of the bar, and the reminder the
+        // server sends about it agrees with the screen.
+        assertPeriod(states(for: testCase)[start + 5 - 1], caps: [.end, .single],
+                     "no flow: the forecast's last day ends the bar")
+
+        // With flow on the sixth day of a five-day forecast it is not the end any more — it is
+        // mid-bar, and the bar runs a day further.
+        let running = states(for: testCase, flow: [start + 5: 2])
+        assertPeriod(running[start + 5 - 1], caps: [.middle], "flow: the forecast's day is mid-bar")
+        assertPeriod(running[start + 5], caps: [.end, .single], "flow: the bar ends a day later")
+
+        // And the next end is the predicted cycle's, one length on — the day the skip lands on.
+        assertPeriod(running[start + 28 + 5 - 1], caps: [.end, .single], "the next end")
+    }
+
+    /// Flow inside the forecast leaves the bar alone, which is why the skip is keyed on
+    /// *strictly past* the forecast's last day rather than on flow existing at all.
+    func testFlowInsideTheForecastLeavesTheBarWhereItWas() {
+        let testCase = Case(name: "open", anchorDaysAgo: 6, openPeriod: true, ovulation: nil,
+                            cycleLength: 28, periodLength: 5, lutealPhase: 14)
+        let start = anchor(testCase)
+
+        for day in [start, start + 2, start + 4] {
+            assertPeriod(states(for: testCase, flow: [day: 2])[start + 5 - 1],
+                         caps: [.end, .single], "flow on \(day - start + 1) of 5")
+        }
+    }
+
     // MARK: - §20.9, the dictionary
 
     /// Every key the server can put in a payload's `loc-key` resolves in this bundle.
@@ -220,7 +257,8 @@ final class NotificationScheduleParityTests: XCTestCase {
     /// What the calendar actually draws — `computeDayDisplayStates` itself, not a helper that
     /// agrees with it. The loaded range is opened wide enough to hold the whole series, since a
     /// day outside it is simply not drawn and would fail every assertion for the wrong reason.
-    private func states(for testCase: Case) -> [Daystamp: DayDisplayState] {
+    private func states(for testCase: Case,
+                        flow: [Daystamp: Int] = [:]) -> [Daystamp: DayDisplayState] {
         let start = anchor(testCase)
         var state = CalendarState()
         state.todayDayStamp = Self.today
@@ -230,6 +268,7 @@ final class NotificationScheduleParityTests: XCTestCase {
                         periodLength: testCase.openPeriod ? 0 : testCase.periodLength,
                         ovulation: testCase.ovulation)
         ]
+        state.flowLevels = flow
 
         let settings = ResolvedCycleSettings(UserSettings.CycleSettings(
             defaultLength: testCase.cycleLength,
