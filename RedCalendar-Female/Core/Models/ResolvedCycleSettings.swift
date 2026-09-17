@@ -15,8 +15,10 @@ struct ResolvedCycleSettings: Equatable, Sendable {
     let cycleLength: Int
     let periodLength: Int
     let lutealPhaseLength: Int
-    /// Whether marking a new period start also confirms the previous one — using this same
-    /// `periodLength` — when it was left open. See `DatabaseMiddleware.handleMarkPeriodStart`.
+    /// Whether marking a new period start also confirms the previous one, when it was left open.
+    /// Not at this `periodLength` but at the length the calendar is drawing it —
+    /// `Dictionary.drawnPeriodLength(of:notAfter:forecast:)`, which takes this one as the
+    /// forecast and lets reported flow lengthen it. See `DatabaseMiddleware.handleMarkPeriodStart`.
     let autoConfirmPreviousCycle: Bool
 
     init(_ settings: UserSettings.CycleSettings?) {

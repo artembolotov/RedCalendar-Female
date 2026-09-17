@@ -37,8 +37,8 @@ struct UserSettings: Codable, Equatable {
         let defaultLength: Int?
         let defaultPeriodLength: Int?
         let lutealPhaseLength: Int?
-        /// Whether marking a new period start also confirms the previous one, using the
-        /// forecast, when it was left open. `nil` means "never chosen" and resolves to
+        /// Whether marking a new period start also confirms the previous one, at the length the
+        /// calendar draws it, when it was left open. `nil` means "never chosen" and resolves to
         /// `Constants.Cycle.defaultAutoConfirmPreviousCycle` — see `ResolvedCycleSettings`.
         let autoConfirmPreviousCycle: Bool?
 

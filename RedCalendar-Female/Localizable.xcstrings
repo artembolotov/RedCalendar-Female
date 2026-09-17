@@ -2819,13 +2819,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "If a new period is marked as started while the previous one was never ended, it will be confirmed automatically, with a length of %@."
+            "value" : "If a new period is marked as started while the previous one was never ended, it will be confirmed automatically — with a length of %@, or up to the last day flow was reported for, if that is later."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Если начало новых месячных отмечено, а окончание предыдущих — нет, оно подтвердится автоматически, с длительностью %@."
+            "value" : "Если начало новых месячных отмечено, а окончание предыдущих — нет, оно подтвердится автоматически: длительностью %@ или до последнего дня с отмеченной обильностью, если он дальше."
           }
         }
       }
