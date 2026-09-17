@@ -219,17 +219,6 @@ extension CycleRecord {
 /// cycle's row. See `FlowLevelRecord` for why they moved.
 extension Dictionary where Key == Daystamp, Value == Int {
 
-    /// Last day of the cycle the user reported flow for — how far the period is known to have
-    /// actually run. Nil when nothing is reported inside the period window.
-    ///
-    /// The window is the cycle's own days: from its start up to `maxPeriodLength`, and not past
-    /// `today`. It was needed when the levels sat in the cycle's dictionary, which could hold
-    /// keys from days outside its period; it is needed just as much now that they are day-keyed,
-    /// from the other side — this map spans the whole loaded range, and without the window a
-    /// later cycle's flow would stretch this one's period across the calendar.
-    ///
-    /// Walks the window backwards rather than the map forwards: the window is at most
-    /// `maxPeriodLength` days, and the map is several hundred.
     /// How long an open period has run as the calendar draws it: the forecast, lengthened by
     /// reported flow and never shortened by it.
     ///
@@ -248,6 +237,17 @@ extension Dictionary where Key == Daystamp, Value == Int {
         return Swift.max(forecast, reported)
     }
 
+    /// Last day of the cycle the user reported flow for — how far the period is known to have
+    /// actually run. Nil when nothing is reported inside the period window.
+    ///
+    /// The window is the cycle's own days: from its start up to `maxPeriodLength`, and not past
+    /// `today`. It was needed when the levels sat in the cycle's dictionary, which could hold
+    /// keys from days outside its period; it is needed just as much now that they are day-keyed,
+    /// from the other side — this map spans the whole loaded range, and without the window a
+    /// later cycle's flow would stretch this one's period across the calendar.
+    ///
+    /// Walks the window backwards rather than the map forwards: the window is at most
+    /// `maxPeriodLength` days, and the map is several hundred.
     func lastFlowDay(of cycle: CycleRecord, notAfter today: Daystamp) -> Daystamp? {
         let windowEnd = Swift.min(today, cycle.startDay.advanced(by: Constants.Cycle.maxPeriodLength - 1))
         guard cycle.startDay <= windowEnd else { return nil }
