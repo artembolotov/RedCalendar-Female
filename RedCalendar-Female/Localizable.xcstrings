@@ -1,6 +1,40 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "AddEmail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add an email to your account — it's the easiest way to keep access to it."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Добавьте email к аккаунту — так проще всего сохранить к нему доступ."
+          }
+        }
+      }
+    },
+    "AddEmail.named" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, add an email to your account — it's the easiest way to keep access to it."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, добавьте email к аккаунту — так проще всего сохранить к нему доступ."
+          }
+        }
+      }
+    },
     "Appearance.Theme.Berry" : {
       "localizations" : {
         "en" : {
@@ -2916,13 +2950,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Signing in by phone number will stop working soon. Add an email to keep access to your account."
+            "value" : "Add an email to keep access to your account."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Скоро вход по номеру телефона перестанет работать. Привяжите email, чтобы сохранить доступ к аккаунту."
+            "value" : "Добавьте email, чтобы сохранить доступ к аккаунту."
           }
         }
       }

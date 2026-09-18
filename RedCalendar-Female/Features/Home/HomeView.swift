@@ -24,6 +24,22 @@ struct HomeView: View {
     @State private var syncIndicatorVisible = false
     // Whether a day card has been built in this process yet — see `cardWarmUp(width:)`.
     @State private var isCardWarmedUp = false
+    // Passed down to `HomeMenuView`, which cannot hold this itself — see the comment there.
+    // Read here directly rather than through a computed binding over `store.state.emailBinding`,
+    // because a computed binding would force the sheet back open the moment its own `isPresented`
+    // setter turns it off: dismissing the whole chain does not clear `emailBinding`, and it should
+    // not reopen itself the instant the user closes it. `openSettingsIfEmailPending()` is a
+    // one-way nudge instead — it sets this to `true`, never back to `false`.
+    @State private var showSettings = false
+    // What `HomeMenuView`'s settings sheet opens to — decided once, when `showSettings` is flipped
+    // true, and held fixed for the rest of that presentation. It is **not** `store.state.emailBinding
+    // != nil` read live: that value changes the moment the email screen is finished or closed —
+    // which is still well before the person is done with `ProfileView` underneath it — and a
+    // `.sheet` content closure re-evaluates on every render while presented, so a live read would
+    // swap the sheet's root out from under whoever is still looking at it. Reset to `false` by the
+    // `onChange` below once `showSettings` itself goes back to `false`, so a later, unrelated visit
+    // to Settings starts from the ordinary list again.
+    @State private var openDirectlyToEmailEntry = false
 
     var body: some View {
         NavigationView {
@@ -116,7 +132,9 @@ struct HomeView: View {
                         syncState: store.state.syncState,
                         accent: store.state.accentTheme.accent,
                         onRetry: { store.send(.sync(.requested(.retry))) },
-                        syncIndicatorVisible: $syncIndicatorVisible
+                        syncIndicatorVisible: $syncIndicatorVisible,
+                        showSettings: $showSettings,
+                        openDirectlyToEmailEntry: openDirectlyToEmailEntry
                     ))
                     // Otherwise the bar's own background sits on top of the calendar's band
                     // and there is nothing left to see through.
@@ -160,8 +178,50 @@ struct HomeView: View {
                 } message: { failure in
                     Text(failure.failureMessage)
                 }
+                // Covers both orderings a notification tap can arrive in. A cold launch typically
+                // has `AppState.emailBinding` already set by the time this view first appears —
+                // the tap reaches `NotificationDelegate` before `AuthMiddleware.check` resolves and
+                // `RootView` ever mounts `HomeView` — which `onAppear` catches and `onChange` would
+                // not, since there is no transition to observe during this view's lifetime. A tap
+                // that lands while the app is already running is the opposite: `onChange` sees the
+                // transition and `onAppear` has already fired, long before.
+                .onAppear(perform: openSettingsIfEmailPending)
+                .onChange(of: store.state.emailBinding) { _ in openSettingsIfEmailPending() }
+                // The other half of `openDirectlyToEmailEntry`'s reset: once the whole settings
+                // sheet has actually closed, the next visit — from the toolbar menu, or from a
+                // later notification — starts fresh rather than remembering this one.
+                .onChange(of: showSettings) { isPresented in
+                    if !isPresented {
+                        openDirectlyToEmailEntry = false
+                    }
+                }
             }
         }
+    }
+
+    /// The bridge from a tapped "add your email" notification (SYNC.md §20's engagement pushes)
+    /// down to `EmailBindingView`. `HomeMenuView`'s settings sheet is local `@State` with no Redux
+    /// state of its own, so this asks the same question `ProfileView` already asks for its own
+    /// sheet (SYNC.md §18.12) — is `AppState.emailBinding` non-nil — and uses the answer both to
+    /// decide whether to open the sheet at all (`showSettings`) and, once, what it opens to
+    /// (`openDirectlyToEmailEntry` — see its own doc comment for why that has to be captured here
+    /// rather than read live by `HomeMenuView`). `SettingsView`'s own `NavigationLink` to
+    /// `ProfileView` is never touched programmatically — every push through it is still a real tap
+    /// — so there is nothing here that can reproduce the double-`onAppear` a `NavigationLink(isActive:)`
+    /// set from code is prone to under this app's `NavigationView`. Manually opening Settings and
+    /// tapping through to Profile behaves exactly as it always did.
+    ///
+    /// `!showSettings` is the guard that keeps it that way. Tapping "Email" on `ProfileView`
+    /// dispatches the exact same `.emailBinding(.set(.entry()))` a notification tap does, and
+    /// without this guard that manual tap would flip `openDirectlyToEmailEntry` to `true` while
+    /// `SettingsView` was already the sheet's root — swapping it out for `EmailEntryDeepLink`
+    /// mid-presentation, the same live-swap bug `openDirectlyToEmailEntry`'s own doc comment
+    /// describes, just triggered from the other end of the chain. Once the sheet is already open,
+    /// whatever is already on screen (manual or automatic) is left to handle its own state.
+    private func openSettingsIfEmailPending() {
+        guard store.state.emailBinding != nil, !showSettings else { return }
+        openDirectlyToEmailEntry = true
+        showSettings = true
     }
 
     private var writeFailurePresented: Binding<Bool> {
@@ -243,6 +303,8 @@ private struct HomeToolbar: ViewModifier {
     let accent: Color
     let onRetry: () -> Void
     @Binding var syncIndicatorVisible: Bool
+    @Binding var showSettings: Bool
+    let openDirectlyToEmailEntry: Bool
 
     func body(content: Content) -> some View {
         if #available(iOS 26.0, *) {
@@ -257,7 +319,11 @@ private struct HomeToolbar: ViewModifier {
                 }
                 .sharedBackgroundVisibility(syncIndicatorVisible ? .visible : .hidden)
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    HomeMenuView(accent: accent)
+                    HomeMenuView(
+                        accent: accent,
+                        showSettings: $showSettings,
+                        openDirectlyToEmailEntry: openDirectlyToEmailEntry
+                    )
                 }
             }
         } else {
@@ -271,7 +337,11 @@ private struct HomeToolbar: ViewModifier {
                     )
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    HomeMenuView(accent: accent)
+                    HomeMenuView(
+                        accent: accent,
+                        showSettings: $showSettings,
+                        openDirectlyToEmailEntry: openDirectlyToEmailEntry
+                    )
                 }
             }
         }

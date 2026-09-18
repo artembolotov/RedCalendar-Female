@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import UserNotifications
 
 // Main-actor isolated because it constructs `TapticFeedbackService`, which owns UIKit
 // feedback generators. `setup()` is called from `AppDelegate.didFinishLaunchingWithOptions`,
@@ -26,6 +27,7 @@ final class Configurator {
         registerPushPermissionsService()
         registerTapticFeedbackService()
         registerAppearanceService()
+        registerNotificationDelegate()
     }
     
     private func registerAnalyticsService() {
@@ -67,5 +69,14 @@ final class Configurator {
     private func registerAppearanceService() {
         let appearanceService: AppearanceServiceProtocol = AppearanceService()
         ServiceLocator.shared.addService(AppearanceServiceProtocol.self, service: appearanceService)
+    }
+
+    // Not a `ServiceLocator` registration — `NotificationDelegate` has no protocol and nothing
+    // injects it. It needs the same "assigned somewhere before the callback can arrive" treatment
+    // the services above get, though: `UNUserNotificationCenter.current().delegate` is `weak`,
+    // and this is the one place in the app guaranteed to run before a background launch can
+    // deliver a notification tap (see `AppDelegate`).
+    private func registerNotificationDelegate() {
+        UNUserNotificationCenter.current().delegate = NotificationDelegate.shared
     }
 }

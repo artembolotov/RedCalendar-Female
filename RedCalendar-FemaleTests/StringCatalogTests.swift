@@ -28,11 +28,13 @@ final class StringCatalogTests: XCTestCase {
         try! NSRegularExpression(pattern: "^[A-Z][A-Za-z0-9]*(\\.[A-Z][A-Za-z0-9]*){1,3}$")
     }
 
-    /// The scheduled cycle notifications: the server names these in the push payload's `loc-key`
-    /// and iOS resolves them against the bundle, so they belong to the server's contract and to
-    /// every build already in the wild. They cannot be renamed from here, and they predate the
-    /// scheme.
-    private static let serverOwnedScopes = ["PeriodStart", "PeriodEnd", "Ovulation"]
+    /// Every push notification's `loc-key`: the server names these (`notification-messages.js`)
+    /// and iOS resolves them against the bundle, so they belong to the server's contract rather
+    /// than to this scheme. `PeriodStart`/`PeriodEnd`/`Ovulation` are the scheduled cycle
+    /// notifications and predate the scheme outright; `AddEmail` is the first engagement push
+    /// (SYNC.md §20) and follows the same vocabulary shape deliberately — an unnamed key with no
+    /// dot at all (`AddEmail`) beside the `.named` variant every scope here carries.
+    private static let serverOwnedScopes = ["PeriodStart", "PeriodEnd", "Ovulation", "AddEmail"]
 
     // MARK: - Tests
 
@@ -66,7 +68,10 @@ final class StringCatalogTests: XCTestCase {
     // MARK: - Private Methods
 
     private static func isServerOwned(_ key: String) -> Bool {
-        serverOwnedScopes.contains { key.hasPrefix($0 + ".") }
+        // Equality too, not only the dot-prefixed form: `AddEmail`'s unnamed variant is the bare
+        // scope name itself, unlike every cycle key, which always carries at least a `.today` /
+        // `.before_N` / `.after_N` suffix.
+        serverOwnedScopes.contains { key == $0 || key.hasPrefix($0 + ".") }
     }
 
     private static func holdsRussianText(_ key: String) -> Bool {
