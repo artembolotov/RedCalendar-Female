@@ -1,202 +1,129 @@
-# RedCalendar iOS 3.3
+# RedCalendar Female
 
-Современное iOS приложение для отслеживания менструального цикла, полностью переписанное на SwiftUI с Redux архитектурой и продвинутой календарной системой.
+iOS app for menstrual cycle tracking. SwiftUI + a hand-rolled Redux architecture, GRDB for local
+storage, and offline-first sync against `api.calendar.red`.
 
-## 🏗 Архитектура
+**Requirements:** iOS 15.4+, Xcode 26.4+, Swift 5.9+.
 
-### Redux State Management
-- **AppState** - глобальное состояние приложения
-- **AppAction** - типизированные действия
-- **Middleware** - асинхронная логика и side effects
-- **Store** - единый источник истины
-- **Reducers** - pure functions для изменения состояния
+## Architecture
 
-### Dependency Injection
-- **ServiceLocator** - DI контейнер для управления зависимостями
-- **@Injected** - property wrapper для сервисов
-- **Protocol-based** - слабые связи между компонентами
+### Redux
 
-## 🏛 Структура проекта
+- `AppStore` is a concrete `@MainActor final class` — not a generic `Store<State, Action>` (a
+  generic version once shipped and broke every archive build; see `CLAUDE.md` for the history).
+- `AppAction` is grouped by domain (`.auth`, `.calendar`, `.data`, `.sync`, `.push`, `.analytics`,
+  `.appearance`, `.devices`), each wrapping its own sub-enum. A middleware that owns a domain
+  switches over it exhaustively, so a new action case that nothing handles is a build error.
+- Reducers are pure; all async work and API calls live in middleware, dispatched through a single
+  serial effect queue.
+- Dependency injection goes through `ServiceLocator.shared` / `@Injected`, keyed by protocol type.
+
+### Key types
+
+- **`Daystamp`** — the app's date type for calendar days (`Int` days since 2001-01-01), used
+  everywhere a "day" is the concept instead of `Date`.
+- **`ResolvedCycleSettings`** / **`CycleForecast`** — cycle length, period length and luteal phase
+  are measured back off recorded cycles (median over a rolling window) rather than left as raw,
+  unvalidated server data.
+- **`CycleRecord+Queries`** — the single place that answers "which cycle owns this day," "can a
+  period be started/ended here," etc. Never re-implemented inline.
+
+See `CLAUDE.md` for the full set of architectural rules (state shape, sync, notifications,
+calendar rendering, localization, concurrency) — it is the canonical reference for this codebase.
+`SYNC.md` covers the offline sync protocol and server contract in detail.
+
+## Project structure
 
 ```
-RedCalendar-Female/
-├── App/
-│   ├── RedCalendar_FemaleApp.swift         # Main app entry point
-│   ├── AppDelegate.swift                   # Push notifications
-│   └── Configurator.swift                  # Настройка DI сервисов
-├── Core/
-│   ├── Constants.swift                     # API URL и прочие константы
-│   ├── DI/
-│   │   ├── ServiceLocator.swift            # DI контейнер
-│   │   └── Injected.swift                  # Property wrapper
-│   ├── Models/
-│   │   ├── AuthenticationMethod.swift
-│   │   ├── AuthenticationError.swift
-│   │   ├── APNSToken.swift
-│   │   ├── UserDetails.swift
-│   │   ├── Daystamp.swift                  # Типобезопасный тип даты
-│   │   ├── CycleRecord.swift               # GRDB-запись цикла
-│   │   ├── CommentRecord.swift             # GRDB-запись комментария
-│   │   ├── UserTagRecord.swift             # GRDB-запись пользовательского тега
-│   │   └── DayTagsRecord.swift             # GRDB-запись тегов дня
-│   ├── Redux/
-│   │   ├── Actions/
-│   │   │   └── AppAction.swift
-│   │   ├── Middleware/
-│   │   │   ├── AuthMiddleware.swift        # Авторизация, logout, checkAuthState
-│   │   │   ├── MigrationMiddleware.swift   # Миграция с Firebase
-│   │   │   ├── PushNotificationsMiddleware.swift
-│   │   │   ├── AnalyticsMiddleware.swift
-│   │   │   ├── FeedbackMiddleware.swift    # Haptic feedback
-│   │   │   └── LoggerMiddleware.swift
-│   │   ├── Reducers/
-│   │   │   └── AppReducer.swift
-│   │   ├── States/
-│   │   │   ├── AppState.swift              # Глобальное состояние + convenience properties
-│   │   │   ├── AuthState.swift
-│   │   │   ├── CalendarState.swift
-│   │   │   ├── EmailAuthState.swift
-│   │   │   ├── PhoneAuthState.swift
-│   │   │   └── NotificationState.swift
-│   │   ├── AppMiddleware.swift             # combineAppMiddlewares()
-│   │   ├── AppStore.swift                  # typealias AppStore
-│   │   └── Store.swift                     # Generic Store<State, Action>
-│   ├── Services/
-│   │   ├── APIService.swift                # REST API клиент
-│   │   ├── DatabaseService.swift           # GRDB локальная БД
-│   │   ├── DatabaseServiceProtocol.swift   # Протокол БД-сервиса
-│   │   ├── KeychainService.swift           # Keychain (deviceId)
-│   │   ├── AnalyticsService.swift          # AppMetrica обёртка
-│   │   ├── PushPermissionService.swift
-│   │   └── TapticFeedbackService.swift
-│   └── Utils/
-│       └── Logger.swift                    # AppLogger
-├── Common/
-│   ├── Components/
-│   │   ├── PrimaryButton.swift
-│   │   ├── CloseButton.swift
-│   │   └── PhoneNumberKitField.swift
-│   ├── Extensions/
-│   │   ├── Bundle+AppInfo.swift
-│   │   ├── String+Validation.swift
-│   │   ├── Shape+AdaptiveBackground.swift
-│   │   └── View+AdaptiveShadow.swift
-│   ├── Modifiers/
-│   │   └── FormFieldStyle.swift
-│   └── Views/
-│       ├── RootView.swift
-│       └── WaitingView.swift
-├── Features/
-│   ├── Auth/
-│   │   └── Views/
-│   │       ├── WelcomeView.swift
-│   │       ├── LoginView.swift
-│   │       ├── EmailAuth/
-│   │       │   ├── EmailEntryView.swift
-│   │       │   └── CodeEntryView.swift
-│   │       └── PhoneAuth/
-│   │           ├── PhoneEntryView.swift
-│   │           └── FlashCallCodeEntryView.swift
-│   ├── Home/
-│   │   ├── Calendar/
-│   │   │   ├── CalendarView.swift
-│   │   │   ├── Components/
-│   │   │   │   ├── CalendarHeaderView.swift
-│   │   │   │   └── InfiniteScrollContainer.swift
-│   │   │   └── Models/
-│   │   │       ├── CalendarModels.swift
-│   │   │       ├── CalendarConstants.swift
-│   │   │       ├── MonthCalculator.swift
-│   │   │       ├── ScrollCommand.swift
-│   │   │       └── ViewportCalculator.swift
-│   │   ├── Components/
-│   │   │   ├── FloatingAddButton.swift
-│   │   │   └── HomeMenuView.swift
-│   │   ├── HomeView.swift
-│   │   ├── DayDetailsView.swift
-│   │   └── FloatingButtonState.swift
-│   ├── Settings/
-│   │   └── SettingsView.swift
-│   └── Statistics/
-│       └── StatisticsView.swift
-└── Resources/
-    ├── Assets.xcassets
-    ├── Localizable.strings
-    └── Info.plist
+App/          — entry point, AppDelegate, Configurator (DI setup)
+Core/
+  Constants.swift
+  DI/         — ServiceLocator, @Injected
+  Models/     — Daystamp, cycle/comment/tag GRDB records, sync payloads, resolved settings, …
+  Redux/
+    Actions/    — AppAction and its per-domain sub-actions
+    Middleware/ — AuthMiddleware, DevicesMiddleware, MigrationMiddleware, DatabaseMiddleware,
+                   SyncMiddleware, PushNotificationsMiddleware, AnalyticsMiddleware,
+                   AppearanceMiddleware, FeedbackMiddleware, LoggerMiddleware
+    Reducers/   — AppReducer, DayDisplayStateComputer
+    States/     — AppState, AuthState, CalendarState, SyncState, EmailAuthState, PhoneAuthState,
+                   NotificationState, DevicesState
+    AppMiddleware.swift, AppStore.swift
+  Services/   — APIService, KeychainService, AnalyticsService, PushPermissionService,
+                 TapticFeedbackService, AppearanceService, DatabaseService (GRDB)
+  Utils/      — AppLogger, DeviceModel
+Common/
+  Components/, Extensions/, Modifiers/, Views/  — shared UI building blocks
+Features/
+  Auth/       — Welcome/Login, email and phone (flash call) sign-in
+  Home/       — infinite-scroll calendar, day details card, comments/tags/flow/ovulation editors
+  Settings/   — cycle settings, device list, notifications
+  Statistics/ — cycle statistics
 ```
 
-## ⚙️ Технологический стек
+Feature folders own their own views and feature-specific models; shared types live in
+`Core/Models/`.
 
-### Основные зависимости
-- **SwiftUI** - декларативный UI фреймворк
-- **Redux** - управление состоянием (hand-rolled)
-- **Keychain** - хранение deviceId
+## Tech stack
 
-### Внешние библиотеки (SPM)
-- **AppMetrica** (5.11.1) - аналитика и crash reporting
-- **PhoneNumberKit** (4.1.1) - валидация и форматирование номеров
-- **GRDB** (7.x) - локальная SQLite база данных
+- **SwiftUI** for all UI (no `NavigationView`/UIKit except a few isolated wrappers).
+- **GRDB** 7.x — local SQLite storage, fully `async`, all access through `DatabaseServiceProtocol`.
+- **AppMetrica** 5.11.1 — analytics and crash reporting.
+- **PhoneNumberKit** 4.1.1 — phone number formatting/validation for flash-call sign-in.
 
-### Кастомные типы данных
-- **Daystamp** - типобезопасная альтернатива Int для работы с календарными датами. Reference date — 1 января 2001 года. Поддерживает арифметику, сравнения, конвертацию с `Date` через `Calendar`, `Codable`.
+## Environments
 
-## 🔐 Аутентификация и deviceId
+Two shared schemes, each mapping differently per build action:
 
-`deviceId` — идентификатор аутентификационной сессии, выдаётся сервером при логине.
+| Scheme | Run / Test / Analyze | Profile | Archive |
+|---|---|---|---|
+| RedCalendar-Production | Debug | Release | Release |
+| RedCalendar-Staging | Debug-Staging (Run) · Debug (Test, Analyze) | Release | Release-Staging |
 
-- **Хранится:** в `AuthState.authenticated(deviceId:)` и в Keychain (`"redcalendar_device_id"`)
-- **Устанавливается:** при email/phone-авторизации или миграции с Firebase
-- **Используется:** как Bearer-токен в заголовке `Authorization` всех API-запросов
-- **Удаляется:** при logout (из состояния и из Keychain)
-- **Читается в views:** через `store.state.deviceId` (convenience property на `AppState`)
+| Config | API host |
+|---|---|
+| Debug | `https://api.calendar.red` (production) |
+| Release | `https://api.calendar.red` (production) |
+| Debug-Staging | `https://staging.calendar.red` |
+| Release-Staging | `https://staging.calendar.red` |
 
-## 🚀 Setup & Development
+There is no separate dev API — a plain Debug run talks to production. `API_BASE_URL` is set per
+build configuration on the target and read via `Constants.URLs.api`.
 
-### Требования
-- iOS 15.4+
-- Xcode 26.4+
-- Swift 5.9+
+Command-line build example:
 
-### Конфигурация окружений
+```
+xcodebuild -project RedCalendar-Female.xcodeproj -scheme RedCalendar-Staging \
+  -configuration Debug-Staging -destination 'platform=iOS Simulator,name=iPhone 16' build
+```
 
-| Scheme | Config | API |
-|---|---|---|
-| RedCalendar-Female (Debug) | Debug | Dev |
-| RedCalendar-Female (Release) | Release | Production |
-| Staging Debug | Debug-Staging | Staging |
-| Staging Release | Release-Staging | Staging |
+CI (`.github/workflows/build-ios.yml`) archives `RedCalendar-Production` on every push to `main`
+and uploads to TestFlight.
 
-`API_BASE_URL` задаётся в build configurations и читается через `Constants.URLs.api`.
+## Testing
 
-## 📈 Roadmap
+Unit tests live in `RedCalendar-FemaleTests` and cover cycle forecasting, ovulation logic, cycle
+day context, resolved cycle settings, notification preference resolution, sync profile push
+payloads, JSON merge logic, and the localization string catalog's own structural rules
+(`StringCatalogTests`).
 
-### Версия 3.2 ✅
-- ✅ Redux архитектура
-- ✅ Email и Flash Call авторизация
-- ✅ Миграция с Firebase
-- ✅ Push notifications (APNs)
-- ✅ Haptic Feedback
-- ✅ Бесконечный календарь с виртуализацией
-- ✅ Типобезопасная система дат (Daystamp)
+## Status
 
-### Версия 3.3 (В разработке) 🔄
-- 🔄 CRUD операции для пользовательских данных цикла
-- 🔄 Система тегов и симптомов
-- 🔄 Offline поддержка с синхронизацией
-- 🔄 Новый API endpoint: `api.calendar.red`
-- 🔄 Взаимодействие с выбранным днём (ввод данных из календаря)
+Shipped, client and server: cycle CRUD, tags/symptoms, offline sync, the `api.calendar.red`
+endpoint, day-tap interactions, account deletion, email binding/change, and the device list.
 
-### Версия 3.4 (Планируется) 📋
-- 📋 Прогнозы цикла на основе Daystamp
-- 📋 Unit и UI тестирование
-- 📋 Локализация на дополнительные языки
-- 📋 Виджеты для iOS
+Open work is server-only (bulk phone→UID migration, moving `check-phone` to a local lookup,
+retiring Firebase). Notification *scheduling* is undesigned; only the account-level mute
+preference and its sync path have shipped on the client so far.
 
-## 📄 Лицензия
+See `SYNC.md` §12 for the authoritative, up-to-date breakdown.
 
-Исходный код открыт для ознакомления. Использование, копирование или распространение без письменного разрешения автора запрещено. Подробнее — в файле [LICENSE](LICENSE).
+## License
+
+Source is available to view for transparency and to enable free GitHub Actions CI builds. Use,
+copying, modification, or distribution requires written permission from the author. See
+[LICENSE](LICENSE).
 
 ---
 
-**Разработчик:** Артём Болотов  
-**Архитектура:** SwiftUI + Redux + GRDB + Keychain
+**Author:** Artem Bolotov
