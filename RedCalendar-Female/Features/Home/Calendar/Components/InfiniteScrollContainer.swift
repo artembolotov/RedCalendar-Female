@@ -18,6 +18,14 @@ struct InfiniteScrollContainer: UIViewRepresentable {
     let onDragStateChanged: (Bool) -> Void
     let onDayTapped: (Daystamp) -> Void
     let onEmptyAreaTapped: () -> Void
+    // The top band, measured from the top of the scroll view, which reaches under it. A tap
+    // there dismisses the day card rather than selecting a day blurred out behind the band. It
+    // stops at the weekday strip — below it lies the dissolve, where days are already readable
+    // and a tap belongs to the day.
+    //
+    // Told apart here rather than by a hit area on `CalendarTopChrome`, because a hit area
+    // takes the drags as well as the taps, and a drag on the strip is a scroll.
+    let bandHeight: CGFloat
     let initialCenterOffset: CGFloat
     let calculator: MonthCalculator
     let today: Daystamp
@@ -364,6 +372,11 @@ struct InfiniteScrollContainer: UIViewRepresentable {
             guard let scrollView = gesture.view as? UIScrollView else { return }
 
             let tapLocation = gesture.location(in: scrollView)
+
+            guard tapLocation.y - scrollView.bounds.minY >= parent.bandHeight else {
+                parent.onEmptyAreaTapped()
+                return
+            }
 
             // Content-space Y: the scroll view is anchored at centerY, days sit at yPosition
             let tapCalendarY = tapLocation.y - parent.centerY

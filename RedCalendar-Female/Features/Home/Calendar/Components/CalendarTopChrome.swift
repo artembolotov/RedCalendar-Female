@@ -5,7 +5,8 @@
 
 import SwiftUI
 
-// What stands on the top band: the weekday labels, and the hit area covering the bar.
+// What stands on the top band: the weekday labels. It takes no touches — see the note in
+// `body`.
 //
 // It draws no backdrop of its own, and that is the point the band took three attempts to
 // reach. A `Material` here only ever became a plate, because a material over this calendar is
@@ -30,7 +31,6 @@ struct CalendarTopChrome: View {
     /// Status bar plus navigation bar — everything above the weekday strip that the grid now
     /// runs underneath.
     let topInset: CGFloat
-    let onTap: () -> Void
 
     private var band: CalendarBandGeometry {
         CalendarBandGeometry(topInset: topInset)
@@ -46,14 +46,13 @@ struct CalendarTopChrome: View {
         )
         .frame(maxHeight: .infinity, alignment: .bottom)
         .frame(height: band.barHeight)
-        // The scroll view reaches under the navigation bar now. Without a hit area over the
-        // whole bar, a tap beside the menu button would select a day hidden behind it rather
-        // than dismiss the day card — which is what tapping the strip has always done.
-        //
-        // The hit area stops at the bar. Below it lies the dissolve, where days are already
-        // half in focus and plainly readable; a tap there belongs to the day under it.
-        .contentShape(Rectangle())
-        .onTapGesture(perform: onTap)
+        // Every touch on the band falls through to the scroll view underneath. A hit area here
+        // used to catch the tap that dismisses the day card, and with it every drag that began
+        // on the strip, so a scroll started there never reached the calendar. The tap is told
+        // apart by the scroll view itself now — see `InfiniteScrollContainer.bandHeight`. The
+        // part behind the navigation bar never reached this view at all: the bar keeps those
+        // touches for itself.
+        .allowsHitTesting(false)
         .frame(maxWidth: .infinity)
     }
 }
@@ -83,8 +82,7 @@ struct CalendarTopChrome: View {
         CalendarTopChrome(
             weekdays: ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"],
             width: 375,
-            topInset: 100,
-            onTap: {}
+            topInset: 100
         )
     }
     .ignoresSafeArea()

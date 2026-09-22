@@ -262,6 +262,7 @@ struct CalendarView: View {
                                 store.send(.calendar(.selectDay(current == dayStamp ? nil : dayStamp)))
                             },
                             onEmptyAreaTapped: { dismissDayDetails() },
+                            bandHeight: band.barHeight,
                             initialCenterOffset: effectiveOffset,
                             calculator: calc,
                             today: store.state.calendarState.todayDayStamp
@@ -283,8 +284,7 @@ struct CalendarView: View {
                 CalendarTopChrome(
                     weekdays: localizedWeekdays,
                     width: calendarWidth,
-                    topInset: bandInset,
-                    onTap: dismissDayDetails
+                    topInset: bandInset
                 )
             }
             // The band is pinned to the top of the screen, not to the top of whatever the grid

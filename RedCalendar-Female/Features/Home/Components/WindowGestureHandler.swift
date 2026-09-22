@@ -101,7 +101,10 @@ struct WindowGestureHandler: UIViewRepresentable {
         }
 
         private var gestureDirection: GestureDirection = .undecided
-        private var beganInsideFrame = false
+        // Where the first finger of the current gesture came down, in the window. Recorded as
+        // the touch arrives rather than read when the pan begins: by then the finger is already
+        // several points along, and a drag starting just outside the card would be let in.
+        private var touchDownLocation: CGPoint?
         // Whether the vertical branch has been told that the gesture it was receiving turned out
         // to be a horizontal one. Sent once per gesture.
         private var endedVerticalPhase = false
@@ -133,7 +136,6 @@ struct WindowGestureHandler: UIViewRepresentable {
             case .began:
                 gestureDirection = .undecided
                 endedVerticalPhase = false
-                beganInsideFrame = gestureFrame.contains(gesture.location(in: gesture.view))
                 onGestureChange?(0, 0, .began, .vertical)
 
             case .changed:
@@ -158,21 +160,17 @@ struct WindowGestureHandler: UIViewRepresentable {
             }
         }
 
-        // Paging is limited to drags that started over the card; the vertical dismiss keeps
-        // answering the whole window as it always has.
         private func emit(translation: CGPoint, velocity: CGPoint, state: PanGestureState) {
             switch gestureDirection {
             case .horizontal:
                 // Until the axis was settled this gesture was going to the vertical branch, which
-                // has been following it with the card. That phase is over whichever way it goes
-                // from here — including a drag that started outside the card and is about to be
-                // dropped, which would otherwise leave the card held a few points down for good.
+                // has been following it with the card. That phase is over now, and without saying
+                // so the card would be left held a few points down.
                 if !endedVerticalPhase {
                     endedVerticalPhase = true
                     onGestureChange?(0, 0, .cancelled, .vertical)
                 }
 
-                guard beganInsideFrame else { return }
                 onGestureChange?(translation.x, velocity.x, state, .horizontal)
             case .vertical, .undecided:
                 onGestureChange?(translation.y, velocity.y, state, .vertical)
@@ -185,9 +183,23 @@ struct WindowGestureHandler: UIViewRepresentable {
         // any other — the picker's own scroll view had to win a race against it to scroll at
         // all. Only the topmost thing on screen answers a drag, so nothing does while anything
         // is presented over the app.
+        //
+        // And only a drag that began on the card is the card's. Outside it the vertical dismiss
+        // used to answer the whole window, which went unnoticed over the calendar only because
+        // the scroll view's own pan wins the race there. Where nothing else competes — the
+        // navigation bar, the weekday strip — a scroll pulled the card down instead.
         func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
             let window = gestureRecognizer.view as? UIWindow ?? gestureRecognizer.view?.window
-            return window?.rootViewController?.presentedViewController == nil
+            guard window?.rootViewController?.presentedViewController == nil else { return false }
+            guard let touchDownLocation else { return false }
+            return gestureFrame.contains(touchDownLocation)
+        }
+
+        func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
+            if gestureRecognizer.numberOfTouches == 0 {
+                touchDownLocation = touch.location(in: gestureRecognizer.view)
+            }
+            return true
         }
 
         func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer,
