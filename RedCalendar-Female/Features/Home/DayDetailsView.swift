@@ -31,6 +31,10 @@ struct DayDetailsView: View {
     // `CalendarLayout.maxCardHeight`. A day whose content asks for more than this is
     // clipped to it rather than pushing its own selected week under the chrome band.
     let maxHeight: CGFloat
+    // What this card would measure with every row it can show and an empty comment, in
+    // `reportedHeight`'s unit — see `CalendarLayout.fullCardHeight`. Only the notes group's minimum
+    // height is derived from it; the card itself still follows its content.
+    let fullHeight: CGFloat
     // The home indicator's reserve — see `pushedLayer`, the one place this is used. Not part of
     // the root's own measurement: the root has been sized without it for as long as the app has
     // existed, and widening every card's footprint is a bigger change than growing one for a
@@ -74,7 +78,9 @@ struct DayDetailsView: View {
                 path: $path,
                 showTagsSheet: $showTagsSheet,
                 showCommentSheet: $showCommentSheet,
-                trailingControlWidth: trailingControlWidth
+                trailingControlWidth: trailingControlWidth,
+                // Converted to the content's own unit here, where the padding around it is known.
+                fullContentHeight: fullHeight - cardPadding * 2
             )
             // Everything below it moves on every frame of a pull, a push inside the card and a
             // level change — `dragOffset`, `navigationProgress`, `levelHeight` — and none of it is
@@ -274,14 +280,12 @@ struct DayDetailsView: View {
         min(naturalHeight(boxHeight: boxHeight), maxHeight)
     }
 
-    // Matches `.adaptiveBackground(colorScheme:)`'s two fills exactly, so the fade dissolves
-    // into a colour the card's own surface actually is rather than an approximation of it.
-    private var cardBackgroundColor: Color {
-        colorScheme == .dark ? Color(.secondarySystemBackground) : Color(.systemBackground)
-    }
+    // The fill `.adaptiveBackground(colorScheme:)` draws, so the fade dissolves into a colour
+    // the card's own surface actually is rather than an approximation of it.
+    private var cardBackgroundColor: Color { Color("DayCardBackgroundColor") }
 
     // Tall enough to read as a dissolve rather than a stripe — measured against the same
-    // `commentRowMinimumHeight` floor the row itself keeps, so the fade never claims more than
+    // `commentRowMinimumHeight` floor the comment row keeps, so the fade never claims more than
     // a fraction of even the shortest comment box.
     private let truncationFadeHeight: CGFloat = 40
 
@@ -317,6 +321,7 @@ struct DayDetailsView: View {
 private struct DayCardRootContent: View, @MainActor Equatable {
     @EnvironmentObject var store: AppStore
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.displayScale) private var displayScale
 
     let dayStamp: Daystamp
     // Written, never read: a row pushes a screen and the notes rows present a sheet. Both point at
@@ -325,9 +330,14 @@ private struct DayCardRootContent: View, @MainActor Equatable {
     @Binding var showTagsSheet: Bool
     @Binding var showCommentSheet: Bool
     let trailingControlWidth: CGFloat
+    // `DayDetailsView.fullHeight` less the card's padding. Changes only with the screen, so
+    // comparing it costs nothing on the frames `.equatable()` is there to skip.
+    let fullContentHeight: CGFloat
 
     static func == (lhs: DayCardRootContent, rhs: DayCardRootContent) -> Bool {
-        lhs.dayStamp == rhs.dayStamp && lhs.trailingControlWidth == rhs.trailingControlWidth
+        lhs.dayStamp == rhs.dayStamp
+            && lhs.trailingControlWidth == rhs.trailingControlWidth
+            && lhs.fullContentHeight == rhs.fullContentHeight
     }
 
     // The period button and the flow controls are the accent, not the system red — they mark
@@ -474,34 +484,38 @@ private struct DayCardRootContent: View, @MainActor Equatable {
 
         let subtitle = cycleSubtitleText(context: context)
         let periodActionValid = isPeriodActionValid(context: context, buttonState: buttonState)
+        let showFlowRow = context.canSetFlowLevel(today: today)
         let showOvulationRow = context.canEditOvulation(today: today, cycleSettings: cycleSettings)
 
         VStack(alignment: .leading, spacing: 0) {
             header
             if !subtitle.isEmpty || periodActionValid {
                 chipsRow(subtitle: subtitle, buttonState: buttonState, periodActionValid: periodActionValid)
-                    .padding(.top, 8)
+                    .padding(.top, chipsRowTopPadding)
             }
 
-            VStack(alignment: .leading, spacing: 0) {
-                if context.canSetFlowLevel(today: today) {
-                    periodSection(currentLevel: flowLevel)
-                        .padding(.top, 18)
-                }
-                if showOvulationRow {
-                    ovulationSection(status: context.owning?.ovulation)
-                        .padding(.top, 18)
+            // Two groups: what the day's cycle says (flow, ovulation), then what the user wrote
+            // about it (tags, comment). The first is shown only on the days either row applies to.
+            VStack(alignment: .leading, spacing: DayDetailsMetrics.groupSpacing) {
+                if showFlowRow || showOvulationRow {
+                    DayCardGroup {
+                        if showFlowRow {
+                            periodSection(currentLevel: flowLevel)
+                        }
+                        if showFlowRow && showOvulationRow {
+                            DayCardGroupSeparator()
+                        }
+                        if showOvulationRow {
+                            ovulationSection(status: context.owning?.ovulation)
+                        }
+                    }
                 }
                 notesSection
-                    .padding(.top, 18)
             }
-            // The title and chips are one group above every section, so the first section sits
-            // at least as far from them as sections sit from each other (a row's 15 plus 18).
-            //
-            // Without a header on any section any more, a row's own 15pt vertical padding alone
-            // read as continuous list rhythm rather than three separate topics — this is the gap
-            // that used to be carried by the header text and its divider.
-            .padding(.top, 12)
+            .padding(.top, DayDetailsMetrics.groupSpacing)
+            // Room for the card's own bottom corners below the last group, as much as there is
+            // at the card's sides.
+            .padding(.bottom, contentBottomPadding)
         }
     }
 
@@ -558,6 +572,9 @@ private struct DayCardRootContent: View, @MainActor Equatable {
     }
 
     private let chipSpacing: CGFloat = 8
+    private let chipsRowTopPadding: CGFloat = 8
+    private let chipVerticalPadding: CGFloat = 6
+    private let contentBottomPadding: CGFloat = 4
 
     private func cycleDayChip(_ text: String) -> some View {
         Text(text)
@@ -565,7 +582,7 @@ private struct DayCardRootContent: View, @MainActor Equatable {
             .font(.subheadline)
             .foregroundColor(.secondary)
             .padding(.horizontal, 12)
-            .padding(.vertical, 6)
+            .padding(.vertical, chipVerticalPadding)
             .background(
                 Capsule()
                     .fill(Color(UIColor.tertiarySystemFill))
@@ -594,7 +611,7 @@ private struct DayCardRootContent: View, @MainActor Equatable {
                 .fontWeight(.medium)
                 .foregroundColor(isFilled ? .white : accent)
                 .padding(.horizontal, 12)
-                .padding(.vertical, 6)
+                .padding(.vertical, chipVerticalPadding)
                 .background(
                     Group {
                         if isFilled {
@@ -650,6 +667,7 @@ private struct DayCardRootContent: View, @MainActor Equatable {
                 DisclosureIndicator()
             }
             .padding(.vertical, DayDetailsMetrics.valueRowVerticalPadding)
+            .dayCardGroupRow()
         }
     }
 
@@ -664,15 +682,23 @@ private struct DayCardRootContent: View, @MainActor Equatable {
         valueRow("DayDetails.Ovulation.Title", value: ovulationStatusLabel(status), push: .ovulation)
     }
 
+    // The group, not the comment, is what holds a height: tags that wrap onto a second line take
+    // it out of the comment below them, and the group stays where it was. Only once the comment is
+    // down to its own floor does the group grow.
     private var notesSection: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Button(action: { showTagsSheet = true }) {
-                tagsRowContent
-            }
+        DayCardGroup {
+            VStack(alignment: .leading, spacing: 0) {
+                Button(action: { showTagsSheet = true }) {
+                    tagsRowContent
+                }
 
-            Button(action: { showCommentSheet = true }) {
-                commentRowContent
+                DayCardGroupSeparator()
+
+                Button(action: { showCommentSheet = true }) {
+                    commentRowContent
+                }
             }
+            .frame(minHeight: notesGroupMinimumHeight, alignment: .top)
         }
     }
 
@@ -694,10 +720,10 @@ private struct DayCardRootContent: View, @MainActor Equatable {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        // The divider above is as far off as `valueRow`'s. Below, the tags and the comment share
-        // `notesRowGap` between them.
-        .padding(.top, DayDetailsMetrics.valueRowVerticalPadding)
-        .padding(.bottom, notesRowGap / 2)
+        // A row of its own now, separated from the comment by a hairline: the same padding as
+        // `valueRow`, so a single line of tags is exactly as tall as "Обильность".
+        .padding(.vertical, DayDetailsMetrics.valueRowVerticalPadding)
+        .dayCardGroupRow()
     }
 
     // Concatenated `Text` rather than `FlowLayout`: wrapping is resolved by SwiftUI's own text
@@ -714,17 +740,43 @@ private struct DayCardRootContent: View, @MainActor Equatable {
         }
     }
 
-    // The row reads as a writing area rather than a one-line strip, so it keeps a floor of
-    // four text lines. Derived from the body font so it grows with Dynamic Type instead of
-    // clipping a taller line height.
-    private var commentRowMinimumHeight: CGFloat {
-        UIFont.preferredFont(forTextStyle: .body).lineHeight * 4
+    // The notes group takes whatever `fullContentHeight` leaves once every other row the card
+    // can show is counted — whether or not this day shows them. That is what keeps the card
+    // following its content: a day without the flow and ovulation group is shorter by exactly
+    // that group, and a day with it lands on `fullContentHeight` rather than past it. On a short
+    // screen the remainder is less than the floor, and the floor wins; on a tall one it is capped,
+    // so the extra height of a Max-sized screen goes to the calendar rather than to an empty box.
+    // Both bounds are a one-line tag row over a comment of so many lines.
+    //
+    // The rows are counted from font metrics rather than measured: a group sized off a
+    // measurement of the card it sits in would feed its own layout. Every number below is one
+    // this view lays out with, so the two can only drift if one of them is changed alone.
+    private var notesGroupMinimumHeight: CGFloat {
+        let bodyLine = UIFont.preferredFont(forTextStyle: .body).lineHeight
+        let rowPadding = DayDetailsMetrics.valueRowVerticalPadding * 2
+        let valueRow = bodyLine + rowPadding
+        let separator = 1 / displayScale
+        let groupWithEmptyComment = valueRow + separator + rowPadding
+        let floor = groupWithEmptyComment + bodyLine * 3
+        let cap = groupWithEmptyComment + bodyLine * 5
+        guard fullContentHeight.isFinite else { return floor }
+
+        let title = max(UIFont.preferredFont(forTextStyle: .title1).lineHeight, trailingControlWidth)
+        let chips = chipsRowTopPadding + UIFont.preferredFont(forTextStyle: .subheadline).lineHeight + chipVerticalPadding * 2
+        let cycleGroup = valueRow * 2 + separator
+        let rest = title + chips
+            + DayDetailsMetrics.groupSpacing + cycleGroup
+            + DayDetailsMetrics.groupSpacing
+            + contentBottomPadding
+
+        return min(cap, max(floor, fullContentHeight - rest))
     }
 
-    // Between the tags and the comment, which have no divider between them. A full row's padding
-    // on each side (30) left them looking like unrelated blocks, a single one (15) like two lines
-    // of the same paragraph; 22 puts one line of body text every 44pt, the system's row pitch.
-    private let notesRowGap: CGFloat = 22
+    // The comment's own floor, for when the tags above it have taken the rest of the group: two
+    // lines, so it still reads as somewhere to write rather than as one more row.
+    private var commentRowMinimumHeight: CGFloat {
+        UIFont.preferredFont(forTextStyle: .body).lineHeight * 2
+    }
 
     private var commentRowContent: some View {
         Group {
@@ -737,9 +789,10 @@ private struct DayCardRootContent: View, @MainActor Equatable {
                     .foregroundColor(Color(UIColor.tertiaryLabel))
             }
         }
-        .frame(maxWidth: .infinity, minHeight: commentRowMinimumHeight, alignment: .topLeading)
-        .padding(.top, notesRowGap / 2)
-        .padding(.bottom, 12)
+        // Flexible, so it is the row that takes up whatever the group holds beyond the tags.
+        .frame(maxWidth: .infinity, minHeight: commentRowMinimumHeight, maxHeight: .infinity, alignment: .topLeading)
+        .padding(.vertical, DayDetailsMetrics.valueRowVerticalPadding)
+        .dayCardGroupRow()
     }
 }
 
@@ -766,6 +819,7 @@ private extension View {
             dragOffset: 0,
             levelHeight: nil,
             maxHeight: .infinity,
+            fullHeight: .infinity,
             bottomInset: 34,
             path: .constant([]),
             pushedPath: [],

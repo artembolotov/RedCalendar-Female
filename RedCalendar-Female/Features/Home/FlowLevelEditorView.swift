@@ -52,15 +52,15 @@ struct FlowLevelEditorView: View {
                 trailingControlWidth: trailingControlWidth
             )
 
-            VStack(alignment: .leading, spacing: 0) {
+            DayCardGroup {
                 ForEach(Array(FlowLevelOption.all.enumerated()), id: \.offset) { index, level in
                     if index > 0 {
-                        Divider()
+                        DayCardGroupSeparator()
                     }
                     optionRow(level: level)
                 }
             }
-            .padding(.top, 16)
+            .padding(.top, DayDetailsMetrics.groupSpacing)
         }
     }
 
@@ -85,7 +85,7 @@ struct FlowLevelEditorView: View {
                     .accessibilityHidden(true)
             }
             .padding(.vertical, DayDetailsMetrics.valueRowVerticalPadding)
-            .contentShape(Rectangle())
+            .dayCardGroupRow()
         }
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }

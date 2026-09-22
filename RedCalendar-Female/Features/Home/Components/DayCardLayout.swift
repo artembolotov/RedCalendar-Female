@@ -19,6 +19,12 @@ enum DayDetailsMetrics {
     // invisible margin — see `tapTargetMargin(_:)`.
     static let chipTapMargin: CGFloat = 6
     static let closeButtonTapMargin: CGFloat = 7
+    // The white groups the card's rows sit in (`DayCardGroup`): the inset every row and every
+    // separator starts at, the groups' own corner, and the gap between two groups — the same gap
+    // that sits between the chips and the first group, so the title block reads as a group too.
+    static let groupRowInset: CGFloat = 16
+    static let groupCornerRadius: CGFloat = 16
+    static let groupSpacing: CGFloat = 20
 }
 
 /// A card height together with the day it belongs to.

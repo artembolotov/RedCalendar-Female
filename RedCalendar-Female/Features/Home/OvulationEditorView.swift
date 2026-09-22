@@ -42,19 +42,19 @@ struct OvulationEditorView: View {
                 trailingControlWidth: trailingControlWidth
             )
 
-            VStack(alignment: .leading, spacing: 0) {
+            DayCardGroup {
                 optionRow(isSelected: mode == .automatic, title: "OvulationEditor.Automatic.Title") {
                     Text("OvulationEditor.Automatic.Subtitle")
                 } action: {
                     commit(nil)
                 }
-                Divider()
+                DayCardGroupSeparator()
                 optionRow(isSelected: mode == .confirmed, title: "OvulationEditor.Confirmed.Title") {
                     Text("OvulationEditor.Confirmed.Subtitle")
                 } action: {
                     commit(.confirmed(day: dayStamp))
                 }
-                Divider()
+                DayCardGroupSeparator()
                 optionRow(isSelected: mode == .manual, title: "OvulationEditor.Manual.Title", pushes: true) {
                     // The day already chosen, when there is one, says more than a description of
                     // what choosing does.
@@ -66,14 +66,14 @@ struct OvulationEditorView: View {
                 } action: {
                     path.append(.ovulationManualDay)
                 }
-                Divider()
+                DayCardGroupSeparator()
                 optionRow(isSelected: mode == .anovulatory, title: "OvulationEditor.Anovulatory.Title") {
                     Text("OvulationEditor.Anovulatory.Subtitle")
                 } action: {
                     commit(.anovulatory)
                 }
             }
-            .padding(.top, 16)
+            .padding(.top, DayDetailsMetrics.groupSpacing)
         }
     }
 
@@ -109,7 +109,7 @@ struct OvulationEditorView: View {
                 }
             }
             .padding(.vertical, 14)
-            .contentShape(Rectangle())
+            .dayCardGroupRow()
         }
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
@@ -185,19 +185,22 @@ struct OvulationManualDayView: View {
             )
 
             if let first = options.first, let last = options.last {
-                VStack(spacing: 4) {
-                    weekdayHeader
+                DayCardGroup {
+                    VStack(spacing: 4) {
+                        weekdayHeader
 
-                    ForEach(weeks(from: first, to: last), id: \.self) { weekStart in
-                        HStack(spacing: 0) {
-                            ForEach(0..<7, id: \.self) { offset in
-                                let day = weekStart + offset
-                                dayCell(day, isOption: options.contains(day), isSelected: day == selected)
+                        ForEach(weeks(from: first, to: last), id: \.self) { weekStart in
+                            HStack(spacing: 0) {
+                                ForEach(0..<7, id: \.self) { offset in
+                                    let day = weekStart + offset
+                                    dayCell(day, isOption: options.contains(day), isSelected: day == selected)
+                                }
                             }
                         }
                     }
+                    .padding(8)
                 }
-                .padding(.top, 16)
+                .padding(.top, DayDetailsMetrics.groupSpacing)
             }
         }
     }

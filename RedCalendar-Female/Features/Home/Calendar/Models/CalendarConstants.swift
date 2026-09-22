@@ -230,6 +230,13 @@ enum CalendarConstants {
     // only its own row standing takes away the thing it was chosen from. Three keeps the week
     // before and the week after, so the day still sits in a calendar.
     static let minWeeksAboveCard: CGFloat = 3
+    // How much further below that ceiling a card carrying every row it can show — both groups,
+    // an empty comment — stops, in weeks. It is what `CalendarLayout.fullCardHeight` reserves on
+    // top of `minWeeksAboveCard`, and so what decides how tall the tags-and-comment group is
+    // drawn: it takes whatever of that height the other rows leave, within the bounds
+    // `DayDetailsView` puts on it. At zero the fullest ordinary day would open the card to the
+    // ceiling a long comment is cut at.
+    static let fullCardWeeksReserve: CGFloat = 2.5
 
     // MARK: - Month limits for infinite scroll
     //

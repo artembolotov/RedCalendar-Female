@@ -26,6 +26,9 @@ struct DayDetailsPagerView: View {
     // The ceiling every card is drawn under — see `CalendarLayout.maxCardHeight`. Handed
     // straight to each `DayDetailsView`, which is where a card too tall for it is clipped.
     let maxHeight: CGFloat
+    // What a card with every row is laid out to — see `CalendarLayout.fullCardHeight`. Handed
+    // straight to each `DayDetailsView`, which sizes its empty comment from it.
+    let fullHeight: CGFloat
     // The home indicator's reserve — handed straight to each `DayDetailsView`, which is where
     // it becomes room a grown pushed screen leaves at the bottom of the box. See
     // `DayDetailsView.pushedLayer`.
@@ -147,6 +150,7 @@ struct DayDetailsPagerView: View {
         dragOffset: Binding<CGFloat>,
         height: Binding<DayCardHeight>,
         maxHeight: CGFloat = .infinity,
+        fullHeight: CGFloat = .infinity,
         bottomInset: CGFloat = 0
     ) {
         self.dayStamp = dayStamp
@@ -154,6 +158,7 @@ struct DayDetailsPagerView: View {
         self._dragOffset = dragOffset
         self._height = height
         self.maxHeight = maxHeight
+        self.fullHeight = fullHeight
         self.bottomInset = bottomInset
         // Fixed when the card opens. The anchor must not follow `dayStamp`: that moves under
         // the pager exactly when the store catches up with a page the pager has already
@@ -214,6 +219,7 @@ struct DayDetailsPagerView: View {
                     dragOffset: day == activeDay ? dragOffset : 0,
                     levelHeight: drawnLevelHeight,
                     maxHeight: maxHeight,
+                    fullHeight: fullHeight,
                     bottomInset: bottomInset,
                     path: $path,
                     pushedPath: day == activeDay ? mountedPath : [],

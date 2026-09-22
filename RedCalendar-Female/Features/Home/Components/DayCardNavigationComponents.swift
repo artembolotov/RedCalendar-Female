@@ -137,3 +137,51 @@ struct DisclosureIndicator: View {
             .accessibilityHidden(true)
     }
 }
+
+/// A white group of rows on the card, as an inset grouped table draws a section — without the
+/// header: the rows name themselves. Not a `List`: a list scrolls, and a scroll view inside the
+/// card races the window's pan recognizer for every vertical drag.
+///
+/// Rows take their own inset (`dayCardGroupRow()`) rather than the group padding its content, so
+/// a row's tap target reaches the group's edges and a separator can run on to the trailing edge
+/// the way a table's does.
+struct DayCardGroup<Content: View>: View {
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            content
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        // Lifted off the card the way the weekday bar is lifted off the page — the card is the
+        // bar's own near-white, so a white group needs the bar's shadow to read as a group at all.
+        // `WeekdaysBarShadowColor` is clear in the dark theme, where the fill alone separates it.
+        .background(
+            RoundedRectangle(cornerRadius: DayDetailsMetrics.groupCornerRadius, style: .continuous)
+                .fill(Color("DayCardGroupColor"))
+                .shadow(
+                    color: Color("WeekdaysBarShadowColor"),
+                    radius: CalendarConstants.weekdaysBarShadowRadius,
+                    x: 0,
+                    y: CalendarConstants.weekdaysBarShadowOffsetY
+                )
+        )
+    }
+}
+
+/// The hairline between two rows of a `DayCardGroup`: inset at the rows' leading edge, flush
+/// with the group's trailing one.
+struct DayCardGroupSeparator: View {
+    var body: some View {
+        Divider()
+            .padding(.leading, DayDetailsMetrics.groupRowInset)
+    }
+}
+
+extension View {
+    /// A row inside a `DayCardGroup`: inset from the group's sides, tappable across all of it.
+    func dayCardGroupRow() -> some View {
+        padding(.horizontal, DayDetailsMetrics.groupRowInset)
+            .contentShape(Rectangle())
+    }
+}

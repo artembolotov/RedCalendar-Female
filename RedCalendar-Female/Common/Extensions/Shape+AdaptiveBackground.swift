@@ -18,17 +18,26 @@ extension InsettableShape {
     /// sheet standing on the page, not a pane to see the page through, and the light theme has
     /// always drawn it opaque.
     ///
-    /// `secondarySystemBackground` is (28,28,30) in dark against the page's (18,18,20): a step
-    /// small enough to stay quiet and large enough to read across a surface this size. The rim
-    /// finishes the top edge, at the low alpha a full-width card needs — the weekdays capsule's
-    /// 0.34 is sized for a ⌀36-scale shape over the busy grid and would read as a drawn box here.
+    /// The fill is `DayCardBackgroundColor`: the weekday bar's surface, flattened to one opaque
+    /// colour — `WeekdaysBarColor` over the page, as the bar is measured on screen: #FDFCFC in the
+    /// light theme, (23,23,24) in the dark one. The groups on it (`DayCardGroup`) are white and
+    /// carry the bar's shadow in the light theme, and a step lighter than the card in the dark one.
+    ///
+    /// Opaque because the card, unlike the bar, has a sharp calendar under it rather than the
+    /// blurred band. Built the bar's way, layer for layer, the dark theme showed the grid's digits
+    /// through it; over a material instead, the light card went grey and the blurred grid — thin
+    /// digits, nothing solid — barely showed at all. The bar reads as glass because of the blurred
+    /// band around it, not because of its own fill, and there is no such band around the card.
+    ///
+    /// The rim finishes the dark card's edge at the low alpha a full-width card needs — the
+    /// weekday bar's 0.34 reads as a drawn box at this size.
     @ViewBuilder
     func adaptiveBackground(colorScheme: ColorScheme) -> some View {
         if colorScheme == .dark {
-            fill(Color(.secondarySystemBackground))
+            fill(Color("DayCardBackgroundColor"))
                 .overlay(strokeBorder(Color.white.opacity(0.08), lineWidth: 1))
         } else {
-            fill(Color(.systemBackground))
+            fill(Color("DayCardBackgroundColor"))
         }
     }
 }

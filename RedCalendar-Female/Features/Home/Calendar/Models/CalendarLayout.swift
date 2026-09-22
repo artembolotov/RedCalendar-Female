@@ -65,6 +65,18 @@ struct CalendarLayout: Equatable {
         return max(0, screenHeight - chromeHeight - weekHeight * CalendarConstants.minWeeksAboveCard)
     }
 
+    /// The height a card showing every row it can — both groups, an empty comment — is laid out
+    /// to, a `CalendarConstants.fullCardWeeksReserve` below `maxCardHeight`. Not a floor: a card
+    /// with fewer rows is shorter by exactly those rows, and the card still follows its content.
+    /// What this sizes is the tags-and-comment group, which gets whatever the other rows leave —
+    /// a taller screen gets a taller writing area, up to a cap, and a short one keeps the minimum.
+    ///
+    /// `.infinity` whenever `maxCardHeight` is, for the same reason.
+    var fullCardHeight: CGFloat {
+        guard weekHeight > 0, screenHeight > 0 else { return .infinity }
+        return max(0, maxCardHeight - weekHeight * CalendarConstants.fullCardWeeksReserve)
+    }
+
     /// How far off the resting centre the selected week has to sit while a card is open.
     ///
     /// The card eats the bottom of the screen and the band eats the top, so the middle of the

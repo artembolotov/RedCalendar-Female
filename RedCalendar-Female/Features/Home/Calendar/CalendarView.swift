@@ -23,6 +23,9 @@ struct CalendarView: View {
     /// direction from `cardHeight`: the calendar is what knows the screen and the chrome, the
     /// card is what has to obey the number.
     @Binding var maxCardHeight: CGFloat
+    /// What a card with every row is laid out to — see `CalendarLayout.fullCardHeight`. Written
+    /// alongside `maxCardHeight`, from the same layout.
+    @Binding var fullCardHeight: CGFloat
     /// Status bar plus navigation bar — everything the grid runs underneath.
     ///
     /// Handed in rather than read from this view's own `GeometryReader`, and that is the whole
@@ -195,12 +198,14 @@ struct CalendarView: View {
         floatingButtonState: Binding<FloatingButtonState>,
         scrollCommand: Binding<ScrollCommand>,
         maxCardHeight: Binding<CGFloat> = .constant(.infinity),
+        fullCardHeight: Binding<CGFloat> = .constant(.infinity),
         topInset: CGFloat = 0
     ) {
         self._cardHeight = cardHeight
         self._floatingButtonState = floatingButtonState
         self._scrollCommand = scrollCommand
         self._maxCardHeight = maxCardHeight
+        self._fullCardHeight = fullCardHeight
         self.topInset = topInset
     }
 
@@ -599,6 +604,7 @@ struct CalendarView: View {
 
         calculator = newCalculator
         maxCardHeight = layout(with: newCalculator).maxCardHeight
+        fullCardHeight = layout(with: newCalculator).fullCardHeight
 
         // Calculate all offset components
         recalculateOffsets(calculator: newCalculator)
@@ -628,6 +634,7 @@ struct CalendarView: View {
 
             calculator = newCalculator
             maxCardHeight = layout(with: newCalculator).maxCardHeight
+            fullCardHeight = layout(with: newCalculator).fullCardHeight
 
             scrollOffset -= newCalculator.originShift(from: currentCalculator)
 
