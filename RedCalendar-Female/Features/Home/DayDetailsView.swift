@@ -28,8 +28,9 @@ struct DayDetailsView: View {
     // `DayDetailsPagerView.drawnLevelHeight`.
     let levelHeight: CGFloat?
     // The ceiling on the card's own box, in `reportedHeight`'s unit — see
-    // `CalendarLayout.maxCardHeight`. A day whose content asks for more than this is
-    // clipped to it rather than pushing its own selected week under the chrome band.
+    // `CalendarLayout.maxCardHeight`. The root screen is laid out inside it, so a long comment
+    // is cut short with an ellipsis rather than pushing its own selected week under the chrome
+    // band; only rows that cannot shrink any further are still clipped to it.
     let maxHeight: CGFloat
     // What this card would measure with every row it can show and an empty comment, in
     // `reportedHeight`'s unit — see `CalendarLayout.fullCardHeight`. Only the notes group's minimum
@@ -50,9 +51,9 @@ struct DayDetailsView: View {
 
     @State private var showTagsSheet = false
     @State private var showCommentSheet = false
-    // Whether the content this frame asked for is taller than `maxHeight` — set from the same
-    // measurement `reportedHeight` clips, so the two never disagree about whether a cut
-    // happened. Drives the fade at the bottom edge that stands in for the part that got cut.
+    // Whether the root content is still taller than `maxHeight` once the comment has given up
+    // all it can — measured on the content itself, inside the frame that holds it to the ceiling.
+    // Drives the fade at the bottom edge that stands in for the part that got cut.
     @State private var isContentClipped = false
 
     // Has to clear the full reach of the card's continuous bottom corners (~1.5x the radius), so
@@ -88,6 +89,25 @@ struct DayDetailsView: View {
             // sections are laid out again on those frames but not rebuilt; the store and the
             // environment still reach them directly, as they would any view that reads them.
             .equatable()
+            // Measured inside the frame below, because the frame reports the ceiling whatever it
+            // holds: content with nothing left to give overflows it, and only the content's own
+            // size says so.
+            .background(
+                GeometryReader { geometry in
+                    Color.clear
+                        .preference(
+                            key: DayCardClippedKey.self,
+                            value: isActive && pushedPath.isEmpty && geometry.size.height > maxContentHeight
+                        )
+                }
+            )
+            // Proposed, not just clipped: offered nothing, the frame takes the content's own
+            // height and only clamps it, and a clamped content is laid out again at that height.
+            // The rows that cannot give anything up keep theirs and the comment takes what is
+            // left, ending in an ellipsis — the same cut on a day with the flow and ovulation
+            // group as on one without it, because it is the whole card that is held to the
+            // ceiling and not the notes group alone.
+            .frame(maxHeight: maxContentHeight, alignment: .top)
             .padding(cardPadding)
             .padding(.bottom, globalBottomOffset)
             // Keeps the content at the height it asks for so that a level shorter than the content
@@ -101,10 +121,6 @@ struct DayDetailsView: View {
                             value: isActive
                                 ? DayCardHeight(day: dayStamp, height: reportedHeight(boxHeight: geometry.size.height))
                                 : .none
-                        )
-                        .preference(
-                            key: DayCardClippedKey.self,
-                            value: isActive && pushedPath.isEmpty && naturalHeight(boxHeight: geometry.size.height) > maxHeight
                         )
                 }
             )
@@ -154,10 +170,11 @@ struct DayDetailsView: View {
             DayCardCloseButton(size: trailingControlWidth, backgroundColor: cardBackgroundColor, action: dismissView)
                 .padding([.top, .trailing], cardPadding)
         }
-        // The card is a fixed box: the open flow picker and the notes it pushes down run past
-        // the bottom edge and are cut there instead of making the card taller. A comment long
-        // enough to hit `maxHeight` is cut the same way — the fade below is what tells the two
-        // apart from a card that simply ends.
+        // A comment long enough to reach `maxHeight` ends in an ellipsis inside the card (see the
+        // frame on the root content). What can still run past the bottom edge is rows that have
+        // nothing left to give — the notes group's own floor on a short screen, or at a large
+        // text size — and those are cut there instead of making the card taller. The fade below
+        // is what tells that apart from a card that simply ends.
         .overlay(alignment: .bottom) {
             if isContentClipped {
                 LinearGradient(
@@ -166,6 +183,9 @@ struct DayDetailsView: View {
                     endPoint: .bottom
                 )
                 .frame(height: truncationFadeHeight)
+                // The box's bottom `globalBottomOffset` hangs past the screen edge, so the fade is
+                // lifted to end where the card visibly does.
+                .padding(.bottom, globalBottomOffset)
                 .allowsHitTesting(false)
             }
         }
@@ -261,32 +281,30 @@ struct DayDetailsView: View {
 
     // MARK: - Frame reporting
 
-    // How tall the content actually asked to be, in the same unit `reportedHeight` reports in.
-    // Kept separate from it so both `reportedHeight` (which clips) and the clipped-detection
-    // preference (which needs the *un*clipped number to notice the clip happened) read off one
-    // calculation instead of two that could drift apart.
-    private func naturalHeight(boxHeight: CGFloat) -> CGFloat {
-        boxHeight - globalBottomOffset
+    // `maxHeight` in the root content's own unit, inside the card's padding.
+    private var maxContentHeight: CGFloat {
+        max(0, maxHeight - cardPadding * 2)
     }
 
     // The level the pager works in is the card's own box as it stands on screen: the measured
-    // height less the bottom offset that hangs off the screen edge, and never past `maxHeight` —
-    // the calendar centres the selected day in the space above this box, and a box taller than
-    // that ceiling would push the day itself under the chrome band. The inset above the box is
-    // deliberately *not* part of it — that band is where the shadow is drawn, and counting it
-    // centred the selected day in the space above the shadow rather than above the card. Both
-    // conversions live here so the pager only ever handles one unit.
+    // height less the bottom offset that hangs off the screen edge. It never passes `maxHeight`,
+    // because the root content is framed to it — the calendar centres the selected day in the
+    // space above this box, and a box taller than that ceiling would push the day itself under
+    // the chrome band. The inset above the box is deliberately *not* part of it — that band is
+    // where the shadow is drawn, and counting it centred the selected day in the space above the
+    // shadow rather than above the card. The conversion lives here so the pager only ever
+    // handles one unit.
     private func reportedHeight(boxHeight: CGFloat) -> CGFloat {
-        min(naturalHeight(boxHeight: boxHeight), maxHeight)
+        boxHeight - globalBottomOffset
     }
 
     // The fill `.adaptiveBackground(colorScheme:)` draws, so the fade dissolves into a colour
     // the card's own surface actually is rather than an approximation of it.
     private var cardBackgroundColor: Color { Color("DayCardBackgroundColor") }
 
-    // Tall enough to read as a dissolve rather than a stripe — measured against the same
-    // `commentRowMinimumHeight` floor the comment row keeps, so the fade never claims more than
-    // a fraction of even the shortest comment box.
+    // Tall enough to read as a dissolve rather than a stripe, and short against the
+    // `commentRowMinimumHeight` floor the comment row keeps — the rows it lies over are the
+    // ones already down to their floors.
     private let truncationFadeHeight: CGFloat = 40
 
     private var drawnBoxHeight: CGFloat? {
@@ -511,8 +529,14 @@ private struct DayCardRootContent: View, @MainActor Equatable {
                     }
                 }
                 notesSection
+                    // Last to be laid out, so it is the comment that is shortened rather than
+                    // the flow and ovulation rows above it.
+                    .layoutPriority(-1)
             }
             .padding(.top, DayDetailsMetrics.groupSpacing)
+            // The groups are what gives height back when the card reaches its ceiling — and of
+            // them only the notes group can, below.
+            .layoutPriority(-1)
             // Room for the card's own bottom corners below the last group, as much as there is
             // at the card's sides.
             .padding(.bottom, contentBottomPadding)
@@ -684,13 +708,15 @@ private struct DayCardRootContent: View, @MainActor Equatable {
 
     // The group, not the comment, is what holds a height: tags that wrap onto a second line take
     // it out of the comment below them, and the group stays where it was. Only once the comment is
-    // down to its own floor does the group grow.
+    // down to its own floor does the group grow. When the card is at its ceiling the tags are laid
+    // out first, up to their own line limit, and the comment gets the rest.
     private var notesSection: some View {
         DayCardGroup {
             VStack(alignment: .leading, spacing: 0) {
                 Button(action: { showTagsSheet = true }) {
                     tagsRowContent
                 }
+                .layoutPriority(1)
 
                 DayCardGroupSeparator()
 
@@ -714,6 +740,12 @@ private struct DayCardRootContent: View, @MainActor Equatable {
             } else {
                 tagsText(tags)
                     .multilineTextAlignment(.leading)
+                    // The tags are a summary with the full list a tap away; past two lines they
+                    // would take the space the comment is written in.
+                    .lineLimit(tagsLineLimit)
+                    // The ellipsis belongs to no segment and would take the button's tint — the
+                    // accent, which reads as one more tag in a colour no category has.
+                    .foregroundColor(.secondary)
                     // Read as a list of names, not as the hash signs and double spaces that lay
                     // them out on screen.
                     .accessibilityLabel(Text(verbatim: tags.compactMap(\.name).joined(separator: ", ")))
@@ -771,6 +803,8 @@ private struct DayCardRootContent: View, @MainActor Equatable {
 
         return min(cap, max(floor, fullContentHeight - rest))
     }
+
+    private let tagsLineLimit = 2
 
     // The comment's own floor, for when the tags above it have taken the rest of the group: two
     // lines, so it still reads as somewhere to write rather than as one more row.
