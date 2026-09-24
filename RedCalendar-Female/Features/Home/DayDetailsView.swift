@@ -545,11 +545,17 @@ private struct DayCardRootContent: View, @MainActor Equatable {
 
     // MARK: - Header
 
+    // The title sits a little below the close button rather than level with it. Level, the period
+    // chip in the row underneath ended up straight below the button with their tap areas
+    // overlapping, so a slightly high tap on the chip closed the card. Lowered by a few points
+    // alone, the title looked misaligned with the button; lowered and set a size up, it reads as
+    // the large title under a corner control that a system sheet has.
     private var header: some View {
         HStack(alignment: .top) {
             Text(titleText)
-                .font(.title)
+                .font(.largeTitle)
                 .fontWeight(.bold)
+                .padding(.top, titleTopPadding)
 
             Spacer()
 
@@ -562,67 +568,72 @@ private struct DayCardRootContent: View, @MainActor Equatable {
 
     // MARK: - Chips row
 
-    // The cycle day and the period action used to be a subtitle followed by a full-width button
-    // underneath it — two different vocabularies for two facts about the same day. Both are now
-    // chips, in the row `TagsSheetView`'s tag row already draws below: the day card reads as one
-    // row of facts about the day, then another. The period chip leads when it's shown — it's the
-    // one actionable thing in the row, and the tappable element leading reads as the row's point
-    // rather than an afterthought tacked onto a plain fact. The cycle-day chip is neutral and
-    // inert — it states a number, it does nothing — so only the period chip needs a tap target.
+    // The fact on the leading side, the action on the trailing one — the order every value row in
+    // the groups below already reads in. The cycle day was a grey capsule once, beside the period
+    // chip: two capsules of one shape, only one of them tappable, and the inert one read as a
+    // disabled button. It is plain text now, so the one capsule left is the one that does
+    // something. A period chip with no cycle day beside it keeps the leading edge rather than
+    // floating at the trailing one with nothing to answer.
     //
-    // Side by side the two chips already fill most of a narrow card at the default text size, so
-    // a larger one stacks them rather than pushing the second past the card's edge.
+    // At a large text size the two no longer share a line on a narrow card, so the chip drops
+    // under the text instead of pushing it into a wrap.
     @ViewBuilder
     private func chipsRow(subtitle: String, buttonState: PeriodButtonState, periodActionValid: Bool) -> some View {
-        let chips = Group {
+        let text = Group {
+            if !subtitle.isEmpty {
+                cycleDayText(subtitle)
+            }
+        }
+        let chip = Group {
             if periodActionValid {
                 periodChip(buttonState: buttonState)
             }
+        }
+        let row = HStack(spacing: chipSpacing) {
+            text
             if !subtitle.isEmpty {
-                cycleDayChip(subtitle)
+                Spacer(minLength: 0)
             }
+            chip
+        }
+        let stack = VStack(alignment: .leading, spacing: chipSpacing) {
+            text
+            chip
         }
 
         if #available(iOS 16.0, *) {
             ViewThatFits(in: .horizontal) {
-                HStack(spacing: chipSpacing) { chips }
-                VStack(alignment: .leading, spacing: chipSpacing) { chips }
+                row
+                stack
             }
         } else if dynamicTypeSize > .large {
-            VStack(alignment: .leading, spacing: chipSpacing) { chips }
+            stack
         } else {
-            HStack(spacing: chipSpacing) { chips }
+            row
         }
     }
 
+    private let titleTopPadding: CGFloat = 6
     private let chipSpacing: CGFloat = 8
     private let chipsRowTopPadding: CGFloat = 8
     private let chipVerticalPadding: CGFloat = 6
     private let contentBottomPadding: CGFloat = 4
 
-    private func cycleDayChip(_ text: String) -> some View {
+    private func cycleDayText(_ text: String) -> some View {
         Text(text)
             .numericTextTransition()
-            .font(.subheadline)
             .foregroundColor(.secondary)
-            .padding(.horizontal, 12)
-            .padding(.vertical, chipVerticalPadding)
-            .background(
-                Capsule()
-                    .fill(Color(UIColor.tertiarySystemFill))
-            )
-            // Scoped to this chip alone: the period chip's fill changes in the same update, and
+            // Scoped to this text alone: the period chip's fill changes in the same update, and
             // animating it looked wrong on device — it switches instantly, as it always did. The
             // value is the key because the change arrives from the database observation, not
             // from inside a tap's transaction.
             .animation(.easeInOut(duration: 0.25), value: text)
     }
 
-    // Drawn in `TagChip`'s own vocabulary now — capsule, 12/6 padding, outline text in the
-    // chip's own colour — rather than the calendar period bar's shape, since it sits in the same
-    // row as the cycle-day chip instead of standing alone as a CTA under the title. What still
-    // carries over unchanged is `PeriodButtonState`'s meaning: solid accent once a day is
-    // recorded, a hollow accent outline while the tap would still start or end one.
+    // Drawn in `TagChip`'s own vocabulary — capsule, 12/6 padding, outline text in the chip's
+    // own colour — rather than the calendar period bar's shape. What carries over from the bar is
+    // `PeriodButtonState`'s meaning: solid accent once a day is recorded, a hollow accent outline
+    // while the tap would still start or end one.
     private func periodChip(buttonState: PeriodButtonState) -> some View {
         let isStart = buttonState == .startOutline || buttonState == .startFilled
         let isFilled = buttonState == .startFilled || buttonState == .endFilled
@@ -793,8 +804,9 @@ private struct DayCardRootContent: View, @MainActor Equatable {
         let cap = groupWithEmptyComment + bodyLine * 5
         guard fullContentHeight.isFinite else { return floor }
 
-        let title = max(UIFont.preferredFont(forTextStyle: .title1).lineHeight, trailingControlWidth)
-        let chips = chipsRowTopPadding + UIFont.preferredFont(forTextStyle: .subheadline).lineHeight + chipVerticalPadding * 2
+        let title = max(UIFont.preferredFont(forTextStyle: .largeTitle).lineHeight + titleTopPadding, trailingControlWidth)
+        let periodChip = UIFont.preferredFont(forTextStyle: .subheadline).lineHeight + chipVerticalPadding * 2
+        let chips = chipsRowTopPadding + max(bodyLine, periodChip)
         let cycleGroup = valueRow * 2 + separator
         let rest = title + chips
             + DayDetailsMetrics.groupSpacing + cycleGroup
