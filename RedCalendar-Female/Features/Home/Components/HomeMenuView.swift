@@ -58,6 +58,15 @@ struct HomeMenuView: View {
                 StatisticsView()
                     .tint(accent)
             }
+            // Only a notification tap can open Settings while Statistics is up — the menu is
+            // under it. SwiftUI swaps the one sheet for the other but leaves `showStatistics`
+            // true, and presents Statistics again the moment Settings closes: a screen the
+            // person already left by following the notification.
+            .onChange(of: showSettings) { isPresented in
+                if isPresented {
+                    showStatistics = false
+                }
+            }
     }
 
     // MARK: - Private Views
