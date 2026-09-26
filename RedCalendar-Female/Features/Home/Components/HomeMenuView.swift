@@ -7,6 +7,25 @@
 
 import SwiftUI
 
+/// Which of the menu's sheets is up. One value rather than a flag per sheet, because both hang off
+/// the same button and only one can be on screen: with two flags, a notification tap that opened
+/// Settings over Statistics left Statistics' flag standing, and SwiftUI brought it back the moment
+/// Settings closed.
+///
+/// `openingOnEmail` is what the settings sheet's *root* is: normally the settings list, but
+/// straight to `ProfileView` when a pending "add your email" tap is why the sheet is opening at
+/// all. It is fixed for the whole presentation rather than read live off
+/// `store.state.emailBinding != nil`: `.sheet`'s content re-evaluates on every render while
+/// presented, and a live value would swap the root the moment the email screen finishes (which
+/// clears `emailBinding` well before the person is done with `ProfileView` underneath it) —
+/// closing the whole sheet instead of just the email step.
+enum HomeMenuSheet: Identifiable, Hashable {
+    case settings(openingOnEmail: Bool)
+    case statistics
+
+    var id: Self { self }
+}
+
 // MARK: - HomeMenuView Component
 struct HomeMenuView: View {
     // Passed in rather than pulled from the environment: this view is toolbar content, and an
@@ -15,27 +34,10 @@ struct HomeMenuView: View {
     let accent: Color
 
     // Owned by `HomeView`, not here, for the same reason: a pending "add your email" notification
-    // tap (SYNC.md §20's engagement pushes) has to be able to open this sheet from outside, and
-    // that needs `store` — which this view cannot read reliably. `HomeView` can, and decides when
-    // to flip this from `openSettingsIfEmailPending()`; this view keeps deciding when to flip it
-    // false, and when the menu button itself opens it.
-    @Binding var showSettings: Bool
-    @State private var showStatistics = false
-
-    // Also passed in from `HomeView` rather than read from `store`, same reasoning as `accent`.
-    // Decides what the settings sheet's *root* is: normally the settings list, but straight to
-    // `ProfileView` — skipping the list entirely — when a pending "add your email" tap is why the
-    // sheet is opening at all. This is a plain choice of root content, not a push performed after
-    // the fact: `SettingsView` keeps its ordinary `NavigationLink` to `ProfileView`, untouched, for
-    // every manual visit.
-    //
-    // `HomeView` freezes this for the whole presentation rather than handing down a live
-    // `store.state.emailBinding != nil` — see its own doc comment. That distinction matters here
-    // specifically: `.sheet`'s content closure below re-evaluates on every render while presented,
-    // same as any other view builder, so a live value would swap the sheet's root the moment the
-    // email screen finishes (which clears `emailBinding` well before the person is done with
-    // `ProfileView` underneath it) — closing the whole sheet instead of just the email step.
-    let openDirectlyToEmailEntry: Bool
+    // tap (SYNC.md §20's engagement pushes) has to be able to open Settings from outside, and
+    // that needs `store` — which this view cannot read reliably. `HomeView` can, and does it from
+    // `openSettingsIfEmailPending()`; the menu's own buttons set it here.
+    @Binding var presentedSheet: HomeMenuSheet?
 
     // What iOS 26 gives a toolbar button on its own. Matched by eye rather than derived —
     // there is no public metric for it, and it only has to read as the same control.
@@ -45,26 +47,17 @@ struct HomeMenuView: View {
 
     var body: some View {
         button
-            .sheet(isPresented: $showSettings) {
-                if openDirectlyToEmailEntry {
+            .sheet(item: $presentedSheet) { sheet in
+                switch sheet {
+                case .settings(openingOnEmail: true):
                     EmailEntryDeepLink()
                         .tint(accent)
-                } else {
+                case .settings(openingOnEmail: false):
                     SettingsView()
                         .tint(accent)
-                }
-            }
-            .sheet(isPresented: $showStatistics) {
-                StatisticsView()
-                    .tint(accent)
-            }
-            // Only a notification tap can open Settings while Statistics is up — the menu is
-            // under it. SwiftUI swaps the one sheet for the other but leaves `showStatistics`
-            // true, and presents Statistics again the moment Settings closes: a screen the
-            // person already left by following the notification.
-            .onChange(of: showSettings) { isPresented in
-                if isPresented {
-                    showStatistics = false
+                case .statistics:
+                    StatisticsView()
+                        .tint(accent)
                 }
             }
     }
@@ -116,13 +109,13 @@ struct HomeMenuView: View {
     private var menu: some View {
         Menu {
             Button(action: {
-                showSettings = true
+                presentedSheet = .settings(openingOnEmail: false)
             }) {
                 Label("HomeMenu.Settings.Button", systemImage: "gear")
             }
 
             Button(action: {
-                showStatistics = true
+                presentedSheet = .statistics
             }) {
                 Label("HomeMenu.Statistics.Button", systemImage: "chart.bar")
             }
@@ -151,9 +144,9 @@ struct HomeMenuView: View {
     }
 }
 
-/// The settings sheet's alternate root for `openDirectlyToEmailEntry`: `ProfileView` alone, with
-/// its own close button since there is no `SettingsView` list underneath it to supply one via a
-/// back arrow.
+/// The settings sheet's alternate root for `.settings(openingOnEmail: true)`: `ProfileView` alone,
+/// with its own close button since there is no `SettingsView` list underneath it to supply one via
+/// a back arrow.
 ///
 /// A dedicated view rather than an inline `NavigationView { ProfileView() }` in `HomeMenuView`'s
 /// body, so that the two roots carry the same `emailBindingSheet()` in the same place. Clearing
