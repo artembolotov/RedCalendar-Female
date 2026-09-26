@@ -82,6 +82,7 @@ struct SettingsView: View {
                 .closeButtonToolbar()
             }
         }
+        .emailBindingSheet()
     }
 
     // MARK: - Private Views

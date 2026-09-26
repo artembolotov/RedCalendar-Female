@@ -142,13 +142,8 @@ struct ProfileView: View {
         .sheet(isPresented: $isPresentingDeleteAccount) {
             DeleteAccountSheet()
         }
-        // Presented from the state rather than from a local flag, for the reason
-        // `EmailBindingView` gives: the flow outlives the sheet — a confirmation that lands has a
-        // sync run to ask for. Dismissing by swipe therefore has to clear the state too, which is
-        // what the binding's setter is for.
-        .sheet(isPresented: emailBindingPresented) {
-            EmailBindingView()
-        }
+        // The email row's sheet is not presented from here but from the settings sheet's root
+        // (`emailBindingSheet()`), so a notification tap reaches it whichever screen is on top.
     }
 
     // MARK: - Private Views
@@ -235,17 +230,6 @@ struct ProfileView: View {
     // to do.
     private var cycleLength: Int { draftCycleLength ?? store.state.cycleSettings.cycleLength }
     private var periodLength: Int { draftPeriodLength ?? store.state.cycleSettings.periodLength }
-
-    private var emailBindingPresented: Binding<Bool> {
-        Binding(
-            get: { store.state.emailBinding != nil },
-            set: { isPresented in
-                if !isPresented, store.state.emailBinding != nil {
-                    store.send(.emailBinding(.set(nil)))
-                }
-            }
-        )
-    }
 
     private var nameBinding: Binding<String> {
         Binding(get: { name }, set: { draftName = $0 })

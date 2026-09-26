@@ -194,9 +194,19 @@ struct HomeView: View {
                 // The other half of `openDirectlyToEmailEntry`'s reset: once the whole settings
                 // sheet has actually closed, the next visit — from the toolbar menu, or from a
                 // later notification — starts fresh rather than remembering this one.
+                //
+                // The email flow is closed with it. Dismissing the settings sheet takes the email
+                // sheet on top of it down without calling that sheet's own binding setter, so the
+                // state would otherwise stand non-nil with nothing on screen: the next tap would
+                // then send the very `.entry()` already stored, the store would publish nothing,
+                // and `onChange(of: emailBinding)` above would never hear of it. It would also
+                // pop the email sheet open by itself on the next manual visit to Settings.
                 .onChange(of: showSettings) { isPresented in
                     if !isPresented {
                         openDirectlyToEmailEntry = false
+                        if store.state.emailBinding != nil {
+                            store.send(.emailBinding(.set(nil)))
+                        }
                     }
                 }
             }
@@ -221,7 +231,9 @@ struct HomeView: View {
     /// `SettingsView` was already the sheet's root — swapping it out for `EmailEntryDeepLink`
     /// mid-presentation, the same live-swap bug `openDirectlyToEmailEntry`'s own doc comment
     /// describes, just triggered from the other end of the chain. Once the sheet is already open,
-    /// whatever is already on screen (manual or automatic) is left to handle its own state.
+    /// whatever is already on screen (manual or automatic) is left to handle its own state — the
+    /// email sheet hangs off the settings sheet's root (`emailBindingSheet()`), so it answers the
+    /// state whichever settings screen is on top.
     private func openSettingsIfEmailPending() {
         guard store.state.emailBinding != nil, !showSettings else { return }
         openDirectlyToEmailEntry = true

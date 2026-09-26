@@ -6,8 +6,8 @@
 import SwiftUI
 
 /// Binding an address to the account, and changing the one it has (SYNC.md §18.12). Two steps —
-/// an address, then the code sent to it — presented as one sheet over `ProfileView`, because they
-/// are one intention and backing out of the second means going back to the first, not leaving.
+/// an address, then the code sent to it — presented as one sheet over the settings stack, because
+/// they are one intention and backing out of the second means going back to the first, not leaving.
 ///
 /// The state machine is `AppState.emailBinding`, not `@State`: a request is in flight across a
 /// screen the person can swipe away, and the confirmation that lands has a sync run to ask for
@@ -265,6 +265,45 @@ struct EmailBindingView: View {
 
         focusedField = nil
         store.send(.emailBinding(.set(.confirming(email: email, code: codeInput, isChange: isChange))))
+    }
+}
+
+// MARK: - Presentation
+
+/// Presents `EmailBindingView` whenever `AppState.emailBinding` is set. Applied to the settings
+/// sheet's root `NavigationView` — both roots `HomeMenuView` can open it on — rather than to
+/// `ProfileView`, which is only one screen of that stack. A notification tap can arrive with any
+/// of them on top: hung on `ProfileView`, the tap set the state and nothing on screen answered it,
+/// and the state then stood non-nil with nobody to clear it, so the next identical tap changed
+/// nothing the store would publish.
+///
+/// Presented from the state rather than from a local flag, for the reason `EmailBindingView`
+/// gives: the flow outlives the sheet. Dismissing by swipe therefore has to clear the state too,
+/// which is what the binding's setter is for.
+private struct EmailBindingSheet: ViewModifier {
+    @EnvironmentObject var store: AppStore
+
+    func body(content: Content) -> some View {
+        content.sheet(isPresented: isPresented) {
+            EmailBindingView()
+        }
+    }
+
+    private var isPresented: Binding<Bool> {
+        Binding(
+            get: { store.state.emailBinding != nil },
+            set: { isPresented in
+                if !isPresented, store.state.emailBinding != nil {
+                    store.send(.emailBinding(.set(nil)))
+                }
+            }
+        )
+    }
+}
+
+extension View {
+    func emailBindingSheet() -> some View {
+        modifier(EmailBindingSheet())
     }
 }
 

@@ -147,30 +147,15 @@ struct HomeMenuView: View {
 /// back arrow.
 ///
 /// A dedicated view rather than an inline `NavigationView { ProfileView() }` in `HomeMenuView`'s
-/// body, because it needs `store` to clean up after itself and `HomeMenuView` deliberately has
-/// none (see the comment on `accent` above) — this view lives inside the sheet it presents, not in
-/// toolbar content, so `@EnvironmentObject` is the ordinary, reliable one here.
-///
-/// `onDisappear` rather than a custom `closeButtonToolbar` action: it fires however the sheet
-/// closes — the close button, a swipe, or finishing the flow and then closing — and clears
-/// `AppState.emailBinding` the same way swiping away `ProfileView`'s own `EmailBindingView` sheet
-/// already does (`ProfileView.emailBindingPresented`'s setter). Without it, a visit left
-/// unfinished would still be `.entry()` on the next cold launch or foreground, which is what
-/// `HomeView.openSettingsIfEmailPending()` reads to decide whether to reopen this sheet at all —
-/// `openDirectlyToEmailEntry` itself is reset separately, by `HomeView`, the moment this sheet
-/// closes, but nothing resets the underlying Redux state without this.
+/// body, so that the two roots carry the same `emailBindingSheet()` in the same place. Clearing
+/// `AppState.emailBinding` once the whole settings sheet closes is `HomeView`'s job, for both
+/// roots alike.
 private struct EmailEntryDeepLink: View {
-    @EnvironmentObject var store: AppStore
-
     var body: some View {
         NavigationView {
             ProfileView()
                 .closeButtonToolbar()
         }
-        .onDisappear {
-            if store.state.emailBinding != nil {
-                store.send(.emailBinding(.set(nil)))
-            }
-        }
+        .emailBindingSheet()
     }
 }
