@@ -7,14 +7,10 @@
 
 import SwiftUI
 
-/// Which of the menu's sheets is up. One value rather than a flag per sheet, because they all hang
-/// off the same button and only one can be on screen: with two flags, a notification tap that
-/// opened Settings over Statistics left Statistics' flag standing, and SwiftUI brought it back the
-/// moment Settings closed.
-///
-/// The share sheet is one of them for the same reason (see `ActivityView`). As `ShareLink` it was
-/// on screen without being in this value, so a notification tap asked for Settings over it, UIKit
-/// refused, and the value said `.settings` from then on with nothing shown.
+/// Which of the menu's sheets is up. One value rather than a flag per sheet, because both hang off
+/// the same button and only one can be on screen: with two flags, a notification tap that opened
+/// Settings over Statistics left Statistics' flag standing, and SwiftUI brought it back the moment
+/// Settings closed.
 ///
 /// `openingOnEmail` is what the settings sheet's *root* is: normally the settings list, but
 /// straight to `ProfileView` when a pending "add your email" tap is why the sheet is opening at
@@ -26,7 +22,6 @@ import SwiftUI
 enum HomeMenuSheet: Identifiable, Hashable {
     case settings(openingOnEmail: Bool)
     case statistics
-    case share
 
     var id: Self { self }
 }
@@ -63,14 +58,6 @@ struct HomeMenuView: View {
                 case .statistics:
                     StatisticsView()
                         .tint(accent)
-                case .share:
-                    if #available(iOS 16.0, *) {
-                        ActivityView(items: [URL(string: Constants.URLs.appLink)!]) {
-                            presentedSheet = nil
-                        }
-                        .presentationDetents([.medium, .large])
-                        .ignoresSafeArea()
-                    }
                 }
             }
     }
@@ -136,9 +123,8 @@ struct HomeMenuView: View {
             if #available(iOS 16.0, *) {
                 Divider()
 
-                Button(action: {
-                    presentedSheet = .share
-                }) {
+                let link = URL(string: Constants.URLs.appLink)!
+                ShareLink(item: link) {
                     Label("HomeMenu.Share.Button", systemImage: "square.and.arrow.up")
                 }
             }
