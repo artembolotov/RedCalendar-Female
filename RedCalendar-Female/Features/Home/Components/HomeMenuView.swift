@@ -149,9 +149,8 @@ struct HomeMenuView: View {
 /// a back arrow.
 ///
 /// A dedicated view rather than an inline `NavigationView { ProfileView() }` in `HomeMenuView`'s
-/// body, so that the two roots carry the same `emailBindingSheet()` in the same place. Clearing
-/// `AppState.emailBinding` once the whole settings sheet closes is `HomeView`'s job, for both
-/// roots alike.
+/// body, so that the two roots carry the same `emailBindingSheet()` in the same place — which
+/// also closes the email flow when the settings sheet goes, for both roots alike.
 private struct EmailEntryDeepLink: View {
     var body: some View {
         NavigationView {

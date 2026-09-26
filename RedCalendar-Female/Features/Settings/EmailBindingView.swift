@@ -280,13 +280,27 @@ struct EmailBindingView: View {
 /// Presented from the state rather than from a local flag, for the reason `EmailBindingView`
 /// gives: the flow outlives the sheet. Dismissing by swipe therefore has to clear the state too,
 /// which is what the binding's setter is for.
+///
+/// The flow also closes with the screen that hosts it. Closing Settings takes the email sheet on
+/// top of it down without calling that setter, so the state would otherwise stand non-nil with
+/// nothing on screen: the next notification tap would send the very `.entry()` already stored, the
+/// store would publish nothing, and `HomeView` would never hear of it. Here rather than on a change
+/// of `HomeView`'s `menuSheet`, because this fires when Settings leaves and at no other time — a
+/// notification tap that replaces Statistics passes through a `nil` sheet on its way to Settings,
+/// and must not close the flow it is opening.
 private struct EmailBindingSheet: ViewModifier {
     @EnvironmentObject var store: AppStore
 
     func body(content: Content) -> some View {
-        content.sheet(isPresented: isPresented) {
-            EmailBindingView()
-        }
+        content
+            .sheet(isPresented: isPresented) {
+                EmailBindingView()
+            }
+            .onDisappear {
+                if store.state.emailBinding != nil {
+                    store.send(.emailBinding(.set(nil)))
+                }
+            }
     }
 
     private var isPresented: Binding<Bool> {

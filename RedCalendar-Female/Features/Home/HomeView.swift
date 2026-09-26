@@ -180,18 +180,6 @@ struct HomeView: View {
                 // transition and `onAppear` has already fired, long before.
                 .onAppear(perform: openSettingsIfEmailPending)
                 .onChange(of: store.state.emailBinding) { _ in openSettingsIfEmailPending() }
-                // The email flow is closed with Settings. Dismissing the settings sheet takes the
-                // email sheet on top of it down without calling that sheet's own binding setter, so
-                // the state would otherwise stand non-nil with nothing on screen: the next tap would
-                // then send the very `.entry()` already stored, the store would publish nothing,
-                // and `onChange(of: emailBinding)` above would never hear of it. It would also
-                // pop the email sheet open by itself on the next manual visit to Settings.
-                .onChange(of: menuSheet) { sheet in
-                    if case .settings = sheet { return }
-                    if store.state.emailBinding != nil {
-                        store.send(.emailBinding(.set(nil)))
-                    }
-                }
             }
         }
     }
@@ -202,9 +190,10 @@ struct HomeView: View {
     /// `AppState.emailBinding` non-nil — and uses the answer both to decide whether to open
     /// Settings at all and, once, what it opens to (`openingOnEmail` — see `HomeMenuSheet` for why
     /// that has to be captured here rather than read live by `HomeMenuView`). Statistics, if it was
-    /// up, is replaced rather than stacked under. `SettingsView`'s own `NavigationLink` to
-    /// `ProfileView` is never touched programmatically — every push through it is still a real tap
-    /// — so there is nothing here that can reproduce the double-`onAppear` a
+    /// up, is replaced rather than stacked under — and so is anything else presented over this
+    /// screen, the share sheet included (`dismissPresentedScreens`). `SettingsView`'s own
+    /// `NavigationLink` to `ProfileView` is never touched programmatically — every push through it
+    /// is still a real tap — so there is nothing here that can reproduce the double-`onAppear` a
     /// `NavigationLink(isActive:)` set from code is prone to under this app's `NavigationView`.
     ///
     /// The guard against Settings already being open is what keeps it that way. Tapping "Email" on
@@ -217,7 +206,9 @@ struct HomeView: View {
     private func openSettingsIfEmailPending() {
         guard store.state.emailBinding != nil else { return }
         if case .settings = menuSheet { return }
-        menuSheet = .settings(openingOnEmail: true)
+        UIApplication.shared.dismissPresentedScreens {
+            menuSheet = .settings(openingOnEmail: true)
+        }
     }
 
     private var writeFailurePresented: Binding<Bool> {
