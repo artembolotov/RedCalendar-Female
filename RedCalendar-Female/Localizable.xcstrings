@@ -1567,13 +1567,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your name (optional)"
+            "value" : "What should we call you? (optional)"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ваше имя (необязательно)"
+            "value" : "Как к вам обращаться? (необязательно)"
           }
         }
       }
@@ -3009,18 +3009,34 @@
         }
       }
     },
-    "Profile.Name.Header" : {
+    "Profile.Name.Footer" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Name"
+            "value" : "Used in greetings and notifications. You can leave it empty."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Имя"
+            "value" : "Используется в приветствии и уведомлениях. Можно не указывать."
+          }
+        }
+      }
+    },
+    "Profile.Name.Header" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "What should we call you"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Как к вам обращаться"
           }
         }
       }
@@ -3030,13 +3046,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Name"
+            "value" : "For example, Anna"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Имя"
+            "value" : "Например, Аня"
           }
         }
       }
@@ -3089,6 +3105,22 @@
         }
       }
     },
+    "Settings.Consent.Button" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Consent to data processing"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Согласие на обработку данных"
+          }
+        }
+      }
+    },
     "Settings.Devices.Button" : {
       "localizations" : {
         "en" : {
@@ -3101,6 +3133,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Мои устройства"
+          }
+        }
+      }
+    },
+    "Settings.Documents.Header" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Documents"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Документы"
           }
         }
       }
@@ -3153,6 +3201,22 @@
         }
       }
     },
+    "Settings.Privacy.Button" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Privacy Policy"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Политика конфиденциальности"
+          }
+        }
+      }
+    },
     "Settings.Profile.NoEmail.A11y" : {
       "localizations" : {
         "en" : {
@@ -3180,7 +3244,7 @@
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Имя, email и цикл"
+            "value" : "Обращение, email и цикл"
           }
         }
       }
@@ -3229,6 +3293,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Теги"
+          }
+        }
+      }
+    },
+    "Settings.Terms.Button" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Terms of Use"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Условия использования"
           }
         }
       }
@@ -4204,7 +4284,7 @@
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Имя не сохранилось. Попробуйте ещё раз."
+            "value" : "Обращение не сохранилось. Попробуйте ещё раз."
           }
         }
       }
