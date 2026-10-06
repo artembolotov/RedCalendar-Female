@@ -52,6 +52,7 @@ struct SettingsView: View {
                     Section {
                         Link("Settings.Privacy.Button", destination: Constants.URLs.privacyPolicy)
                         Link("Settings.Consent.Button", destination: Constants.URLs.consent)
+                        Link("Settings.Terms.Button", destination: Constants.URLs.terms)
                     } header: {
                         Text("Settings.Documents.Header")
                     }

@@ -3297,6 +3297,22 @@
         }
       }
     },
+    "Settings.Terms.Button" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Terms of Use"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Условия использования"
+          }
+        }
+      }
+    },
     "Settings.Title" : {
       "localizations" : {
         "en" : {

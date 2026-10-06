@@ -15,6 +15,7 @@ struct Constants {
 
         static var privacyPolicy: URL { legalPage("privacy") }
         static var consent: URL { legalPage("consent") }
+        static var terms: URL { legalPage("terms") }
 
         /// The site serves a page per language; the app's language picks it, not Safari's
         /// `Accept-Language`, so the document opens in the language the link was read in.
