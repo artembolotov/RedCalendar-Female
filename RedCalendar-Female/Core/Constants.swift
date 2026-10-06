@@ -109,7 +109,7 @@ struct Constants {
         /// does not show (deliberately — see `DeleteAccountSheet`). This is the documented
         /// default the decision table names, used only to describe the policy before the request
         /// is made; it is not read from anywhere live and can drift from the deployed value.
-        static let deletionGraceDays = 14
+        static let deletionGraceDays = 7
 
         /// Copy only, on the same terms as `deletionGraceDays` above: the server owns the real
         /// window (SYNC.md §18.7) and prints the actual date in the letter and on the revert page
