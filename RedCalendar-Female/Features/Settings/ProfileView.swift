@@ -44,6 +44,8 @@ struct ProfileView: View {
                     .onSubmit { isNameFieldFocused = false }
             } header: {
                 Text("Profile.Name.Header")
+            } footer: {
+                Text("Profile.Name.Footer")
             }
 
             // The row opens the flow of SYNC.md §18 — one sheet for both edges of it, because

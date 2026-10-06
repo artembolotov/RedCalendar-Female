@@ -12,6 +12,16 @@ struct Constants {
         static var api: String {
             Bundle.main.object(forInfoDictionaryKey: "API_BASE_URL") as! String
         }
+
+        static var privacyPolicy: URL { legalPage("privacy") }
+        static var consent: URL { legalPage("consent") }
+
+        /// The site serves a page per language; the app's language picks it, not Safari's
+        /// `Accept-Language`, so the document opens in the language the link was read in.
+        private static func legalPage(_ page: String) -> URL {
+            let locale = Bundle.main.preferredLocalizations.first == "ru" ? "ru" : "en"
+            return URL(string: "https://calendar.red/\(locale)/\(page)")!
+        }
     }
 
     struct Calendar {

@@ -50,6 +50,13 @@ struct SettingsView: View {
                     }
 
                     Section {
+                        Link("Settings.Privacy.Button", destination: Constants.URLs.privacyPolicy)
+                        Link("Settings.Consent.Button", destination: Constants.URLs.consent)
+                    } header: {
+                        Text("Settings.Documents.Header")
+                    }
+
+                    Section {
                         versionRow
                     }
 
