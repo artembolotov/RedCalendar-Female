@@ -24,6 +24,7 @@ enum AuthenticationError: Error, LocalizedError, Equatable {
     case deviceIdStorageFailed                    // Signed in, but device_id never reached the keychain
     case emailVerificationFailed                  // Email verification failed
     case consentInvalid                           // Consent version refused (SYNC.md §21.3)
+    case accountDeleted(String)                   // Purged account, server's text (SYNC.md §17.5)
     
     // Network/Server errors
     case networkError(String)                     // Network connectivity issues
@@ -56,6 +57,8 @@ enum AuthenticationError: Error, LocalizedError, Equatable {
             return String(localized: "AuthError.EmailVerificationFailed")
         case .consentInvalid:
             return String(localized: "AuthError.ConsentInvalid")
+        case .accountDeleted(let message):
+            return message
         case .networkError(let message):
             return message
         case .serverError(let message):
@@ -68,6 +71,12 @@ enum AuthenticationError: Error, LocalizedError, Equatable {
 
 extension AuthenticationError {
     static func from(_ error: Error) -> AuthenticationError {
+        // Its own case, carrying the server's text: the phone sign-in has to tell it from a wrong
+        // code, since it is the one refusal that leaves nothing on the code screen to try again.
+        if let deleted = AccountDeletedRefusal(error) {
+            return .accountDeleted(deleted.message)
+        }
+
         switch error {
         // Already one of ours — thrown by a sign-in path that failed on something other than the
         // network. Passing it through keeps its case; the `default` below would flatten it into

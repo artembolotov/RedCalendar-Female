@@ -261,8 +261,20 @@ let authMiddleware: Middleware = { state, action, dispatch in
                                 AppLogger.error("Phone sign-in: consent version \(consentVersion) refused as invalid", error: error)
                             }
 
-                            // Verification failed - return to verification screen with error (not entry)
                             let authError = AuthenticationError.from(error)
+
+                            // Back to the number, where `check-phone` says the same: the code
+                            // screen would offer another try at a refusal no code can change.
+                            if case .accountDeleted = authError {
+                                AppLogger.info("Phone sign-in: the account behind this number was deleted")
+                                dispatch(.auth(.set(.authenticating(.phone(.entry(
+                                    prettyPhoneNumber: prettyPhoneNumber,
+                                    error: authError
+                                ))))))
+                                return
+                            }
+
+                            // Verification failed - return to verification screen with error (not entry)
                             phoneState = .verification(
                                 prettyPhoneNumber: prettyPhoneNumber,
                                 e164PhoneNumber: e164PhoneNumber,

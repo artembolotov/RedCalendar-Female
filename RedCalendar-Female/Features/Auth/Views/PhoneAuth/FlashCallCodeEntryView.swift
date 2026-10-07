@@ -167,8 +167,11 @@ struct FlashCallCodeEntryView: View {
                 .padding(.horizontal)
                 .onAppear {
                     // The check replaced this screen with a spinner, so what was typed is gone
-                    // from it; the state is where it survived.
-                    codeInput = code ?? ""
+                    // from it; the state is where it survived. Only into an empty field: a later
+                    // `onAppear` must not put the refused digits back over new ones.
+                    if codeInput.isEmpty {
+                        codeInput = code ?? ""
+                    }
                     isCodeFieldFocused = true
                 }
             }

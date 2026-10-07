@@ -25,7 +25,7 @@ struct RootView: View {
                 }
             // The consent step comes before the migration, which is a sign-in like any other (SYNC.md
             // §21.4), and has no way out: the 2.0 id stays in the keychain until the migration
-            // succeeds, so whatever happens here, the next launch lands back on this step.
+            // succeeds or finds the account deleted, so an interrupted launch lands back on this step.
             case .migrating(let userId, nil) where store.state.consent.signInVersion == nil:
                 SignInConsentView { version in
                     store.send(.consent(.agreeForSignIn(version: version)))
@@ -34,73 +34,73 @@ struct RootView: View {
                 .background(Color("AppBackgroundColor"))
             // The one migration failure a retry cannot fix. The legacy id is already gone from the
             // keychain, so the way out is the welcome screen, where a new account can be made.
-            case .migrating(_, .accountDeleted?):
-                VStack(spacing: 16) {
-                    Image(systemName: "person.crop.circle.badge.xmark")
-                        .font(.system(size: 40))
-                        .foregroundColor(.secondary)
-                        .padding(.bottom, 8)
+            case .migrating(_, .accountDeleted(let message)?):
+                migrationFailure(
+                    icon: Image(systemName: "person.crop.circle.badge.xmark").foregroundColor(.secondary),
+                    heading: "Migration.AccountDeleted.Heading",
+                    message: Text(message).font(.body).foregroundColor(.secondary),
+                    button: "Migration.AccountDeleted.Button"
+                ) {
+                    store.send(.auth(.set(.notAuthenticated)))
+                }
+            case .migrating(let userId, let migrationError?):
+                migrationFailure(
+                    icon: Image(systemName: "exclamationmark.triangle.fill").foregroundColor(.orange),
+                    heading: "Migration.Failed.Heading",
+                    message: Text(migrationError.localizedDescription).font(.caption).foregroundColor(.red),
+                    button: "Common.Retry"
+                ) {
+                    store.send(.auth(.set(.migrating(userId: userId, error: nil))))
+                }
+            case .migrating:
+                migrationScreen {
+                    ProgressView("Migration.Progress.Title")
 
-                    Text("Migration.AccountDeleted.Heading")
-                        .font(.headline)
-                        .foregroundColor(.primary)
-
-                    Text(MigrationError.accountDeleted.localizedDescription)
-                        .font(.body)
+                    Text("Migration.Progress.Subtitle")
+                        .font(.caption)
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)
-                        .padding(.horizontal)
-
-                    Button("Migration.AccountDeleted.Button") {
-                        store.send(.auth(.set(.notAuthenticated)))
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
-                    .padding(.top, 16)
                 }
-                .padding()
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(Color("AppBackgroundColor"))
-            case .migrating(let userId, let migrationError):
-                VStack(spacing: 16) {
-                    if let migrationError {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .font(.system(size: 40))
-                            .foregroundColor(.orange)
-                            .padding(.bottom, 8)
-                        
-                        Text("Migration.Failed.Heading")
-                            .font(.headline)
-                            .foregroundColor(.primary)
-                        
-                        Text(migrationError.localizedDescription)
-                            .font(.caption)
-                            .foregroundColor(.red)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal)
-                        
-                        Button("Common.Retry") {
-                            store.send(.auth(.set(.migrating(userId: userId, error: nil))))
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(.large)
-                        .padding(.top, 16)
-                    } else {
-                        ProgressView("Migration.Progress.Title")
-                        
-                        Text("Migration.Progress.Subtitle")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
-                    }
-                }
-                .padding()
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(Color("AppBackgroundColor"))
             }
         } else {
             WaitingView("Migration.CheckingAuth")
         }
+    }
+
+    // MARK: - Private Methods
+
+    private func migrationFailure<Icon: View>(
+        icon: Icon,
+        heading: LocalizedStringKey,
+        message: Text,
+        button: LocalizedStringKey,
+        action: @escaping () -> Void
+    ) -> some View {
+        migrationScreen {
+            icon
+                .font(.system(size: 40))
+                .padding(.bottom, 8)
+
+            Text(heading)
+                .font(.headline)
+                .foregroundColor(.primary)
+
+            message
+                .multilineTextAlignment(.center)
+                .padding(.horizontal)
+
+            Button(button, action: action)
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                .padding(.top, 16)
+        }
+    }
+
+    private func migrationScreen<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        VStack(spacing: 16, content: content)
+            .padding()
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Color("AppBackgroundColor"))
     }
 }
 
