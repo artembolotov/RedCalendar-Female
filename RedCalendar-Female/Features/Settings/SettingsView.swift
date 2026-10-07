@@ -50,9 +50,9 @@ struct SettingsView: View {
                     }
 
                     Section {
-                        Link("Settings.Privacy.Button", destination: Constants.URLs.privacyPolicy)
-                        Link("Settings.Consent.Button", destination: Constants.URLs.consent)
-                        Link("Settings.Terms.Button", destination: Constants.URLs.terms)
+                        documentLink("Settings.Privacy.Button", destination: Constants.URLs.privacyPolicy)
+                        documentLink("Settings.Consent.Button", destination: Constants.URLs.consent)
+                        documentLink("Settings.Terms.Button", destination: Constants.URLs.terms)
                     } header: {
                         Text("Settings.Documents.Header")
                     }
@@ -223,6 +223,17 @@ struct SettingsView: View {
                 versionTapCount += 1
             }
             lastVersionTapTime = now
+        }
+    }
+
+    private func documentLink(_ title: LocalizedStringKey, destination: URL) -> some View {
+        Link(destination: destination) {
+            HStack {
+                Text(title)
+                Spacer()
+                Image(systemName: "arrow.up.right")
+                    .font(.footnote.weight(.semibold))
+            }
         }
     }
 
