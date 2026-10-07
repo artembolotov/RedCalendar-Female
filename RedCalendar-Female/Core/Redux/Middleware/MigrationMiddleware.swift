@@ -14,6 +14,9 @@ enum MigrationError: Error, LocalizedError, Equatable {
     /// The consent version was refused as invalid (SYNC.md §21.3) — a client bug, worded for the
     /// person rather than in the server's terms.
     case consentInvalid
+    /// The account behind the legacy id was deleted and its grace period ran out (SYNC.md §17):
+    /// there is nothing left to migrate into, now or on any retry.
+    case accountDeleted
     case serverError(String)
     
     var errorDescription: String? {
@@ -24,6 +27,8 @@ enum MigrationError: Error, LocalizedError, Equatable {
             return String(localized: "MigrationError.KeychainSaveError")
         case .consentInvalid:
             return String(localized: "MigrationError.ConsentInvalid")
+        case .accountDeleted:
+            return String(localized: "MigrationError.AccountDeleted")
         case .serverError(let message):
             return message
         }
@@ -67,6 +72,17 @@ let migrationMiddleware: Middleware = { state, action, dispatch in
                     
                     dispatch(.auth(.set(.authenticated(deviceId: data.deviceId))))
                 } catch {
+                    // A purged account answers every migration the same way (`410`, §17.5), so a
+                    // retry can only fail again — and the legacy id is all that sends this phone
+                    // back here on each launch. It goes now, rather than on the screen's button,
+                    // so that a launch that ends on that screen does not come back to it.
+                    if case APIServiceError.refused(let refusal) = error, refusal.error == "ACCOUNT_DELETED" {
+                        AppLogger.info("Migration: the account behind the legacy id was deleted")
+                        keychain.deleteUserUID()
+                        dispatch(.auth(.set(.migrating(userId: userId, error: .accountDeleted))))
+                        return
+                    }
+
                     // Both refusals come before anything else is done on the server, so the
                     // migration can simply run again once there is a version it accepts.
                     switch ConsentRefusal(error) {

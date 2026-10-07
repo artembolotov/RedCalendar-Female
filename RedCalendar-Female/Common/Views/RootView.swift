@@ -32,6 +32,35 @@ struct RootView: View {
                     store.send(.auth(.set(.migrating(userId: userId, error: nil))))
                 }
                 .background(Color("AppBackgroundColor"))
+            // The one migration failure a retry cannot fix. The legacy id is already gone from the
+            // keychain, so the way out is the welcome screen, where a new account can be made.
+            case .migrating(_, .accountDeleted?):
+                VStack(spacing: 16) {
+                    Image(systemName: "person.crop.circle.badge.xmark")
+                        .font(.system(size: 40))
+                        .foregroundColor(.secondary)
+                        .padding(.bottom, 8)
+
+                    Text("Migration.AccountDeleted.Heading")
+                        .font(.headline)
+                        .foregroundColor(.primary)
+
+                    Text(MigrationError.accountDeleted.localizedDescription)
+                        .font(.body)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal)
+
+                    Button("Migration.AccountDeleted.Button") {
+                        store.send(.auth(.set(.notAuthenticated)))
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                    .padding(.top, 16)
+                }
+                .padding()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color("AppBackgroundColor"))
             case .migrating(let userId, let migrationError):
                 VStack(spacing: 16) {
                     if let migrationError {

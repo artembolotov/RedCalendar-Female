@@ -45,12 +45,13 @@ struct FlashCallCodeEntryView: View {
     
     var body: some View {
         switch store.state.authState {
-        case .authenticating(.phone(.verification(let prettyPhoneNumber, let e164PhoneNumber, let maskedCallerNumber, let requestId, let error))):
+        case .authenticating(.phone(.verification(let prettyPhoneNumber, let e164PhoneNumber, let maskedCallerNumber, let requestId, let code, let error))):
             buildView(
                 prettyPhoneNumber: prettyPhoneNumber,
                 e164PhoneNumber: e164PhoneNumber,
                 maskedCallerNumber: maskedCallerNumber,
                 requestId: requestId,
+                code: code,
                 error: error
             )
         default:
@@ -64,6 +65,7 @@ struct FlashCallCodeEntryView: View {
         e164PhoneNumber: String,
         maskedCallerNumber: String,
         requestId: String,
+        code: String?,
         error: AuthenticationError?
     ) -> some View {
         let isCodeValid = codeInput.count == 4 && codeInput.allSatisfy { $0.isNumber }
@@ -164,6 +166,9 @@ struct FlashCallCodeEntryView: View {
                 .frame(minHeight: geometry.size.height)
                 .padding(.horizontal)
                 .onAppear {
+                    // The check replaced this screen with a spinner, so what was typed is gone
+                    // from it; the state is where it survived.
+                    codeInput = code ?? ""
                     isCodeFieldFocused = true
                 }
             }
