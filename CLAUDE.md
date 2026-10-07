@@ -185,6 +185,7 @@ Features/
       WelcomeView, LoginView, SignInConsentView
       EmailAuth/ — EmailEntryView, CodeEntryView
       PhoneAuth/ — PhoneEntryView, FlashCallCodeEntryView
+  Consent/    — ConsentFormView (shared by both consent screens), ConsentPromptView
   Home/
     Calendar/
       CalendarView

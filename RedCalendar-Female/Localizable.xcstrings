@@ -520,6 +520,134 @@
         }
       }
     },
+    "Consent.Agree.Title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I consent to the processing of my personal data, including health information"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Я даю согласие на обработку моих персональных данных, включая сведения о здоровье"
+          }
+        }
+      }
+    },
+    "Consent.Continue.Button" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Continue"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Продолжить"
+          }
+        }
+      }
+    },
+    "Consent.Document.Button" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Consent to the Processing of Personal Data"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Согласие на обработку персональных данных"
+          }
+        }
+      }
+    },
+    "Consent.Heading" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Before you continue"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Прежде чем продолжить"
+          }
+        }
+      }
+    },
+    "Consent.LoadFailed.Message" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't load the consent. Check your internet connection."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Не удалось загрузить согласие. Проверьте подключение к интернету."
+          }
+        }
+      }
+    },
+    "Consent.Outdated.Message" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The consent has been updated. Please read it and confirm again."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Текст согласия обновился. Прочитайте его и подтвердите снова."
+          }
+        }
+      }
+    },
+    "Consent.SendFailed.Message" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't send your consent. Check your internet connection and try again."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Не удалось отправить согласие. Проверьте подключение к интернету и попробуйте ещё раз."
+          }
+        }
+      }
+    },
+    "Consent.Subtitle" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your cycle and wellbeing records are health information. We need your consent to store and sync them."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Записи о цикле и самочувствии — это сведения о здоровье. Чтобы хранить и синхронизировать их, нам нужно ваше согласие."
+          }
+        }
+      }
+    },
     "CycleOnboarding.Continue.Button" : {
       "localizations" : {
         "en" : {
@@ -3437,118 +3565,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Отправляем код"
-          }
-        }
-      }
-    },
-    "SignInConsent.Agree.Title" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "I consent to the processing of my personal data, including health information"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Я даю согласие на обработку моих персональных данных, включая сведения о здоровье"
-          }
-        }
-      }
-    },
-    "SignInConsent.Continue.Button" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Continue"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Продолжить"
-          }
-        }
-      }
-    },
-    "SignInConsent.Document.Button" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Consent to the Processing of Personal Data"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Согласие на обработку персональных данных"
-          }
-        }
-      }
-    },
-    "SignInConsent.Heading" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Before you continue"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Прежде чем продолжить"
-          }
-        }
-      }
-    },
-    "SignInConsent.LoadFailed.Message" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Couldn't load the consent. Check your internet connection."
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Не удалось загрузить согласие. Проверьте подключение к интернету."
-          }
-        }
-      }
-    },
-    "SignInConsent.Outdated.Message" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The consent has been updated. Please read it and confirm again."
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Текст согласия обновился. Прочитайте его и подтвердите снова."
-          }
-        }
-      }
-    },
-    "SignInConsent.Subtitle" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Your cycle and wellbeing records are health information. We need your consent to store and sync them."
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Записи о цикле и самочувствии — это сведения о здоровье. Чтобы хранить и синхронизировать их, нам нужно ваше согласие."
           }
         }
       }

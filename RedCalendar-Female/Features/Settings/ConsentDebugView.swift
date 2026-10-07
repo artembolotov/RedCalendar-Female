@@ -71,6 +71,26 @@ struct ConsentDebugView: View {
             } header: {
                 Text(verbatim: "Accept")
             }
+
+            Section {
+                Toggle(isOn: promptEnabled) {
+                    Text(verbatim: "Show prompt on consent_required")
+                }
+
+                // An account that already accepted gets `null` from every run, so this is the
+                // only way to see the prompt there. Local only: the next run puts the server's
+                // answer back, and accepting sends the current version, which is idempotent.
+                Button {
+                    if case .loaded(let version) = consent.current {
+                        store.send(.consent(.setRequired(version)))
+                    }
+                } label: {
+                    Text(verbatim: "Set consent_required to current locally")
+                }
+                .disabled(!isCurrentLoaded)
+            } header: {
+                Text(verbatim: "Prompt")
+            }
         }
         .navigationTitle(Text(verbatim: "Consent"))
         .navigationBarTitleDisplayMode(.inline)
@@ -101,13 +121,23 @@ struct ConsentDebugView: View {
 
     // MARK: - Private Methods
 
+    private var promptEnabled: Binding<Bool> {
+        Binding(
+            get: { consent.promptEnabled },
+            set: { store.send(.consent(.setPromptEnabled($0))) }
+        )
+    }
+
+    private var isCurrentLoaded: Bool {
+        if case .loaded = consent.current { true } else { false }
+    }
+
     private var isSending: Bool {
         if case .sending = consent.acceptance { true } else { false }
     }
 
     private var canAcceptCurrent: Bool {
-        guard case .loaded = consent.current else { return false }
-        return !isSending
+        isCurrentLoaded && !isSending
     }
 
     private var acceptanceText: String {
