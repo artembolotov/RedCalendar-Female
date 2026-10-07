@@ -1997,6 +1997,38 @@
         }
       }
     },
+    "Migration.AccountDeleted.Button" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Continue"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Продолжить"
+          }
+        }
+      }
+    },
+    "Migration.AccountDeleted.Heading" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Account deleted"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Аккаунт удалён"
+          }
+        }
+      }
+    },
     "Migration.CheckingAuth" : {
       "localizations" : {
         "en" : {
@@ -2057,6 +2089,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Обновление системы авторизации..."
+          }
+        }
+      }
+    },
+    "MigrationError.AccountDeleted" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This account was deleted at your request, and its data has been erased. You can sign in to another account or create a new one."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Этот аккаунт удалён по вашему запросу, и его данные стёрты. Вы можете войти в другой аккаунт или создать новый."
           }
         }
       }
