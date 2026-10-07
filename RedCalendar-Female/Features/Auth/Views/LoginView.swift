@@ -73,7 +73,7 @@ struct LoginView: View {
             PhoneEntryView()
         case .requesting(_, _):
             WaitingView("SignIn.Waiting.CheckingPhone")
-        case .verification(_, _, _, _, _):
+        case .verification(_, _, _, _, _, _):
             FlashCallCodeEntryView()
         case .verifying(_, _, _, _, _):
             WaitingView("SignIn.Waiting.CheckingCode")

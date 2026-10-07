@@ -41,7 +41,7 @@ let feedbackMiddleware: Middleware = { state, action, dispatch in
          .auth(.set(.authenticating(.email(.registration(_, _, _, .some(_)))))),
          .auth(.set(.authenticating(.email(.codeEntry(_, _, _, .some(_)))))),
          .auth(.set(.authenticating(.phone(.entry(_, .some(_)))))),
-         .auth(.set(.authenticating(.phone(.verification(_, _, _, _, .some(_)))))),
+         .auth(.set(.authenticating(.phone(.verification(_, _, _, _, _, .some(_)))))),
          // A write the database refused is the same kind of event: something the user did did
          // not take, and they are about to be told so.
          .data(.writeFailed):

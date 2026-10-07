@@ -19,6 +19,9 @@ enum PhoneAuthState: Equatable {
         e164PhoneNumber: String,
         maskedCallerNumber: String,
         requestId: String,
+        /// The digits already typed, put back after a failed check — as `EmailAuthState.codeEntry`
+        /// does — so a refusal does not cost the person retyping them. `nil` for a fresh call.
+        code: String? = nil,
         error: AuthenticationError? = nil
     )
     case verifying(

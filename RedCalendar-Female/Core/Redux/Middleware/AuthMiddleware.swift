@@ -209,7 +209,8 @@ let authMiddleware: Middleware = { state, action, dispatch in
                         prettyPhoneNumber: prettyPhoneNumber,
                         e164PhoneNumber: e164PhoneNumber,
                         maskedCallerNumber: maskedCallerNumber,
-                        requestId: requestId
+                        requestId: requestId,
+                        code: verificationCode
                     )
 
                     // Unreachable from the screens, for the reason given on the email path above.
@@ -267,6 +268,7 @@ let authMiddleware: Middleware = { state, action, dispatch in
                                 e164PhoneNumber: e164PhoneNumber,
                                 maskedCallerNumber: maskedCallerNumber,
                                 requestId: requestId,
+                                code: verificationCode,
                                 error: authError
                             )
 
