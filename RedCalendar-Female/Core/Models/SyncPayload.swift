@@ -241,6 +241,10 @@ struct SyncResponse: Decodable, Sendable {
     /// that would lose rows when tombstones start being swept (§4.6).
     var fullResyncRequired: Bool
     var importStatus: String?
+    /// The consent version this account still has to accept, or `nil` when the current one is on
+    /// record (SYNC.md §21.3). On every run rather than only at sign-in, because a raised version
+    /// has to reach sessions that never sign in again.
+    var consentRequired: Int?
 
     enum CodingKeys: String, CodingKey {
         case userId = "user_id"
@@ -250,6 +254,7 @@ struct SyncResponse: Decodable, Sendable {
         case hasMore = "has_more"
         case fullResyncRequired = "full_resync_required"
         case importStatus = "import_status"
+        case consentRequired = "consent_required"
     }
 
     init(from decoder: Decoder) throws {
@@ -261,6 +266,7 @@ struct SyncResponse: Decodable, Sendable {
         hasMore = try container.decodeIfPresent(Bool.self, forKey: .hasMore) ?? false
         fullResyncRequired = try container.decodeIfPresent(Bool.self, forKey: .fullResyncRequired) ?? false
         importStatus = try container.decodeIfPresent(String.self, forKey: .importStatus)
+        consentRequired = try container.decodeIfPresent(Int.self, forKey: .consentRequired)
     }
 }
 

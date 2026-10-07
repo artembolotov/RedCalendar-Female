@@ -30,6 +30,7 @@ enum AppAction: Sendable {
     case push(PushAction)
     case analytics(AnalyticsAction)
     case appearance(AppearanceAction)
+    case consent(ConsentAction)
 
     /// Deliberately outside every group: it is dispatched when the app becomes active and asks
     /// whoever has unfinished work to try again. Two claimants now — the APNs token and a sync
@@ -245,6 +246,9 @@ enum SyncReason: String, Sendable {
     /// from is a pull — `writeProfile` moved `profile_revision`, and a device may never write
     /// the identity half of the profile itself (§4.4).
     case emailChanged
+    /// Consent was just accepted (SYNC.md §21.5). Not debounced: `consent_required` only comes
+    /// back down with a run, and until it does the request for consent is still on screen.
+    case consentAccepted
 
     var isDebounced: Bool { self == .localEdit }
 }
@@ -272,4 +276,23 @@ enum AnalyticsAction: Sendable {
 enum AppearanceAction: Sendable {
     case checkAccentTheme
     case setAccentTheme(AccentTheme)
+}
+
+/// Consent to the processing of personal data (SYNC.md §21), owned by `consentMiddleware`.
+///
+/// Its own domain rather than more cases on `AuthAction`: accepting a newer version is not a
+/// session transition, and the version read before sign-in is read the same way whichever of the
+/// three sign-ins it goes into.
+enum ConsentAction: Sendable {
+    /// `consent_required` from a sync response.
+    case setRequired(Int?)
+
+    case fetchCurrent
+    case currentFetched(version: Int)
+    case currentFetchFailed(String)
+
+    case accept(version: Int)
+    case accepted(version: Int)
+    case acceptRefused(ConsentRefusal)
+    case acceptFailed(String)
 }
