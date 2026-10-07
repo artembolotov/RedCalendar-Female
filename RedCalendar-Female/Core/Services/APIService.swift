@@ -9,7 +9,7 @@ import Foundation
 
 // MARK: - Protocol
 protocol APIServiceProtocol: Sendable {
-    func migrateUser(userId: String) async throws -> MigrationResponse
+    func migrateUser(userId: String, consentVersion: Int) async throws -> MigrationResponse
     func updateAPNSToken(deviceId: String, apnsToken: String) async throws -> APNSTokenResponse
     func logout(deviceId: String) async throws -> LogoutResponse
     /// Requests account deletion (SYNC.md §17.3). Marks the account for deletion, drops every
@@ -18,8 +18,12 @@ protocol APIServiceProtocol: Sendable {
     func deleteAccount(deviceId: String) async throws -> DeleteAccountResponse
     func checkEmail(_ email: String) async throws -> CheckEmailResponse
     func checkPhone(_ phone: String) async throws -> CheckPhoneResponse
-    func verifyCode(email: String, code: String, name: String?) async throws -> VerifyCodeResponse
-    func verifyFlashCall(requestId: String, code: String) async throws -> VerifyFlashCallResponse
+    /// `consentVersion` on this and the two below is the one the person accepted on the consent
+    /// step before signing in, as `GET /auth/consent` or a `CONSENT_OUTDATED` named it (SYNC.md
+    /// §21.4). The server checks it before the code, so a refusal spends neither the code nor a
+    /// Flash Call attempt.
+    func verifyCode(email: String, code: String, name: String?, consentVersion: Int) async throws -> VerifyCodeResponse
+    func verifyFlashCall(requestId: String, code: String, consentVersion: Int) async throws -> VerifyFlashCallResponse
     /// Asks for a confirmation code on the address being bound, or changed to (SYNC.md §18.4).
     /// One endpoint for both, because binding and changing are the same write to the same column
     /// — the answer's `isChange` is what says which of the two just happened.
@@ -48,10 +52,12 @@ protocol APIServiceProtocol: Sendable {
 struct MigrateUserRequest: Codable {
     let userId: String
     let deviceModel: String
+    let consentVersion: Int
     
     enum CodingKeys: String, CodingKey {
         case userId = "user_id"
         case deviceModel = "device_model"
+        case consentVersion = "consent_version"
     }
 }
 
@@ -78,12 +84,14 @@ struct VerifyCodeRequest: Codable {
     let code: String
     let deviceModel: String
     let name: String?
+    let consentVersion: Int
     
     enum CodingKeys: String, CodingKey {
         case email
         case code
         case deviceModel = "device_model"
         case name
+        case consentVersion = "consent_version"
     }
 }
 
@@ -100,11 +108,13 @@ struct VerifyFlashCallRequest: Codable {
     let requestId: String
     let code: String
     let deviceModel: String
+    let consentVersion: Int
     
     enum CodingKeys: String, CodingKey {
         case requestId
         case code
         case deviceModel = "device_model"
+        case consentVersion = "consent_version"
     }
 }
 
@@ -428,16 +438,19 @@ final class APIService: APIServiceProtocol, Sendable {
     // MARK: - Public Methods
     
     /// Migrates user to new device authentication system
-    func migrateUser(userId: String) async throws -> MigrationResponse {
+    func migrateUser(userId: String, consentVersion: Int) async throws -> MigrationResponse {
         let url = URL(string: "\(baseURL)/auth/migrate")!
         
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        // The migration screen shows the server's message when it fails.
+        addLanguageHeaders(to: &request)
         
         let requestBody = MigrateUserRequest(
             userId: userId,
-            deviceModel: DeviceModel.identifier
+            deviceModel: DeviceModel.identifier,
+            consentVersion: consentVersion
         )
         
         request.httpBody = try JSONEncoder().encode(requestBody)
@@ -553,7 +566,7 @@ final class APIService: APIServiceProtocol, Sendable {
     }
     
     /// Verifies code and registers/logs in user with device
-    func verifyCode(email: String, code: String, name: String?) async throws -> VerifyCodeResponse {
+    func verifyCode(email: String, code: String, name: String?, consentVersion: Int) async throws -> VerifyCodeResponse {
         let url = URL(string: "\(baseURL)/auth/verify-code")!
         
         var request = URLRequest(url: url)
@@ -567,7 +580,8 @@ final class APIService: APIServiceProtocol, Sendable {
             email: email,
             code: code,
             deviceModel: DeviceModel.identifier,
-            name: name
+            name: name,
+            consentVersion: consentVersion
         )
         
         request.httpBody = try JSONEncoder().encode(requestBody)
@@ -580,7 +594,7 @@ final class APIService: APIServiceProtocol, Sendable {
     }
     
     /// Verifies Flash Call code and authenticates user
-    func verifyFlashCall(requestId: String, code: String) async throws -> VerifyFlashCallResponse {
+    func verifyFlashCall(requestId: String, code: String, consentVersion: Int) async throws -> VerifyFlashCallResponse {
         let url = URL(string: "\(baseURL)/auth/verify-flash-call")!
         
         var request = URLRequest(url: url)
@@ -593,7 +607,8 @@ final class APIService: APIServiceProtocol, Sendable {
         let requestBody = VerifyFlashCallRequest(
             requestId: requestId,
             code: code,
-            deviceModel: DeviceModel.identifier
+            deviceModel: DeviceModel.identifier,
+            consentVersion: consentVersion
         )
         request.httpBody = try JSONEncoder().encode(requestBody)
         

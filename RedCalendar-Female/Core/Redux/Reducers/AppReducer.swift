@@ -336,6 +336,20 @@ func appReducer(state: AppState, action: AppAction) -> AppState {
 
         case .acceptFailed(let message):
             state.consent.acceptance = .failed(message)
+
+        case .agreeForSignIn(let version):
+            state.consent.signInVersion = version
+            state.consent.signInRetry = nil
+
+        case .signInConsentOutdated(let version, let retry):
+            // The refusal names the current version, so the step needs no request to show it.
+            state.consent.signInVersion = nil
+            state.consent.current = .loaded(version: version)
+            state.consent.signInRetry = retry
+
+        case .discardSignInConsent:
+            state.consent.signInVersion = nil
+            state.consent.current = .idle
         }
 
     case .retryFailedTasks:

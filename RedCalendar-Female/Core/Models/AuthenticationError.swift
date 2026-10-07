@@ -23,6 +23,7 @@ enum AuthenticationError: Error, LocalizedError, Equatable {
     case registrationFailed                       // Account creation failed
     case deviceIdStorageFailed                    // Signed in, but device_id never reached the keychain
     case emailVerificationFailed                  // Email verification failed
+    case consentInvalid                           // Consent version refused (SYNC.md §21.3)
     
     // Network/Server errors
     case networkError(String)                     // Network connectivity issues
@@ -53,6 +54,8 @@ enum AuthenticationError: Error, LocalizedError, Equatable {
             return String(localized: "AuthError.RegistrationFailed")
         case .emailVerificationFailed:
             return String(localized: "AuthError.EmailVerificationFailed")
+        case .consentInvalid:
+            return String(localized: "AuthError.ConsentInvalid")
         case .networkError(let message):
             return message
         case .serverError(let message):
@@ -74,6 +77,11 @@ extension AuthenticationError {
 
         case APIServiceError.serverError(let message):
             return .serverError(message)
+        // Ahead of the generic refusal: the server's own text names a request field, which says
+        // nothing to the person reading it. An outdated version normally never gets here — the
+        // sign-in shows the consent again instead — so this is the invalid one, a client bug.
+        case _ where ConsentRefusal(error) != nil:
+            return .consentInvalid
         // The refusal is carried whole now (see `APIServiceError.refused`), but nothing on the
         // sign-in paths tells one code from another — the message is what it always was.
         case APIServiceError.refused(let refusal):

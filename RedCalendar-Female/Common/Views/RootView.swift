@@ -21,6 +21,15 @@ struct RootView: View {
                 } else {
                     HomeView()
                 }
+            // The consent step comes before the migration, which is a sign-in like any other (SYNC.md
+            // §21.4), and has no way out: the 2.0 id stays in the keychain until the migration
+            // succeeds, so whatever happens here, the next launch lands back on this step.
+            case .migrating(let userId, nil) where store.state.consent.signInVersion == nil:
+                SignInConsentView { version in
+                    store.send(.consent(.agreeForSignIn(version: version)))
+                    store.send(.auth(.set(.migrating(userId: userId, error: nil))))
+                }
+                .background(Color("AppBackgroundColor"))
             case .migrating(let userId, let migrationError):
                 VStack(spacing: 16) {
                     if let migrationError {

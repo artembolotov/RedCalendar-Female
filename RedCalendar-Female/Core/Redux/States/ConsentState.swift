@@ -15,6 +15,16 @@ struct ConsentState: Equatable, Sendable {
     var required: Int?
     var current: Lookup = .idle
     var acceptance: Acceptance = .idle
+    /// The version accepted on the consent step before sign-in — email, phone or the 2.0 migration
+    /// (§21.4). While it is `nil` that step is what is on screen, and no sign-in request is sent.
+    /// Left in place once signed in, so the sheet sliding away does not flash the step again; the
+    /// sign-out that ends the session resets this whole state.
+    var signInVersion: Int?
+    /// The sign-in request a `CONSENT_OUTDATED` turned back, to be sent again unchanged — the same
+    /// code included — once the newer version is accepted. The server checks the version before
+    /// the code, so nothing of that request was spent. Also what tells the step to say the text
+    /// has changed.
+    var signInRetry: AuthState?
 
     enum Lookup: Equatable, Sendable {
         case idle

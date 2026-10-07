@@ -15,11 +15,24 @@ struct LoginView: View {
             Group {
                 if let authState = store.state.authState,
                    case .authenticating(let method) = authState {
-                    switch method {
-                    case .email(let emailState):
-                        emailAuthView(for: emailState)
-                    case .phone(let phoneState):
-                        phoneAuthView(for: phoneState)
+                    // First, and again if the text changes under a sign-in (SYNC.md §21.4). Phone
+                    // is reached from inside this sheet, so this one step covers both ways in.
+                    if store.state.consent.signInVersion == nil {
+                        SignInConsentView { version in
+                            // Read before agreeing, which clears it.
+                            let retry = store.state.consent.signInRetry
+                            store.send(.consent(.agreeForSignIn(version: version)))
+                            if let retry {
+                                store.send(.auth(.set(retry)))
+                            }
+                        }
+                    } else {
+                        switch method {
+                        case .email(let emailState):
+                            emailAuthView(for: emailState)
+                        case .phone(let phoneState):
+                            phoneAuthView(for: phoneState)
+                        }
                     }
                 }
             }

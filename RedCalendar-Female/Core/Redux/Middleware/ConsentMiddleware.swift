@@ -74,5 +74,10 @@ let consentMiddleware: Middleware = { state, action, dispatch in
     // new case here is a build error in this file.
     case .setRequired, .currentFetched, .currentFetchFailed, .accepted, .acceptRefused, .acceptFailed:
         break
+
+    // The sign-in step's bookkeeping. The requests that carry the version belong to
+    // `authMiddleware` and `migrationMiddleware`.
+    case .agreeForSignIn, .signInConsentOutdated, .discardSignInConsent:
+        break
     }
 }
