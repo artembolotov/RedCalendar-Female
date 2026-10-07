@@ -79,5 +79,8 @@ let consentMiddleware: Middleware = { state, action, dispatch in
     // `authMiddleware` and `migrationMiddleware`.
     case .agreeForSignIn, .signInConsentOutdated, .discardSignInConsent:
         break
+
+    case .setPromptEnabled:
+        break
     }
 }

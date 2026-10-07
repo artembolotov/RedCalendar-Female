@@ -314,6 +314,17 @@ func appReducer(state: AppState, action: AppAction) -> AppState {
         switch consentAction {
 
         case .setRequired(let version):
+            // A run that set off before the acceptance landed still names the version just
+            // accepted. It is the past, not a new question — the run the acceptance asked for
+            // follows it and says `null`.
+            if let version, state.consent.acceptance == .accepted(version: version) {
+                break
+            }
+            // A different version to accept is a fresh question; what became of the last answer
+            // is not this one's.
+            if version != state.consent.required {
+                state.consent.acceptance = .idle
+            }
             state.consent.required = version
 
         case .fetchCurrent:
@@ -330,9 +341,16 @@ func appReducer(state: AppState, action: AppAction) -> AppState {
 
         case .accepted(let version):
             state.consent.acceptance = .accepted(version: version)
+            if state.consent.required == version {
+                state.consent.required = nil
+            }
 
         case .acceptRefused(let refusal):
             state.consent.acceptance = .refused(refusal)
+            // The refusal names the version to accept now, which the next run would say too.
+            if case .outdated(let version) = refusal {
+                state.consent.required = version
+            }
 
         case .acceptFailed(let message):
             state.consent.acceptance = .failed(message)
@@ -350,6 +368,9 @@ func appReducer(state: AppState, action: AppAction) -> AppState {
         case .discardSignInConsent:
             state.consent.signInVersion = nil
             state.consent.current = .idle
+
+        case .setPromptEnabled(let enabled):
+            state.consent.promptEnabled = enabled
         }
 
     case .retryFailedTasks:

@@ -25,6 +25,10 @@ struct ConsentState: Equatable, Sendable {
     /// the code, so nothing of that request was spent. Also what tells the step to say the text
     /// has changed.
     var signInRetry: AuthState?
+    /// Whether `consent_required` puts `ConsentPromptView` on screen. Temporary: off until the
+    /// prompt has been checked on a device, switched on from Developer → Consent, and not kept
+    /// across launches.
+    var promptEnabled = false
 
     enum Lookup: Equatable, Sendable {
         case idle
