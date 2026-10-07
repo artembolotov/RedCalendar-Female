@@ -295,4 +295,15 @@ enum ConsentAction: Sendable {
     case accepted(version: Int)
     case acceptRefused(ConsentRefusal)
     case acceptFailed(String)
+
+    // The consent step before sign-in. Nothing is sent from here: the version travels in the
+    // sign-in request itself (§21.4).
+    /// The person agreed to `version` on the consent step.
+    case agreeForSignIn(version: Int)
+    /// A sign-in came back `CONSENT_OUTDATED`: show the step again with `version`, and send
+    /// `retry` once it is agreed to.
+    case signInConsentOutdated(version: Int, retry: AuthState)
+    /// The version the step agreed to was refused as invalid. Dropped, so the step asks again and
+    /// reads the current version afresh.
+    case discardSignInConsent
 }

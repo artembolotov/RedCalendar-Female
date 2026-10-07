@@ -61,6 +61,23 @@ let authMiddleware: Middleware = { state, action, dispatch in
 
                 case .registering(let email, let code, let name),
                      .verifying(let email, let code, let name):
+                    // Where the request goes back to: the code screen, with the code still in it.
+                    let editable: EmailAuthState = if case .registering = emailState {
+                        .registration(email: email, code: code, name: name)
+                    } else {
+                        .codeEntry(email: email, code: code, userName: name)
+                    }
+
+                    // `LoginView` shows the consent step until there is a version, so this is not
+                    // reachable from the screens — it is here so that no path can sign in
+                    // without one (SYNC.md §21.4). Back on the code screen with no version is the
+                    // consent step again.
+                    guard let consentVersion = state.consent.signInVersion else {
+                        AppLogger.error("Email sign-in asked for without a consent version")
+                        dispatch(.auth(.set(.authenticating(.email(editable)))))
+                        return
+                    }
+
                     Task {
                         do {
                             // For registering: pass the name, for verifying: pass nil
@@ -69,7 +86,8 @@ let authMiddleware: Middleware = { state, action, dispatch in
                             let response = try await apiService.verifyCode(
                                 email: email,
                                 code: code,
-                                name: nameToSend
+                                name: nameToSend,
+                                consentVersion: consentVersion
                             )
 
                             guard response.success, let data = response.data else {
@@ -105,6 +123,19 @@ let authMiddleware: Middleware = { state, action, dispatch in
                             ))))
 
                         } catch {
+                            // Checked by the server before the code, so the code is unspent: the
+                            // newer text is shown, and this very request goes again once it is
+                            // agreed to.
+                            if case .outdated(let version)? = ConsentRefusal(error) {
+                                AppLogger.info("Email sign-in: consent version \(consentVersion) is outdated, asking for \(version)")
+                                dispatch(.consent(.signInConsentOutdated(version: version, retry: authState)))
+                                dispatch(.auth(.set(.authenticating(.email(editable)))))
+                                return
+                            }
+                            if case .invalid? = ConsentRefusal(error) {
+                                AppLogger.error("Email sign-in: consent version \(consentVersion) refused as invalid", error: error)
+                            }
+
                             let authError = AuthenticationError.from(error)
 
                             // Return to appropriate error state based on original case
@@ -174,12 +205,30 @@ let authMiddleware: Middleware = { state, action, dispatch in
                     }
 
                 case .verifying(let prettyPhoneNumber, let e164PhoneNumber, let maskedCallerNumber, let requestId, let verificationCode):
+                    let editable = PhoneAuthState.verification(
+                        prettyPhoneNumber: prettyPhoneNumber,
+                        e164PhoneNumber: e164PhoneNumber,
+                        maskedCallerNumber: maskedCallerNumber,
+                        requestId: requestId
+                    )
+
+                    // Unreachable from the screens, for the reason given on the email path above.
+                    guard let consentVersion = state.consent.signInVersion else {
+                        AppLogger.error("Phone sign-in asked for without a consent version")
+                        dispatch(.auth(.set(.authenticating(.phone(editable)))))
+                        return
+                    }
+
                     Task {
                         let phoneState: PhoneAuthState
 
                         do {
                             // Call API to verify Flash Call code
-                            let response = try await apiService.verifyFlashCall(requestId: requestId, code: verificationCode)
+                            let response = try await apiService.verifyFlashCall(
+                                requestId: requestId,
+                                code: verificationCode,
+                                consentVersion: consentVersion
+                            )
 
                             guard response.success, let data = response.data else {
                                 throw APIServiceError.serverError(response.message ?? "Flash Call verification failed")
@@ -199,6 +248,18 @@ let authMiddleware: Middleware = { state, action, dispatch in
                             dispatch(.auth(.set(.authenticated(deviceId: data.deviceId))))
 
                         } catch {
+                            // The Flash Call attempt is unspent and its session still open (it
+                            // lives ten minutes), for the reason given on the email path above.
+                            if case .outdated(let version)? = ConsentRefusal(error) {
+                                AppLogger.info("Phone sign-in: consent version \(consentVersion) is outdated, asking for \(version)")
+                                dispatch(.consent(.signInConsentOutdated(version: version, retry: authState)))
+                                dispatch(.auth(.set(.authenticating(.phone(editable)))))
+                                return
+                            }
+                            if case .invalid? = ConsentRefusal(error) {
+                                AppLogger.error("Phone sign-in: consent version \(consentVersion) refused as invalid", error: error)
+                            }
+
                             // Verification failed - return to verification screen with error (not entry)
                             let authError = AuthenticationError.from(error)
                             phoneState = .verification(

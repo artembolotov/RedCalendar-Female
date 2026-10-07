@@ -11,6 +11,9 @@ import Foundation
 enum MigrationError: Error, LocalizedError, Equatable {
     case noUserIdFound
     case keychainSaveError
+    /// The consent version was refused as invalid (SYNC.md §21.3) — a client bug, worded for the
+    /// person rather than in the server's terms.
+    case consentInvalid
     case serverError(String)
     
     var errorDescription: String? {
@@ -19,6 +22,8 @@ enum MigrationError: Error, LocalizedError, Equatable {
             return String(localized: "MigrationError.NoUserIdFound")
         case .keychainSaveError:
             return String(localized: "MigrationError.KeychainSaveError")
+        case .consentInvalid:
+            return String(localized: "MigrationError.ConsentInvalid")
         case .serverError(let message):
             return message
         }
@@ -34,10 +39,14 @@ let migrationMiddleware: Middleware = { state, action, dispatch in
     // instead of switching exhaustively — a new `AuthAction` genuinely is none of its business.
     switch action {
     case .auth(.set(let authState)):
-        if case .migrating(let userId, let error) = authState, error == nil {
+        // No version, no request: `RootView` shows the consent step instead, and sends this same
+        // state again once it is agreed to (SYNC.md §21.4). The legacy id stays in the keychain
+        // all the while, so a launch that ends here comes back to the same step.
+        if case .migrating(let userId, let error) = authState, error == nil,
+           let consentVersion = state.consent.signInVersion {
             Task {
                 do {
-                    let response = try await apiService.migrateUser(userId: userId)
+                    let response = try await apiService.migrateUser(userId: userId, consentVersion: consentVersion)
                     
                     guard response.success, let data = response.data else {
                         throw MigrationError.serverError(response.message ?? String(localized: "MigrationError.Unknown"))
@@ -58,6 +67,27 @@ let migrationMiddleware: Middleware = { state, action, dispatch in
                     
                     dispatch(.auth(.set(.authenticated(deviceId: data.deviceId))))
                 } catch {
+                    // Both refusals come before anything else is done on the server, so the
+                    // migration can simply run again once there is a version it accepts.
+                    switch ConsentRefusal(error) {
+                    case .outdated(let version):
+                        // The state is still `.migrating` with no error, which with no version is
+                        // the consent step again.
+                        AppLogger.info("Migration: consent version \(consentVersion) is outdated, asking for \(version)")
+                        dispatch(.consent(.signInConsentOutdated(version: version, retry: authState)))
+                        return
+                    case .invalid:
+                        // Dropped as well as reported: there is no cancelling a migration, so
+                        // the retry has to lead back to the step rather than resend the same
+                        // version forever.
+                        AppLogger.error("Migration: consent version \(consentVersion) refused as invalid", error: error)
+                        dispatch(.consent(.discardSignInConsent))
+                        dispatch(.auth(.set(.migrating(userId: userId, error: .consentInvalid))))
+                        return
+                    case nil:
+                        break
+                    }
+
                     AppLogger.error("Migration failed", error: error)
                     // Not `AuthenticationError.from` — its `.unknownError` drops the message it
                     // is handed, and `RootView` renders exactly that description.

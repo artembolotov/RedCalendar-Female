@@ -182,7 +182,7 @@ Common/
 Features/
   Auth/
     Views/
-      WelcomeView, LoginView
+      WelcomeView, LoginView, SignInConsentView
       EmailAuth/ — EmailEntryView, CodeEntryView
       PhoneAuth/ — PhoneEntryView, FlashCallCodeEntryView
   Home/
