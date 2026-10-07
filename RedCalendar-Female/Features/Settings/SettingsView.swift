@@ -344,12 +344,6 @@ private struct DeveloperSectionView: View {
                 Spacer()
                 statusCircle(active: pushRegistered)
             }
-
-            NavigationLink {
-                ConsentDebugView()
-            } label: {
-                Text(verbatim: "Consent")
-            }
         } header: {
             Text(verbatim: "Developer")
         }

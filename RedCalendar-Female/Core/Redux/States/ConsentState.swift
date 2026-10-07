@@ -25,18 +25,13 @@ struct ConsentState: Equatable, Sendable {
     /// the code, so nothing of that request was spent. Also what tells the step to say the text
     /// has changed.
     var signInRetry: AuthState?
-    /// Whether `consent_required` puts `ConsentPromptView` on screen. Temporary: off until the
-    /// prompt has been checked on a device, switched on from Developer → Consent, and not kept
-    /// across launches.
-    var promptEnabled = false
 
     enum Lookup: Equatable, Sendable {
         case idle
         case loading
         case loaded(version: Int)
-        /// The error's description, for the log-shaped places that show it; the person's answer
-        /// to any of them is the same retry.
-        case failed(String)
+        /// Why is in the log; the person's answer to any of it is the same retry.
+        case failed
     }
 
     enum Acceptance: Equatable, Sendable {
@@ -44,6 +39,6 @@ struct ConsentState: Equatable, Sendable {
         case sending(version: Int)
         case accepted(version: Int)
         case refused(ConsentRefusal)
-        case failed(String)
+        case failed
     }
 }

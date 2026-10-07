@@ -333,8 +333,8 @@ func appReducer(state: AppState, action: AppAction) -> AppState {
         case .currentFetched(let version):
             state.consent.current = .loaded(version: version)
 
-        case .currentFetchFailed(let message):
-            state.consent.current = .failed(message)
+        case .currentFetchFailed:
+            state.consent.current = .failed
 
         case .accept(let version):
             state.consent.acceptance = .sending(version: version)
@@ -352,8 +352,8 @@ func appReducer(state: AppState, action: AppAction) -> AppState {
                 state.consent.required = version
             }
 
-        case .acceptFailed(let message):
-            state.consent.acceptance = .failed(message)
+        case .acceptFailed:
+            state.consent.acceptance = .failed
 
         case .agreeForSignIn(let version):
             state.consent.signInVersion = version
@@ -368,9 +368,6 @@ func appReducer(state: AppState, action: AppAction) -> AppState {
         case .discardSignInConsent:
             state.consent.signInVersion = nil
             state.consent.current = .idle
-
-        case .setPromptEnabled(let enabled):
-            state.consent.promptEnabled = enabled
         }
 
     case .retryFailedTasks:
