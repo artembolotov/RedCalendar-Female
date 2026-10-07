@@ -29,7 +29,7 @@ let consentMiddleware: Middleware = { state, action, dispatch in
 
             } catch {
                 AppLogger.error("Consent version request failed", error: error)
-                dispatch(.consent(.currentFetchFailed(error.localizedDescription)))
+                dispatch(.consent(.currentFetchFailed))
             }
         }
 
@@ -38,7 +38,7 @@ let consentMiddleware: Middleware = { state, action, dispatch in
         // so a missing session is answered rather than ignored — same as `devicesMiddleware`.
         guard let deviceId = state.deviceId else {
             AppLogger.warn("Consent acceptance asked for without a session")
-            dispatch(.consent(.acceptFailed("No session")))
+            dispatch(.consent(.acceptFailed))
             return
         }
 
@@ -65,7 +65,7 @@ let consentMiddleware: Middleware = { state, action, dispatch in
                     dispatch(.consent(.acceptRefused(refusal)))
                 } else {
                     AppLogger.error("Consent acceptance failed", error: error)
-                    dispatch(.consent(.acceptFailed(error.localizedDescription)))
+                    dispatch(.consent(.acceptFailed))
                 }
             }
         }
@@ -78,9 +78,6 @@ let consentMiddleware: Middleware = { state, action, dispatch in
     // The sign-in step's bookkeeping. The requests that carry the version belong to
     // `authMiddleware` and `migrationMiddleware`.
     case .agreeForSignIn, .signInConsentOutdated, .discardSignInConsent:
-        break
-
-    case .setPromptEnabled:
         break
     }
 }

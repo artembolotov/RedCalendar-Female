@@ -33,7 +33,8 @@ final class ConsentPromptTests: XCTestCase {
         XCTAssertNil(state.consent.required)
     }
 
-    /// Accepting some other version — the developer screen can — leaves the question standing.
+    /// An acceptance that lands after a run already asked for a newer version leaves that question
+    /// standing.
     func testAcceptingAnotherVersionLeavesThePrompt() {
         let state = appReducer(state: promptedState(for: 2), action: .consent(.accepted(version: 1)))
 
@@ -64,24 +65,20 @@ final class ConsentPromptTests: XCTestCase {
     /// against it. The same version again — every run repeats it — keeps what is on screen.
     func testANewVersionFromARunClearsTheLastAnswer() {
         var before = promptedState(for: 1)
-        before.consent.acceptance = .failed("offline")
+        before.consent.acceptance = .failed
 
         let same = appReducer(state: before, action: .consent(.setRequired(1)))
         let newer = appReducer(state: before, action: .consent(.setRequired(2)))
 
-        XCTAssertEqual(same.consent.acceptance, .failed("offline"))
+        XCTAssertEqual(same.consent.acceptance, .failed)
         XCTAssertEqual(newer.consent.acceptance, .idle)
         XCTAssertEqual(newer.consent.required, 2)
     }
 
-    /// The prompt is the previous account's question, and so is the switch that shows it.
+    /// The prompt is the previous account's question.
     func testSigningOutForgetsThePrompt() {
-        var before = promptedState(for: 1)
-        before.consent.promptEnabled = true
-
-        let state = appReducer(state: before, action: .auth(.set(.notAuthenticated)))
+        let state = appReducer(state: promptedState(for: 1), action: .auth(.set(.notAuthenticated)))
 
         XCTAssertNil(state.consent.required)
-        XCTAssertFalse(state.consent.promptEnabled)
     }
 }

@@ -18,7 +18,7 @@ struct RootView: View {
             case .authenticated(_, let isFreshRegistration):
                 if isFreshRegistration {
                     CycleOnboardingView()
-                } else if store.state.consent.promptEnabled, let version = store.state.consent.required {
+                } else if let version = store.state.consent.required {
                     ConsentPromptView(version: version)
                 } else {
                     HomeView()

@@ -289,14 +289,14 @@ enum ConsentAction: Sendable {
 
     case fetchCurrent
     case currentFetched(version: Int)
-    case currentFetchFailed(String)
+    case currentFetchFailed
 
     case accept(version: Int)
     /// The acceptance is on record. Also takes down the prompt for that version, without waiting
     /// for the run that will say the same.
     case accepted(version: Int)
     case acceptRefused(ConsentRefusal)
-    case acceptFailed(String)
+    case acceptFailed
 
     // The consent step before sign-in. Nothing is sent from here: the version travels in the
     // sign-in request itself (§21.4).
@@ -308,7 +308,4 @@ enum ConsentAction: Sendable {
     /// The version the step agreed to was refused as invalid. Dropped, so the step asks again and
     /// reads the current version afresh.
     case discardSignInConsent
-
-    /// Developer → Consent's switch for the prompt; see `ConsentState.promptEnabled`.
-    case setPromptEnabled(Bool)
 }
