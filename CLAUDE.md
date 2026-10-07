@@ -145,7 +145,7 @@ Core/
                  SyncPayload, SyncStorage, JSONValue, DirtyStamped, FlowLevelRecord,
                  CycleRecord, CycleRecord+Queries,
                  CommentRecord, UserTagRecord, DayTagsRecord, UserDevice,
-                 ConsentRefusal
+                 ConsentRefusal, AccountDeletedRefusal
   Redux/
     Actions/  — AppAction, plus the per-domain AuthAction/CalendarAction/DataAction/
                  SyncAction/PushAction/AnalyticsAction/AppearanceAction/DevicesAction/
