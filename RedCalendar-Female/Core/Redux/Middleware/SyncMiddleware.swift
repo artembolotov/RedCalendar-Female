@@ -289,6 +289,9 @@ final class SyncMiddleware {
                     return .noData
                 }
 
+                // Every response carries it, and the last one of the run is the current answer.
+                sink?(.consent(.setRequired(response.consentRequired)))
+
                 // Step 7 — one transaction, four ordered steps, and the cursor moves only if all
                 // of it committed.
                 try await dbService.applySync(

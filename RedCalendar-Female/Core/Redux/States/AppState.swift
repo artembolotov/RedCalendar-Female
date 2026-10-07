@@ -47,6 +47,9 @@ struct AppState: Equatable, Sendable {
     /// screen reads it, and nothing about it is stored: the list is server truth, fetched on
     /// every open, because a session that has gone is exactly what a cache would hide.
     var devices: DevicesState?
+    /// Consent to the processing of personal data (SYNC.md §21): the last sync run's
+    /// `consent_required`, and the requests that read and accept a version.
+    var consent: ConsentState = ConsentState()
 }
 
 extension AppState {

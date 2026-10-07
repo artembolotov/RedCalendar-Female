@@ -43,6 +43,8 @@ func appReducer(state: AppState, action: AppAction) -> AppState {
                 // The list belongs to the account that has just gone, and a revocation in flight
                 // was asked for on its behalf.
                 state.devices = nil
+                // `consent_required` was the previous account's answer.
+                state.consent = ConsentState()
             }
 
         case .logout, .deleteAccount:
@@ -306,6 +308,34 @@ func appReducer(state: AppState, action: AppAction) -> AppState {
 
         case .setAccentTheme(let theme):
             state.accentTheme = theme
+        }
+
+    case .consent(let consentAction):
+        switch consentAction {
+
+        case .setRequired(let version):
+            state.consent.required = version
+
+        case .fetchCurrent:
+            state.consent.current = .loading
+
+        case .currentFetched(let version):
+            state.consent.current = .loaded(version: version)
+
+        case .currentFetchFailed(let message):
+            state.consent.current = .failed(message)
+
+        case .accept(let version):
+            state.consent.acceptance = .sending(version: version)
+
+        case .accepted(let version):
+            state.consent.acceptance = .accepted(version: version)
+
+        case .acceptRefused(let refusal):
+            state.consent.acceptance = .refused(refusal)
+
+        case .acceptFailed(let message):
+            state.consent.acceptance = .failed(message)
         }
 
     case .retryFailedTasks:

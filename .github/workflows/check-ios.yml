@@ -1,0 +1,67 @@
+name: Check iOS
+
+# Build and unit tests for every branch but main, before it is merged. Nothing is signed or
+# uploaded here: main has build-ios.yml for that, and a merge there goes to TestFlight.
+on:
+  push:
+    branches-ignore: [ main ]
+    paths:
+      - 'RedCalendar-Female/**'
+      - 'RedCalendar-FemaleTests/**'
+      - 'RedCalendar-Female.xcodeproj/**'
+      - '.github/workflows/check-ios.yml'
+
+# A newer push to the same branch makes the run in progress moot.
+concurrency:
+  group: check-ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: macos-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Select Xcode version
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - uses: actions/checkout@v6
+
+      - name: Create empty Secrets.xcconfig
+        run: touch RedCalendar-Female/Secrets.xcconfig
+
+      # By id rather than by name: which iPhones a runner image carries changes with the image,
+      # and a hardcoded name fails the day it is dropped. The newest iOS runtime is taken, and
+      # the test target needs 17.0 or later.
+      - name: Pick a simulator
+        id: simulator
+        run: |
+          udid=$(xcrun simctl list devices available --json | python3 -c '
+          import json, re, sys
+          runtimes = json.load(sys.stdin)["devices"]
+          def version(key):
+              m = re.search(r"iOS-(\d+)-(\d+)", key)
+              return (int(m.group(1)), int(m.group(2))) if m else None
+          for key in sorted((k for k in runtimes if version(k)), key=version, reverse=True):
+              if version(key) < (17, 0):
+                  break
+              for device in runtimes[key]:
+                  if device["name"].startswith("iPhone"):
+                      print(device["udid"])
+                      sys.exit(0)
+          sys.exit("No iPhone simulator with iOS 17 or later")
+          ')
+          echo "Using simulator $udid"
+          echo "udid=$udid" >> "$GITHUB_OUTPUT"
+
+      - name: Build and test
+        run: |
+          xcodebuild test \
+            -project RedCalendar-Female.xcodeproj \
+            -scheme RedCalendar-Production \
+            -configuration Debug \
+            -destination "id=${{ steps.simulator.outputs.udid }}" \
+            -quiet \
+            CODE_SIGNING_ALLOWED=NO

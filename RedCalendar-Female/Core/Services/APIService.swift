@@ -36,6 +36,12 @@ protocol APIServiceProtocol: Sendable {
     /// the local database (§6), and a second path into it would skip that.
     func revokeDevice(deviceId: String, targetDeviceId: String) async throws -> RevokeDeviceResponse
     func sync(deviceId: String, request: SyncRequest) async throws -> SyncResponse
+    /// The consent version a sign-in has to carry (SYNC.md §21.3). No session needed: it is read
+    /// before there is one. The client keeps no number of its own and compares none — it sends
+    /// back exactly what this, or a sync run's `consent_required`, named.
+    func fetchConsentVersion() async throws -> ConsentResponse
+    /// Accepts `version` on behalf of the account this session belongs to (§21.5). Idempotent.
+    func acceptConsent(deviceId: String, version: Int) async throws -> ConsentResponse
 }
 
 // MARK: - Request Models
@@ -100,6 +106,10 @@ struct VerifyFlashCallRequest: Codable {
         case code
         case deviceModel = "device_model"
     }
+}
+
+struct ConsentRequest: Codable {
+    let version: Int
 }
 
 // MARK: - Response Models
@@ -301,6 +311,18 @@ struct EmailBindingConfirmResponse: Codable {
     }
 }
 
+/// The answer to both `GET` and `POST /auth/consent` (SYNC.md §21.3, §21.5).
+struct ConsentResponse: Codable {
+    let success: Bool
+    let data: ConsentData?
+    let message: String?
+    let timestamp: String
+
+    struct ConsentData: Codable {
+        let version: Int
+    }
+}
+
 struct APIError: Codable {
     let error: String        // Error code (e.g., "CODE_ALREADY_SENT")
     let message: String?     // Localized error message from server
@@ -310,6 +332,28 @@ struct APIError: Codable {
     let availableAfter: String?
     /// `INVALID_CODE` and `TOO_MANY_ATTEMPTS` only.
     let remainingAttempts: Int?
+    /// The envelope's own `data`, read only for what a refusal needs from it.
+    let data: RefusalData?
+
+    /// `CONSENT_OUTDATED` and `INVALID_CONSENT_VERSION` carry the current consent version here
+    /// (SYNC.md §21.3).
+    ///
+    /// Decoded leniently, because other refusals put other things under `data` and this whole
+    /// envelope is decoded with `try?`: a `data` of a shape this does not expect must cost only
+    /// this field, never the refusal around it — losing that would turn every such answer into a
+    /// bare `httpError`.
+    struct RefusalData: Codable {
+        let version: Int?
+
+        private enum CodingKeys: String, CodingKey {
+            case version
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try? decoder.container(keyedBy: CodingKeys.self)
+            version = try? container?.decodeIfPresent(Int.self, forKey: .version)
+        }
+    }
 }
 
 extension APIError {
@@ -665,6 +709,41 @@ final class APIService: APIServiceProtocol, Sendable {
         try validateHTTPResponse(response, data: data)
 
         return try JSONDecoder().decode(SyncResponse.self, from: data)
+    }
+
+    /// `Cache-Control: no-store` is the server's, and it is honoured here too: a cached number is
+    /// one the sign-in would be refused with.
+    func fetchConsentVersion() async throws -> ConsentResponse {
+        let url = URL(string: "\(baseURL)/auth/consent")!
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.cachePolicy = .reloadIgnoringLocalCacheData
+        addLanguageHeaders(to: &request)
+
+        let (data, response) = try await performRequest(request)
+
+        try validateHTTPResponse(response, data: data)
+
+        return try JSONDecoder().decode(ConsentResponse.self, from: data)
+    }
+
+    func acceptConsent(deviceId: String, version: Int) async throws -> ConsentResponse {
+        let url = URL(string: "\(baseURL)/auth/consent")!
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(deviceId)", forHTTPHeaderField: "Authorization")
+        addLanguageHeaders(to: &request)
+
+        request.httpBody = try JSONEncoder().encode(ConsentRequest(version: version))
+
+        let (data, response) = try await performRequest(request)
+
+        try validateHTTPResponse(response, data: data)
+
+        return try JSONDecoder().decode(ConsentResponse.self, from: data)
     }
 
     // MARK: - Private Methods
