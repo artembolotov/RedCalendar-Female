@@ -32,7 +32,15 @@ struct ConsentPromptView: View {
             // Above the form rather than over it: the form scrolls on a small screen or at a large
             // text size, and an overlay would sit on whatever scrolled under it and take its taps.
             HStack {
+                DelayedProgressView(
+                    isActive: isSending,
+                    appearDelayNanoseconds: Constants.Consent.indicatorAppearDelayNanoseconds,
+                    tint: store.state.accentTheme.accent
+                )
+                .padding(.horizontal)
+
                 Spacer()
+
                 menu
             }
 
@@ -93,8 +101,6 @@ struct ConsentPromptView: View {
     @ViewBuilder
     private var status: some View {
         switch acceptance {
-        case .sending:
-            ProgressView()
         // An invalid version is ours to fix, not the person's; what they can do is the same retry.
         case .failed, .refused(.invalid):
             Text("Consent.SendFailed.Message")
@@ -102,7 +108,9 @@ struct ConsentPromptView: View {
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 32)
-        case .idle, .accepted, .refused(.outdated):
+        // `.sending` is the spinner in the top row, not a view here: one put into the form and
+        // taken out again moved everything below it.
+        case .idle, .sending, .accepted, .refused(.outdated):
             EmptyView()
         }
     }

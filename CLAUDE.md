@@ -174,7 +174,8 @@ Core/
                  AppearanceService, DatabaseService (GRDB)
   Utils/      — Logger (AppLogger), DeviceModel
 Common/
-  Components/ — PrimaryButton, CloseButton, PhoneNumberKitField, FlowLayout, SupportEmailText
+  Components/ — PrimaryButton, CloseButton, PhoneNumberKitField, FlowLayout, SupportEmailText,
+                 DelayedProgressView
   Extensions/ — Bundle+AppInfo, String+Validation, View+AdaptiveShadow,
                  Color+AccentTheme, …
   Modifiers/  — FormFieldStyle

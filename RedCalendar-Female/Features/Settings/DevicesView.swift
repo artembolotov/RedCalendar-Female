@@ -18,18 +18,9 @@ import SwiftUI
 struct DevicesView: View {
     @EnvironmentObject var store: AppStore
 
-    /// What the trailing toolbar spinner actually draws. Deliberately not `devices.isLoading`
-    /// itself — `reconcileIndicator(isLoading:)` only flips this on once
-    /// `indicatorAppearDelayNanoseconds` has passed with the load still not answered, so a
-    /// request that resolves inside that window never draws a spinner at all. See
-    /// `SyncIndicatorView`, which the same scheme is copied from.
+    /// Whether the trailing spinner is actually drawn — not `devices.isLoading`, which it lags by
+    /// `DelayedProgressView`'s appear delay. Read only to hide the toolbar item's glass.
     @State private var isIndicatorVisible = false
-    @State private var indicatorAppearTask: Task<Void, Never>?
-
-    // Same duration and same reason as `SyncIndicatorView.fadeDuration`: a state change made
-    // from a `Task.sleep` resuming, rather than a direct SwiftUI event, is not reliably caught by
-    // an ambient `.animation(value:)` — wrapping the mutation itself in `withAnimation` is.
-    private let indicatorFadeDuration: TimeInterval = 0.2
 
     private var devices: DevicesState { store.state.devices ?? DevicesState() }
 
@@ -68,13 +59,15 @@ struct DevicesView: View {
         }
         .navigationTitle("Devices.Title")
         .navigationBarTitleDisplayMode(.inline)
-        .modifier(DevicesToolbar(isIndicatorVisible: isIndicatorVisible))
-        .onChange(of: devices.isLoading) { reconcileIndicator(isLoading: $0) }
+        .modifier(DevicesToolbar(isIndicatorVisible: isIndicatorVisible) {
+            DelayedProgressView(
+                isActive: devices.isLoading,
+                appearDelayNanoseconds: Constants.Devices.indicatorAppearDelayNanoseconds,
+                isVisible: $isIndicatorVisible
+            )
+        })
         .onAppear { store.send(.devices(.load)) }
-        .onDisappear {
-            store.send(.devices(.close))
-            indicatorAppearTask?.cancel()
-        }
+        .onDisappear { store.send(.devices(.close)) }
     }
 
     // MARK: - Private Views
@@ -117,29 +110,6 @@ struct DevicesView: View {
 
     // MARK: - Private Methods
 
-    /// Gates *appearing*, never disappearing — same rule as `SyncIndicatorView.reconcile(to:)`.
-    /// A load that finishes is applied immediately; a load that just started only draws a spinner
-    /// once it has been running long enough that showing one is worth the flash of chrome.
-    private func reconcileIndicator(isLoading: Bool) {
-        indicatorAppearTask?.cancel()
-        indicatorAppearTask = nil
-
-        guard isLoading else {
-            withAnimation(.easeInOut(duration: indicatorFadeDuration)) {
-                isIndicatorVisible = false
-            }
-            return
-        }
-
-        indicatorAppearTask = Task {
-            try? await Task.sleep(nanoseconds: Constants.Devices.indicatorAppearDelayNanoseconds)
-            guard !Task.isCancelled else { return }
-            withAnimation(.easeInOut(duration: indicatorFadeDuration)) {
-                isIndicatorVisible = true
-            }
-        }
-    }
-
     // This phone is online by definition — it is the one drawing the list, and the run that
     // filled it has just stamped its own row. Every other row is judged by how recently its own
     // run stamped it.
@@ -179,27 +149,24 @@ struct DevicesView: View {
 /// Same reason as `HomeToolbar` (`HomeView.swift`) — see its doc comment. `.sharedBackgroundVisibility`
 /// (iOS 26+) is a `ToolbarContent` modifier, not a `View` one, so hiding the system's "Liquid
 /// Glass" background at `.idle` needs the `if #available … else` to branch the `.toolbar {}` call
-/// itself; `ProgressView`'s own `.opacity(0)` never reaches that background, which is keyed off
+/// itself; the spinner's own `.opacity(0)` never reaches that background, which is keyed off
 /// whether the item has content at all, not off what that content currently renders as.
-private struct DevicesToolbar: ViewModifier {
+private struct DevicesToolbar<Indicator: View>: ViewModifier {
     let isIndicatorVisible: Bool
+    @ViewBuilder let indicator: Indicator
 
     func body(content: Content) -> some View {
         if #available(iOS 26.0, *) {
             content.toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    ProgressView()
-                        .opacity(isIndicatorVisible ? 1 : 0)
-                        .accessibilityHidden(!isIndicatorVisible)
+                    indicator
                 }
                 .sharedBackgroundVisibility(isIndicatorVisible ? .visible : .hidden)
             }
         } else {
             content.toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    ProgressView()
-                        .opacity(isIndicatorVisible ? 1 : 0)
-                        .accessibilityHidden(!isIndicatorVisible)
+                    indicator
                 }
             }
         }

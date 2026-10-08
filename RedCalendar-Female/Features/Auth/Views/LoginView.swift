@@ -18,7 +18,7 @@ struct LoginView: View {
                     // First, and again if the text changes under a sign-in (SYNC.md §21.4). Phone
                     // is reached from inside this sheet, so this one step covers both ways in.
                     if store.state.consent.signInVersion == nil {
-                        SignInConsentView { version in
+                        SignInConsentView(indicatorPlacement: .navigationBar) { version in
                             // Read before agreeing, which clears it.
                             let retry = store.state.consent.signInRetry
                             store.send(.consent(.agreeForSignIn(version: version)))

@@ -148,6 +148,13 @@ struct Constants {
         static let indicatorAppearDelayNanoseconds: UInt64 = 700_000_000
     }
 
+    struct Consent {
+        /// Same rationale as `Sync.indicatorAppearDelayNanoseconds`, and the same value: fetching
+        /// the current version and sending an acceptance are each one round trip, so a fast one
+        /// lands in the same hundreds-of-milliseconds range and never draws a spinner at all.
+        static let indicatorAppearDelayNanoseconds: UInt64 = 700_000_000
+    }
+
     struct Cycle {
         static let minCycleLength = 20
         static let maxCycleLength = 90
