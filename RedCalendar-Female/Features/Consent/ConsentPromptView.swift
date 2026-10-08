@@ -25,6 +25,8 @@ struct ConsentPromptView: View {
     /// What `consent_required` named, or what a `CONSENT_OUTDATED` named since.
     let version: Int
 
+    private var acceptance: ConsentState.Acceptance { store.state.consent.acceptance }
+
     var body: some View {
         VStack(spacing: 0) {
             // Above the form rather than over it: the form scrolls on a small screen or at a large
@@ -50,7 +52,7 @@ struct ConsentPromptView: View {
             // Whether a version was raised or a newer one landed while reading, the text the person
             // agreed to before is not the one in front of them now.
             isOutdated: true,
-            isReady: !store.state.consent.isSending,
+            isReady: !isSending,
             onAgree: {
                 store.send(.consent(.accept(version: version)))
             }
@@ -90,7 +92,7 @@ struct ConsentPromptView: View {
 
     @ViewBuilder
     private var status: some View {
-        switch store.state.consent.acceptance {
+        switch acceptance {
         case .sending:
             ProgressView()
         // An invalid version is ours to fix, not the person's; what they can do is the same retry.
@@ -103,5 +105,11 @@ struct ConsentPromptView: View {
         case .idle, .accepted, .refused(.outdated):
             EmptyView()
         }
+    }
+
+    // MARK: - Private Methods
+
+    private var isSending: Bool {
+        if case .sending = acceptance { true } else { false }
     }
 }
