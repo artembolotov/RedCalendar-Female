@@ -79,17 +79,15 @@ struct EmailEntryView: View {
                            Text("EmailEntry.LegacyPhone.Footer")
                                      
                            if error != nil {
-                               Text("EmailEntry.Support.Footer")
+                               SupportEmailText("EmailEntry.Support.Footer")
                            }
                        }
                        .font(.caption)
                        .foregroundColor(.secondary)
                        .multilineTextAlignment(.center)
                        .environment(\.openURL, OpenURLAction { url in
-                           switch url.absoluteString {
-                           case "phone": store.send(.auth(.set(.authenticating(.phone(.entry())))))
-                           case "email": UIApplication.shared.open(URL(string: "mailto:support@calendar.red")!)
-                           default: break
+                           if url.absoluteString == "phone" {
+                               store.send(.auth(.set(.authenticating(.phone(.entry())))))
                            }
                            return .handled
                        })

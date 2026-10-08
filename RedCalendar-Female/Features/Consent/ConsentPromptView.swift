@@ -28,6 +28,25 @@ struct ConsentPromptView: View {
     private var acceptance: ConsentState.Acceptance { store.state.consent.acceptance }
 
     var body: some View {
+        VStack(spacing: 0) {
+            // Above the form rather than over it: the form scrolls on a small screen or at a large
+            // text size, and an overlay would sit on whatever scrolled under it and take its taps.
+            HStack {
+                Spacer()
+                menu
+            }
+
+            form
+        }
+        .background(Color("AppBackgroundColor"))
+        .sheet(isPresented: $isPresentingDeleteAccount) {
+            DeleteAccountSheet()
+        }
+    }
+
+    // MARK: - Private Views
+
+    private var form: some View {
         ConsentFormView(
             accent: store.state.accentTheme.accent,
             // Whether a version was raised or a newer one landed while reading, the text the person
@@ -41,7 +60,7 @@ struct ConsentPromptView: View {
             VStack(spacing: 16) {
                 status
 
-                Text("Consent.Support.Footer")
+                SupportEmailText("Consent.Support.Footer")
                     .font(.footnote)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
@@ -50,30 +69,26 @@ struct ConsentPromptView: View {
         }
         // A newer version is a new agreement, so the switch starts off again.
         .id(version)
-        .overlay(alignment: .topTrailing) {
-            Menu {
-                Button("Consent.SignOut.Button") {
-                    store.send(.auth(.logout))
-                }
-
-                Button("Consent.DeleteAccount.Button", role: .destructive) {
-                    isPresentingDeleteAccount = true
-                }
-            } label: {
-                Image(systemName: "ellipsis.circle")
-                    .imageScale(.large)
-                    .foregroundColor(.secondary)
-                    .padding()
-            }
-            .accessibilityLabel(Text("Consent.More.A11y"))
-        }
-        .background(Color("AppBackgroundColor"))
-        .sheet(isPresented: $isPresentingDeleteAccount) {
-            DeleteAccountSheet()
-        }
     }
 
-    // MARK: - Private Views
+    private var menu: some View {
+        Menu {
+            Button("Consent.SignOut.Button") {
+                store.send(.auth(.logout))
+            }
+
+            Button("Consent.DeleteAccount.Button", role: .destructive) {
+                isPresentingDeleteAccount = true
+            }
+        } label: {
+            Image(systemName: "ellipsis.circle")
+                .imageScale(.large)
+                .foregroundColor(.secondary)
+                .padding()
+        }
+        .accessibilityLabel(Text("Consent.More.A11y"))
+        .disabled(store.state.sessionEnding != nil)
+    }
 
     @ViewBuilder
     private var status: some View {

@@ -35,7 +35,11 @@ struct DeleteAccountSheet: View {
 
                 Spacer()
 
-                PrimaryButton("DeleteAccount.Confirm.Button", accent: .red) {
+                PrimaryButton(
+                    "DeleteAccount.Confirm.Button",
+                    isEnabled: store.state.sessionEnding == nil,
+                    accent: .red
+                ) {
                     store.send(.auth(.deleteAccount))
                     dismiss()
                 }

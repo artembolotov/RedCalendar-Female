@@ -174,11 +174,11 @@ Core/
                  AppearanceService, DatabaseService (GRDB)
   Utils/      — Logger (AppLogger), DeviceModel
 Common/
-  Components/ — PrimaryButton, CloseButton, PhoneNumberKitField, FlowLayout
+  Components/ — PrimaryButton, CloseButton, PhoneNumberKitField, FlowLayout, SupportEmailText
   Extensions/ — Bundle+AppInfo, String+Validation, View+AdaptiveShadow,
                  Color+AccentTheme, …
   Modifiers/  — FormFieldStyle
-  Views/      — RootView, WaitingView
+  Views/      — RootView, WaitingView, DeleteAccountSheet
 Features/
   Auth/
     Views/
@@ -206,7 +206,7 @@ Feature folders own their own views and feature-specific models. Shared types go
 
 ### AppState
 
-`AppState` has eleven top-level fields:
+`AppState` has twelve top-level fields:
 
 ```swift
 struct AppState {
@@ -221,6 +221,7 @@ struct AppState {
     var emailBinding: EmailBindingState?      // the email binding/change screen, nil when closed
     var devices: DevicesState?                // the device list screen, nil when closed
     var consent: ConsentState                 // consent_required from the last sync, consent requests
+    var sessionEnding: SessionEnding?         // a sign-out or deletion asked for and not yet over
 }
 ```
 
@@ -1362,8 +1363,11 @@ Do not add new SPM packages without a clear reason.
 
 ## Status
 
-`SYNC.md` is written in Russian, and additions to it stay in Russian — it is the one repository
-file exempt from the English-only rule.
+Everything committed to this repository is written in English — code, identifiers, comments, log
+and error strings, commit messages, branch names, PR titles and descriptions, and documentation.
+User-facing text is not covered by this: it lives in `Localizable.xcstrings`, in both languages,
+and preview fixtures stay Russian (see Localization). `SYNC.md` is the one exception among
+documents: it is written in Russian, and additions to it stay in Russian.
 
 `SYNC.md` §12 is the source of truth for what has shipped and what hasn't — check it there rather
 than here before starting sync/storage work. As of this writing: CRUD for cycle data, the

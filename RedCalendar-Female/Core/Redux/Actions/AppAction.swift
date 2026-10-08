@@ -294,9 +294,9 @@ enum ConsentAction: Sendable {
     case accept(version: Int)
     /// The acceptance is on record. Also takes down the prompt for that version, without waiting
     /// for the run that will say the same.
-    case accepted(version: Int)
-    case acceptRefused(ConsentRefusal)
-    case acceptFailed
+    case accepted(version: Int, attempt: ConsentAttempt)
+    case acceptRefused(ConsentRefusal, attempt: ConsentAttempt)
+    case acceptFailed(attempt: ConsentAttempt)
 
     // The consent step before sign-in. Nothing is sent from here: the version travels in the
     // sign-in request itself (§21.4).

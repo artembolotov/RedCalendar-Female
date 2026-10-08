@@ -45,10 +45,18 @@ func appReducer(state: AppState, action: AppAction) -> AppState {
                 state.devices = nil
                 // `consent_required` was the previous account's answer.
                 state.consent = ConsentState()
+                state.sessionEnding = nil
             }
 
-        case .logout, .deleteAccount:
-            break
+        case .logout:
+            if state.sessionEnding == nil {
+                state.sessionEnding = .signOut
+            }
+
+        case .deleteAccount:
+            if state.sessionEnding == nil {
+                state.sessionEnding = .deletion
+            }
 
         case .completedRegistrationOnboarding:
             if case .authenticated(let deviceId, _) = state.authState {
@@ -337,15 +345,28 @@ func appReducer(state: AppState, action: AppAction) -> AppState {
             state.consent.current = .failed
 
         case .accept(let version):
-            state.consent.acceptance = .sending(version: version)
+            // Without a session there is nothing to send it with, and a `.sending` nobody will
+            // answer would hold the prompt's spinner for good.
+            if state.isAuthenticated {
+                state.consent.acceptance = .sending(version: version)
+            }
 
-        case .accepted(let version):
+        // An answer applies only while its own request is the one in flight. A sign-out since
+        // has reset this state for whoever signs in next, who may be another account with a
+        // request of their own by the time the answer lands; a run naming a newer version has
+        // asked a different question, which may already have been answered with another send.
+        case .accepted(_, let attempt) where !state.isAwaiting(attempt),
+             .acceptRefused(_, let attempt) where !state.isAwaiting(attempt),
+             .acceptFailed(let attempt) where !state.isAwaiting(attempt):
+            break
+
+        case .accepted(let version, _):
             state.consent.acceptance = .accepted(version: version)
             if state.consent.required == version {
                 state.consent.required = nil
             }
 
-        case .acceptRefused(let refusal):
+        case .acceptRefused(let refusal, _):
             state.consent.acceptance = .refused(refusal)
             // The refusal names the version to accept now, which the next run would say too.
             if case .outdated(let version) = refusal {

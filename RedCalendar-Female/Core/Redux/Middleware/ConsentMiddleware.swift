@@ -34,13 +34,13 @@ let consentMiddleware: Middleware = { state, action, dispatch in
         }
 
     case .accept(let version):
-        // The reducer has already shown the request as in flight; only an answer takes that back,
-        // so a missing session is answered rather than ignored — same as `devicesMiddleware`.
+        // The reducer does not mark a request without a session as in flight, so there is
+        // nothing to answer here.
         guard let deviceId = state.deviceId else {
             AppLogger.warn("Consent acceptance asked for without a session")
-            dispatch(.consent(.acceptFailed))
             return
         }
+        let attempt = ConsentAttempt(deviceId: deviceId, version: version)
 
         Task {
             do {
@@ -50,7 +50,7 @@ let consentMiddleware: Middleware = { state, action, dispatch in
                     throw APIServiceError.serverError(response.message ?? "Consent acceptance failed")
                 }
 
-                dispatch(.consent(.accepted(version: data.version)))
+                dispatch(.consent(.accepted(version: data.version, attempt: attempt)))
                 // `consent_required` comes back down only with a run.
                 dispatch(.sync(.requested(.consentAccepted)))
 
@@ -62,10 +62,10 @@ let consentMiddleware: Middleware = { state, action, dispatch in
                     } else {
                         AppLogger.info("Consent version \(version) is outdated")
                     }
-                    dispatch(.consent(.acceptRefused(refusal)))
+                    dispatch(.consent(.acceptRefused(refusal, attempt: attempt)))
                 } else {
                     AppLogger.error("Consent acceptance failed", error: error)
-                    dispatch(.consent(.acceptFailed))
+                    dispatch(.consent(.acceptFailed(attempt: attempt)))
                 }
             }
         }
