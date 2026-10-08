@@ -1787,18 +1787,34 @@
         }
       }
     },
-    "EmailCode.Name.Placeholder" : {
+    "EmailCode.Name.Footer" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "What should we call you? (optional)"
+            "value" : "Used in greetings and notifications. You can leave it empty."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Как к вам обращаться? (необязательно)"
+            "value" : "Используется в приветствии и уведомлениях. Можно не указывать."
+          }
+        }
+      }
+    },
+    "EmailCode.Name.Placeholder" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "What should we call you?"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Как к вам обращаться?"
           }
         }
       }

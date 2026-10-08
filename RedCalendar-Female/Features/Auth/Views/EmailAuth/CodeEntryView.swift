@@ -75,15 +75,23 @@ struct CodeEntryView: View {
                         .padding(.horizontal)
                     
                     if isRegistration {
-                        TextField("EmailCode.Name.Placeholder", text: $nameInput)
-                            .textContentType(.name)
-                            .submitLabel(.next)
-                            .autocorrectionDisabled()
-                            .focused($focusedField, equals: .name)
-                            .onSubmit {
-                                focusedField = .code
-                            }
-                            .formFieldStyle()
+                        VStack(alignment: .leading, spacing: 6) {
+                            TextField("EmailCode.Name.Placeholder", text: $nameInput)
+                                .textContentType(.name)
+                                .submitLabel(.next)
+                                .autocorrectionDisabled()
+                                .focused($focusedField, equals: .name)
+                                .onSubmit {
+                                    focusedField = .code
+                                }
+                                .formFieldStyle()
+
+                            Text("EmailCode.Name.Footer")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .padding(.horizontal, 4)
+                        }
                     }
                     
                     TextField("EmailCode.Code.Placeholder", text: $codeInput)
