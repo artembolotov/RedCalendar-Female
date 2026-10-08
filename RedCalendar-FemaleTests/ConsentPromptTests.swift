@@ -15,9 +15,16 @@ final class ConsentPromptTests: XCTestCase {
         return state
     }
 
+    /// The prompt for `version`, with an acceptance of `sent` on its way.
+    private func sentState(for version: Int, sending sent: Int? = nil) -> AppState {
+        var state = promptedState(for: version)
+        state.consent.acceptance = .sending(version: sent ?? version)
+        return state
+    }
+
     /// Taken down at once, rather than one run later.
     func testAnAcceptedVersionTakesThePromptDown() {
-        let state = appReducer(state: promptedState(for: 1), action: .consent(.accepted(version: 1)))
+        let state = appReducer(state: sentState(for: 1), action: .consent(.accepted(version: 1)))
 
         XCTAssertNil(state.consent.required)
         XCTAssertEqual(state.consent.acceptance, .accepted(version: 1))
@@ -26,7 +33,7 @@ final class ConsentPromptTests: XCTestCase {
     /// A run that was already under way when the acceptance landed still names the version; it must
     /// not put the prompt back up for the second before the next run says `null`.
     func testARunFromBeforeTheAcceptanceDoesNotBringThePromptBack() {
-        let accepted = appReducer(state: promptedState(for: 1), action: .consent(.accepted(version: 1)))
+        let accepted = appReducer(state: sentState(for: 1), action: .consent(.accepted(version: 1)))
 
         let state = appReducer(state: accepted, action: .consent(.setRequired(1)))
 
@@ -36,7 +43,7 @@ final class ConsentPromptTests: XCTestCase {
     /// An acceptance that lands after a run already asked for a newer version leaves that question
     /// standing.
     func testAcceptingAnotherVersionLeavesThePrompt() {
-        let state = appReducer(state: promptedState(for: 2), action: .consent(.accepted(version: 1)))
+        let state = appReducer(state: sentState(for: 2, sending: 1), action: .consent(.accepted(version: 1)))
 
         XCTAssertEqual(state.consent.required, 2)
     }
@@ -44,7 +51,7 @@ final class ConsentPromptTests: XCTestCase {
     /// A newer text came out while the person was reading: the prompt asks for that one instead.
     func testAnOutdatedRefusalAsksForTheNewerVersion() {
         let state = appReducer(
-            state: promptedState(for: 1),
+            state: sentState(for: 1),
             action: .consent(.acceptRefused(.outdated(version: 2)))
         )
 
@@ -54,7 +61,7 @@ final class ConsentPromptTests: XCTestCase {
 
     func testAnInvalidRefusalLeavesTheVersionAsked() {
         let state = appReducer(
-            state: promptedState(for: 1),
+            state: sentState(for: 1),
             action: .consent(.acceptRefused(.invalid(version: 1)))
         )
 
@@ -82,19 +89,25 @@ final class ConsentPromptTests: XCTestCase {
         XCTAssertNil(state.consent.required)
     }
 
-    /// An answer that lands after the sign-out belongs to the session that sent it, not to the
-    /// next one.
+    /// An answer that lands after the sign-out belongs to the session that sent it — not to the
+    /// signed-out state, and not to an account signed in since.
     func testAnAnswerAfterSigningOutIsDropped() {
-        let signedOut = appReducer(state: promptedState(for: 1), action: .auth(.set(.notAuthenticated)))
+        let signedOut = appReducer(state: sentState(for: 1), action: .auth(.set(.notAuthenticated)))
+        let signedInAgain = appReducer(
+            state: signedOut,
+            action: .auth(.set(.authenticated(deviceId: "device-2")))
+        )
 
-        for answer: ConsentAction in [
-            .accepted(version: 1),
-            .acceptRefused(.outdated(version: 2)),
-            .acceptFailed,
-        ] {
-            let state = appReducer(state: signedOut, action: .consent(answer))
+        for before in [signedOut, signedInAgain] {
+            for answer: ConsentAction in [
+                .accepted(version: 1),
+                .acceptRefused(.outdated(version: 2)),
+                .acceptFailed,
+            ] {
+                let state = appReducer(state: before, action: .consent(answer))
 
-            XCTAssertEqual(state.consent, signedOut.consent)
+                XCTAssertEqual(state.consent, before.consent)
+            }
         }
     }
 }

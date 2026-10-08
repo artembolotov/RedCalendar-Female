@@ -42,3 +42,9 @@ struct ConsentState: Equatable, Sendable {
         case failed
     }
 }
+
+extension ConsentState {
+    var isSending: Bool {
+        if case .sending = acceptance { true } else { false }
+    }
+}

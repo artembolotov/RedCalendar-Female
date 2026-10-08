@@ -30,8 +30,6 @@ struct ConsentPromptView: View {
     /// What `consent_required` named, or what a `CONSENT_OUTDATED` named since.
     let version: Int
 
-    private var acceptance: ConsentState.Acceptance { store.state.consent.acceptance }
-
     var body: some View {
         VStack(spacing: 0) {
             // Above the form rather than over it: the form scrolls on a small screen or at a large
@@ -57,9 +55,7 @@ struct ConsentPromptView: View {
             // Whether a version was raised or a newer one landed while reading, the text the person
             // agreed to before is not the one in front of them now.
             isOutdated: true,
-            // Agreeing during a sign-out is the same race from the other side: the answer would
-            // land on the signed-out state.
-            isReady: !isSending && !isSigningOut,
+            isReady: !store.state.consent.isSending,
             onAgree: {
                 store.send(.consent(.accept(version: version)))
             }
@@ -100,7 +96,7 @@ struct ConsentPromptView: View {
 
     @ViewBuilder
     private var status: some View {
-        switch acceptance {
+        switch store.state.consent.acceptance {
         case .sending:
             ProgressView()
         // An invalid version is ours to fix, not the person's; what they can do is the same retry.
@@ -117,16 +113,10 @@ struct ConsentPromptView: View {
 
     // MARK: - Private Methods
 
-    private var isSending: Bool {
-        if case .sending = acceptance { true } else { false }
-    }
-
-    /// Both ways out end in `.notAuthenticated`, which resets `ConsentState` and wipes the
-    /// database. So neither is offered while an acceptance is on its way — its answer would land
-    /// on the signed-out state and be read by the next account — nor while sync has local edits
-    /// it has not pushed yet, which the wipe would take with it.
+    /// Both ways out wipe the database, so neither is offered while sync has local edits it has
+    /// not pushed yet, which the wipe would take with it.
     private var isMenuDisabled: Bool {
-        if isSigningOut || isSending { return true }
+        if isSigningOut { return true }
         switch store.state.syncState {
         case .syncing, .pending: return true
         case .idle, .failed: return false
