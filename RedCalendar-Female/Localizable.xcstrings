@@ -702,13 +702,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Don't agree or have questions? Write to us at %@"
+            "value" : "Need help?\n%@"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Не согласны или есть вопросы? Напишите нам: %@"
+            "value" : "Нужна помощь?\n%@"
           }
         }
       }
@@ -1955,13 +1955,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Need help?\n %@"
+            "value" : "Need help?\n%@"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Нужна помощь?\n %@"
+            "value" : "Нужна помощь?\n%@"
           }
         }
       }
