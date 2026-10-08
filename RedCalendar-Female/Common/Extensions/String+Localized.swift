@@ -17,6 +17,10 @@ extension String {
     /// The format specifiers live in the translation, where a translator can move them: Russian
     /// and English do not put a name in the same place in a sentence.
     static func localized(_ key: String.LocalizationValue, _ arguments: any CVarArg...) -> String {
+        localized(key, arguments: arguments)
+    }
+
+    fileprivate static func localized(_ key: String.LocalizationValue, arguments: [any CVarArg]) -> String {
         String(format: String(localized: key), arguments: arguments)
     }
 }
@@ -26,7 +30,7 @@ extension AttributedString {
     /// Markdown only out of a `LocalizedStringKey`, and a string formatted after the lookup is no
     /// longer one.
     static func localized(_ key: String.LocalizationValue, _ arguments: any CVarArg...) -> AttributedString {
-        let string = String(format: String(localized: key), arguments: arguments)
+        let string = String.localized(key, arguments: arguments)
         let options = AttributedString.MarkdownParsingOptions(interpretedSyntax: .inlineOnlyPreservingWhitespace)
         return (try? AttributedString(markdown: string, options: options)) ?? AttributedString(string)
     }

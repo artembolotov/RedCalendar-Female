@@ -21,12 +21,6 @@ struct ConsentPromptView: View {
     @EnvironmentObject var store: AppStore
 
     @State private var isPresentingDeleteAccount = false
-    /// Set once a sign-out or a deletion is asked for. Nothing in the store says either is under
-    /// way until `.notAuthenticated` lands, and a deletion asked for after a sign-out would go out
-    /// under the device id that logout has just revoked — answered 401, taken for "already gone",
-    /// and the account never marked. Agreeing in between is no better: it is an answer for an
-    /// account that is on its way out.
-    @State private var isLeaving = false
 
     /// What `consent_required` named, or what a `CONSENT_OUTDATED` named since.
     let version: Int
@@ -44,7 +38,7 @@ struct ConsentPromptView: View {
         }
         .background(Color("AppBackgroundColor"))
         .sheet(isPresented: $isPresentingDeleteAccount) {
-            DeleteAccountSheet(onDelete: { isLeaving = true })
+            DeleteAccountSheet()
         }
     }
 
@@ -56,6 +50,7 @@ struct ConsentPromptView: View {
             // Whether a version was raised or a newer one landed while reading, the text the person
             // agreed to before is not the one in front of them now.
             isOutdated: true,
+            // Agreeing on the way out would be an answer for an account that is leaving.
             isReady: !store.state.consent.isSending && !isLeaving,
             onAgree: {
                 store.send(.consent(.accept(version: version)))
@@ -69,6 +64,14 @@ struct ConsentPromptView: View {
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 32)
+                    // The link targets the token `email` rather than a `mailto:` URL, which older
+                    // iOS versions break across lines wrongly; the address is opened from here.
+                    .environment(\.openURL, OpenURLAction { url in
+                        if url.absoluteString == "email" {
+                            UIApplication.shared.open(Constants.URLs.supportMail)
+                        }
+                        return .handled
+                    })
             }
         }
         // A newer version is a new agreement, so the switch starts off again.
@@ -78,7 +81,6 @@ struct ConsentPromptView: View {
     private var menu: some View {
         Menu {
             Button("Consent.SignOut.Button") {
-                isLeaving = true
                 store.send(.auth(.logout))
             }
 
@@ -110,5 +112,11 @@ struct ConsentPromptView: View {
         case .idle, .accepted, .refused(.outdated):
             EmptyView()
         }
+    }
+
+    // MARK: - Private Methods
+
+    private var isLeaving: Bool {
+        store.state.sessionEnding != nil
     }
 }

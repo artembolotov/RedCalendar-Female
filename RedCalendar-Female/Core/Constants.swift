@@ -10,6 +10,7 @@ struct Constants {
     struct URLs {
         static let appLink = "https://apps.apple.com/app/redcalendar-cycle-tracker/id1535523842"
         static let supportEmail = "support@calendar.red"
+        static var supportMail: URL { URL(string: "mailto:\(supportEmail)")! }
         static var api: String {
             Bundle.main.object(forInfoDictionaryKey: "API_BASE_URL") as! String
         }

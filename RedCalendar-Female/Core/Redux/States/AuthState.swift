@@ -18,3 +18,12 @@ enum AuthState: Equatable {
     case migrating(userId: String, error: MigrationError? = nil)
     case authenticating(AuthenticationMethod)
 }
+
+/// Which way out of the session is under way, between the request and the `.notAuthenticated`
+/// that ends it. The first one asked for is the one taken: a deletion asked for after a sign-out
+/// would go out under the device id that sign-out has just revoked, be answered 401 — read as
+/// "already gone" — and leave the account unmarked.
+enum SessionEnding: Equatable, Sendable {
+    case signOut
+    case deletion
+}

@@ -305,6 +305,10 @@ let authMiddleware: Middleware = { state, action, dispatch in
         // permission — both in `PushNotificationsMiddleware`, which watches this same case.
 
     case .logout:
+        // A deletion asked for first is already ending this session, and its request is the one
+        // that has to reach the server under this device id.
+        guard state.sessionEnding == .signOut else { return }
+
         if case .authenticated(let deviceId, _) = state.authState {
             Task {
                 // The sign-out happens whatever the server answers, **D4**. It used to happen
@@ -333,6 +337,10 @@ let authMiddleware: Middleware = { state, action, dispatch in
         }
 
     case .deleteAccount:
+        // A sign-out asked for first has revoked, or is revoking, the device id this request
+        // would go out under; the 401 it would get back reads as "already gone".
+        guard state.sessionEnding == .deletion else { return }
+
         if case .authenticated(let deviceId, _) = state.authState {
             Task {
                 // Same shape as `.logout` just above, and for the same reason (D4, SYNC.md

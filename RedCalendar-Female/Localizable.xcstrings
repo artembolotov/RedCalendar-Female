@@ -697,17 +697,18 @@
       }
     },
     "Consent.Support.Footer" : {
+      "comment" : "%@ is the support address. The link target `email` is read by the view — keep it as it is.",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Don't agree or have questions? Write to us at [%1$@](mailto:%1$@)"
+            "value" : "Don't agree or have questions? Write to us at [%@](email)"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Не согласны или есть вопросы? Напишите нам: [%1$@](mailto:%1$@)"
+            "value" : "Не согласны или есть вопросы? Напишите нам: [%@](email)"
           }
         }
       }
@@ -1949,17 +1950,18 @@
       }
     },
     "EmailEntry.Support.Footer" : {
+      "comment" : "%@ is the support address. The link target `email` is read by the view — keep it as it is.",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Need help?\n [%1$@](mailto:%1$@)"
+            "value" : "Need help?\n [%@](email)"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Нужна помощь?\n [%1$@](mailto:%1$@)"
+            "value" : "Нужна помощь?\n [%@](email)"
           }
         }
       }

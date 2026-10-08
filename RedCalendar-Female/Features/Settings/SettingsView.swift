@@ -83,6 +83,7 @@ struct SettingsView: View {
                         Button("Settings.SignOut.Button") {
                             store.send(.auth(.logout))
                         }
+                        .disabled(store.state.sessionEnding != nil)
                     }
                 }
                 .navigationTitle("Settings.Title")

@@ -86,8 +86,11 @@ struct EmailEntryView: View {
                        .foregroundColor(.secondary)
                        .multilineTextAlignment(.center)
                        .environment(\.openURL, OpenURLAction { url in
-                           guard url.absoluteString == "phone" else { return .systemAction }
-                           store.send(.auth(.set(.authenticating(.phone(.entry())))))
+                           switch url.absoluteString {
+                           case "phone": store.send(.auth(.set(.authenticating(.phone(.entry())))))
+                           case "email": UIApplication.shared.open(Constants.URLs.supportMail)
+                           default: break
+                           }
                            return .handled
                        })
                         

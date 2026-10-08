@@ -19,10 +19,6 @@ struct DeleteAccountSheet: View {
     @EnvironmentObject var store: AppStore
     @Environment(\.dismiss) private var dismiss
 
-    /// Told once the deletion is asked for, before the sheet goes. The screen underneath stays up
-    /// until the request answers, and has to know it is on its way out.
-    var onDelete: () -> Void = {}
-
     var body: some View {
         NavigationView {
             VStack(alignment: .leading, spacing: 20) {
@@ -39,8 +35,11 @@ struct DeleteAccountSheet: View {
 
                 Spacer()
 
-                PrimaryButton("DeleteAccount.Confirm.Button", accent: .red) {
-                    onDelete()
+                PrimaryButton(
+                    "DeleteAccount.Confirm.Button",
+                    isEnabled: store.state.sessionEnding == nil,
+                    accent: .red
+                ) {
                     store.send(.auth(.deleteAccount))
                     dismiss()
                 }

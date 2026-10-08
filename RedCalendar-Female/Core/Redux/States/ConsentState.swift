@@ -48,3 +48,18 @@ extension ConsentState {
         if case .sending = acceptance { true } else { false }
     }
 }
+
+/// Which request an answer from `POST /auth/consent` is the answer to. The request outlives the
+/// screen that sent it — a sign-out, another account signed in since, or a run naming a newer
+/// version can all come between — and only the session and the version it was sent with say
+/// whether it is still the one being waited on.
+struct ConsentAttempt: Equatable, Sendable {
+    let deviceId: String
+    let version: Int
+}
+
+extension AppState {
+    func isAwaiting(_ attempt: ConsentAttempt) -> Bool {
+        deviceId == attempt.deviceId && consent.acceptance == .sending(version: attempt.version)
+    }
+}

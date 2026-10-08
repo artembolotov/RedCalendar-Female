@@ -206,7 +206,7 @@ Feature folders own their own views and feature-specific models. Shared types go
 
 ### AppState
 
-`AppState` has eleven top-level fields:
+`AppState` has twelve top-level fields:
 
 ```swift
 struct AppState {
@@ -221,6 +221,7 @@ struct AppState {
     var emailBinding: EmailBindingState?      // the email binding/change screen, nil when closed
     var devices: DevicesState?                // the device list screen, nil when closed
     var consent: ConsentState                 // consent_required from the last sync, consent requests
+    var sessionEnding: SessionEnding?         // a sign-out or deletion asked for and not yet over
 }
 ```
 
