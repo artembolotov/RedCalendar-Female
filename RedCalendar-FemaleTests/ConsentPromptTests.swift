@@ -81,4 +81,20 @@ final class ConsentPromptTests: XCTestCase {
 
         XCTAssertNil(state.consent.required)
     }
+
+    /// An answer that lands after the sign-out belongs to the session that sent it, not to the
+    /// next one.
+    func testAnAnswerAfterSigningOutIsDropped() {
+        let signedOut = appReducer(state: promptedState(for: 1), action: .auth(.set(.notAuthenticated)))
+
+        for answer: ConsentAction in [
+            .accepted(version: 1),
+            .acceptRefused(.outdated(version: 2)),
+            .acceptFailed,
+        ] {
+            let state = appReducer(state: signedOut, action: .consent(answer))
+
+            XCTAssertEqual(state.consent, signedOut.consent)
+        }
+    }
 }

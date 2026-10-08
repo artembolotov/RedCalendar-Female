@@ -339,6 +339,14 @@ func appReducer(state: AppState, action: AppAction) -> AppState {
         case .accept(let version):
             state.consent.acceptance = .sending(version: version)
 
+        // The answer to a request sent for a session that has since ended — a sign-out or a
+        // deletion while it was in flight. The sign-out reset this state for whoever signs in
+        // next, and the answer is not theirs.
+        case .accepted where !state.isAuthenticated,
+             .acceptRefused where !state.isAuthenticated,
+             .acceptFailed where !state.isAuthenticated:
+            break
+
         case .accepted(let version):
             state.consent.acceptance = .accepted(version: version)
             if state.consent.required == version {
