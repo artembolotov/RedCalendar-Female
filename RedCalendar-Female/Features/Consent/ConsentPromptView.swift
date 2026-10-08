@@ -16,7 +16,7 @@ import SwiftUI
 ///
 /// Unlike the step before sign-in, this one is shown to someone who already has an account and
 /// data in it, so it says the text changed and leaves them a way out other than agreeing: the
-/// support address, and account deletion kept behind a menu.
+/// support address, and signing out or deleting the account, kept behind a menu.
 struct ConsentPromptView: View {
     @EnvironmentObject var store: AppStore
 
@@ -52,6 +52,10 @@ struct ConsentPromptView: View {
         .id(version)
         .overlay(alignment: .topTrailing) {
             Menu {
+                Button("Consent.SignOut.Button") {
+                    store.send(.auth(.logout))
+                }
+
                 Button("Consent.DeleteAccount.Button", role: .destructive) {
                     isPresentingDeleteAccount = true
                 }

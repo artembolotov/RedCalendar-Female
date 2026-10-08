@@ -664,6 +664,22 @@
         }
       }
     },
+    "Consent.SignOut.Button" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign out"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Выйти"
+          }
+        }
+      }
+    },
     "Consent.Subtitle" : {
       "localizations" : {
         "en" : {
