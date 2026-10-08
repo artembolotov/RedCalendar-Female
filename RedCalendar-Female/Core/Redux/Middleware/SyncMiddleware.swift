@@ -101,7 +101,10 @@ final class SyncMiddleware {
         case .auth(.set(.authenticated)):
             start(reason: .authenticated)
 
-        case .auth(.set(.notAuthenticated)), .auth(.logout):
+        // Deletion wipes the database exactly as a logout does (`DatabaseMiddleware`), and its
+        // `.notAuthenticated` waits on the server just the same — a run left going in between
+        // would fill the emptied database with the account the person just asked to delete.
+        case .auth(.set(.notAuthenticated)), .auth(.logout), .auth(.deleteAccount):
             sessionEpoch += 1
             cancelPendingWork()
 

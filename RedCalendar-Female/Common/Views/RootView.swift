@@ -11,7 +11,15 @@ struct RootView: View {
     @EnvironmentObject var store: AppStore
     
     var body: some View {
-        if let authState = store.state.authState {
+        // The sign-out that ends either one waits for the server's answer, up to a request
+        // timeout, and the screen it was asked from would otherwise sit there unchanged for all
+        // of it — reading as a request that never took. The data is already wiped by then, so
+        // nothing behind this screen is left to show anyway.
+        if let sessionEnding = store.state.sessionEnding {
+            WaitingView(sessionEnding == .deletion ? "DeleteAccount.Waiting.Message" : "SignOut.Waiting.Message")
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color("AppBackgroundColor"))
+        } else if let authState = store.state.authState {
             switch authState {
             case .notAuthenticated, .authenticating(_):
                 WelcomeView()
