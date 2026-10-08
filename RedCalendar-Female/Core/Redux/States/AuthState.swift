@@ -23,6 +23,12 @@ enum AuthState: Equatable {
 /// that ends it. The first one asked for is the one taken: a deletion asked for after a sign-out
 /// would go out under the device id that sign-out has just revoked, be answered 401 — read as
 /// "already gone" — and leave the account unmarked.
+///
+/// The screens that offer either one stop offering both while it is set, and `AuthMiddleware`
+/// ignores the other one if it arrives anyway. Nothing else checks it: the wipe and the rest of
+/// what `.logout` and `.deleteAccount` set off are the same for both, so a second action only
+/// repeats them. Neither does anything hold back a repeat of the *same* one, which can only come
+/// from a second tap inside the frame before the button is drawn disabled.
 enum SessionEnding: Equatable, Sendable {
     case signOut
     case deletion

@@ -51,6 +51,8 @@ let consentMiddleware: Middleware = { state, action, dispatch in
                 }
 
                 dispatch(.consent(.accepted(version: data.version, attempt: attempt)))
+                // `consent_required` comes back down only with a run.
+                dispatch(.sync(.requested(.consentAccepted)))
 
             } catch {
                 if let refusal = ConsentRefusal(error) {
@@ -68,17 +70,9 @@ let consentMiddleware: Middleware = { state, action, dispatch in
             }
         }
 
-    // `consent_required` comes back down only with a run — asked for here rather than next to
-    // the request, because only the state this answer produced says whether the reducer took it.
-    // One it dropped belongs to a session that is gone, and the run would be the next account's.
-    case .accepted(let version, let attempt):
-        if state.deviceId == attempt.deviceId, state.consent.acceptance == .accepted(version: version) {
-            dispatch(.sync(.requested(.consentAccepted)))
-        }
-
     // Answers: the reducer's, not this one's. Spelled out rather than swept into a `default`, so a
     // new case here is a build error in this file.
-    case .setRequired, .currentFetched, .currentFetchFailed, .acceptRefused, .acceptFailed:
+    case .setRequired, .currentFetched, .currentFetchFailed, .accepted, .acceptRefused, .acceptFailed:
         break
 
     // The sign-in step's bookkeeping. The requests that carry the version belong to

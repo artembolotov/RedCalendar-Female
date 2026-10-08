@@ -50,8 +50,7 @@ struct AppState: Equatable, Sendable {
     /// Consent to the processing of personal data (SYNC.md §21): the last sync run's
     /// `consent_required`, and the requests that read and accept a version.
     var consent: ConsentState = ConsentState()
-    /// A sign-out or a deletion asked for and not yet over, or `nil`. The screens that offer
-    /// either one stop offering both while it is set.
+    /// A sign-out or a deletion asked for and not yet over, or `nil` (see `SessionEnding`).
     var sessionEnding: SessionEnding?
 }
 

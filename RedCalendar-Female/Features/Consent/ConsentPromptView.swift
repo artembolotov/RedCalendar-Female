@@ -50,8 +50,7 @@ struct ConsentPromptView: View {
             // Whether a version was raised or a newer one landed while reading, the text the person
             // agreed to before is not the one in front of them now.
             isOutdated: true,
-            // Agreeing on the way out would be an answer for an account that is leaving.
-            isReady: !store.state.consent.isSending && !isLeaving,
+            isReady: !store.state.consent.isSending,
             onAgree: {
                 store.send(.consent(.accept(version: version)))
             }
@@ -59,19 +58,11 @@ struct ConsentPromptView: View {
             VStack(spacing: 16) {
                 status
 
-                Text(AttributedString.localized("Consent.Support.Footer", Constants.URLs.supportEmail))
+                SupportEmailText("Consent.Support.Footer")
                     .font(.footnote)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 32)
-                    // The link targets the token `email` rather than a `mailto:` URL, which older
-                    // iOS versions break across lines wrongly; the address is opened from here.
-                    .environment(\.openURL, OpenURLAction { url in
-                        if url.absoluteString == "email" {
-                            UIApplication.shared.open(Constants.URLs.supportMail)
-                        }
-                        return .handled
-                    })
             }
         }
         // A newer version is a new agreement, so the switch starts off again.
@@ -94,7 +85,7 @@ struct ConsentPromptView: View {
                 .padding()
         }
         .accessibilityLabel(Text("Consent.More.A11y"))
-        .disabled(isLeaving)
+        .disabled(store.state.sessionEnding != nil)
     }
 
     @ViewBuilder
@@ -112,11 +103,5 @@ struct ConsentPromptView: View {
         case .idle, .accepted, .refused(.outdated):
             EmptyView()
         }
-    }
-
-    // MARK: - Private Methods
-
-    private var isLeaving: Bool {
-        store.state.sessionEnding != nil
     }
 }
