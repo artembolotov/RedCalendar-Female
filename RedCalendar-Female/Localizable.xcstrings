@@ -701,13 +701,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Don't agree or have questions? Write to us at [support@calendar.red](mailto:support@calendar.red)"
+            "value" : "Don't agree or have questions? Write to us at [%1$@](mailto:%1$@)"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Не согласны или есть вопросы? Напишите нам: [support@calendar.red](mailto:support@calendar.red)"
+            "value" : "Не согласны или есть вопросы? Напишите нам: [%1$@](mailto:%1$@)"
           }
         }
       }
@@ -1954,13 +1954,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Need help?\n [support@calendar.red](email)"
+            "value" : "Need help?\n [%@](email)"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Нужна помощь?\n [support@calendar.red](email)"
+            "value" : "Нужна помощь?\n [%@](email)"
           }
         }
       }

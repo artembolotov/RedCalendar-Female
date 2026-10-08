@@ -178,7 +178,7 @@ Common/
   Extensions/ — Bundle+AppInfo, String+Validation, View+AdaptiveShadow,
                  Color+AccentTheme, …
   Modifiers/  — FormFieldStyle
-  Views/      — RootView, WaitingView
+  Views/      — RootView, WaitingView, DeleteAccountSheet
 Features/
   Auth/
     Views/
@@ -1362,8 +1362,11 @@ Do not add new SPM packages without a clear reason.
 
 ## Status
 
-`SYNC.md` is written in Russian, and additions to it stay in Russian — it is the one repository
-file exempt from the English-only rule.
+Everything committed to this repository is written in English — code, identifiers, comments, log
+and error strings, commit messages, branch names, PR titles and descriptions, and documentation.
+User-facing text is not covered by this: it lives in `Localizable.xcstrings`, in both languages
+(see Localization). `SYNC.md` is the one exception: it is written in Russian, and additions to it
+stay in Russian.
 
 `SYNC.md` §12 is the source of truth for what has shipped and what hasn't — check it there rather
 than here before starting sync/storage work. As of this writing: CRUD for cycle data, the

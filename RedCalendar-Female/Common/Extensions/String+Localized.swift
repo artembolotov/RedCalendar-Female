@@ -20,3 +20,14 @@ extension String {
         String(format: String(localized: key), arguments: arguments)
     }
 }
+
+extension AttributedString {
+    /// `String.localized(_:_:)` for a translation that carries a Markdown link. `Text` reads
+    /// Markdown only out of a `LocalizedStringKey`, and a string formatted after the lookup is no
+    /// longer one.
+    static func localized(_ key: String.LocalizationValue, _ arguments: any CVarArg...) -> AttributedString {
+        let string = String(format: String(localized: key), arguments: arguments)
+        let options = AttributedString.MarkdownParsingOptions(interpretedSyntax: .inlineOnlyPreservingWhitespace)
+        return (try? AttributedString(markdown: string, options: options)) ?? AttributedString(string)
+    }
+}
