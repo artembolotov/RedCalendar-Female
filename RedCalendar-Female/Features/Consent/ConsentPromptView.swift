@@ -13,8 +13,14 @@ import SwiftUI
 /// without a word; a screen in the root's place cannot be refused, and nothing gets past it. Sync
 /// goes on underneath all the while — the server does not block it (§21.3), and the run is what
 /// takes this screen down once the acceptance is on record.
+///
+/// Unlike the step before sign-in, this one is shown to someone who already has an account and
+/// data in it, so it says the text changed and leaves them a way out other than agreeing: the
+/// support address, and account deletion kept behind a menu.
 struct ConsentPromptView: View {
     @EnvironmentObject var store: AppStore
+
+    @State private var isPresentingDeleteAccount = false
 
     /// What `consent_required` named, or what a `CONSENT_OUTDATED` named since.
     let version: Int
@@ -24,17 +30,43 @@ struct ConsentPromptView: View {
     var body: some View {
         ConsentFormView(
             accent: store.state.accentTheme.accent,
-            isOutdated: isOutdated,
+            // Whether a version was raised or a newer one landed while reading, the text the person
+            // agreed to before is not the one in front of them now.
+            isOutdated: true,
             isReady: !isSending,
             onAgree: {
                 store.send(.consent(.accept(version: version)))
             }
         ) {
-            status
+            VStack(spacing: 16) {
+                status
+
+                Text("Consent.Support.Footer")
+                    .font(.footnote)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 32)
+            }
         }
         // A newer version is a new agreement, so the switch starts off again.
         .id(version)
+        .overlay(alignment: .topTrailing) {
+            Menu {
+                Button("Consent.DeleteAccount.Button", role: .destructive) {
+                    isPresentingDeleteAccount = true
+                }
+            } label: {
+                Image(systemName: "ellipsis.circle")
+                    .imageScale(.large)
+                    .foregroundColor(.secondary)
+                    .padding()
+            }
+            .accessibilityLabel(Text("Consent.More.A11y"))
+        }
         .background(Color("AppBackgroundColor"))
+        .sheet(isPresented: $isPresentingDeleteAccount) {
+            DeleteAccountSheet()
+        }
     }
 
     // MARK: - Private Views
@@ -60,9 +92,5 @@ struct ConsentPromptView: View {
 
     private var isSending: Bool {
         if case .sending = acceptance { true } else { false }
-    }
-
-    private var isOutdated: Bool {
-        if case .refused(.outdated) = acceptance { true } else { false }
     }
 }

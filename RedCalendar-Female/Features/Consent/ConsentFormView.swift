@@ -13,7 +13,7 @@ import SwiftUI
 /// whether there is something to agree to yet (`isReady`) and what to do once agreed.
 struct ConsentFormView<Status: View>: View {
     let accent: Color
-    /// The text changed while this person was reading it, and the form says so.
+    /// The text changed since this person last read or agreed to it, and the form says so.
     let isOutdated: Bool
     /// Off while there is no version to agree to, or while an answer is on its way.
     let isReady: Bool
