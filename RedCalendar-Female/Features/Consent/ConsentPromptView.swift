@@ -21,11 +21,12 @@ struct ConsentPromptView: View {
     @EnvironmentObject var store: AppStore
 
     @State private var isPresentingDeleteAccount = false
-    /// Set by the menu's own sign-out. Nothing in the store says a logout is under way until
-    /// `.notAuthenticated` lands, and a deletion asked for in between would go out under the
-    /// device id that logout has just revoked — answered 401, taken for "already gone", and the
-    /// account never marked.
-    @State private var isSigningOut = false
+    /// Set once a sign-out or a deletion is asked for. Nothing in the store says either is under
+    /// way until `.notAuthenticated` lands, and a deletion asked for after a sign-out would go out
+    /// under the device id that logout has just revoked — answered 401, taken for "already gone",
+    /// and the account never marked. Agreeing in between is no better: it is an answer for an
+    /// account that is on its way out.
+    @State private var isLeaving = false
 
     /// What `consent_required` named, or what a `CONSENT_OUTDATED` named since.
     let version: Int
@@ -43,7 +44,7 @@ struct ConsentPromptView: View {
         }
         .background(Color("AppBackgroundColor"))
         .sheet(isPresented: $isPresentingDeleteAccount) {
-            DeleteAccountSheet()
+            DeleteAccountSheet(onDelete: { isLeaving = true })
         }
     }
 
@@ -55,7 +56,7 @@ struct ConsentPromptView: View {
             // Whether a version was raised or a newer one landed while reading, the text the person
             // agreed to before is not the one in front of them now.
             isOutdated: true,
-            isReady: !store.state.consent.isSending,
+            isReady: !store.state.consent.isSending && !isLeaving,
             onAgree: {
                 store.send(.consent(.accept(version: version)))
             }
@@ -77,7 +78,7 @@ struct ConsentPromptView: View {
     private var menu: some View {
         Menu {
             Button("Consent.SignOut.Button") {
-                isSigningOut = true
+                isLeaving = true
                 store.send(.auth(.logout))
             }
 
@@ -91,7 +92,7 @@ struct ConsentPromptView: View {
                 .padding()
         }
         .accessibilityLabel(Text("Consent.More.A11y"))
-        .disabled(isMenuDisabled)
+        .disabled(isLeaving)
     }
 
     @ViewBuilder
@@ -108,18 +109,6 @@ struct ConsentPromptView: View {
                 .padding(.horizontal, 32)
         case .idle, .accepted, .refused(.outdated):
             EmptyView()
-        }
-    }
-
-    // MARK: - Private Methods
-
-    /// Both ways out wipe the database, so neither is offered while sync has local edits it has
-    /// not pushed yet, which the wipe would take with it.
-    private var isMenuDisabled: Bool {
-        if isSigningOut { return true }
-        switch store.state.syncState {
-        case .syncing, .pending: return true
-        case .idle, .failed: return false
         }
     }
 }

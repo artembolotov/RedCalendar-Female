@@ -1949,18 +1949,17 @@
       }
     },
     "EmailEntry.Support.Footer" : {
-      "comment" : "The link target `email` is read by the view — keep it as it is.",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Need help?\n [%@](email)"
+            "value" : "Need help?\n [%1$@](mailto:%1$@)"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Нужна помощь?\n [%@](email)"
+            "value" : "Нужна помощь?\n [%1$@](mailto:%1$@)"
           }
         }
       }
