@@ -57,7 +57,9 @@ struct ConsentPromptView: View {
             // Whether a version was raised or a newer one landed while reading, the text the person
             // agreed to before is not the one in front of them now.
             isOutdated: true,
-            isReady: !isSending,
+            // Agreeing during a sign-out is the same race from the other side: the answer would
+            // land on the signed-out state.
+            isReady: !isSending && !isSigningOut,
             onAgree: {
                 store.send(.consent(.accept(version: version)))
             }
