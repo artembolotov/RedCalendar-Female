@@ -1362,6 +1362,9 @@ Do not add new SPM packages without a clear reason.
 
 ## Status
 
+`SYNC.md` is written in Russian, and additions to it stay in Russian — it is the one repository
+file exempt from the English-only rule.
+
 `SYNC.md` §12 is the source of truth for what has shipped and what hasn't — check it there rather
 than here before starting sync/storage work. As of this writing: CRUD for cycle data, the
 tags/symptoms system, offline sync, the `api.calendar.red` endpoint, day tap interactions, and
