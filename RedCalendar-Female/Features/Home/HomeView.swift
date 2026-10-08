@@ -54,7 +54,15 @@ struct HomeView: View {
                         // over the calendar would animate the grid's own scroll offset on the
                         // frame of the tap, against the display link already driving it.
                         ZStack(alignment: .bottomLeading) {
-                            if let dayStamp = store.state.calendarState.selectedDayStamp {
+                            // Not before the calendar has handed over a ceiling. A selection can
+                            // outlive this view — the consent prompt replaces it and puts it back
+                            // with the day still selected — and a card mounted on the first pass
+                            // has no `maxDayCardHeight` to be held to: it lays itself out past the
+                            // screen, stretches the stack the calendar measures the screen in, and
+                            // the ceiling the calendar then works out from that stretched screen
+                            // keeps the card full-height for good.
+                            if let dayStamp = store.state.calendarState.selectedDayStamp,
+                               maxDayCardHeight.isFinite {
                                 DayDetailsPagerView(
                                     dayStamp: dayStamp,
                                     width: geometry.size.width,
@@ -70,7 +78,7 @@ struct HomeView: View {
                                 .id(detailsPresentation)
                                 .transition(.move(edge: .bottom))
                                 .zIndex(1)
-                            } else {
+                            } else if store.state.calendarState.selectedDayStamp == nil {
                                 FloatingAddButton(
                                     state: floatingButtonState,
                                     accent: store.state.accentTheme.accent,

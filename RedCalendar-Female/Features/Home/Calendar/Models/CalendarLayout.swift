@@ -58,8 +58,10 @@ struct CalendarLayout: Equatable {
     /// centring point up under the band, which is what let an unbounded multi-line comment grow
     /// the card to cover the whole screen.
     ///
-    /// `.infinity` before there is a calculator — the very first geometry pass, which no card can
-    /// be open during — so nothing is clipped against a limit that has no meaning yet.
+    /// `.infinity` before there is a calculator — the very first geometry pass — so nothing is
+    /// clipped against a limit that has no meaning yet. No card is mounted while it is: a
+    /// selection can already exist on that pass, and `HomeView` holds the card back until this is
+    /// finite (see the comment there).
     var maxCardHeight: CGFloat {
         guard weekHeight > 0, screenHeight > 0 else { return .infinity }
         return max(0, screenHeight - chromeHeight - weekHeight * CalendarConstants.minWeeksAboveCard)
