@@ -8,8 +8,20 @@ Tools/AppStoreScreenshots/capture.sh          # Russian
 Tools/AppStoreScreenshots/capture.sh ru en    # both languages
 ```
 
-The result lands in `Tools/AppStoreScreenshots/Output/<lang>/<light|dark>/NN-scene.png`
-(git-ignored), 1206×2622 on the iPhone 18 Pro simulator. One run takes about two minutes.
+The result lands in `Tools/AppStoreScreenshots/Output/<device>/<lang>/<light|dark>/NN-scene.png`
+(git-ignored): 1206×2622 on the iPhone 18 Pro simulator (the default). One run takes about two
+minutes per language.
+
+For the 4.7" size (750×1334), use the iPhone SE (3rd generation) — the same screen, home button
+and status bar as the iPhone 8. The iPhone 8 itself cannot run: its last iOS is 16, and Xcode 27
+no longer offers an iOS 16 simulator runtime. Create the SE once, then capture with it:
+
+```bash
+xcrun simctl create "iPhone SE (3rd generation)" com.apple.CoreSimulator.SimDeviceType.iPhone-SE-3rd-generation com.apple.CoreSimulator.SimRuntime.iOS-27-0
+```
+```bash
+DEVICE_NAME="iPhone SE (3rd generation)" Tools/AppStoreScreenshots/capture.sh ru en
+```
 
 ## What the script does
 
@@ -46,7 +58,7 @@ The result lands in `Tools/AppStoreScreenshots/Output/<lang>/<light|dark>/NN-sce
   medians are exactly 28 and 5. For perfectly identical cycles, set every value to 28 and 5.
 - 8 April is cycle day 15 and the predicted ovulation day, inside the fertile window. The next
   period is forecast for 22–26 April. Four past cycles have a confirmed ovulation.
-- 23 tags in four colour groups: symptoms (blue), mood (green), activity (teal),
+- 22 tags in four colour groups: symptoms (blue), mood (green), activity (teal),
   medications (purple). The two most recent cycles are tagged day by day; older ones follow a
   template.
 

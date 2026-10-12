@@ -244,7 +244,6 @@ enum ScreenshotMode {
         TagSeed(id: "energetic", category: .mood, ru: "Бодрость", en: "Energetic"),
         TagSeed(id: "happy", category: .mood, ru: "Радость", en: "Happy"),
         TagSeed(id: "irritable", category: .mood, ru: "Раздражительность", en: "Irritable"),
-        TagSeed(id: "anxious", category: .mood, ru: "Тревога", en: "Anxious"),
         TagSeed(id: "teary", category: .mood, ru: "Плаксивость", en: "Teary"),
 
         TagSeed(id: "yoga", category: .activity, ru: "Йога", en: "Yoga"),
@@ -275,13 +274,13 @@ enum ScreenshotMode {
         (day(2026, 3, 17), ["acne"]),
         (day(2026, 3, 19), ["breasts", "irritable"]),
         (day(2026, 3, 20), ["bloating", "irritable", "magnesium"]),
-        (day(2026, 3, 21), ["headache", "anxious", "painkiller"]),
+        (day(2026, 3, 21), ["headache", "irritable", "painkiller"]),
         (day(2026, 3, 23), ["breasts", "fatigue", "magnesium"]),
         (day(2026, 3, 24), ["cramps", "teary"]),
 
         // The current cycle (started 25 March).
         (day(2026, 3, 25), ["cramps", "fatigue", "painkiller"]),
-        (day(2026, 3, 26), ["cramps", "bloating", "teary", "painkiller", "iron"]),
+        (day(2026, 3, 26), ["cramps", "bloating", "teary", "painkiller"]),
         (day(2026, 3, 27), ["fatigue", "calm", "magnesium"]),
         (day(2026, 3, 28), ["walk", "calm", "iron"]),
         (day(2026, 3, 31), ["yoga", "energetic"]),

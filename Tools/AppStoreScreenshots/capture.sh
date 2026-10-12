@@ -5,6 +5,7 @@
 #   Tools/AppStoreScreenshots/capture.sh            # Russian
 #   Tools/AppStoreScreenshots/capture.sh ru en      # both languages
 #   SCENES="calendar tags" Tools/AppStoreScreenshots/capture.sh
+#   DEVICE_NAME="iPhone SE (3rd generation)" Tools/AppStoreScreenshots/capture.sh ru en
 #
 # The working tree is touched only for the length of the build: the hooks and ScreenshotMode.swift
 # go in, the app is built, and both come out again before anything is captured — also when the
@@ -24,7 +25,8 @@ BUNDLE_ID=ru.artembolotov.RedCalendar-Woman
 TARGET_FILE=$ROOT/RedCalendar-Female/App/ScreenshotMode.swift
 export DEVELOPER_DIR=${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}
 
-UDID=$(xcrun simctl list devices available | grep -E "^ +$DEVICE_NAME \(" | head -1 | sed -E 's/.*\(([0-9A-F-]{36})\).*/\1/')
+# A fixed string, not a pattern: device names carry parentheses ("iPhone SE (3rd generation)").
+UDID=$(xcrun simctl list devices available | grep -F -- " $DEVICE_NAME (" | head -1 | sed -E 's/.*\(([0-9A-F-]{36})\).*/\1/')
 if [[ -z $UDID ]]; then
     print -u2 "No available simulator named \"$DEVICE_NAME\"."
     exit 1
@@ -67,7 +69,8 @@ xcrun simctl boot "$UDID" 2>/dev/null || true
 xcrun simctl bootstatus "$UDID" -b >/dev/null
 xcrun simctl status_bar "$UDID" override \
     --time 9:41 --dataNetwork wifi --wifiMode active --wifiBars 3 \
-    --cellularMode active --cellularBars 4 --batteryState discharging --batteryLevel 100
+    --cellularMode active --cellularBars 4 --batteryState discharging --batteryLevel 100 \
+    --operatorName ""
 xcrun simctl install "$UDID" "$APP"
 
 launch() { # scene lang
@@ -105,11 +108,11 @@ for lang in $LANGS; do
         esac
 
         for appearance in light dark; do
-            mkdir -p "$OUTPUT/$lang/$appearance"
+            mkdir -p "$OUTPUT/$DEVICE_NAME/$lang/$appearance"
             xcrun simctl ui "$UDID" appearance $appearance
             sleep 2
-            xcrun simctl io "$UDID" screenshot "$OUTPUT/$lang/$appearance/$name" >/dev/null 2>&1
-            print "  $lang/$appearance/$name"
+            xcrun simctl io "$UDID" screenshot "$OUTPUT/$DEVICE_NAME/$lang/$appearance/$name" >/dev/null 2>&1
+            print "  $DEVICE_NAME/$lang/$appearance/$name"
         done
     done
 done
