@@ -1,0 +1,83 @@
+diff --git a/RedCalendar-Female/App/AppDelegate.swift b/RedCalendar-Female/App/AppDelegate.swift
+index a3f5463..77527a1 100644
+--- a/RedCalendar-Female/App/AppDelegate.swift
++++ b/RedCalendar-Female/App/AppDelegate.swift
+@@ -22,6 +22,11 @@ class AppDelegate: NSObject, UIApplicationDelegate {
+         // `fatalError` in `ServiceLocator` — so `setup()` goes first, exactly as the rule in
+         // CLAUDE.md ("nothing resolves a service at construction time") has always required. Only
+         // the place has moved.
++        if ScreenshotMode.isActive {
++            ScreenshotMode.launch()
++            return true
++        }
++
+         Configurator.shared.setup()
+ 
+         AppStore.shared.send(.auth(.check))
+diff --git a/RedCalendar-Female/App/Configurator.swift b/RedCalendar-Female/App/Configurator.swift
+index f801ccf..86844a1 100644
+--- a/RedCalendar-Female/App/Configurator.swift
++++ b/RedCalendar-Female/App/Configurator.swift
+@@ -34,6 +34,7 @@ final class Configurator {
+         let analytics: any AnalyticsServiceProtocol = AnalyticsService()
+         ServiceLocator.shared.addService(AnalyticsServiceProtocol.self, service: analytics)
+ 
++        guard !ScreenshotMode.isActive else { return }
+         analytics.registerApp()
+     }
+ 
+diff --git a/RedCalendar-Female/Core/Models/Daystamp.swift b/RedCalendar-Female/Core/Models/Daystamp.swift
+index 3cea890..1a4ff8d 100644
+--- a/RedCalendar-Female/Core/Models/Daystamp.swift
++++ b/RedCalendar-Female/Core/Models/Daystamp.swift
+@@ -70,6 +70,7 @@ struct Daystamp {
+     }
+ 
+     static func today(calendar: Calendar) -> Daystamp {
++        if let today = ScreenshotMode.today { return today }
+         return Daystamp(from: Date(), calendar: calendar)
+     }
+ }
+diff --git a/RedCalendar-Female/Core/Redux/AppMiddleware.swift b/RedCalendar-Female/Core/Redux/AppMiddleware.swift
+index 1bff1e3..59a811e 100644
+--- a/RedCalendar-Female/Core/Redux/AppMiddleware.swift
++++ b/RedCalendar-Female/Core/Redux/AppMiddleware.swift
+@@ -7,6 +7,7 @@
+ 
+ // MARK: - Create App Middleware
+ func combineAppMiddlewares() -> [Middleware] {
++    if ScreenshotMode.isActive { return ScreenshotMode.middlewares }
+     return [
+         loggerMiddleware,
+         authMiddleware,
+diff --git a/RedCalendar-Female/Features/Home/DayDetailsView.swift b/RedCalendar-Female/Features/Home/DayDetailsView.swift
+index f15ddcf..d471600 100644
+--- a/RedCalendar-Female/Features/Home/DayDetailsView.swift
++++ b/RedCalendar-Female/Features/Home/DayDetailsView.swift
+@@ -219,6 +219,14 @@ struct DayDetailsView: View {
+         .onPreferenceChange(DayCardClippedKey.self) { clipped in
+             isContentClipped = clipped
+         }
++        .task {
++            let isSelectedCard = isActive && store.state.calendarState.selectedDayStamp == dayStamp
++            switch await ScreenshotMode.daySheet(isSelectedCard: isSelectedCard) {
++            case .tags: showTagsSheet = true
++            case .comment: showCommentSheet = true
++            case nil: break
++            }
++        }
+     }
+ 
+     // MARK: - Pushed screens
+diff --git a/RedCalendar-Female/Features/Home/HomeView.swift b/RedCalendar-Female/Features/Home/HomeView.swift
+index f8d767c..9ee3334 100644
+--- a/RedCalendar-Female/Features/Home/HomeView.swift
++++ b/RedCalendar-Female/Features/Home/HomeView.swift
+@@ -187,6 +187,7 @@ struct HomeView: View {
+                 // that lands while the app is already running is the opposite: `onChange` sees the
+                 // transition and `onAppear` has already fired, long before.
+                 .onAppear(perform: openSettingsIfEmailPending)
++                .task { if let sheet = await ScreenshotMode.menuSheet() { menuSheet = sheet } }
+                 .onChange(of: store.state.emailBinding) { _ in openSettingsIfEmailPending() }
+             }
+         }
