@@ -417,7 +417,7 @@ private struct DayCardRootContent: View, @MainActor Equatable {
         return tagIds
             .compactMap { tagsById[$0] }
             .filter { $0.name != nil }
-            .sorted { ($0.category, $0.name ?? "") < ($1.category, $1.name ?? "") }
+            .sorted(by: UserTagRecord.areInDisplayOrder)
     }
 
     private func ovulationStatusLabel(_ ovulation: OvulationData?) -> LocalizedStringKey {

@@ -57,3 +57,24 @@ extension UserTagRecord {
         )
     }
 }
+
+extension UserTagRecord {
+    /// The order every screen draws tags in: by category, then by name the way Finder orders
+    /// file names — numbers by value, case ignored, letters in the user's own alphabet. Plain `<`
+    /// compares Unicode scalars, which puts "Ё" before "А", every lowercase name after every
+    /// capitalised one, and "10" before "2".
+    ///
+    /// One comparison for the day card, the picker and the settings list, so a tag keeps the
+    /// same neighbours in all three. The id breaks a tie between two equal names, which would
+    /// otherwise fall in whatever order the catalogue happened to arrive in.
+    static func areInDisplayOrder(_ lhs: UserTagRecord, _ rhs: UserTagRecord) -> Bool {
+        if lhs.category != rhs.category {
+            return lhs.category < rhs.category
+        }
+        switch (lhs.name ?? "").localizedStandardCompare(rhs.name ?? "") {
+        case .orderedAscending: return true
+        case .orderedDescending: return false
+        case .orderedSame: return lhs.id < rhs.id
+        }
+    }
+}

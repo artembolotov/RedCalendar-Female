@@ -260,7 +260,7 @@ struct TagsSheetView: View {
                 TagCategoryGroup(
                     category: entry.key,
                     tags: entry.value
-                        .sorted { ($0.name ?? "") < ($1.name ?? "") }
+                        .sorted(by: UserTagRecord.areInDisplayOrder)
                         .map { tag in
                             PickerTag(
                                 id: tag.id,

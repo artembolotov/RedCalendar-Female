@@ -145,7 +145,7 @@ struct TagsListView: View {
             .map { entry in
                 TagListSection(
                     category: entry.key,
-                    tags: entry.value.sorted { ($0.name ?? "") < ($1.name ?? "") }
+                    tags: entry.value.sorted(by: UserTagRecord.areInDisplayOrder)
                 )
             }
     }
