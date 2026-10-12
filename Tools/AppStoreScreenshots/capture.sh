@@ -5,7 +5,7 @@
 #   Tools/AppStoreScreenshots/capture.sh            # Russian
 #   Tools/AppStoreScreenshots/capture.sh ru en      # both languages
 #   SCENES="calendar tags" Tools/AppStoreScreenshots/capture.sh
-#   DEVICE_NAME="iPhone SE (3rd generation)" Tools/AppStoreScreenshots/capture.sh ru en
+#   DEVICE_NAME="iPhone 18 Pro Max" Tools/AppStoreScreenshots/capture.sh ru en
 #
 # The working tree is touched only for the length of the build: the hooks and ScreenshotMode.swift
 # go in, the app is built, and both come out again before anything is captured — also when the
@@ -25,7 +25,7 @@ BUNDLE_ID=ru.artembolotov.RedCalendar-Woman
 TARGET_FILE=$ROOT/RedCalendar-Female/App/ScreenshotMode.swift
 export DEVELOPER_DIR=${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}
 
-# A fixed string, not a pattern: device names carry parentheses ("iPhone SE (3rd generation)").
+# A fixed string, not a pattern: some device names carry parentheses ("iPhone SE (3rd generation)").
 UDID=$(xcrun simctl list devices available | grep -F -- " $DEVICE_NAME (" | head -1 | sed -E 's/.*\(([0-9A-F-]{36})\).*/\1/')
 if [[ -z $UDID ]]; then
     print -u2 "No available simulator named \"$DEVICE_NAME\"."

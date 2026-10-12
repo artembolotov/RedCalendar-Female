@@ -12,16 +12,7 @@ The result lands in `Tools/AppStoreScreenshots/Output/<device>/<lang>/<light|dar
 (git-ignored): 1206×2622 on the iPhone 18 Pro simulator (the default). One run takes about two
 minutes per language.
 
-For the 4.7" size (750×1334), use the iPhone SE (3rd generation) — the same screen, home button
-and status bar as the iPhone 8. The iPhone 8 itself cannot run: its last iOS is 16, and Xcode 27
-no longer offers an iOS 16 simulator runtime. Create the SE once, then capture with it:
-
-```bash
-xcrun simctl create "iPhone SE (3rd generation)" com.apple.CoreSimulator.SimDeviceType.iPhone-SE-3rd-generation com.apple.CoreSimulator.SimRuntime.iOS-27-0
-```
-```bash
-DEVICE_NAME="iPhone SE (3rd generation)" Tools/AppStoreScreenshots/capture.sh ru en
-```
+Another device is `DEVICE_NAME="…"` (see Options); its shots go under its own folder.
 
 ## What the script does
 
