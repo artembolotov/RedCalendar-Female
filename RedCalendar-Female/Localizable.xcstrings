@@ -3767,13 +3767,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Average cycle length"
+            "value" : "Cycle length"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Средняя длина цикла"
+            "value" : "Длина цикла"
           }
         }
       }
@@ -3863,13 +3863,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Average period length"
+            "value" : "Period length"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Средняя длительность месячных"
+            "value" : "Длительность месячных"
           }
         }
       }
